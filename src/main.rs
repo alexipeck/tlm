@@ -1,5 +1,5 @@
 //extern crate yaml_rust;
-use std::{ops::Deref, os::raw, process::Command}; //borrow::Cow,
+use std::{process::Command}; //borrow::Cow,
 use walkdir::WalkDir;
 
 fn exec(command: &str) -> String {
@@ -32,25 +32,33 @@ struct File {
 }
 
 fn main() {
-    //take in the path to every file in a directory
     //let command = r"find /mnt/nas/tvshows/ -name \*.\*";
     //let raw_structure = exec(command);
 
-    let mut raw_paths = Vec::new();
+    //tracked directories - avoid crossover, it will lead to duplicate entries
+    let mut tracked_root_directories: Vec<String> = Vec::new();
+    tracked_root_directories.push(String::from("/mnt/nas/tvshows/Breaking Bad/"));
+    tracked_root_directories.push(String::from("/mnt/nas/tvshows/Weeds/"));
 
-    for entry in WalkDir::new("/mnt/nas/tvshows/")
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        if entry.path().is_file() {
-            raw_paths.push(entry.into_path());
+    //import all files in tracked root directories
+    
+    let mut raw_filepaths = Vec::new();
+    for tracked_root_directory in tracked_root_directories {
+        for entry in WalkDir::new(tracked_root_directory)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if entry.path().is_file() {
+                raw_filepaths.push(entry.into_path());
+            }
         }
     }
+    
     let mut tracked_files: Vec<File> = Vec::new();
-    for raw_path in raw_paths {
+    for raw_filepath in raw_filepaths {
         let file = File {
-            parent_directory: String::from(raw_path.parent().unwrap().to_string_lossy() + "/"),
-            original_filename: String::from(raw_path.file_name().unwrap().to_string_lossy()),
+            parent_directory: String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/"),
+            original_filename: String::from(raw_filepath.file_name().unwrap().to_string_lossy()),
             //encoded_filename: ,
             //encoded_path: ,
             //path_depth: ,
