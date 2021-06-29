@@ -1,5 +1,6 @@
 //extern crate yaml_rust;
-use std::{process::Command}; //borrow::Cow,
+use regex::Regex;
+use std::process::Command; //borrow::Cow,
 use walkdir::WalkDir;
 
 fn exec(command: &str) -> String {
@@ -21,27 +22,48 @@ fn exec(command: &str) -> String {
     String::from_utf8_lossy(&buffer.stdout).to_string()
 }
 
-struct File {
+//generic content container, focus on video
+struct Content {
     parent_directory: String,
     original_filename: String,
-    //encoded_filename: &'d str,
-    //encoded_path: &'e str,
-    //path_depth: &'f u8,
+    show_title: String,
+    show_season_episode: (String, String),
     //versions: &'g Vec<FileVersion>,
     //hash
+    //metadata_dump
+}
+
+struct Season {
+    season: u8,
+    episodes: Vec<Content>,
+}
+
+struct Show {
+    title: String,
+    seasons: Vec<Season>,
+}
+
+
+fn rem_first_char(value: &str) -> &str {
+    let mut chars = value.chars();
+    chars.next();
+    chars.as_str()
+}
+
+//requires raw string expression
+fn re_strip(input: &String, expression: &str) -> String {
+    return String::from(rem_first_char(
+        Regex::new(expression).unwrap().find(input).unwrap().as_str(),
+    ));
 }
 
 fn main() {
-    //let command = r"find /mnt/nas/tvshows/ -name \*.\*";
-    //let raw_structure = exec(command);
-
     //tracked directories - avoid crossover, it will lead to duplicate entries
     let mut tracked_root_directories: Vec<String> = Vec::new();
-    tracked_root_directories.push(String::from("/mnt/nas/tvshows/Breaking Bad/"));
-    tracked_root_directories.push(String::from("/mnt/nas/tvshows/Weeds/"));
+    tracked_root_directories.push(String::from("/mnt/nas/tvshows/Breaking Bad/")); //manual entry
+    tracked_root_directories.push(String::from("/mnt/nas/tvshows/Weeds/")); //manual entry
 
     //import all files in tracked root directories
-    
     let mut raw_filepaths = Vec::new();
     for tracked_root_directory in tracked_root_directories {
         for entry in WalkDir::new(tracked_root_directory)
@@ -53,26 +75,54 @@ fn main() {
             }
         }
     }
-    
-    let mut tracked_files: Vec<File> = Vec::new();
+
+    //sort out filepaths into series and seasons
+    let mut shows: Vec<Show> = Vec::new();
+    let mut episodes: Vec<Content> = Vec::new();
     for raw_filepath in raw_filepaths {
-        let file = File {
+        let mut show_title = String::new();
+        let original_filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
+        for section in String::from(
+            raw_filepath
+                .parent()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .to_string_lossy(),
+        )
+        .split('/')
+        .rev()
+        {
+            show_title = String::from(section);
+            break;
+        }
+        
+        let season_episode_temp = re_strip(&original_filename, r"S[0-9]*E[0-9\-]*");
+
+        let mut se_iter = season_episode_temp.split('E');
+        let season_episode: (String, String) = (se_iter.next().unwrap().to_string(), se_iter.next().unwrap().to_string());
+
+        let content = Content {
             parent_directory: String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/"),
-            original_filename: String::from(raw_filepath.file_name().unwrap().to_string_lossy()),
-            //encoded_filename: ,
+            original_filename: original_filename,
+            show_title: show_title,
+            show_season_episode: season_episode,
+            //show_season_episode: (season, episode), //manual entry
             //encoded_path: ,
             //path_depth: ,
             //versions: ,
         };
-
-        //Saving
-        tracked_files.push(file);
+        episodes.push(content);
     }
 
-    for file in tracked_files {
+    //unify generic and episode naming (bring together)
+    for episode in episodes {
         println!(
-            "Parent: {} Filename: {}",
-            file.parent_directory, file.original_filename
+            "{}{} | {} | {}",
+            episode.parent_directory,
+            episode.original_filename,
+            episode.show_season_episode.0,
+            episode.show_season_episode.1
         );
     }
 
@@ -87,5 +137,4 @@ fn main() {
 
     //println!("Converting file to h265, no estimated time currently");
     //exec("ffmpeg -i W:/tlm/test_files/tf1.mp4 -c:v libx265 -crf 25 -preset slower -profile:v main -c:a aac -q:a 224k W:/tlm/test_files/tf1_h265.mp4");
-
 }
