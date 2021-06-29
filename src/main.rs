@@ -143,7 +143,7 @@ fn main() {
         }
         if !exists {
             let season = Season {
-                number: content.show_season_episode.1.parse::<u8>().unwrap(),
+                number: content.show_season_episode.0.parse::<u8>().unwrap(),
                 episodes: Vec::new()
             };
 
