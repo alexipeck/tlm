@@ -133,14 +133,16 @@ fn main() {
             current_show = shows.len() - 1;
         }
 
-        let mut exists = false;
-
-        for season in &shows[current_show].seasons {
+        exists = false;
+        let mut current_season: usize = 0;
+        for (i, season) in shows[current_show].seasons.iter().enumerate() {
             if season.number == content.show_season_episode.0.parse::<u8>().unwrap() {
                 exists = true;
+                current_season = i;
                 break;
             }
         }
+
         if !exists {
             let season = Season {
                 number: content.show_season_episode.0.parse::<u8>().unwrap(),
@@ -148,10 +150,10 @@ fn main() {
             };
 
             shows[current_show].seasons.push(season);
-        } else {
-            //if season already exists
-            
+            current_season = shows[current_show].seasons.len() - 1;
         }
+        
+        shows[current_show].seasons[current_season].episodes.push(content);
     }
 
     //unify generic and episode naming (bring together)
