@@ -113,33 +113,29 @@ fn main() {
             //versions: ,
         };
 
+        let mut current_show = 0;
         //show_title
         let mut exists = false;
-        for show in shows {
+        for (i, show) in shows.iter().enumerate() {
             if show.title == content.show_title {
                 exists = true;
+                current_show = i;
                 break;
             }
         }
+
         if !exists {
-            let mut show = Show {
-                title: content.show_title,
+            let show = Show {
+                title: content.show_title.clone(),
                 seasons: Vec::new(),
             };
             shows.push(show);
+            current_show = shows.len() - 1;
         }
 
         let mut exists = false;
 
-        let mut current_show: &mut Show;
-
-        for show in shows {
-            if show.title == content.show_title {
-                current_show = &mut show;
-            }
-        }
-
-        for season in current_show.seasons {
+        for season in &shows[current_show].seasons {
             if season.number == content.show_season_episode.0.parse::<u8>().unwrap() {
                 exists = true;
                 break;
@@ -151,7 +147,7 @@ fn main() {
                 episodes: Vec::new()
             };
 
-            current_show.seasons.push(season);
+            shows[current_show].seasons.push(season);
         } else {
             //if season already exists
             
@@ -160,7 +156,9 @@ fn main() {
 
     //unify generic and episode naming (bring together)
     for show in &shows {
+        println!("{}", show.title);
         for season in &show.seasons {
+            println!("{}", season.number);
             for episode in &season.episodes {
                 println!("{}{}",
                     episode.parent_directory,
