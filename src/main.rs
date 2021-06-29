@@ -179,15 +179,6 @@ fn main() {
     
     //unify generic and episode naming (bring together)
 
-    //parse out the title and store seperately
-
-    //parse out the directory and store seperately
-
-    //create simplified name of file, based on the title (only the title and episode id, no metadata)
-
-    //change the name of (mv) the original file to the identifier
-    //create a symlink of the file with it's original file name in another organised location, keeping the same folder structure it has before, ie, Castle->Season 1->Some Title.extension
-
     //println!("Converting file to h265, no estimated time currently");
     //exec("ffmpeg -i W:/tlm/test_files/tf1.mp4 -c:v libx265 -crf 25 -preset slower -profile:v main -c:a aac -q:a 224k W:/tlm/test_files/tf1_h265.mp4");
 }
