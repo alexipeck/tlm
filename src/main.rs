@@ -115,7 +115,7 @@ fn main() {
 
         //show_title
         let mut exists = false;
-        for show in &shows {
+        for show in shows {
             if show.title == content.show_title {
                 exists = true;
                 break;
@@ -131,14 +131,15 @@ fn main() {
 
         let mut exists = false;
 
-        let show_index: u16 = 0;
-        for (pos, show) in shows.iter().enumerate() {
-            if content.show_title == pos {
-                
+        let mut current_show: &mut Show;
+
+        for show in shows {
+            if show.title == content.show_title {
+                current_show = &mut show;
             }
         }
 
-        for season in &shows.seasons {
+        for season in current_show.seasons {
             if season.number == content.show_season_episode.0.parse::<u8>().unwrap() {
                 exists = true;
                 break;
@@ -150,7 +151,7 @@ fn main() {
                 episodes: Vec::new()
             };
 
-            show.seasons.push(season);
+            current_show.seasons.push(season);
         } else {
             //if season already exists
             
