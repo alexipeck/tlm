@@ -34,7 +34,7 @@ struct Content {
 }
 
 struct Season {
-    season: u8,
+    number: u8,
     episodes: Vec<Content>,
 }
 
@@ -78,7 +78,7 @@ fn main() {
 
     //sort out filepaths into series and seasons
     let mut shows: Vec<Show> = Vec::new();
-    let mut episodes: Vec<Content> = Vec::new();
+    
     for raw_filepath in raw_filepaths {
         let mut show_title = String::new();
         let original_filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
@@ -112,19 +112,51 @@ fn main() {
             //path_depth: ,
             //versions: ,
         };
-        episodes.push(content);
+
+        //show_title
+        let mut exists = false;
+        for show in &shows {
+            if show.title == content.show_title {
+                exists = true;
+                break;
+            }
+        }
+        if !exists {
+            let mut show = Show {
+                title: content.show_title,
+                seasons: Vec::new(),
+            };
+            
+            let mut exists = false;
+            for season in &show.seasons {
+                if season.number == content.show_season_episode.0.parse::<u8>().unwrap() {
+                    exists = true;
+                    break;
+                }
+            }
+            if !exists {
+                let season = Season {
+                    number: content.show_season_episode.1.parse::<u8>().unwrap(),
+                    episodes: Vec::new()
+                };
+
+                show.seasons.push(season);
+            }
+        }
     }
 
     //unify generic and episode naming (bring together)
-    for episode in episodes {
-        println!(
-            "{}{} | {} | {}",
-            episode.parent_directory,
-            episode.original_filename,
-            episode.show_season_episode.0,
-            episode.show_season_episode.1
-        );
+    for show in &shows {
+        for season in &show.seasons {
+            for episode in &season.episodes {
+                println!("{}{}",
+                    episode.parent_directory,
+                    episode.original_filename,
+                );
+            }
+        }
     }
+    
 
     //parse out the title and store seperately
 
