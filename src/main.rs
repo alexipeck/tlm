@@ -60,8 +60,8 @@ fn re_strip(input: &String, expression: &str) -> String {
 fn main() {
     //tracked directories - avoid crossover, it will lead to duplicate entries
     let mut tracked_root_directories: Vec<String> = Vec::new();
-    tracked_root_directories.push(String::from("/mnt/nas/tvshows/Breaking Bad/")); //manual entry
-    tracked_root_directories.push(String::from("/mnt/nas/tvshows/Weeds/")); //manual entry
+    tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
+    let allowed_extensions = vec!["mp4","mkv","MP4"];
 
     //import all files in tracked root directories
     let mut raw_filepaths = Vec::new();
@@ -71,7 +71,9 @@ fn main() {
             .filter_map(|e| e.ok())
         {
             if entry.path().is_file() {
-                raw_filepaths.push(entry.into_path());
+                if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap()) {
+                    raw_filepaths.push(entry.into_path());
+                }
             }
         }
     }
