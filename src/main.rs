@@ -27,10 +27,7 @@ struct Content {
     parent_directory: String,
     original_filename: String,
     show_title: String,
-    show_season: String,
-    //encoded_filename: &'d str,
-    //encoded_path: &'e str,
-    //path_depth: &'f u8,
+    show_season_episode: (String, String),
     //versions: &'g Vec<FileVersion>,
     //hash
     //metadata_dump
@@ -46,16 +43,21 @@ struct Show {
     seasons: Vec<Season>,
 }
 
+
 fn rem_first_char(value: &str) -> &str {
     let mut chars = value.chars();
     chars.next();
     chars.as_str()
 }
 
-fn main() {
-    //let command = r"find /mnt/nas/tvshows/ -name \*.\*";
-    //let raw_structure = exec(command);
+//requires raw string expression
+fn re_strip(input: &String, expression: &str) -> String {
+    return String::from(rem_first_char(
+        Regex::new(expression).unwrap().find(input).unwrap().as_str(),
+    ));
+}
 
+fn main() {
     //tracked directories - avoid crossover, it will lead to duplicate entries
     let mut tracked_root_directories: Vec<String> = Vec::new();
     tracked_root_directories.push(String::from("/mnt/nas/tvshows/Breaking Bad/")); //manual entry
@@ -75,7 +77,6 @@ fn main() {
     }
 
     //sort out filepaths into series and seasons
-    //seasons should be indexed starting from 1
     let mut shows: Vec<Show> = Vec::new();
     let mut episodes: Vec<Content> = Vec::new();
     for raw_filepath in raw_filepaths {
@@ -95,20 +96,21 @@ fn main() {
             show_title = String::from(section);
             break;
         }
-        let re_season = Regex::new(r"S[0-9]*").unwrap();
-        let season = String::from(rem_first_char(
-            re_season.find(&original_filename).unwrap().as_str(),
-        ));
+        
+        let season_episode_temp = re_strip(&original_filename, r"S[0-9]*E[0-9\-]*");
+
+        let mut se_iter = season_episode_temp.split('E');
+        let season_episode: (String, String) = (se_iter.next().unwrap().to_string(), se_iter.next().unwrap().to_string());
 
         let content = Content {
             parent_directory: String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/"),
             original_filename: original_filename,
             show_title: show_title,
-            show_season: season, //manual entry
-                                 //encoded_filename: ,
-                                 //encoded_path: ,
-                                 //path_depth: ,
-                                 //versions: ,
+            show_season_episode: season_episode,
+            //show_season_episode: (season, episode), //manual entry
+            //encoded_path: ,
+            //path_depth: ,
+            //versions: ,
         };
         episodes.push(content);
     }
@@ -116,34 +118,13 @@ fn main() {
     //unify generic and episode naming (bring together)
     for episode in episodes {
         println!(
-            "{}{}{}{}",
+            "{}{} | {} | {}",
             episode.parent_directory,
             episode.original_filename,
-            episode.show_title,
-            episode.show_season
+            episode.show_season_episode.0,
+            episode.show_season_episode.1
         );
     }
-
-    /*
-    //check all parents of parents of files and add to 'shows' vector if it doesn't already exist
-    let mut tracked_filepaths: Vec<Content> = Vec::new();
-    for raw_filepath in raw_filepaths {
-        let content = Content {
-            parent_directory: String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/"),
-            original_filename: String::from(raw_filepath.file_name().unwrap().to_string_lossy()),
-            //encoded_filename: ,
-            //encoded_path: ,
-            //path_depth: ,
-            //versions: ,
-        };
-
-        //Saving
-        tracked_filepaths.push(content);
-    }
-
-    for file in tracked_filepaths {
-        println!("{}{}", file.parent_directory, file.original_filename);
-    }*/
 
     //parse out the title and store seperately
 
