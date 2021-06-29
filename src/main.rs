@@ -126,22 +126,34 @@ fn main() {
                 title: content.show_title,
                 seasons: Vec::new(),
             };
-            
-            let mut exists = false;
-            for season in &show.seasons {
-                if season.number == content.show_season_episode.0.parse::<u8>().unwrap() {
-                    exists = true;
-                    break;
-                }
-            }
-            if !exists {
-                let season = Season {
-                    number: content.show_season_episode.1.parse::<u8>().unwrap(),
-                    episodes: Vec::new()
-                };
+            shows.push(show);
+        }
 
-                show.seasons.push(season);
+        let mut exists = false;
+
+        let show_index: u16 = 0;
+        for (pos, show) in shows.iter().enumerate() {
+            if content.show_title == pos {
+                
             }
+        }
+
+        for season in &shows.seasons {
+            if season.number == content.show_season_episode.0.parse::<u8>().unwrap() {
+                exists = true;
+                break;
+            }
+        }
+        if !exists {
+            let season = Season {
+                number: content.show_season_episode.1.parse::<u8>().unwrap(),
+                episodes: Vec::new()
+            };
+
+            show.seasons.push(season);
+        } else {
+            //if season already exists
+            
         }
     }
 
