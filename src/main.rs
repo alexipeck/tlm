@@ -1,6 +1,6 @@
 //extern crate yaml_rust;
 use regex::Regex;
-use std::process::Command; //borrow::Cow,
+use std::{process::Command, thread::current}; //borrow::Cow,
 use walkdir::WalkDir;
 
 fn exec(command: &str) -> String {
@@ -79,9 +79,13 @@ fn main() {
     //sort out filepaths into series and seasons
     let mut shows: Vec<Show> = Vec::new();
     
+    //loop through all paths
     for raw_filepath in raw_filepaths {
-        let mut show_title = String::new();
+        //prepare original_filename
         let original_filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
+        
+        //prepare title
+        let mut show_title = String::new();
         for section in String::from(
             raw_filepath
                 .parent()
@@ -97,24 +101,23 @@ fn main() {
             break;
         }
         
+        //prepare season and episode number
         let season_episode_temp = re_strip(&original_filename, r"S[0-9]*E[0-9\-]*");
-
         let mut se_iter = season_episode_temp.split('E');
         let season_episode: (String, String) = (se_iter.next().unwrap().to_string(), se_iter.next().unwrap().to_string());
 
+        //dumping prepared values into Content struct
         let content = Content {
             parent_directory: String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/"),
             original_filename: original_filename,
             show_title: show_title,
             show_season_episode: season_episode,
-            //show_season_episode: (season, episode), //manual entry
-            //encoded_path: ,
-            //path_depth: ,
-            //versions: ,
         };
 
+        //index of the current show in the shows vector
         let mut current_show = 0;
-        //show_title
+
+        //determine whether the show exists in the shows vector, if it does, it saves the index
         let mut exists = false;
         for (i, show) in shows.iter().enumerate() {
             if show.title == content.show_title {
@@ -124,6 +127,7 @@ fn main() {
             }
         }
 
+        //if the show doesn't exist in the vector, it creates it, and saves the index
         if !exists {
             let show = Show {
                 title: content.show_title.clone(),
@@ -133,8 +137,9 @@ fn main() {
             current_show = shows.len() - 1;
         }
 
+        //determines whether the season exists in the seasons vector of the current show, if it does, it saves the index
         exists = false;
-        let mut current_season: usize = 0;
+        let mut current_season: usize = 0;//content.show_season_episode.0.parse::<usize>().unwrap()
         for (i, season) in shows[current_show].seasons.iter().enumerate() {
             if season.number == content.show_season_episode.0.parse::<u8>().unwrap() {
                 exists = true;
@@ -143,6 +148,7 @@ fn main() {
             }
         }
 
+        //if the season doesn't exist in the current show's seasons vector, it creates it
         if !exists {
             let season = Season {
                 number: content.show_season_episode.0.parse::<u8>().unwrap(),
@@ -150,17 +156,18 @@ fn main() {
             };
 
             shows[current_show].seasons.push(season);
+            
             current_season = shows[current_show].seasons.len() - 1;
         }
         
+        //push episode to current season
         shows[current_show].seasons[current_season].episodes.push(content);
     }
 
-    //unify generic and episode naming (bring together)
     for show in &shows {
-        println!("{}", show.title);
+        //println!("{}", show.title);
         for season in &show.seasons {
-            println!("{}", season.number);
+            //println!("{}", season.number);
             for episode in &season.episodes {
                 println!("{}{}",
                     episode.parent_directory,
@@ -170,6 +177,7 @@ fn main() {
         }
     }
     
+    //unify generic and episode naming (bring together)
 
     //parse out the title and store seperately
 
