@@ -93,6 +93,13 @@ fn main() {
     } else {
         tracked_root_directories.push(String::from("T:/")); //manual entry
     }
+
+    //ignored directories
+    //currently works on both linux and windows
+    let mut ignored_paths: Vec<String> = Vec::new();
+    ignored_paths.push(String::from(".recycle_bin"));
+
+    //allowed video extensions
     let allowed_extensions = vec!["mp4","mkv","MP4"];
 
     //import all files in tracked root directories
@@ -115,6 +122,16 @@ fn main() {
     
     //loop through all paths
     for raw_filepath in raw_filepaths {
+        let mut ignore = false;
+        for ignored_path in &ignored_paths {
+            if raw_filepath.to_string_lossy().contains(ignored_path) {
+                ignore = true;
+            }
+        }
+        if ignore {
+            break;
+        }
+        
         //prepare original_filename
         let original_filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
         
