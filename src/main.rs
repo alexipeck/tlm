@@ -1,5 +1,6 @@
 //extern crate yaml_rust;
 use regex::Regex;
+use std::path::MAIN_SEPARATOR;
 use std::{process::Command}; //borrow::Cow, thread::current,
 use walkdir::WalkDir;
 use twox_hash::xxh3;
@@ -37,6 +38,7 @@ fn exec(command: &str) -> String {
 }
 
 //generic content container, focus on video
+#[derive(Clone)]
 struct Content {
     parent_directory: String,
     original_filename: String,
@@ -86,7 +88,11 @@ fn main() {
 
     //tracked directories - avoid crossover, it will lead to duplicate entries
     let mut tracked_root_directories: Vec<String> = Vec::new();
-    tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
+    if !cfg!(target_os = "windows") {
+        tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
+    } else {
+        tracked_root_directories.push(String::from("T:/")); //manual entry
+    }
     let allowed_extensions = vec!["mp4","mkv","MP4"];
 
     //import all files in tracked root directories
@@ -192,10 +198,16 @@ fn main() {
         }
         
         //push episode to current season
-        shows[current_show].seasons[current_season].episodes.push(content);
+        shows[current_show].seasons[current_season].episodes.push(content.clone());
+        queue.main_queue.push(content);
     }
 
-
+    for content in queue.main_queue {
+        println!("{}{}", 
+            content.parent_directory,
+            content.original_filename
+        );
+    }
 
     if false {
         for show in &shows {
@@ -213,6 +225,8 @@ fn main() {
     }
     
     
+    //add to db by filename, allowing the same file to be retargeted in another directory, without losing track of all the data associated with the episode
+
     //unify generic and episode naming (bring together)
 
     //println!("Converting file to h265, no estimated time currently");
