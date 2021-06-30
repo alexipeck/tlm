@@ -123,9 +123,11 @@ fn main() {
     //loop through all paths
     for raw_filepath in raw_filepaths {
         let mut ignore = false;
+        let current_filepath = raw_filepath.to_string_lossy();
         for ignored_path in &ignored_paths {
-            if raw_filepath.to_string_lossy().contains(ignored_path) {
+            if current_filepath.contains(ignored_path) {
                 ignore = true;
+                break;
             }
         }
         if ignore {
@@ -217,6 +219,13 @@ fn main() {
         //push episode to current season
         shows[current_show].seasons[current_season].episodes.push(content.clone());
         queue.main_queue.push(content);
+    }
+
+    for content in queue.priority_queue {
+        println!("{}{}", 
+            content.parent_directory,
+            content.original_filename
+        );
     }
 
     for content in queue.main_queue {
