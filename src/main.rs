@@ -2,6 +2,20 @@
 use regex::Regex;
 use std::{process::Command}; //borrow::Cow, thread::current,
 use walkdir::WalkDir;
+use twox_hash::xxh3;
+use std::fs;
+use std::io::BufReader;
+use std::path::PathBuf;
+use std::time::Instant;
+
+fn hash_file(path: PathBuf) -> u64 {
+    println!("Hashing: {}...", path.display());
+    let timer = Instant::now();
+    let hash = xxh3::hash64(&fs::read(path.to_str().unwrap()).unwrap());
+    println!("Took: {}ms", timer.elapsed().as_millis());
+    println!("Hash was: {}", hash);
+    hash
+}
 
 fn exec(command: &str) -> String {
     let buffer;
@@ -29,8 +43,8 @@ struct Content {
     show_title: String,
     show_season_episode: (String, String),
     reserved_status_by: (bool, String),
+    hash: Option<u64>,
     //versions: Vec<FileVersion>,
-    //hash
     //metadata_dump
 }
 
@@ -127,6 +141,8 @@ fn main() {
             show_title: show_title,
             show_season_episode: season_episode,
             reserved_status_by: (false, String::new()),
+            hash: None,
+            //hash: Some(hash_file(raw_filepath)),
         };
 
         //index of the current show in the shows vector
