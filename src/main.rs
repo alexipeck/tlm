@@ -40,6 +40,7 @@ fn exec(command: &str) -> String {
 //generic content container, focus on video
 #[derive(Clone)]
 struct Content {
+    uid: usize,
     parent_directory: String,
     filename: String,
     show_title: String,
@@ -51,13 +52,35 @@ struct Content {
 }
 
 //doesn't handle errors correctly
-fn prioritise_content(queue: &mut Queue, filenames: Vec<String>) {
+fn prioritise_content_by_title(queue: &mut Queue, filenames: Vec<String>) {
     for _ in 0..filenames.len() {
         let mut index: usize = 0;
         let mut found = false;
         for content in &queue.main_queue {
             for filename in &filenames {
                 if content.filename == *filename {
+                    found = true;
+                    break;
+                }
+            }
+            if found {
+                break;
+            }
+            index += 1;
+        }
+        if found {
+            queue.priority_queue.push(queue.main_queue.remove(index));
+        }
+    }
+}
+
+fn prioritise_content_by_uid(queue: &mut Queue, uids: Vec<usize>) {
+    for _ in 0..uids.len() {
+        let mut index: usize = 0;
+        let mut found = false;
+        for content in &queue.main_queue {
+            for uid in &uids {
+                if content.uid == *uid {
                     found = true;
                     break;
                 }
@@ -103,6 +126,9 @@ struct Queue {
 }
 
 fn main() {
+    //Content UID
+    let mut next_available_UID: usize = 0;
+    
     //Queue
     let mut queue = Queue {
         priority_queue: Vec::new(),
@@ -184,6 +210,7 @@ fn main() {
 
         //dumping prepared values into Content struct
         let content = Content {
+            uid: next_available_UID,
             parent_directory: String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/"),
             filename: filename,
             show_title: show_title,
@@ -192,6 +219,7 @@ fn main() {
             hash: None,
             //hash: Some(hash_file(raw_filepath)),
         };
+        next_available_UID += 1;
 
         //index of the current show in the shows vector
         let mut current_show = 0;
@@ -248,7 +276,13 @@ fn main() {
     filenames.push(String::from(r"Weeds - S08E11 - God Willing and the Creek Don't Rise Bluray-1080p.mkv"));
     filenames.push(String::from(r"Weeds - S08E12-13 - It's Time Bluray-1080p.mkv"));
 
-    prioritise_content(&mut queue, filenames.clone());
+    let mut uids: Vec<usize> = Vec::new();
+    uids.push(10);
+    uids.push(22);
+    uids.push(35);
+
+    prioritise_content_by_title(&mut queue, filenames.clone());
+    prioritise_content_by_uid(&mut queue, uids.clone());
     
     for content in queue.priority_queue {
         println!("{}{}", 
