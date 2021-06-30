@@ -41,13 +41,36 @@ fn exec(command: &str) -> String {
 #[derive(Clone)]
 struct Content {
     parent_directory: String,
-    original_filename: String,
+    filename: String,
     show_title: String,
     show_season_episode: (String, String),
     reserved_status_by: (bool, String),
     hash: Option<u64>,
     //versions: Vec<FileVersion>,
     //metadata_dump
+}
+
+//doesn't handle errors correctly
+fn prioritise_content(queue: &mut Queue, filenames: Vec<String>) {
+    for _ in 0..filenames.len() {
+        let mut index: usize = 0;
+        let mut found = false;
+        for content in &queue.main_queue {
+            for filename in &filenames {
+                if content.filename == *filename {
+                    found = true;
+                    break;
+                }
+            }
+            if found {
+                break;
+            }
+            index += 1;
+        }
+        if found {
+            queue.priority_queue.push(queue.main_queue.remove(index));
+        }
+    }
 }
 
 struct Season {
@@ -134,8 +157,8 @@ fn main() {
             break;
         }
         
-        //prepare original_filename
-        let original_filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
+        //prepare filename
+        let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
         
         //prepare title
         let mut show_title = String::new();
@@ -155,14 +178,14 @@ fn main() {
         }
         
         //prepare season and episode number
-        let season_episode_temp = re_strip(&original_filename, r"S[0-9]*E[0-9\-]*");
+        let season_episode_temp = re_strip(&filename, r"S[0-9]*E[0-9\-]*");
         let mut se_iter = season_episode_temp.split('E');
         let season_episode: (String, String) = (se_iter.next().unwrap().to_string(), se_iter.next().unwrap().to_string());
 
         //dumping prepared values into Content struct
         let content = Content {
             parent_directory: String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/"),
-            original_filename: original_filename,
+            filename: filename,
             show_title: show_title,
             show_season_episode: season_episode,
             reserved_status_by: (false, String::new()),
@@ -220,18 +243,24 @@ fn main() {
         shows[current_show].seasons[current_season].episodes.push(content.clone());
         queue.main_queue.push(content);
     }
+    let mut filenames: Vec<String> = Vec::new();
+    filenames.push(String::from(r"Weeds - S08E10 - Threshold Bluray-1080p.mkv"));
+    filenames.push(String::from(r"Weeds - S08E11 - God Willing and the Creek Don't Rise Bluray-1080p.mkv"));
+    filenames.push(String::from(r"Weeds - S08E12-13 - It's Time Bluray-1080p.mkv"));
 
+    prioritise_content(&mut queue, filenames.clone());
+    
     for content in queue.priority_queue {
         println!("{}{}", 
             content.parent_directory,
-            content.original_filename
+            content.filename
         );
     }
 
     for content in queue.main_queue {
         println!("{}{}", 
             content.parent_directory,
-            content.original_filename
+            content.filename
         );
     }
 
@@ -243,7 +272,7 @@ fn main() {
                 for episode in &season.episodes {
                     println!("{}{}",
                         episode.parent_directory,
-                        episode.original_filename,
+                        episode.filename,
                     );
                 }
             }
