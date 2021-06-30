@@ -1,6 +1,6 @@
 //extern crate yaml_rust;
 use regex::Regex;
-use std::{process::Command, thread::current}; //borrow::Cow,
+use std::{process::Command}; //borrow::Cow, thread::current,
 use walkdir::WalkDir;
 
 fn exec(command: &str) -> String {
@@ -28,7 +28,8 @@ struct Content {
     original_filename: String,
     show_title: String,
     show_season_episode: (String, String),
-    //versions: &'g Vec<FileVersion>,
+    reserved_status_by: (bool, String),
+    //versions: Vec<FileVersion>,
     //hash
     //metadata_dump
 }
@@ -57,7 +58,18 @@ fn re_strip(input: &String, expression: &str) -> String {
     ));
 }
 
+struct Queue {
+    priority_queue: Vec<Content>,
+    main_queue: Vec<Content>, 
+}
+
 fn main() {
+    //Queue
+    let mut queue = Queue {
+        priority_queue: Vec::new(),
+        main_queue: Vec::new(),
+    };
+
     //tracked directories - avoid crossover, it will lead to duplicate entries
     let mut tracked_root_directories: Vec<String> = Vec::new();
     tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
@@ -114,6 +126,7 @@ fn main() {
             original_filename: original_filename,
             show_title: show_title,
             show_season_episode: season_episode,
+            reserved_status_by: (false, String::new()),
         };
 
         //index of the current show in the shows vector
@@ -166,18 +179,23 @@ fn main() {
         shows[current_show].seasons[current_season].episodes.push(content);
     }
 
-    for show in &shows {
-        //println!("{}", show.title);
-        for season in &show.seasons {
-            //println!("{}", season.number);
-            for episode in &season.episodes {
-                println!("{}{}",
-                    episode.parent_directory,
-                    episode.original_filename,
-                );
+
+
+    if false {
+        for show in &shows {
+            //println!("{}", show.title);
+            for season in &show.seasons {
+                //println!("{}", season.number);
+                for episode in &season.episodes {
+                    println!("{}{}",
+                        episode.parent_directory,
+                        episode.original_filename,
+                    );
+                }
             }
         }
     }
+    
     
     //unify generic and episode naming (bring together)
 
