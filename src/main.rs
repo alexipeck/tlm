@@ -1,4 +1,3 @@
-//extern crate yaml_rust;
 use regex::Regex;
 use std::path::MAIN_SEPARATOR;
 use std::{process::Command}; //borrow::Cow, thread::current,
@@ -18,20 +17,36 @@ fn hash_file(path: PathBuf) -> u64 {
     hash
 }
 
-fn exec(command: &str) -> String {
+fn get_next_unreserved(queue: Queue) -> Option<usize> {
+    for content in queue.priority_queue {
+        if content.reserved_by == None {
+            return Some(content.uid)
+        }
+    }
+
+    for content in queue.main_queue {
+        if content.reserved_by == None {
+            return Some(content.uid)
+        }
+    }
+
+    return None
+}
+
+fn exec(command: &Vec<&str>) -> String {
     let buffer;
     if !cfg!(target_os = "windows") {
         //linux & friends
         buffer = Command::new("sh")
             .arg("-c")
-            .arg(command)
+            .args(command)
             .output()
             .expect("failed to execute process");
     } else {
         //windows
         buffer = Command::new("cmd")
-            .args(&["/C", command])
-            //.arg(command)
+            .arg("/C")
+            .args(command)
             .output()
             .expect("failed to execute process");
     }
@@ -47,7 +62,7 @@ struct Content {
     filename_woe: String,
     show_title: String,
     show_season_episode: (String, String),
-    reserved_status_by: (bool, String),
+    reserved_by: Option<String>,
     hash: Option<u64>,
     //versions: Vec<FileVersion>,
     //metadata_dump
@@ -222,7 +237,7 @@ fn main() {
             filename_woe: filename_woe,
             show_title: show_title,
             show_season_episode: season_episode,
-            reserved_status_by: (false, String::new()),
+            reserved_by: None,
             hash: None,
             //hash: Some(hash_file(raw_filepath)),
         };
@@ -311,10 +326,11 @@ fn main() {
         let target = format!("{}{}_h265.mp4", content.parent_directory, content.filename_woe);
         println!("Starting encode of {}\nEncoding to {}_h265.mp4", content.filename, content.filename_woe);
         //async
-        let encode_string: String = format!("ffmpeg -i \"{}\" -c:v libx265 -crf 25 -preset slower -profile:v main -c:a aac -q:a 224k \"{}\"", source, target);
-        println!("Source: {}\nTarget: {}\nEncode string: {}", source, target, encode_string);
-        let test = format!("echo {}", encode_string);
-        let output = exec(&test);
+        let encode_string: Vec<&str> = vec!["ffmpeg", "-i", &source, "-c:v", "libx265", "-crf", "25", "-preset", "slower", "-profile:v", "main", "-c:a", "aac", "-q:a", "224k", &target];
+        
+        //let encode_string: String = format!("ffmpeg -i \"{}\" -c:v libx265 -crf 25 -preset slower -profile:v main -c:a aac -q:a 224k \"{}\"", source, target);
+        //println!("Source: {}\nTarget: {}\nEncode string: {}", source, target, encode_string);
+        let output = exec(&encode_string);
         println!("{}", output);
     }
 
