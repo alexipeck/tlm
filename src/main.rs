@@ -30,7 +30,8 @@ fn exec(command: &str) -> String {
     } else {
         //windows
         buffer = Command::new("cmd")
-            .arg(command)
+            .args(&["/C", command])
+            //.arg(command)
             .output()
             .expect("failed to execute process");
     }
@@ -43,6 +44,7 @@ struct Content {
     uid: usize,
     parent_directory: String,
     filename: String,
+    filename_woe: String,
     show_title: String,
     show_season_episode: (String, String),
     reserved_status_by: (bool, String),
@@ -127,7 +129,7 @@ struct Queue {
 
 fn main() {
     //Content UID
-    let mut next_available_UID: usize = 0;
+    let mut next_available_uid: usize = 0;
     
     //Queue
     let mut queue = Queue {
@@ -140,7 +142,8 @@ fn main() {
     if !cfg!(target_os = "windows") {
         tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
     } else {
-        tracked_root_directories.push(String::from("T:/")); //manual entry
+        //tracked_root_directories.push(String::from("T:/")); //manual entry
+        tracked_root_directories.push(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\")); //manual entry
     }
 
     //ignored directories
@@ -149,7 +152,7 @@ fn main() {
     ignored_paths.push(String::from(".recycle_bin"));
 
     //allowed video extensions
-    let allowed_extensions = vec!["mp4","mkv","MP4"];
+    let allowed_extensions = vec!["mp4","mkv", "webm","MP4"];
 
     //import all files in tracked root directories
     let mut raw_filepaths = Vec::new();
@@ -208,18 +211,22 @@ fn main() {
         let mut se_iter = season_episode_temp.split('E');
         let season_episode: (String, String) = (se_iter.next().unwrap().to_string(), se_iter.next().unwrap().to_string());
 
+        //prepare filename without extension
+        let filename_woe = String::from(raw_filepath.file_stem().unwrap().to_string_lossy());
+
         //dumping prepared values into Content struct
         let content = Content {
-            uid: next_available_UID,
+            uid: next_available_uid,
             parent_directory: String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/"),
             filename: filename,
+            filename_woe: filename_woe,
             show_title: show_title,
             show_season_episode: season_episode,
             reserved_status_by: (false, String::new()),
             hash: None,
             //hash: Some(hash_file(raw_filepath)),
         };
-        next_available_UID += 1;
+        next_available_uid += 1;
 
         //index of the current show in the shows vector
         let mut current_show = 0;
@@ -272,19 +279,27 @@ fn main() {
         queue.main_queue.push(content);
     }
     let mut filenames: Vec<String> = Vec::new();
-    filenames.push(String::from(r"Weeds - S08E10 - Threshold Bluray-1080p.mkv"));
-    filenames.push(String::from(r"Weeds - S08E11 - God Willing and the Creek Don't Rise Bluray-1080p.mkv"));
-    filenames.push(String::from(r"Weeds - S08E12-13 - It's Time Bluray-1080p.mkv"));
+    //filenames.push(String::from(r"Weeds - S08E10 - Threshold Bluray-1080p.mkv"));
+    //filenames.push(String::from(r"Weeds - S08E11 - God Willing and the Creek Don't Rise Bluray-1080p.mkv"));
+    //filenames.push(String::from(r"Weeds - S08E12-13 - It's Time Bluray-1080p.mkv"));
 
     let mut uids: Vec<usize> = Vec::new();
-    uids.push(10);
-    uids.push(22);
-    uids.push(35);
+    //uids.push(10);
+    //uids.push(22);
+    //uids.push(35);
 
     prioritise_content_by_title(&mut queue, filenames.clone());
+    
     prioritise_content_by_uid(&mut queue, uids.clone());
     
-    for content in queue.priority_queue {
+    for content in &queue.priority_queue {
+        println!("{}{}", 
+            content.parent_directory,
+            content.filename
+        );
+    }
+
+    for content in &queue.main_queue {
         println!("{}{}", 
             content.parent_directory,
             content.filename
@@ -292,10 +307,15 @@ fn main() {
     }
 
     for content in queue.main_queue {
-        println!("{}{}", 
-            content.parent_directory,
-            content.filename
-        );
+        let source = format!("{}{}", content.parent_directory, content.filename);
+        let target = format!("{}{}_h265.mp4", content.parent_directory, content.filename_woe);
+        println!("Starting encode of {}\nEncoding to {}_h265.mp4", content.filename, content.filename_woe);
+        //async
+        let encode_string: String = format!("ffmpeg -i \"{}\" -c:v libx265 -crf 25 -preset slower -profile:v main -c:a aac -q:a 224k \"{}\"", source, target);
+        println!("Source: {}\nTarget: {}\nEncode string: {}", source, target, encode_string);
+        let test = format!("echo {}", encode_string);
+        let output = exec(&test);
+        println!("{}", output);
     }
 
     if false {
