@@ -57,15 +57,13 @@ fn exec(command: &Vec<&str>) -> String {
     let buffer;
     if !cfg!(target_os = "windows") {
         //linux & friends
-        buffer = Command::new("sh")
-            .arg("-c")
+        buffer = Command::new("ffmpeg")
             .args(command)
             .output()
             .expect("failed to execute process");
     } else {
         //windows
-        buffer = Command::new("cmd")
-            .arg("/C")
+        buffer = Command::new("ffmpeg")
             .args(command)
             .output()
             .expect("failed to execute process");
@@ -192,7 +190,7 @@ fn main() {
     let mut tracked_root_directories: Vec<String> = Vec::new();
     if !cfg!(target_os = "windows") {
         //tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
-        tracked_root_directories.push(String::from("/home/anpeck/tlm/test_files")); //manual entry
+        tracked_root_directories.push(String::from("/home/ryan/test_files")); //manual entry
     } else {
         //tracked_root_directories.push(String::from("T:/")); //manual entry
         tracked_root_directories.push(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\")); //manual entry
@@ -390,7 +388,7 @@ fn main() {
         let target = format!("{}{}_h265.mp4", content.parent_directory, content.filename_woe);
         println!("Starting encode of {}\nEncoding to {}_h265.mp4", content.filename, content.filename_woe);
         //async
-        let encode_string: Vec<&str> = vec!["ffmpeg", "-i", &source, "-c:v", "libx265", "-crf", "25", "-preset", "slower", "-profile:v", "main", "-c:a", "aac", "-q:a", "224k", &target];
+        let encode_string: Vec<&str> = vec!["-i", &source, "-c:v", "libx265", "-crf", "25", "-preset", "slower", "-profile:v", "main", "-c:a", "aac", "-q:a", "224k", &target];
         
         //let encode_string: String = format!("ffmpeg -i \"{}\" -c:v libx265 -crf 25 -preset slower -profile:v main -c:a aac -q:a 224k \"{}\"", source, target);
         //println!("Source: {}\nTarget: {}\nEncode string: {}", source, target, encode_string);
