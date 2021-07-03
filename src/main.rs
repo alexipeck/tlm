@@ -17,6 +17,26 @@ fn hash_file(path: PathBuf) -> u64 {
     hash
 }
 
+fn seperate_season_episode(filename: &String, episode: &mut bool) -> Option<(String, String)> {
+    let temp = re_strip(&filename, r"S[0-9]*E[0-9\-]*");
+    let episode_string: String;
+
+    //Check if the regex caught a valid episode format
+    match temp {
+        None => {
+            *episode = false;
+            return None
+        }
+        _ => {
+            *episode = true;
+            episode_string = temp.unwrap();
+        }
+    }
+
+    let mut se_iter = episode_string.split('E');
+    Some((se_iter.next().unwrap().to_string(), se_iter.next().unwrap().to_string()))
+}
+
 fn get_next_unreserved(queue: Queue) -> Option<usize> {
     for content in queue.priority_queue {
         if content.reserved_by == None {
@@ -240,20 +260,9 @@ fn main() {
             break;
         }
         
-        //prepare season and episode number
-        let mut se_iter;
-        let episode: bool;
-
-        let temp = re_strip(&filename, r"S[0-9]*E[0-9\-]*");
-        if temp.is_none() {
-            episode = false;
-        } else {
-            let something = temp.unwrap();
-            se_iter = something.split('E');
-            episode = true;
-        }
-        
-        let season_episode: (String, String) = (se_iter.next().unwrap().to_string(), se_iter.next().unwrap().to_string());
+       
+        let mut episode = false;
+        let season_episode = seperate_season_episode(&filename, &mut episode);
 
         //prepare filename without extension
         let filename_woe = String::from(raw_filepath.file_stem().unwrap().to_string_lossy());
@@ -290,7 +299,7 @@ fn main() {
         match designation {
             Designation::Episode => {
                 content.show_title = Some(show_title);
-                content.show_season_episode = Some((season_episode.0, season_episode.1));
+                content.show_season_episode = season_episode;
 
                 //index of the current show in the shows vector
                 let mut current_show = 0;
@@ -299,7 +308,7 @@ fn main() {
                 let mut exists = false;
                 for (i, show) in shows.iter().enumerate() {
                     
-                    if show.title == content.show_title.unwrap() {
+                    if show.title == *(content.show_title.as_ref().unwrap()) {
                         exists = true;
                         current_show = i;
                         break;
@@ -309,7 +318,7 @@ fn main() {
                 //if the show doesn't exist in the vector, it creates it, and saves the index
                 if !exists {
                     let show = Show {
-                        title: content.show_title.unwrap().clone(),
+                        title: content.show_title.as_ref().unwrap().clone(),
                         seasons: Vec::new(),
                     };
                     shows.push(show);
@@ -320,7 +329,7 @@ fn main() {
                 exists = false;
                 let mut current_season: usize = 0;//content.show_season_episode.0.parse::<usize>().unwrap()
                 for (i, season) in shows[current_show].seasons.iter().enumerate() {
-                    if season.number == content.show_season_episode.unwrap().0.parse::<u8>().unwrap() {
+                    if season.number == content.show_season_episode.as_ref().unwrap().0.parse::<u8>().unwrap() {
                         exists = true;
                         current_season = i;
                         break;
@@ -330,7 +339,7 @@ fn main() {
                 //if the season doesn't exist in the current show's seasons vector, it creates it
                 if !exists {
                     let season = Season {
-                        number: content.show_season_episode.unwrap().0.parse::<u8>().unwrap(),
+                        number: content.show_season_episode.as_ref().unwrap().0.parse::<u8>().unwrap(),
                         episodes: Vec::new()
                     };
 
