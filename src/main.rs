@@ -18,7 +18,7 @@ fn hash_file(path: PathBuf) -> u64 {
 }
 
 fn seperate_season_episode(filename: &String, episode: &mut bool) -> Option<(String, String)> {
-    let temp = re_strip(&filename, r"S[0-9]*E[0-9\-]*");
+    let temp = re_strip(filename, r"S[0-9]*E[0-9\-]*");
     let episode_string: String;
 
     //Check if the regex caught a valid episode format
@@ -27,9 +27,9 @@ fn seperate_season_episode(filename: &String, episode: &mut bool) -> Option<(Str
             *episode = false;
             return None
         }
-        _ => {
+        Some(temp_string) => {
             *episode = true;
-            episode_string = temp.unwrap();
+            episode_string = temp_string;
         }
     }
 
@@ -162,13 +162,10 @@ fn rem_first_char(value: &str) -> &str {
 
 //requires raw string expression
 fn re_strip(input: &String, expression: &str) -> Option<String> {
-    let temp = String::from(rem_first_char(
-        Regex::new(expression).unwrap().find(input).unwrap().as_str(),
-    ));
-    if temp != "" {
-        return Some(temp);
-    } else {
-        return None;
+    let output = Regex::new(expression).unwrap().find(input);
+    match output {
+        None => return None,
+        Some(val) => return Some(String::from(rem_first_char(val.as_str())))
     }
 }
 
@@ -358,7 +355,6 @@ fn main() {
 
             },
         }
-
         queue.main_queue.push(content);
     }
     let mut filenames: Vec<String> = Vec::new();
