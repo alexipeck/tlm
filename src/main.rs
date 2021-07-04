@@ -1,12 +1,15 @@
 use regex::Regex;
-use std::path::MAIN_SEPARATOR;
-use std::{process::Command}; //borrow::Cow, thread::current,
-use walkdir::WalkDir;
-use twox_hash::xxh3;
 use std::fs;
 use std::io::BufReader;
 use std::path::PathBuf;
+use std::path::MAIN_SEPARATOR;
+use std::process::Command; //borrow::Cow, thread::current,
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
+use twox_hash::xxh3;
+use walkdir::WalkDir;
+
+static UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 fn hash_file(path: PathBuf) -> u64 {
     println!("Hashing: {}...", path.display());
@@ -25,7 +28,7 @@ fn seperate_season_episode(filename: &String, episode: &mut bool) -> Option<(Str
     match temp {
         None => {
             *episode = false;
-            return None
+            return None;
         }
         Some(temp_string) => {
             *episode = true;
@@ -34,23 +37,26 @@ fn seperate_season_episode(filename: &String, episode: &mut bool) -> Option<(Str
     }
 
     let mut se_iter = episode_string.split('E');
-    Some((se_iter.next().unwrap().to_string(), se_iter.next().unwrap().to_string()))
+    Some((
+        se_iter.next().unwrap().to_string(),
+        se_iter.next().unwrap().to_string(),
+    ))
 }
 
 fn get_next_unreserved(queue: Queue) -> Option<usize> {
     for content in queue.priority_queue {
         if content.reserved_by == None {
-            return Some(content.uid)
+            return Some(content.uid);
         }
     }
 
     for content in queue.main_queue {
         if content.reserved_by == None {
-            return Some(content.uid)
+            return Some(content.uid);
         }
     }
 
-    return None
+    return None;
 }
 
 fn rename(source: &String, target: &String) {
@@ -121,6 +127,48 @@ struct Content {
     show_season_episode: Option<(String, String)>,
 }
 
+impl Content {
+    pub fn new(raw_filepath: &PathBuf) -> Content {
+        //prepare filename
+        let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
+
+        let mut episode = false;
+        seperate_season_episode(&filename, &mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
+
+        //prepare filename without extension
+        let filename_woe = String::from(raw_filepath.file_stem().unwrap().to_string_lossy());
+
+        //parent directory
+        let parent_directory = String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
+
+        let extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
+
+        //prepare full path
+        let full_path = format!("{}{}", parent_directory, filename);
+
+        let designation: Designation;
+        if episode {
+            designation = Designation::Episode;
+        } else {
+            designation = Designation::Generic;
+        }
+        Content {
+            full_path: full_path,
+            designation: designation,
+            uid: UID_COUNTER.fetch_add(1, Ordering::SeqCst),
+            parent_directory: parent_directory,
+            filename: filename,
+            filename_woe: filename_woe,
+            reserved_by: None,
+            hash: None,
+            extension: extension,
+
+            show_title: None,
+            show_season_episode: None,
+        }
+    }
+}
+
 //doesn't handle errors correctly
 fn prioritise_content_by_title(queue: &mut Queue, filenames: Vec<String>) {
     for _ in 0..filenames.len() {
@@ -176,7 +224,6 @@ struct Show {
     seasons: Vec<Season>,
 }
 
-
 fn rem_first_char(value: &str) -> &str {
     let mut chars = value.chars();
     chars.next();
@@ -188,23 +235,54 @@ fn re_strip(input: &String, expression: &str) -> Option<String> {
     let output = Regex::new(expression).unwrap().find(input);
     match output {
         None => return None,
-        Some(val) => return Some(String::from(rem_first_char(val.as_str())))
+        Some(val) => return Some(String::from(rem_first_char(val.as_str()))),
     }
 }
 
 struct Queue {
     priority_queue: Vec<Content>,
-    main_queue: Vec<Content>, 
+    main_queue: Vec<Content>,
 }
 
-fn assign_uid() {
+fn assign_uid() {}
 
+//Return true in string contains any substring from Vector
+fn str_contains_strs(input_str: &str, substrings: &Vec<&str>) -> bool {
+    for substring in substrings {
+        if String::from(input_str).contains(substring) {
+            return true;
+        }
+    }
+    false
+}
+
+fn import_files(
+    file_paths: &mut Vec<PathBuf>,
+    directories: &Vec<String>,
+    allowed_extensions: &Vec<&str>,
+    ignored_paths: &Vec<&str>,
+) {
+    //import all files in tracked root directories
+    for directory in directories {
+        for entry in WalkDir::new(directory).into_iter().filter_map(|e| e.ok()) {
+            if str_contains_strs(entry.path().to_str().unwrap(), ignored_paths) {
+                break;
+            }
+
+            if entry.path().is_file() {
+                if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap())
+                {
+                    file_paths.push(entry.into_path());
+                }
+            }
+        }
+    }
 }
 
 fn main() {
     //Content UID
     let mut next_available_uid: usize = 0;
-    
+
     //Queue
     let mut queue = Queue {
         priority_queue: Vec::new(),
@@ -215,55 +293,37 @@ fn main() {
     let mut tracked_root_directories: Vec<String> = Vec::new();
     if !cfg!(target_os = "windows") {
         //tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
-        tracked_root_directories.push(String::from("/home/anpeck/tlm/test_files")); //manual entry
+        tracked_root_directories.push(String::from("/home/ryan/test_files")); //manual entry
     } else {
         //tracked_root_directories.push(String::from("T:/")); //manual entry
-        tracked_root_directories.push(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\")); //manual entry
+        tracked_root_directories.push(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\"));
+        //manual entry
     }
+
+    //allowed video extensions
+    let allowed_extensions = vec!["mp4", "mkv", "webm", "MP4"];
 
     //ignored directories
     //currently works on both linux and windows
-    let mut ignored_paths: Vec<String> = Vec::new();
-    ignored_paths.push(String::from(".recycle_bin"));
+    let ignored_paths = vec![".recycle_bin"];
 
-    //allowed video extensions
-    let allowed_extensions = vec!["mp4","mkv", "webm","MP4"];
-
-    //import all files in tracked root directories
     let mut raw_filepaths = Vec::new();
-    for tracked_root_directory in tracked_root_directories {
-        for entry in WalkDir::new(tracked_root_directory)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if entry.path().is_file() {
-                if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap()) {
-                    raw_filepaths.push(entry.into_path());
-                }
-            }
-        }
-    }
+
+    //Load all video files under tracked directories exluding all ignored paths
+    import_files(
+        &mut raw_filepaths,
+        &tracked_root_directories,
+        &allowed_extensions,
+        &ignored_paths,
+    );
 
     //sort out filepaths into series and seasons
     let mut shows: Vec<Show> = Vec::new();
-    
+
     //loop through all paths
     for raw_filepath in raw_filepaths {
-        let mut ignore = false;
-        let current_filepath = raw_filepath.to_string_lossy();
-        for ignored_path in &ignored_paths {
-            if current_filepath.contains(ignored_path) {
-                ignore = true;
-                break;
-            }
-        }
-        if ignore {
-            break;
-        }
-        
-        //prepare filename
-        let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
-        
+        let mut content = Content::new(&raw_filepath);
+
         //prepare title
         let mut show_title = String::new();
         for section in String::from(
@@ -280,48 +340,13 @@ fn main() {
             show_title = String::from(section);
             break;
         }
-        
-       
-        let mut episode = false;
-        let season_episode = seperate_season_episode(&filename, &mut episode);
-
-        //prepare filename without extension
-        let filename_woe = String::from(raw_filepath.file_stem().unwrap().to_string_lossy());
-
-        //parent directory
-        let parent_directory = String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
-
-        //prepare full path
-        let full_path = format!("{}{}", parent_directory, filename);
-
-        let extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
-
-        let designation: Designation;
-        if episode {
-            designation = Designation::Episode;
-        } else {
-            designation = Designation::Generic;
-        }
-        let mut content;
-        content = Content {
-            full_path: full_path,
-            designation: designation,
-            uid: next_available_uid,
-            parent_directory: parent_directory,
-            filename: filename,
-            filename_woe: filename_woe,
-            reserved_by: None,
-            hash: None,
-            extension: extension,
-
-            show_title: None,
-            show_season_episode: None,
-        };
-        next_available_uid += 1;
 
         //dumping prepared values into Content struct based on Designation
-        match designation {
+        match content.designation {
             Designation::Episode => {
+                let mut episode = false;
+                let season_episode = seperate_season_episode(&content.filename, &mut episode);
+
                 content.show_title = Some(show_title);
                 content.show_season_episode = season_episode;
 
@@ -331,7 +356,6 @@ fn main() {
                 //determine whether the show exists in the shows vector, if it does, it saves the index
                 let mut exists = false;
                 for (i, show) in shows.iter().enumerate() {
-                    
                     if show.title == *(content.show_title.as_ref().unwrap()) {
                         exists = true;
                         current_show = i;
@@ -351,9 +375,17 @@ fn main() {
 
                 //determines whether the season exists in the seasons vector of the current show, if it does, it saves the index
                 exists = false;
-                let mut current_season: usize = 0;//content.show_season_episode.0.parse::<usize>().unwrap()
+                let mut current_season: usize = 0; //content.show_season_episode.0.parse::<usize>().unwrap()
                 for (i, season) in shows[current_show].seasons.iter().enumerate() {
-                    if season.number == content.show_season_episode.as_ref().unwrap().0.parse::<u8>().unwrap() {
+                    if season.number
+                        == content
+                            .show_season_episode
+                            .as_ref()
+                            .unwrap()
+                            .0
+                            .parse::<u8>()
+                            .unwrap()
+                    {
                         exists = true;
                         current_season = i;
                         break;
@@ -363,23 +395,29 @@ fn main() {
                 //if the season doesn't exist in the current show's seasons vector, it creates it
                 if !exists {
                     let season = Season {
-                        number: content.show_season_episode.as_ref().unwrap().0.parse::<u8>().unwrap(),
-                        episodes: Vec::new()
+                        number: content
+                            .show_season_episode
+                            .as_ref()
+                            .unwrap()
+                            .0
+                            .parse::<u8>()
+                            .unwrap(),
+                        episodes: Vec::new(),
                     };
 
                     shows[current_show].seasons.push(season);
-                    
+
                     current_season = shows[current_show].seasons.len() - 1;
                 }
                 //push episode to current season
-                shows[current_show].seasons[current_season].episodes.push(content.clone());
-            },
+                shows[current_show].seasons[current_season]
+                    .episodes
+                    .push(content.clone());
+            }
             /*Designation::Movie => (
 
             ),*/
-            _ => {
-
-            },
+            _ => {}
         }
         queue.main_queue.push(content);
     }
@@ -394,21 +432,15 @@ fn main() {
     //uids.push(35);
 
     prioritise_content_by_title(&mut queue, filenames.clone());
-    
+
     prioritise_content_by_uid(&mut queue, uids.clone());
-    
+
     for content in &queue.priority_queue {
-        println!("{}{}", 
-            content.parent_directory,
-            content.filename
-        );
+        println!("{}{}", content.parent_directory, content.filename);
     }
 
     for content in &queue.main_queue {
-        println!("{}{}", 
-            content.parent_directory,
-            content.filename
-        );
+        println!("{}{}", content.parent_directory, content.filename);
     }
 
     for content in queue.main_queue {
@@ -433,7 +465,6 @@ fn main() {
             }
         }
     }
-    
     //add to db by filename, allowing the same file to be retargeted in another directory, without losing track of all the data associated with the episode
 
     //unify generic and episode naming (bring together)
