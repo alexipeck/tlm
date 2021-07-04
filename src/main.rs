@@ -176,13 +176,26 @@ fn assign_uid() {
 
 }
 
-fn import_files(file_paths: &mut Vec<PathBuf>, directories: &Vec<String>, allowed_extensions: &Vec<&str>) {
-//import all files in tracked root directories
+//Return true in string contains any substring from Vector
+fn str_contains_strs(input_str: &str, substrings: &Vec<&str>) -> bool {
+    for substring in substrings {
+        if String::from(input_str).contains(substring) {
+            return true
+        }
+    }
+    false
+}
+
+fn import_files(file_paths: &mut Vec<PathBuf>, directories: &Vec<String>, allowed_extensions: &Vec<&str>, ignored_paths: &Vec<&str>) {
+    //import all files in tracked root directories
     for directory in directories {
         for entry in WalkDir::new(directory)
             .into_iter()
-            .filter_map(|e| e.ok())
-        {
+            .filter_map(|e| e.ok()){
+            if str_contains_strs(entry.path().to_str().unwrap(),ignored_paths) {
+                break
+            }
+            
             if entry.path().is_file() {
                 if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap()) {
                     file_paths.push(entry.into_path());
@@ -216,33 +229,20 @@ fn main() {
     //allowed video extensions
     let allowed_extensions = vec!["mp4","mkv", "webm","MP4"];
 
-    let mut raw_filepaths = Vec::new();
-
-    //Load all video files under tracked directories
-    import_files(&mut raw_filepaths, &tracked_root_directories, &allowed_extensions);
-
     //ignored directories
     //currently works on both linux and windows
-    let mut ignored_paths: Vec<String> = Vec::new();
-    ignored_paths.push(String::from(".recycle_bin"));
+    let mut ignored_paths = vec![".recycle_bin"];
 
+    let mut raw_filepaths = Vec::new();
+
+    //Load all video files under tracked directories exluding all ignored paths
+    import_files(&mut raw_filepaths, &tracked_root_directories, &allowed_extensions, &ignored_paths);
+    
     //sort out filepaths into series and seasons
     let mut shows: Vec<Show> = Vec::new();
     
     //loop through all paths
     for raw_filepath in raw_filepaths {
-        let mut ignore = false;
-        let current_filepath = raw_filepath.to_string_lossy();
-        for ignored_path in &ignored_paths {
-            if current_filepath.contains(ignored_path) {
-                ignore = true;
-                break;
-            }
-        }
-        if ignore {
-            break;
-        }
-        
         //prepare filename
         let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
         
