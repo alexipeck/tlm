@@ -1,13 +1,13 @@
 use regex::Regex;
-use std::path::MAIN_SEPARATOR;
-use std::{process::Command}; //borrow::Cow, thread::current,
-use walkdir::WalkDir;
-use twox_hash::xxh3;
 use std::fs;
 use std::io::BufReader;
 use std::path::PathBuf;
-use std::time::Instant;
+use std::path::MAIN_SEPARATOR;
+use std::process::Command; //borrow::Cow, thread::current,
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Instant;
+use twox_hash::xxh3;
+use walkdir::WalkDir;
 
 static UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -28,7 +28,7 @@ fn seperate_season_episode(filename: &String, episode: &mut bool) -> Option<(Str
     match temp {
         None => {
             *episode = false;
-            return None
+            return None;
         }
         Some(temp_string) => {
             *episode = true;
@@ -37,23 +37,26 @@ fn seperate_season_episode(filename: &String, episode: &mut bool) -> Option<(Str
     }
 
     let mut se_iter = episode_string.split('E');
-    Some((se_iter.next().unwrap().to_string(), se_iter.next().unwrap().to_string()))
+    Some((
+        se_iter.next().unwrap().to_string(),
+        se_iter.next().unwrap().to_string(),
+    ))
 }
 
 fn get_next_unreserved(queue: Queue) -> Option<usize> {
     for content in queue.priority_queue {
         if content.reserved_by == None {
-            return Some(content.uid)
+            return Some(content.uid);
         }
     }
 
     for content in queue.main_queue {
         if content.reserved_by == None {
-            return Some(content.uid)
+            return Some(content.uid);
         }
     }
 
-    return None
+    return None;
 }
 
 fn exec(command: &Vec<&str>) -> String {
@@ -103,27 +106,9 @@ impl Content {
     pub fn new(raw_filepath: &PathBuf) -> Content {
         //prepare filename
         let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
-        
-        //prepare title
-        let mut show_title = String::new();
-        for section in String::from(
-            raw_filepath
-                .parent()
-                .unwrap()
-                .parent()
-                .unwrap()
-                .to_string_lossy(),
-        )
-        .split('/')
-        .rev()
-        {
-            show_title = String::from(section);
-            break;
-        }
-        
-       
+
         let mut episode = false;
-        let season_episode = seperate_season_episode(&filename, &mut episode);
+        seperate_season_episode(&filename, &mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
 
         //prepare filename without extension
         let filename_woe = String::from(raw_filepath.file_stem().unwrap().to_string_lossy());
@@ -143,7 +128,7 @@ impl Content {
         Content {
             full_path: full_path,
             designation: designation,
-            uid: UID_COUNTER.fetch_add(1, Ordering::SeqCst), 
+            uid: UID_COUNTER.fetch_add(1, Ordering::SeqCst),
             parent_directory: parent_directory,
             filename: filename,
             filename_woe: filename_woe,
@@ -211,7 +196,6 @@ struct Show {
     seasons: Vec<Season>,
 }
 
-
 fn rem_first_char(value: &str) -> &str {
     let mut chars = value.chars();
     chars.next();
@@ -223,53 +207,54 @@ fn re_strip(input: &String, expression: &str) -> Option<String> {
     let output = Regex::new(expression).unwrap().find(input);
     match output {
         None => return None,
-        Some(val) => return Some(String::from(rem_first_char(val.as_str())))
+        Some(val) => return Some(String::from(rem_first_char(val.as_str()))),
     }
 }
 
 struct Queue {
     priority_queue: Vec<Content>,
-    main_queue: Vec<Content>, 
+    main_queue: Vec<Content>,
 }
 
-fn assign_uid() {
-
-}
+fn assign_uid() {}
 
 //Return true in string contains any substring from Vector
 fn str_contains_strs(input_str: &str, substrings: &Vec<&str>) -> bool {
     for substring in substrings {
         if String::from(input_str).contains(substring) {
-            return true
+            return true;
         }
     }
     false
 }
 
-fn import_files(file_paths: &mut Vec<PathBuf>, directories: &Vec<String>, allowed_extensions: &Vec<&str>, ignored_paths: &Vec<&str>) {
+fn import_files(
+    file_paths: &mut Vec<PathBuf>,
+    directories: &Vec<String>,
+    allowed_extensions: &Vec<&str>,
+    ignored_paths: &Vec<&str>,
+) {
     //import all files in tracked root directories
     for directory in directories {
-        for entry in WalkDir::new(directory)
-            .into_iter()
-            .filter_map(|e| e.ok()){
-            if str_contains_strs(entry.path().to_str().unwrap(),ignored_paths) {
-                break
+        for entry in WalkDir::new(directory).into_iter().filter_map(|e| e.ok()) {
+            if str_contains_strs(entry.path().to_str().unwrap(), ignored_paths) {
+                break;
             }
-            
+
             if entry.path().is_file() {
-                if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap()) {
+                if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap())
+                {
                     file_paths.push(entry.into_path());
                 }
             }
         }
     }
-
 }
 
 fn main() {
     //Content UID
     let mut next_available_uid: usize = 0;
-    
+
     //Queue
     let mut queue = Queue {
         priority_queue: Vec::new(),
@@ -283,11 +268,12 @@ fn main() {
         tracked_root_directories.push(String::from("/home/ryan/test_files")); //manual entry
     } else {
         //tracked_root_directories.push(String::from("T:/")); //manual entry
-        tracked_root_directories.push(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\")); //manual entry
+        tracked_root_directories.push(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\"));
+        //manual entry
     }
 
     //allowed video extensions
-    let allowed_extensions = vec!["mp4","mkv", "webm","MP4"];
+    let allowed_extensions = vec!["mp4", "mkv", "webm", "MP4"];
 
     //ignored directories
     //currently works on both linux and windows
@@ -296,11 +282,16 @@ fn main() {
     let mut raw_filepaths = Vec::new();
 
     //Load all video files under tracked directories exluding all ignored paths
-    import_files(&mut raw_filepaths, &tracked_root_directories, &allowed_extensions, &ignored_paths);
-    
+    import_files(
+        &mut raw_filepaths,
+        &tracked_root_directories,
+        &allowed_extensions,
+        &ignored_paths,
+    );
+
     //sort out filepaths into series and seasons
     let mut shows: Vec<Show> = Vec::new();
-    
+
     //loop through all paths
     for raw_filepath in raw_filepaths {
         let mut content = Content::new(&raw_filepath);
@@ -321,7 +312,7 @@ fn main() {
             show_title = String::from(section);
             break;
         }
-                
+
         //dumping prepared values into Content struct based on Designation
         match content.designation {
             Designation::Episode => {
@@ -337,7 +328,6 @@ fn main() {
                 //determine whether the show exists in the shows vector, if it does, it saves the index
                 let mut exists = false;
                 for (i, show) in shows.iter().enumerate() {
-                    
                     if show.title == *(content.show_title.as_ref().unwrap()) {
                         exists = true;
                         current_show = i;
@@ -357,9 +347,17 @@ fn main() {
 
                 //determines whether the season exists in the seasons vector of the current show, if it does, it saves the index
                 exists = false;
-                let mut current_season: usize = 0;//content.show_season_episode.0.parse::<usize>().unwrap()
+                let mut current_season: usize = 0; //content.show_season_episode.0.parse::<usize>().unwrap()
                 for (i, season) in shows[current_show].seasons.iter().enumerate() {
-                    if season.number == content.show_season_episode.as_ref().unwrap().0.parse::<u8>().unwrap() {
+                    if season.number
+                        == content
+                            .show_season_episode
+                            .as_ref()
+                            .unwrap()
+                            .0
+                            .parse::<u8>()
+                            .unwrap()
+                    {
                         exists = true;
                         current_season = i;
                         break;
@@ -369,23 +367,29 @@ fn main() {
                 //if the season doesn't exist in the current show's seasons vector, it creates it
                 if !exists {
                     let season = Season {
-                        number: content.show_season_episode.as_ref().unwrap().0.parse::<u8>().unwrap(),
-                        episodes: Vec::new()
+                        number: content
+                            .show_season_episode
+                            .as_ref()
+                            .unwrap()
+                            .0
+                            .parse::<u8>()
+                            .unwrap(),
+                        episodes: Vec::new(),
                     };
 
                     shows[current_show].seasons.push(season);
-                    
+
                     current_season = shows[current_show].seasons.len() - 1;
                 }
                 //push episode to current season
-                shows[current_show].seasons[current_season].episodes.push(content.clone());
-            },
+                shows[current_show].seasons[current_season]
+                    .episodes
+                    .push(content.clone());
+            }
             /*Designation::Movie => (
 
             ),*/
-            _ => {
-
-            },
+            _ => {}
         }
         queue.main_queue.push(content);
     }
@@ -400,30 +404,46 @@ fn main() {
     //uids.push(35);
 
     prioritise_content_by_title(&mut queue, filenames.clone());
-    
+
     prioritise_content_by_uid(&mut queue, uids.clone());
-    
+
     for content in &queue.priority_queue {
-        println!("{}{}", 
-            content.parent_directory,
-            content.filename
-        );
+        println!("{}{}", content.parent_directory, content.filename);
     }
 
     for content in &queue.main_queue {
-        println!("{}{}", 
-            content.parent_directory,
-            content.filename
-        );
+        println!("{}{}", content.parent_directory, content.filename);
     }
 
     for content in queue.main_queue {
         let source = format!("{}{}", content.parent_directory, content.filename);
-        let target = format!("{}{}_h265.mp4", content.parent_directory, content.filename_woe);
-        println!("Starting encode of {}\nEncoding to {}_h265.mp4", content.filename, content.filename_woe);
+        let target = format!(
+            "{}{}_h265.mp4",
+            content.parent_directory, content.filename_woe
+        );
+        println!(
+            "Starting encode of {}\nEncoding to {}_h265.mp4",
+            content.filename, content.filename_woe
+        );
         //async
-        let encode_string: Vec<&str> = vec!["-i", &source, "-c:v", "libx265", "-crf", "25", "-preset", "slower", "-profile:v", "main", "-c:a", "aac", "-q:a", "224k", &target];
-        
+        let encode_string: Vec<&str> = vec![
+            "-i",
+            &source,
+            "-c:v",
+            "libx265",
+            "-crf",
+            "25",
+            "-preset",
+            "slower",
+            "-profile:v",
+            "main",
+            "-c:a",
+            "aac",
+            "-q:a",
+            "224k",
+            &target,
+        ];
+
         //let encode_string: String = format!("ffmpeg -i \"{}\" -c:v libx265 -crf 25 -preset slower -profile:v main -c:a aac -q:a 224k \"{}\"", source, target);
         //println!("Source: {}\nTarget: {}\nEncode string: {}", source, target, encode_string);
         let output = exec(&encode_string);
@@ -436,16 +456,12 @@ fn main() {
             for season in &show.seasons {
                 //println!("{}", season.number);
                 for episode in &season.episodes {
-                    println!("{}{}",
-                        episode.parent_directory,
-                        episode.filename,
-                    );
+                    println!("{}{}", episode.parent_directory, episode.filename,);
                 }
             }
         }
     }
-    
-    
+
     //add to db by filename, allowing the same file to be retargeted in another directory, without losing track of all the data associated with the episode
 
     //unify generic and episode naming (bring together)
