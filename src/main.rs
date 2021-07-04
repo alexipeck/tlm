@@ -57,17 +57,17 @@ fn rename(source: &String, target: &String) {
     //let source = format!("{}{}", parent_directory, source_filename);
     //let target = format!("{}{}", parent_directory, target_filename);
     let rename_string: Vec<&str> = vec!["-f", &source, &target];
-    for e in rename_string {
+    /* for e in &rename_string {
         print!("{} ", e);
-    }
+    } */
     print!("\n");
 
     if !cfg!(target_os = "windows") {
         //linux & friends
-        /* Command::new("mv")
+        Command::new("mv")
             .args(rename_string)
             .output()
-            .expect("failed to execute process"); */
+            .expect("failed to execute process");
     } else {
         //windows
         /* Command::new("mv")
