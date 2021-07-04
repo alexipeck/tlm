@@ -59,18 +59,42 @@ fn get_next_unreserved(queue: Queue) -> Option<usize> {
     return None;
 }
 
-fn exec(command: &Vec<&str>) -> String {
+fn rename(source: &String, target: &String) {
+    let rename_string: Vec<&str> = vec!["-f", &source, &target];
+    for e in &rename_string {
+        print!("{} ", e);
+    }
+    print!("\n");
+
+    if !cfg!(target_os = "windows") {
+        //linux & friends
+        Command::new("mv")
+            .args(rename_string)
+            .output()
+            .expect("failed to execute process");
+    } else {
+        //windows
+        /* Command::new("mv")
+            .args(rename_string)
+            .output()
+            .expect("failed to execute process"); */
+    }
+}
+
+fn encode(source: &String, target: &String) -> String { //command: &Vec<&str>
+    let encode_string: Vec<&str> = vec!["-i", &source, "-c:v", "libx265", "-crf", "25", "-preset", "slower", "-profile:v", "main", "-c:a", "aac", "-q:a", "224k", &target];
+    
     let buffer;
     if !cfg!(target_os = "windows") {
         //linux & friends
         buffer = Command::new("ffmpeg")
-            .args(command)
+            .args(encode_string)
             .output()
             .expect("failed to execute process");
     } else {
         //windows
         buffer = Command::new("ffmpeg")
-            .args(command)
+            .args(encode_string)
             .output()
             .expect("failed to execute process");
     }
@@ -94,6 +118,7 @@ struct Content {
     filename: String,
     filename_woe: String,
     reserved_by: Option<String>,
+    extension: String,
 
     hash: Option<u64>,
     //versions: Vec<FileVersion>,
@@ -116,6 +141,8 @@ impl Content {
         //parent directory
         let parent_directory = String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
 
+        let extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
+
         //prepare full path
         let full_path = format!("{}{}", parent_directory, filename);
 
@@ -134,6 +161,7 @@ impl Content {
             filename_woe: filename_woe,
             reserved_by: None,
             hash: None,
+            extension: extension,
 
             show_title: None,
             show_season_episode: None,
@@ -417,55 +445,27 @@ fn main() {
 
     for content in queue.main_queue {
         let source = format!("{}{}", content.parent_directory, content.filename);
-        let target = format!(
-            "{}{}_h265.mp4",
-            content.parent_directory, content.filename_woe
-        );
-        println!(
-            "Starting encode of {}\nEncoding to {}_h265.mp4",
-            content.filename, content.filename_woe
-        );
-        //async
-        let encode_string: Vec<&str> = vec![
-            "-i",
-            &source,
-            "-c:v",
-            "libx265",
-            "-crf",
-            "25",
-            "-preset",
-            "slower",
-            "-profile:v",
-            "main",
-            "-c:a",
-            "aac",
-            "-q:a",
-            "224k",
-            &target,
-        ];
-
-        //let encode_string: String = format!("ffmpeg -i \"{}\" -c:v libx265 -crf 25 -preset slower -profile:v main -c:a aac -q:a 224k \"{}\"", source, target);
-        //println!("Source: {}\nTarget: {}\nEncode string: {}", source, target, encode_string);
-        let output = exec(&encode_string);
-        println!("{}", output);
+        let encode_target = format!("{}{}_encode.mp4", content.parent_directory, content.filename_woe);
+        let rename_target = format!("{}{}.mp4", content.parent_directory, content.filename_woe);
+        println!("Starting encode of {}\nEncoding to {}_encode.mp4", content.filename, content.filename_woe);
+        encode(&source, &encode_target);
+        rename(&encode_target, &rename_target);
     }
 
     if false {
         for show in &shows {
-            //println!("{}", show.title);
+            println!("{}", show.title);
             for season in &show.seasons {
-                //println!("{}", season.number);
+                println!("{}", season.number);
                 for episode in &season.episodes {
-                    println!("{}{}", episode.parent_directory, episode.filename,);
+                    println!("{}",
+                        episode.filename,
+                    );
                 }
             }
         }
     }
-
     //add to db by filename, allowing the same file to be retargeted in another directory, without losing track of all the data associated with the episode
 
     //unify generic and episode naming (bring together)
-
-    //println!("Converting file to h265, no estimated time currently");
-    //exec("ffmpeg -i W:/tlm/test_files/tf1.mp4 -c:v libx265 -crf 25 -preset slower -profile:v main -c:a aac -q:a 224k W:/tlm/test_files/tf1_h265.mp4");
 }
