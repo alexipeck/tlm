@@ -413,15 +413,13 @@ fn main() {
 
     for content in queue.main_queue {
         let source = format!("{}{}", content.parent_directory, content.filename);
-        //println!("{}", source);
         let encode_target = format!("{}{}_encode.mp4", content.parent_directory, content.filename_woe);
         let rename_target = format!("{}{}.mp4", content.parent_directory, content.filename_woe);
-        //println!("{}", target);
         println!("Starting encode of {}\nEncoding to {}_encode.mp4", content.filename, content.filename_woe);
         //async
         let output = encode(&source, &encode_target);
         println!("{}", output);
-        rename(&rename_target, &source);
+        rename(&rename_target, &encode_target);
     }
 
     if false {
