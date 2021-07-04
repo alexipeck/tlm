@@ -415,7 +415,7 @@ fn main() {
 
     for content in queue.main_queue {
         let source = format!("{}{}", content.parent_directory, content.filename);
-        let target = format!("{}{}_h265.mp4", content.parent_directory, content.filename_woe);
+        let target = format!("{}_h265.mp4", content.filename_woe);
         println!("Starting encode of {}\nEncoding to {}_h265.mp4", content.filename, content.filename_woe);
         //async
         //let encode_string: Vec<&str> = vec!["-i", &source, "-c:v", "libx265", "-crf", "25", "-preset", "slower", "-profile:v", "main", "-c:a", "aac", "-q:a", "224k", &target];
