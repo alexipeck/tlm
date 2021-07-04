@@ -61,10 +61,6 @@ fn get_next_unreserved(queue: Queue) -> Option<usize> {
 
 fn rename(source: &String, target: &String) {
     let rename_string: Vec<&str> = vec!["-f", &source, &target];
-    for e in &rename_string {
-        print!("{} ", e);
-    }
-    print!("\n");
 
     if !cfg!(target_os = "windows") {
         //linux & friends
