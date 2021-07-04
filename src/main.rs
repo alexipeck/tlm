@@ -416,19 +416,14 @@ fn main() {
     for content in queue.main_queue {
         let source = format!("{}{}", content.parent_directory, content.filename);
         //println!("{}", source);
-        let target = format!("{}{}_encode.mp4", content.parent_directory, content.filename_woe);
+        let encode_target = format!("{}{}_encode.mp4", content.parent_directory, content.filename_woe);
+        let rename_target = format!("{}{}.mp4", content.parent_directory, content.filename_woe);
         //println!("{}", target);
         println!("Starting encode of {}\nEncoding to {}_encode.mp4", content.filename, content.filename_woe);
         //async
-        //let encode_string: Vec<&str> = vec!["-i", &source, "-c:v", "libx265", "-crf", "25", "-preset", "slower", "-profile:v", "main", "-c:a", "aac", "-q:a", "224k", &target];
-        
-        //let encode_string: String = format!("ffmpeg -i \"{}\" -c:v libx265 -crf 25 -preset slower -profile:v main -c:a aac -q:a 224k \"{}\"", source, target);
-        //println!("Source: {}\nTarget: {}\nEncode string: {}", source, target, encode_string);
-        let output = encode(&source, &target);
+        let output = encode(&source, &encode_target);
         println!("{}", output);
-        rename(&target, &source);
-
-        println!("");
+        rename(&rename_target, &source);
     }
 
     if false {
