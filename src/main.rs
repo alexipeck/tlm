@@ -424,7 +424,6 @@ fn main() {
         //println!("Source: {}\nTarget: {}\nEncode string: {}", source, target, encode_string);
         let output = encode(&source, &target);
         println!("{}", output);
-        let target = format!("{}{}_h265.mp4", content.parent_directory, content.filename_woe);
         rename(&content.parent_directory, &content.filename, &target);
     }
 
