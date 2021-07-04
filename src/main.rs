@@ -176,6 +176,23 @@ fn assign_uid() {
 
 }
 
+fn import_files(file_paths: &mut Vec<PathBuf>, directories: &Vec<String>, allowed_extensions: &Vec<&str>) {
+//import all files in tracked root directories
+    for directory in directories {
+        for entry in WalkDir::new(directory)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if entry.path().is_file() {
+                if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap()) {
+                    file_paths.push(entry.into_path());
+                }
+            }
+        }
+    }
+
+}
+
 fn main() {
     //Content UID
     let mut next_available_uid: usize = 0;
@@ -196,28 +213,18 @@ fn main() {
         tracked_root_directories.push(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\")); //manual entry
     }
 
+    //allowed video extensions
+    let allowed_extensions = vec!["mp4","mkv", "webm","MP4"];
+
+    let mut raw_filepaths = Vec::new();
+
+    //Load all video files under tracked directories
+    import_files(&mut raw_filepaths, &tracked_root_directories, &allowed_extensions);
+
     //ignored directories
     //currently works on both linux and windows
     let mut ignored_paths: Vec<String> = Vec::new();
     ignored_paths.push(String::from(".recycle_bin"));
-
-    //allowed video extensions
-    let allowed_extensions = vec!["mp4","mkv", "webm","MP4"];
-
-    //import all files in tracked root directories
-    let mut raw_filepaths = Vec::new();
-    for tracked_root_directory in tracked_root_directories {
-        for entry in WalkDir::new(tracked_root_directory)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if entry.path().is_file() {
-                if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap()) {
-                    raw_filepaths.push(entry.into_path());
-                }
-            }
-        }
-    }
 
     //sort out filepaths into series and seasons
     let mut shows: Vec<Show> = Vec::new();
