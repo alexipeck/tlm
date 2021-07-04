@@ -7,6 +7,9 @@ use std::fs;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::time::Instant;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 fn hash_file(path: PathBuf) -> u64 {
     println!("Hashing: {}...", path.display());
@@ -140,7 +143,7 @@ impl Content {
         Content {
             full_path: full_path,
             designation: designation,
-            uid: 12, //TODO::Fix that
+            uid: UID_COUNTER.fetch_add(1, Ordering::SeqCst), 
             parent_directory: parent_directory,
             filename: filename,
             filename_woe: filename_woe,
