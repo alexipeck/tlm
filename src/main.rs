@@ -58,8 +58,9 @@ fn rename(parent_directory: &String, source_filename: &String, target_filename: 
     let target = format!("{}{}", parent_directory, target_filename);
     let rename_string: Vec<&str> = vec!["-f", &source, &target];
     for e in rename_string {
-        print!("{}", e);
+        print!("{} ", e);
     }
+    print!("\n");
 
     if !cfg!(target_os = "windows") {
         //linux & friends
