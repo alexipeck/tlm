@@ -416,20 +416,17 @@ fn main() {
         let encode_target = format!("{}{}_encode.mp4", content.parent_directory, content.filename_woe);
         let rename_target = format!("{}{}.mp4", content.parent_directory, content.filename_woe);
         println!("Starting encode of {}\nEncoding to {}_encode.mp4", content.filename, content.filename_woe);
-        //async
-        let output = encode(&source, &encode_target);
-        println!("{}", output);
+        encode(&source, &encode_target);
         rename(&encode_target, &rename_target);
     }
 
     if false {
         for show in &shows {
-            //println!("{}", show.title);
+            println!("{}", show.title);
             for season in &show.seasons {
-                //println!("{}", season.number);
+                println!("{}", season.number);
                 for episode in &season.episodes {
-                    println!("{}{}",
-                        episode.parent_directory,
+                    println!("{}",
                         episode.filename,
                     );
                 }
