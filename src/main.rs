@@ -53,9 +53,9 @@ fn get_next_unreserved(queue: Queue) -> Option<usize> {
     return None
 }
 
-fn rename(parent_directory: &String, source_filename: &String, target_filename: &String) {
-    let source = format!("{}{}", parent_directory, source_filename);
-    let target = format!("{}{}", parent_directory, target_filename);
+fn rename(source: &String, target: &String) {
+    //let source = format!("{}{}", parent_directory, source_filename);
+    //let target = format!("{}{}", parent_directory, target_filename);
     let rename_string: Vec<&str> = vec!["-f", &source, &target];
     for e in rename_string {
         print!("{} ", e);
@@ -424,9 +424,11 @@ fn main() {
         
         //let encode_string: String = format!("ffmpeg -i \"{}\" -c:v libx265 -crf 25 -preset slower -profile:v main -c:a aac -q:a 224k \"{}\"", source, target);
         //println!("Source: {}\nTarget: {}\nEncode string: {}", source, target, encode_string);
-        //let output = encode(&source, &target);
-        //println!("{}", output);
-        //rename(&content.parent_directory, &content.filename, &target);
+        let output = encode(&source, &target);
+        println!("{}", output);
+        rename(&target, &source);
+
+        println!("");
     }
 
     if false {
