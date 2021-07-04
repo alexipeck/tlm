@@ -419,7 +419,7 @@ fn main() {
         //async
         let output = encode(&source, &encode_target);
         println!("{}", output);
-        rename(&rename_target, &encode_target);
+        rename(&encode_target, &rename_target);
     }
 
     if false {
