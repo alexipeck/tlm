@@ -96,6 +96,63 @@ struct Content {
     show_season_episode: Option<(String, String)>,
 }
 
+impl Content {
+    pub fn new(raw_filepath: &PathBuf) -> Content {
+        //prepare filename
+        let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
+        
+        //prepare title
+        let mut show_title = String::new();
+        for section in String::from(
+            raw_filepath
+                .parent()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .to_string_lossy(),
+        )
+        .split('/')
+        .rev()
+        {
+            show_title = String::from(section);
+            break;
+        }
+        
+       
+        let mut episode = false;
+        let season_episode = seperate_season_episode(&filename, &mut episode);
+
+        //prepare filename without extension
+        let filename_woe = String::from(raw_filepath.file_stem().unwrap().to_string_lossy());
+
+        //parent directory
+        let parent_directory = String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
+
+        //prepare full path
+        let full_path = format!("{}{}", parent_directory, filename);
+
+        let designation: Designation;
+        if episode {
+            designation = Designation::Episode;
+        } else {
+            designation = Designation::Generic;
+        }
+        Content {
+            full_path: full_path,
+            designation: designation,
+            uid: 12, //TODO::Fix that
+            parent_directory: parent_directory,
+            filename: filename,
+            filename_woe: filename_woe,
+            reserved_by: None,
+            hash: None,
+
+            show_title: None,
+            show_season_episode: None,
+        }
+    }
+}
+
 //doesn't handle errors correctly
 fn prioritise_content_by_title(queue: &mut Queue, filenames: Vec<String>) {
     for _ in 0..filenames.len() {
@@ -231,7 +288,7 @@ fn main() {
 
     //ignored directories
     //currently works on both linux and windows
-    let mut ignored_paths = vec![".recycle_bin"];
+    let ignored_paths = vec![".recycle_bin"];
 
     let mut raw_filepaths = Vec::new();
 
@@ -243,9 +300,8 @@ fn main() {
     
     //loop through all paths
     for raw_filepath in raw_filepaths {
-        //prepare filename
-        let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
-        
+        let mut content = Content::new(&raw_filepath);
+
         //prepare title
         let mut show_title = String::new();
         for section in String::from(
@@ -262,45 +318,13 @@ fn main() {
             show_title = String::from(section);
             break;
         }
-        
-       
-        let mut episode = false;
-        let season_episode = seperate_season_episode(&filename, &mut episode);
-
-        //prepare filename without extension
-        let filename_woe = String::from(raw_filepath.file_stem().unwrap().to_string_lossy());
-
-        //parent directory
-        let parent_directory = String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
-
-        //prepare full path
-        let full_path = format!("{}{}", parent_directory, filename);
-
-        let designation: Designation;
-        if episode {
-            designation = Designation::Episode;
-        } else {
-            designation = Designation::Generic;
-        }
-        let mut content;
-        content = Content {
-            full_path: full_path,
-            designation: designation,
-            uid: next_available_uid,
-            parent_directory: parent_directory,
-            filename: filename,
-            filename_woe: filename_woe,
-            reserved_by: None,
-            hash: None,
-
-            show_title: None,
-            show_season_episode: None,
-        };
-        next_available_uid += 1;
-
+                
         //dumping prepared values into Content struct based on Designation
-        match designation {
+        match content.designation {
             Designation::Episode => {
+                let mut episode = false;
+                let season_episode = seperate_season_episode(&content.filename, &mut episode);
+
                 content.show_title = Some(show_title);
                 content.show_season_episode = season_episode;
 
