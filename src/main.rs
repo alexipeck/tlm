@@ -108,7 +108,7 @@ enum Designation {
 #[derive(Clone)]
 struct Content {
     uid: usize,
-    full_path: String,
+    full_path: PathBuf,
     designation: Designation,
     parent_directory: String,
     filename: String,
@@ -139,9 +139,6 @@ impl Content {
 
         let extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
 
-        //prepare full path
-        let full_path = format!("{}{}", parent_directory, filename);
-
         let designation: Designation;
         if episode {
             designation = Designation::Episode;
@@ -149,7 +146,7 @@ impl Content {
             designation = Designation::Generic;
         }
         Content {
-            full_path: full_path,
+            full_path: raw_filepath.clone(),
             designation: designation,
             uid: UID_COUNTER.fetch_add(1, Ordering::SeqCst),
             parent_directory: parent_directory,
