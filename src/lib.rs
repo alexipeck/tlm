@@ -21,6 +21,9 @@ pub struct Show {
     pub seasons: Vec<Season>,
 }
 
+pub struct Shows {
+    
+}
 
 //generic content container, focus on video
 #[derive(Clone)]
