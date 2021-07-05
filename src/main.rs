@@ -286,7 +286,7 @@ fn main() {
     let mut tracked_root_directories: Vec<String> = Vec::new();
     if !cfg!(target_os = "windows") {
         //tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
-        tracked_root_directories.push(String::from("/home/ryan/test_files")); //manual entry
+        tracked_root_directories.push(String::from("/home/anpeck/tlm/test_files")); //manual entry
     } else {
         //tracked_root_directories.push(String::from("T:/")); //manual entry
         tracked_root_directories.push(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\"));
