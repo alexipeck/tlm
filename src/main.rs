@@ -1,15 +1,11 @@
 use regex::Regex;
 use std::fs;
-use std::io::BufReader;
 use std::path::PathBuf;
-use std::path::MAIN_SEPARATOR;
 use std::process::Command; //borrow::Cow, thread::current,
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 use twox_hash::xxh3;
 use walkdir::WalkDir;
-
-static UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+use tlm::{Content, Designation, Season, Show};
 
 fn hash_file(path: PathBuf) -> u64 {
     println!("Hashing: {}...", path.display());
@@ -97,74 +93,6 @@ fn encode(source: &String, target: &String) -> String { //command: &Vec<&str>
     String::from_utf8_lossy(&buffer.stdout).to_string()
 }
 
-#[derive(Clone, Copy)]
-enum Designation {
-    Generic,
-    Episode,
-    Movie,
-}
-
-//generic content container, focus on video
-#[derive(Clone)]
-struct Content {
-    uid: usize,
-    full_path: String,
-    designation: Designation,
-    parent_directory: String,
-    filename: String,
-    filename_woe: String,
-    reserved_by: Option<String>,
-    extension: String,
-
-    hash: Option<u64>,
-    //versions: Vec<FileVersion>,
-    //metadata_dump
-    show_title: Option<String>,
-    show_season_episode: Option<(String, String)>,
-}
-
-impl Content {
-    pub fn new(raw_filepath: &PathBuf) -> Content {
-        //prepare filename
-        let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
-
-        let mut episode = false;
-        seperate_season_episode(&filename, &mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
-
-        //prepare filename without extension
-        let filename_woe = String::from(raw_filepath.file_stem().unwrap().to_string_lossy());
-
-        //parent directory
-        let parent_directory = String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
-
-        let extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
-
-        //prepare full path
-        let full_path = format!("{}{}", parent_directory, filename);
-
-        let designation: Designation;
-        if episode {
-            designation = Designation::Episode;
-        } else {
-            designation = Designation::Generic;
-        }
-        Content {
-            full_path: full_path,
-            designation: designation,
-            uid: UID_COUNTER.fetch_add(1, Ordering::SeqCst),
-            parent_directory: parent_directory,
-            filename: filename,
-            filename_woe: filename_woe,
-            reserved_by: None,
-            hash: None,
-            extension: extension,
-
-            show_title: None,
-            show_season_episode: None,
-        }
-    }
-}
-
 //doesn't handle errors correctly
 fn prioritise_content_by_title(queue: &mut Queue, filenames: Vec<String>) {
     for _ in 0..filenames.len() {
@@ -210,16 +138,6 @@ fn prioritise_content_by_uid(queue: &mut Queue, uids: Vec<usize>) {
     }
 }
 
-struct Season {
-    number: u8,
-    episodes: Vec<Content>,
-}
-
-struct Show {
-    title: String,
-    seasons: Vec<Season>,
-}
-
 fn rem_first_char(value: &str) -> &str {
     let mut chars = value.chars();
     chars.next();
@@ -239,8 +157,6 @@ struct Queue {
     priority_queue: Vec<Content>,
     main_queue: Vec<Content>,
 }
-
-fn assign_uid() {}
 
 //Return true in string contains any substring from Vector
 fn str_contains_strs(input_str: &str, substrings: &Vec<&str>) -> bool {
@@ -276,9 +192,6 @@ fn import_files(
 }
 
 fn main() {
-    //Content UID
-    let mut next_available_uid: usize = 0;
-
     //Queue
     let mut queue = Queue {
         priority_queue: Vec::new(),
@@ -417,12 +330,12 @@ fn main() {
         }
         queue.main_queue.push(content);
     }
-    let mut filenames: Vec<String> = Vec::new();
+    let filenames: Vec<String> = Vec::new();
     //filenames.push(String::from(r"Weeds - S08E10 - Threshold Bluray-1080p.mkv"));
     //filenames.push(String::from(r"Weeds - S08E11 - God Willing and the Creek Don't Rise Bluray-1080p.mkv"));
     //filenames.push(String::from(r"Weeds - S08E12-13 - It's Time Bluray-1080p.mkv"));
 
-    let mut uids: Vec<usize> = Vec::new();
+    let uids: Vec<usize> = Vec::new();
     //uids.push(10);
     //uids.push(22);
     //uids.push(35);
