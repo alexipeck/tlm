@@ -162,9 +162,8 @@ impl Content {
     }
     //
     pub fn update_designation_and_fill(&mut self, raw_filepath: &PathBuf) {
-        let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
         let mut episode = false;
-        let show_season_episode_conditional = seperate_season_episode(&filename, &mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
+        let show_season_episode_conditional = seperate_season_episode(&self.filename, &mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
         if episode {
             self.designation = Designation::Episode;
             for section in String::from(
@@ -187,10 +186,6 @@ impl Content {
             self.show_title = None;
             self.show_season_episode = None;
         }
-
-        
-
-
     }
 
     pub fn moved(&mut self, raw_filepath: &PathBuf) {
@@ -203,7 +198,6 @@ impl Content {
 
         let mut episode = false;
         seperate_season_episode(&filename, &mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
-
 
 
         self.extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
@@ -219,7 +213,8 @@ impl Content {
         self.filename_woe = String::from(raw_filepath.file_stem().unwrap().to_string_lossy());
         self.extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
 
-
+        //designation, show_title, show_season_episode
+        self.update_designation_and_fill(raw_filepath);
     }
 }
 
