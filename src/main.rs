@@ -191,10 +191,32 @@ fn import_files(
     }
 }
 
-/* fn stuff(content: Content) {
+/* fn fill_content(content: Content, raw_filepath: &PathBuf, shows: Vec<Show>) {
+    let mut content = Content::new(raw_filepath);
+
+    //prepare title
+    let mut show_title = String::new();
+    for section in String::from(
+        raw_filepath
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_string_lossy(),
+    )
+    .split('/')
+    .rev()
+    {
+        show_title = String::from(section);
+        break;
+    }
+
     //dumping prepared values into Content struct based on Designation
     match content.designation {
         Designation::Episode => {
+
+            content.designate_and_fill();
+
             let mut episode = false;
             let season_episode = seperate_season_episode(&content.filename, &mut episode);
 
