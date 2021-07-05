@@ -76,7 +76,7 @@ fn rename(source: &String, target: &String) {
             .expect("failed to execute process"); */
     }
 }
-
+//needs to handle the target filepath already existing, overwrite
 fn encode(source: &String, target: &String) -> String { //command: &Vec<&str>
     let encode_string: Vec<&str> = vec!["-i", &source, "-c:v", "libx265", "-crf", "25", "-preset", "slower", "-profile:v", "main", "-c:a", "aac", "-q:a", "224k", &target];
     
@@ -159,6 +159,67 @@ impl Content {
             show_title: None,
             show_season_episode: None,
         }
+    }
+    //
+    pub fn update_designation_and_fill(&mut self, raw_filepath: &PathBuf) {
+        let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
+        let mut episode = false;
+        let show_season_episode_conditional = seperate_season_episode(&filename, &mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
+        if episode {
+            self.designation = Designation::Episode;
+            for section in String::from(
+                raw_filepath
+                    .parent()
+                    .unwrap()
+                    .parent()
+                    .unwrap()
+                    .to_string_lossy(),
+            )
+            .split('/')
+            .rev()
+            {
+                self.show_title = Some(String::from(section));
+                break;
+            }
+            self.show_season_episode = show_season_episode_conditional;
+        } else {
+            self.designation = Designation::Generic;
+            self.show_title = None;
+            self.show_season_episode = None;
+        }
+
+        
+
+
+    }
+
+    pub fn moved(&mut self, raw_filepath: &PathBuf) {
+        self.parent_directory = String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
+        self.full_path = raw_filepath.clone();
+    }
+
+    pub fn regenerate(&mut self, raw_filepath: &PathBuf) {
+        let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
+
+        let mut episode = false;
+        seperate_season_episode(&filename, &mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
+
+
+
+        self.extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
+
+        if episode {
+            self.designation = Designation::Episode;
+        } else {
+            self.designation = Designation::Generic;
+        };
+        self.full_path = raw_filepath.clone();
+        self.parent_directory = String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
+        self.filename = filename;
+        self.filename_woe = String::from(raw_filepath.file_stem().unwrap().to_string_lossy());
+        self.extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
+
+
     }
 }
 
@@ -272,6 +333,87 @@ fn import_files(
     }
 }
 
+/* fn stuff(content: Content) {
+    //dumping prepared values into Content struct based on Designation
+    match content.designation {
+        Designation::Episode => {
+            let mut episode = false;
+            let season_episode = seperate_season_episode(&content.filename, &mut episode);
+
+            content.show_title = Some(show_title);
+            content.show_season_episode = season_episode;
+
+            //index of the current show in the shows vector
+            let mut current_show = 0;
+
+            //determine whether the show exists in the shows vector, if it does, it saves the index
+            let mut exists = false;
+            for (i, show) in shows.iter().enumerate() {
+                if show.title == *(content.show_title.as_ref().unwrap()) {
+                    exists = true;
+                    current_show = i;
+                    break;
+                }
+            }
+
+            //if the show doesn't exist in the vector, it creates it, and saves the index
+            if !exists {
+                let show = Show {
+                    title: content.show_title.as_ref().unwrap().clone(),
+                    seasons: Vec::new(),
+                };
+                shows.push(show);
+                current_show = shows.len() - 1;
+            }
+
+            //determines whether the season exists in the seasons vector of the current show, if it does, it saves the index
+            exists = false;
+            let mut current_season: usize = 0; //content.show_season_episode.0.parse::<usize>().unwrap()
+            for (i, season) in shows[current_show].seasons.iter().enumerate() {
+                if season.number
+                    == content
+                        .show_season_episode
+                        .as_ref()
+                        .unwrap()
+                        .0
+                        .parse::<u8>()
+                        .unwrap()
+                {
+                    exists = true;
+                    current_season = i;
+                    break;
+                }
+            }
+
+            //if the season doesn't exist in the current show's seasons vector, it creates it
+            if !exists {
+                let season = Season {
+                    number: content
+                        .show_season_episode
+                        .as_ref()
+                        .unwrap()
+                        .0
+                        .parse::<u8>()
+                        .unwrap(),
+                    episodes: Vec::new(),
+                };
+
+                shows[current_show].seasons.push(season);
+
+                current_season = shows[current_show].seasons.len() - 1;
+            }
+            //push episode to current season
+            shows[current_show].seasons[current_season]
+                .episodes
+                .push(content.clone());
+        }
+        /*Designation::Movie => (
+
+        ),*/
+        _ => {}
+    }
+} */
+
 fn main() {
     //Content UID
     let mut next_available_uid: usize = 0;
@@ -334,6 +476,7 @@ fn main() {
             break;
         }
 
+        //////////
         //dumping prepared values into Content struct based on Designation
         match content.designation {
             Designation::Episode => {
@@ -412,6 +555,7 @@ fn main() {
             ),*/
             _ => {}
         }
+        //////////
         queue.main_queue.push(content);
     }
     let mut filenames: Vec<String> = Vec::new();
