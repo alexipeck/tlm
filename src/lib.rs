@@ -21,8 +21,30 @@ pub struct Show {
     pub seasons: Vec<Season>,
 }
 
+
 pub struct Shows {
-    
+    pub shows: Vec<Show>,
+}
+impl Shows {
+    pub fn insert_into_season_in_order() {
+        
+    }
+
+    pub fn add_episode(&mut self, episode: Content) {
+        //shows.push()
+    }
+
+
+    //insert show
+
+    //exists
+
+    //pub collect season
+
+    //pub collect show
+
+
+
 }
 
 //generic content container, focus on video
