@@ -19,14 +19,32 @@ pub struct Season {
 }
 
 impl Season {
-    pub fn new(number: usize, capacity: usize) -> Season {
-        let episodes = Vec::with_capacity(capacity);
+    pub fn new(number: usize) -> Season {
+        let episodes = Vec::new();
         Season {
             number: number,
             episodes: episodes,
         }
     }
 }
+
+/* impl Ord for Content {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.show_season_episode.parse::<usize>().unwrap().cmp(&other.show_season_episode.parse::<usize>().unwrap())
+    }
+}
+
+impl PartialOrd for Content {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Content {
+    fn eq(&self, other: &Self) -> bool {
+        self.height == other.height
+    }
+} */
 
 pub struct Show {
     pub uid: usize,
@@ -35,11 +53,11 @@ pub struct Show {
 }
 
 impl Show {
-    pub fn new(uid: usize, title: String, capacity: usize) -> Show {
+    pub fn new(uid: usize, title: String) -> Show {
         Show {
             uid: uid,
             title: title,
-            seasons: Vec::with_capacity(capacity),
+            seasons: Vec::new(),
         }
     }
 }
@@ -95,6 +113,7 @@ impl Shows {
     fn find_index_by_uid(&self, uid: usize) -> Option<usize> {//if !is_none(show_uid)
         return self.shows.iter().position(|show| show.uid == uid);
     }
+
     pub fn new() -> Shows {
         Shows {
             shows: Vec::new(),
@@ -107,7 +126,8 @@ impl Shows {
                 break;
             }
         }
-        self.shows[show_index].seasons[season_number] = Season::new(season_number, 100);
+        //self.shows[show_index].seasons.insert(season_number, Season::new(season_number));
+        self[show_index].seasons.push(Season::new(season_number));
     }
 
     //returns (uid, index)
@@ -120,8 +140,35 @@ impl Shows {
             index += 1;
         }
         let uid = SHOW_UID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        self.shows.push(Show::new(uid, title, 100));
+        self.shows.push(Show::new(uid, title));
         return (uid, index);
+    }
+    
+    //not actually in order
+    fn insert_in_order(&mut self, show_index: usize, season_number: usize, episode_number: usize, content: Content) {
+        let mut inserted = false;
+        for season in &mut self[show_index].seasons {
+            if season.number == season_number {
+                let mut index: usize = 0;
+
+                season.episodes.push(content.clone());
+                /* for episode in &mut season.episodes {
+                    let current = episode.show_season_episode.clone().unwrap().1.parse::<usize>().unwrap();
+                    if index + 1 <= season.episodes.len() {
+                        let next = season.episodes[index + 1].show_season_episode.clone().unwrap().1.parse::<usize>().unwrap();
+
+                        if current < episode_number && next > episode_number {
+                            season.episodes.insert(index, content);
+                            inserted = true;
+                        }
+                    }
+                    index += 1;
+                }
+                if !inserted {
+                    season.episodes.push(content);
+                } */
+            }
+        }
     }
 
     //will overwrite data
@@ -131,7 +178,7 @@ impl Shows {
         let season_number = se_temp.0.parse::<usize>().unwrap();
         let episode_number = se_temp.1.parse::<usize>().unwrap();
         self.ensure_season_exists_by_show_index_and_season_number(show_index, season_number);
-        self.shows[show_index].seasons[season_number].episodes[episode_number] = content;
+        self.insert_in_order(show_index, season_number, episode_number, content);
     }
 
 
