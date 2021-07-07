@@ -72,11 +72,24 @@ impl IndexMut<(usize, usize)> for Show {
     }
 }
 
+//Show
+impl Index<usize> for Shows {
+    type Output = Show;
+    fn index(&self, show: usize) -> &Show {
+        &self.shows[show]
+    }
+}
 
+impl IndexMut<usize> for Shows {
+    fn index_mut<'a>(&'a mut self, show: usize) -> &'a mut Show {
+        &mut self.shows[show]
+    }
+}
 
 pub struct Shows {
     pub shows: Vec<Show>,
 }
+
 
 impl Shows {
     fn find_index_by_uid(&self, uid: usize) -> Option<usize> {//if !is_none(show_uid)
