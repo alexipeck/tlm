@@ -330,11 +330,12 @@ fn main() {
     );
 
     //sort out filepaths into series and seasons
-    let mut shows: Vec<Show> = Vec::new();
+    let mut shows = Shows::new();
 
     //loop through all paths
     for raw_filepath in raw_filepaths {
         let mut content = Content::new(&raw_filepath);
+        content.set_show_uid(shows.ensure_show_exists_by_title(content.show_title.clone().unwrap()).0);
 
         //prepare title
         let mut show_title = String::new();
@@ -356,78 +357,19 @@ fn main() {
         //////////
         //dumping prepared values into Content struct based on Designation
         match content.designation {
-            Designation::Episode => {
-                let mut episode = false;
-                let season_episode = seperate_season_episode(&content.filename, &mut episode);
-
+            Designation::Episode => {                
+                let season_episode = content.show_season_episode;
                 content.show_title = Some(show_title);
                 content.show_season_episode = season_episode;
 
-                //index of the current show in the shows vector
-                let mut current_show = 0;
+                
+                
 
-                //determine whether the show exists in the shows vector, if it does, it saves the index
-                let mut exists = false;
-                for (i, show) in shows.iter().enumerate() {
-                    if show.title == *(content.show_title.as_ref().unwrap()) {
-                        exists = true;
-                        current_show = i;
-                        break;
-                    }
-                }
+                //saves index of the current show in the shows vector
+                //ensures show exists, saving the index and uid
 
-                //if the show doesn't exist in the vector, it creates it, and saves the index
-                if !exists {
-                    let title = content.show_title.as_ref().unwrap().clone();
-                    let uid = shows.ensure_exists_by_title(title);
-                    let show = Show {
-                        title: title,
-                        seasons: Vec::new(),
-                    };
-                    shows.push(show);
-                    current_show = shows.len() - 1;
-                }
-
-                //determines whether the season exists in the seasons vector of the current show, if it does, it saves the index
-                exists = false;
-                let mut current_season: usize = 0; //content.show_season_episode.0.parse::<usize>().unwrap()
-                for (i, season) in shows[current_show].seasons.iter().enumerate() {
-                    if season.number
-                        == content
-                            .show_season_episode
-                            .as_ref()
-                            .unwrap()
-                            .0
-                            .parse::<u8>()
-                            .unwrap()
-                    {
-                        exists = true;
-                        current_season = i;
-                        break;
-                    }
-                }
-
-                //if the season doesn't exist in the current show's seasons vector, it creates it
-                if !exists {
-                    let season = Season {
-                        number: content
-                            .show_season_episode
-                            .as_ref()
-                            .unwrap()
-                            .0
-                            .parse::<u8>()
-                            .unwrap(),
-                        episodes: Vec::new(),
-                    };
-
-                    shows[current_show].seasons.push(season);
-
-                    current_season = shows[current_show].seasons.len() - 1;
-                }
-                //push episode to current season
-                shows[current_show].seasons[current_season]
-                    .episodes
-                    .push(content.clone());
+                //push episode
+                shows.add_episode(content.clone());
             }
             /*Designation::Movie => (
 
@@ -469,17 +411,7 @@ fn main() {
     }
 
     if false {
-        for show in &shows {
-            println!("{}", show.title);
-            for season in &show.seasons {
-                println!("{}", season.number);
-                for episode in &season.episodes {
-                    println!("{}",
-                        episode.filename,
-                    );
-                }
-            }
-        }
+        shows.print();
     }
     //add to db by filename, allowing the same file to be retargeted in another directory, without losing track of all the data associated with the episode
 

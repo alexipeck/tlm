@@ -13,8 +13,18 @@ pub enum Designation {
 }
 
 pub struct Season {
-    pub number: u8,
+    pub number: usize,
     pub episodes: Vec<Content>,
+}
+
+impl Season {
+    pub fn new(number: usize, capacity: usize) -> Season {
+        let episodes = Vec::with_capacity(capacity);
+        Season {
+            number: number,
+            episodes: episodes,
+        }
+    }
 }
 
 pub struct Show {
@@ -23,55 +33,61 @@ pub struct Show {
     pub seasons: Vec<Season>,
 }
 
+impl Show {
+    pub fn new(uid: usize, title: String, capacity: usize) -> Show {
+        Show {
+            uid: uid,
+            title: title,
+            seasons: Vec::with_capacity(capacity),
+        }
+    }
+}
 
 pub struct Shows {
     pub shows: Vec<Show>,
 }
+
 impl Shows {
     fn find_index_by_uid(&self, uid: usize) -> Option<usize> {//if !is_none(show_uid)
         return self.shows.iter().position(|show| show.uid == uid);
     }
-    
-    fn is_episode(content: Content) -> bool {
-        if content.designation == Designation::Episode {
-            return true;
-        } else {
-            return false;
+    pub fn new() -> Shows {
+        Shows {
+            shows: Vec::new(),
         }
     }
 
-    pub fn ensure_exists_by_title(&mut self, title: String) -> usize {
+    fn ensure_season_exists_by_show_index_and_season_number(&mut self, show_index: usize, season_number: usize) {
+        for season in &mut self.shows[show_index].seasons {
+            if season.number == season_number {
+                break;
+            }
+        }
+        self.shows[show_index].seasons[season_number] = Season::new(season_number, 100);
+    }
+
+    //returns (uid, index)
+    pub fn ensure_show_exists_by_title(&mut self, title: String) -> (usize, usize) {
         let mut index: usize = 0;
         for show in &self.shows {
             if show.title == title {
-                return index;
+                return (show.uid, index);
             }
             index += 1;
         }
         let uid = SHOW_UID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        self.shows.push(
-            Show {
-            uid: uid,
-            title: title,
-            seasons: Vec::new(),
-        });
-        return uid;
+        self.shows.push(Show::new(uid, title, 100));
+        return (uid, index);
     }
 
     //will overwrite data
-    fn insert_in_order(&mut self, content: Content) {
-        let show_index = self.find_index_by_uid(content.show_uid.unwrap()).unwrap();
+    pub fn add_episode(&mut self, content: Content) {
+        let (show_uid, show_index) = self.ensure_show_exists_by_title(content.show_title.clone().unwrap());
         let se_temp = content.show_season_episode.clone().unwrap();
-        let season_index = se_temp.0.parse::<usize>().unwrap();
-        let episode_index = se_temp.1.parse::<usize>().unwrap();
-        self.shows[show_index].seasons[season_index].episodes[episode_index] = content;
-    }
-
-    pub fn add_episode(&mut self, episode: Content) {
-        if episode.designation == Designation::Episode {
-            //shows.push()
-        }
-        //handle error
+        let season_number = se_temp.0.parse::<usize>().unwrap();
+        let episode_number = se_temp.1.parse::<usize>().unwrap();
+        self.ensure_season_exists_by_show_index_and_season_number(show_index, season_number);
+        self.shows[show_index].seasons[season_number].episodes[episode_number] = content;
     }
 
 
@@ -84,7 +100,19 @@ impl Shows {
     //pub collect show
 
 
-
+    pub fn print(&self) {
+        for show in &self.shows {
+            println!("{}", show.title);
+            for season in &show.seasons {
+                println!("{}", season.number);
+                for episode in &season.episodes {
+                    println!("{}",
+                        episode.filename,
+                    );
+                }
+            }
+        }
+    }
 }
 
 //generic content container, focus on video
@@ -123,15 +151,9 @@ impl Content {
 
         let extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
 
-        let designation: Designation;
-        if episode {
-            designation = Designation::Episode;
-        } else {
-            designation = Designation::Generic;
-        }
-        Content {
+        let mut content = Content {
             full_path: raw_filepath.clone(),
-            designation: designation,
+            designation: Designation::Generic,
             uid: EPISODE_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
             parent_directory: parent_directory,
             filename: filename,
@@ -143,7 +165,13 @@ impl Content {
             show_title: None,
             show_season_episode: None,
             show_uid: None,
-        }
+        };
+        content.designate_and_fill();
+        return content;
+    }
+
+    pub fn set_show_uid(&mut self, show_uid: usize) {
+        self.show_uid = Some(show_uid);
     }
 
     pub fn designate_and_fill(&mut self) {
@@ -166,6 +194,7 @@ impl Content {
                 break;
             }
             self.show_season_episode = show_season_episode_conditional;
+            self.show_uid = None;
         } else {
             self.designation = Designation::Generic;
             self.show_title = None;
