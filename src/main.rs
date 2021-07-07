@@ -191,109 +191,6 @@ fn import_files(
     }
 }
 
-/* fn fill_content(content: Content, raw_filepath: &PathBuf, shows: Vec<Show>) {
-    let mut content = Content::new(raw_filepath);
-
-    //prepare title
-    let mut show_title = String::new();
-    for section in String::from(
-        raw_filepath
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .to_string_lossy(),
-    )
-    .split('/')
-    .rev()
-    {
-        show_title = String::from(section);
-        break;
-    }
-
-    //dumping prepared values into Content struct based on Designation
-    match content.designation {
-        Designation::Episode => {
-
-            content.designate_and_fill();
-
-            let mut episode = false;
-            let season_episode = seperate_season_episode(&content.filename, &mut episode);
-
-            content.show_title = Some(show_title);
-            content.show_season_episode = season_episode;
-
-            //index of the current show in the shows vector
-            let mut current_show = 0;
-
-            //determine whether the show exists in the shows vector, if it does, it saves the index
-            let mut exists = false;
-            for (i, show) in shows.iter().enumerate() {
-                if show.title == *(content.show_title.as_ref().unwrap()) {
-                    exists = true;
-                    current_show = i;
-                    break;
-                }
-            }
-
-            //if the show doesn't exist in the vector, it creates it, and saves the index
-            if !exists {
-                let show = Show {
-                    title: content.show_title.as_ref().unwrap().clone(),
-                    seasons: Vec::new(),
-                };
-                shows.push(show);
-                current_show = shows.len() - 1;
-            }
-
-            //determines whether the season exists in the seasons vector of the current show, if it does, it saves the index
-            exists = false;
-            let mut current_season: usize = 0; //content.show_season_episode.0.parse::<usize>().unwrap()
-            for (i, season) in shows[current_show].seasons.iter().enumerate() {
-                if season.number
-                    == content
-                        .show_season_episode
-                        .as_ref()
-                        .unwrap()
-                        .0
-                        .parse::<u8>()
-                        .unwrap()
-                {
-                    exists = true;
-                    current_season = i;
-                    break;
-                }
-            }
-
-            //if the season doesn't exist in the current show's seasons vector, it creates it
-            if !exists {
-                let season = Season {
-                    number: content
-                        .show_season_episode
-                        .as_ref()
-                        .unwrap()
-                        .0
-                        .parse::<u8>()
-                        .unwrap(),
-                    episodes: Vec::new(),
-                };
-
-                shows[current_show].seasons.push(season);
-
-                current_season = shows[current_show].seasons.len() - 1;
-            }
-            //push episode to current season
-            shows[current_show].seasons[current_season]
-                .episodes
-                .push(content.clone());
-        }
-        /*Designation::Movie => (
-
-        ),*/
-        _ => {}
-    }
-} */
-
 fn main() {
     //Queue
     let mut queue = Queue {
@@ -410,9 +307,7 @@ fn main() {
         rename(&encode_target, &rename_target);
     }
 
-    if false {
-        shows.print();
-    }
+    //shows.print();
     //add to db by filename, allowing the same file to be retargeted in another directory, without losing track of all the data associated with the episode
 
     //unify generic and episode naming (bring together)
