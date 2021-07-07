@@ -28,15 +28,8 @@ pub struct Shows {
     pub shows: Vec<Show>,
 }
 impl Shows {
-    fn find_index_by_uid(& self, uid: usize) -> Option<usize> {//if !is_none(show_uid)
-        let mut index = 0;
-        for show in &self.shows {
-            if show.uid == uid {
-                return Some(index);
-            }
-            index += 1;
-        }
-        return None;
+    fn find_index_by_uid(&self, uid: usize) -> Option<usize> {//if !is_none(show_uid)
+        return self.shows.iter().position(|show| show.uid == uid);
     }
     
     fn is_episode(content: Content) -> bool {
