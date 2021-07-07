@@ -48,22 +48,26 @@ impl Shows {
     }
 
     pub fn ensure_exists_by_title(&mut self, title: String) -> usize {
-        let exists = false;
-        let index: usize = 0;
-        for show in self.shows {
+        let mut index: usize = 0;
+        for show in &self.shows {
             if show.title == title {
-                exists = true;
                 return index;
             }
             index += 1;
         }
-        self.shows.push();
-        uid = SHOW_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
+        let uid = SHOW_UID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        self.shows.push(
+            Show {
+            uid: uid,
+            title: title,
+            seasons: Vec::new(),
+        });
+        return uid;
     }
 
     //will overwrite data
     fn insert_in_order(&mut self, content: Content) {
-        let show_index = self.find_index_by_uid(content.uid).unwrap();
+        let show_index = self.find_index_by_uid(content.show_uid.unwrap()).unwrap();
         let se_temp = content.show_season_episode.clone().unwrap();
         let season_index = se_temp.0.parse::<usize>().unwrap();
         let episode_index = se_temp.1.parse::<usize>().unwrap();

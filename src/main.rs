@@ -5,7 +5,7 @@ use std::process::Command; //borrow::Cow, thread::current,
 use std::time::Instant;
 use twox_hash::xxh3;
 use walkdir::WalkDir;
-use tlm::{Content, Designation, Season, Show};
+use tlm::{Content, Designation, Season, Show, Shows};
 
 fn hash_file(path: PathBuf) -> u64 {
     println!("Hashing: {}...", path.display());
@@ -378,8 +378,10 @@ fn main() {
 
                 //if the show doesn't exist in the vector, it creates it, and saves the index
                 if !exists {
+                    let title = content.show_title.as_ref().unwrap().clone();
+                    let uid = shows.ensure_exists_by_title(title);
                     let show = Show {
-                        title: content.show_title.as_ref().unwrap().clone(),
+                        title: title,
                         seasons: Vec::new(),
                     };
                     shows.push(show);
