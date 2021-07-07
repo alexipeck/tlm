@@ -1,6 +1,7 @@
 use regex::Regex;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::ops::{Index, IndexMut};
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static SHOW_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -42,6 +43,36 @@ impl Show {
         }
     }
 }
+
+//Season
+impl Index<usize> for Show {
+    type Output = Season;
+    fn index(&self, season: usize) -> &Season {
+        &self.seasons[season]
+    }
+}
+
+impl IndexMut<usize> for Show {
+    fn index_mut<'a>(&'a mut self, season: usize) -> &'a mut Season {
+        &mut self.seasons[season]
+    }
+}
+
+//Episode
+impl Index<(usize, usize)> for Show {
+    type Output = Content;
+    fn index(&self, (season, episode): (usize, usize)) -> &Content {
+        &self.seasons[season].episodes[episode]
+    }
+}
+
+impl IndexMut<(usize, usize)> for Show {
+    fn index_mut<'a>(&'a mut self, (season, episode): (usize, usize)) -> &'a mut Content {
+        &mut self.seasons[season].episodes[episode]
+    }
+}
+
+
 
 pub struct Shows {
     pub shows: Vec<Show>,
