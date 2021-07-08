@@ -48,15 +48,7 @@ fn main() {
         }
 
         //prepare title
-        let show_title = raw_filepath
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
+        let show_title = Content::get_show_title_from_pathbuf(&raw_filepath);
 
         //dumping prepared values into Content struct based on Designation
         match content.designation {
@@ -64,11 +56,6 @@ fn main() {
                 let season_episode = content.show_season_episode;
                 content.show_title = Some(show_title);
                 content.show_season_episode = season_episode;
-
-                //saves index of the current show in the shows vector
-                //ensures show exists, saving the index and uid
-
-                //push episode
                 shows.add_episode(content.clone());
             }
             /*Designation::Movie => (
@@ -101,10 +88,10 @@ fn main() {
     }
 
     for content in queue.main_queue {
-        let source = format!("{}{}", content.parent_directory, content.filename);
-        let encode_target = format!("{}{}_encode.mp4", content.parent_directory, content.filename_woe);
-        let rename_target = format!("{}{}.mp4", content.parent_directory, content.filename_woe);
-        println!("Starting encode of {}\nEncoding to {}_encode.mp4", content.filename, content.filename_woe);
+        let source = content.get_full_path();
+        let encode_target = content.get_full_path_with_suffix("_encode".to_string());//want it to use the actual extension rather than just .mp4
+        let rename_target = content.get_full_path_specific_extension("mp4".to_string());
+        println!("Starting encode of {}\nEncoding to {}_encode.mp4", content.get_filename(), content.get_filename_woe());
         encode(&source, &encode_target);
         rename(&encode_target, &rename_target);
     }
