@@ -46,6 +46,56 @@ impl PartialEq for Content {
     }
 } */
 
+//doesn't handle errors correctly
+pub fn prioritise_content_by_title(queue: &mut Queue, filenames: Vec<String>) {
+    for _ in 0..filenames.len() {
+        let mut index: usize = 0;
+        let mut found = false;
+        for content in &queue.main_queue {
+            for filename in &filenames {
+                if content.filename == *filename {
+                    found = true;
+                    break;
+                }
+            }
+            if found {
+                break;
+            }
+            index += 1;
+        }
+        if found {
+            queue.priority_queue.push(queue.main_queue.remove(index));
+        }
+    }
+}
+
+pub fn prioritise_content_by_uid(queue: &mut Queue, uids: Vec<usize>) {
+    for _ in 0..uids.len() {
+        let mut index: usize = 0;
+        let mut found = false;
+        for content in &queue.main_queue {
+            for uid in &uids {
+                if content.uid == *uid {
+                    found = true;
+                    break;
+                }
+            }
+            if found {
+                break;
+            }
+            index += 1;
+        }
+        if found {
+            queue.priority_queue.push(queue.main_queue.remove(index));
+        }
+    }
+}
+
+pub struct Queue {
+    pub priority_queue: Vec<Content>,
+    pub main_queue: Vec<Content>,
+}
+
 pub struct Show {
     pub uid: usize,
     pub title: String,
@@ -322,6 +372,22 @@ impl Content {
     }
 }
 
+pub fn get_next_unreserved(queue: Queue) -> Option<usize> {
+    for content in queue.priority_queue {
+        if content.reserved_by == None {
+            return Some(content.uid);
+        }
+    }
+
+    for content in queue.main_queue {
+        if content.reserved_by == None {
+            return Some(content.uid);
+        }
+    }
+
+    return None;
+}
+
 fn seperate_season_episode(filename: &String, episode: &mut bool) -> Option<(String, String)> {
     let temp = re_strip(filename, r"S[0-9]*E[0-9\-]*");
     let episode_string: String;
@@ -345,7 +411,7 @@ fn seperate_season_episode(filename: &String, episode: &mut bool) -> Option<(Str
     ))
 }
 
-fn re_strip(input: &String, expression: &str) -> Option<String> {
+pub fn re_strip(input: &String, expression: &str) -> Option<String> {
     let output = Regex::new(expression).unwrap().find(input);
     match output {
         None => return None,

@@ -5,7 +5,7 @@ use std::process::Command; //borrow::Cow, thread::current,
 use std::time::Instant;
 use twox_hash::xxh3;
 use walkdir::WalkDir;
-use tlm::{Content, Designation, Season, Show, Shows};
+use tlm::{Content, Designation, Season, Show, Shows, Queue, re_strip, prioritise_content_by_title, prioritise_content_by_uid};
 
 fn hash_file(path: PathBuf) -> u64 {
     println!("Hashing: {}...", path.display());
@@ -16,44 +16,7 @@ fn hash_file(path: PathBuf) -> u64 {
     hash
 }
 
-fn seperate_season_episode(filename: &String, episode: &mut bool) -> Option<(String, String)> {
-    let temp = re_strip(filename, r"S[0-9]*E[0-9\-]*");
-    let episode_string: String;
 
-    //Check if the regex caught a valid episode format
-    match temp {
-        None => {
-            *episode = false;
-            return None;
-        }
-        Some(temp_string) => {
-            *episode = true;
-            episode_string = temp_string;
-        }
-    }
-
-    let mut se_iter = episode_string.split('E');
-    Some((
-        se_iter.next().unwrap().to_string(),
-        se_iter.next().unwrap().to_string(),
-    ))
-}
-
-fn get_next_unreserved(queue: Queue) -> Option<usize> {
-    for content in queue.priority_queue {
-        if content.reserved_by == None {
-            return Some(content.uid);
-        }
-    }
-
-    for content in queue.main_queue {
-        if content.reserved_by == None {
-            return Some(content.uid);
-        }
-    }
-
-    return None;
-}
 
 fn rename(source: &String, target: &String) {
     let rename_string: Vec<&str> = vec!["-f", &source, &target];
@@ -93,70 +56,9 @@ fn encode(source: &String, target: &String) -> String { //command: &Vec<&str>
     String::from_utf8_lossy(&buffer.stdout).to_string()
 }
 
-//doesn't handle errors correctly
-fn prioritise_content_by_title(queue: &mut Queue, filenames: Vec<String>) {
-    for _ in 0..filenames.len() {
-        let mut index: usize = 0;
-        let mut found = false;
-        for content in &queue.main_queue {
-            for filename in &filenames {
-                if content.filename == *filename {
-                    found = true;
-                    break;
-                }
-            }
-            if found {
-                break;
-            }
-            index += 1;
-        }
-        if found {
-            queue.priority_queue.push(queue.main_queue.remove(index));
-        }
-    }
-}
 
-fn prioritise_content_by_uid(queue: &mut Queue, uids: Vec<usize>) {
-    for _ in 0..uids.len() {
-        let mut index: usize = 0;
-        let mut found = false;
-        for content in &queue.main_queue {
-            for uid in &uids {
-                if content.uid == *uid {
-                    found = true;
-                    break;
-                }
-            }
-            if found {
-                break;
-            }
-            index += 1;
-        }
-        if found {
-            queue.priority_queue.push(queue.main_queue.remove(index));
-        }
-    }
-}
 
-fn rem_first_char(value: &str) -> &str {
-    let mut chars = value.chars();
-    chars.next();
-    chars.as_str()
-}
 
-//requires raw string expression
-fn re_strip(input: &String, expression: &str) -> Option<String> {
-    let output = Regex::new(expression).unwrap().find(input);
-    match output {
-        None => return None,
-        Some(val) => return Some(String::from(rem_first_char(val.as_str()))),
-    }
-}
-
-struct Queue {
-    priority_queue: Vec<Content>,
-    main_queue: Vec<Content>,
-}
 
 //Return true in string contains any substring from Vector
 fn str_contains_strs(input_str: &str, substrings: &Vec<&str>) -> bool {
