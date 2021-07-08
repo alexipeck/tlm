@@ -96,20 +96,27 @@ fn hash_file(path: PathBuf) -> u64 {
 
 
 pub fn rename(source: &String, target: &String) {
-    let rename_string: Vec<&str> = vec!["-f", &source, &target];
-
     if !cfg!(target_os = "windows") {
         //linux & friends
+        let rename_string_linux: Vec<&str> = vec!["-f", &source, &target];
         Command::new("mv")
-            .args(rename_string)
+            .args(rename_string_linux)
             .output()
             .expect("failed to execute process");
     } else {
         //windows
-        /* Command::new("mv")
-            .args(rename_string)
+        let source = format!("\"{}\"", source.clone());
+        let target = format!("\"{}\"", target.clone());
+        let rename_string_windows: Vec<&str> = vec!["-Force", &source, &target];
+        //println!("{}\n{}", source, target);
+        for element in &rename_string_windows {
+            print!(" {}", element);
+        }
+        print!("\n");
+        Command::new("move")
+            .args(rename_string_windows)
             .output()
-            .expect("failed to execute process"); */
+            .expect("failed to execute process");
     }
 }
 //needs to handle the target filepath already existing, overwrite

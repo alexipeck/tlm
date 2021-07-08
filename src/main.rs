@@ -48,21 +48,15 @@ fn main() {
         }
 
         //prepare title
-        let mut show_title = String::new();
-        for section in String::from(
-            raw_filepath
-                .parent()
-                .unwrap()
-                .parent()
-                .unwrap()
-                .to_string_lossy(),
-        )
-        .split('/')
-        .rev()
-        {
-            show_title = String::from(section);
-            break;
-        }
+        let show_title = raw_filepath
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
 
         //dumping prepared values into Content struct based on Designation
         match content.designation {
@@ -115,7 +109,7 @@ fn main() {
         rename(&encode_target, &rename_target);
     }
 
-    //shows.print();
+    shows.print();
     //add to db by filename, allowing the same file to be retargeted in another directory, without losing track of all the data associated with the episode
 
     //unify generic and episode naming (bring together)
