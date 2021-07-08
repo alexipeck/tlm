@@ -331,12 +331,10 @@ impl Shows {
 
     pub fn print(&self) {
         for show in &self.shows {
-            println!("{}", show.title);
             for season in &show.seasons {
-                println!("{}", season.number);
                 for episode in &season.episodes {
                     println!("{}",
-                        episode.filename,
+                        episode.filename_woe,
                     );
                 }
             }
