@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::path::{self, PathBuf};
+use std::path::{PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::ops::{Index, IndexMut};
 use std::process::Command; //borrow::Cow, thread::current,
@@ -7,7 +7,6 @@ use walkdir::WalkDir;
 use std::time::Instant;
 use twox_hash::xxh3;
 use std::fs;
-use std::io::{self, Write};
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static SHOW_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -107,8 +106,7 @@ pub fn rename(source_string: &String, target_string: &String) -> std::io::Result
     Ok(())
 }
 
-//needs to handle the target filepath already existing, overwrite
-pub fn encode(source: &String, target: &String) -> String { //command: &Vec<&str>
+pub fn encode(source: &String, target: &String) -> String {
     let encode_string: Vec<&str> = vec!["-i", &source, "-c:v", "libx265", "-crf", "25", "-preset", "slower", "-profile:v", "main", "-c:a", "aac", "-q:a", "224k", "-y", &target];
     
     let buffer;
@@ -285,11 +283,11 @@ impl Shows {
     }
     
     //not actually in order
-    fn insert_in_order(&mut self, show_index: usize, season_number: usize, episode_number: usize, content: Content) {
-        let mut inserted = false;
+    fn insert_in_order(&mut self, show_index: usize, season_number: usize, _episode_number: usize, content: Content) {//remember episode_number
+        //let mut inserted = false;
         for season in &mut self[show_index].seasons {
             if season.number == season_number {
-                let mut index: usize = 0;
+                //let mut index: usize = 0;
 
                 season.episodes.push(content.clone());
                 /* for episode in &mut season.episodes {
@@ -313,7 +311,7 @@ impl Shows {
 
     //will overwrite data
     pub fn add_episode(&mut self, content: Content) {
-        let (show_uid, show_index) = self.ensure_show_exists_by_title(content.show_title.clone().unwrap());
+        let show_index = self.ensure_show_exists_by_title(content.show_title.clone().unwrap()).1;
         let se_temp = content.show_season_episode.clone().unwrap();
         let season_number = se_temp.0.parse::<usize>().unwrap();
         let episode_number = se_temp.1.parse::<usize>().unwrap();
