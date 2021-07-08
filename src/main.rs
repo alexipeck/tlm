@@ -89,11 +89,11 @@ fn main() {
 
     for content in queue.main_queue {
         let source = content.get_full_path();
-        let encode_target = content.get_full_path_with_suffix("_encode".to_string());//want it to use the actual extension rather than just .mp4
+        let encode_target = content.get_full_path_with_suffix("_encodeH4U8".to_string());//want it to use the actual extension rather than just .mp4
         let rename_target = content.get_full_path_specific_extension("mp4".to_string());
-        println!("Starting encode of {}\nEncoding to {}_encode.mp4", content.get_filename(), content.get_filename_woe());
+        println!("Starting encode of {}\nEncoding to {}.mp4", content.get_filename(), content.get_filename_woe());
         encode(&source, &encode_target);
-        rename(&encode_target, &rename_target);
+        let _ = rename(&encode_target, &rename_target);
     }
 
     shows.print();

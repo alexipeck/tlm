@@ -78,7 +78,10 @@ pub fn import_files(
             if entry.path().is_file() {
                 if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap())
                 {
-                    file_paths.push(entry.into_path());
+                    if !directory.contains("_encodeH4U8") {
+                        file_paths.push(entry.into_path());
+                    }
+                    
                 }
             }
         }
@@ -98,35 +101,12 @@ pub fn get_os_slash() -> String {
     return if !cfg!(target_os = "windows") { '/'.to_string() } else { '\\'.to_string() };
 }
 
-//make this use pathbuf to move
-pub fn rename(source_string: &String, target_string: &String) {
-    if !cfg!(target_os = "windows") {
-        //linux & friends
-        let rename_string_linux: Vec<&str> = vec!["-f", &source_string, &target_string];
-        Command::new("mv")
-            .args(rename_string_linux)
-            .output()
-            .expect("failed to execute process");
-    } else {
-        //windows
-        let source_windows = format!("\"{}\"", source_string);
-        let target_windows = format!("\"{}\"", target_string);
-        let rename_string_windows: Vec<&str> = vec!["mv", "-Force", &source_windows, &target_windows];
-
-        for element in &rename_string_windows {
-            print!(" {}", element);
-        }
-        print!("\n");
-
-        let output = Command::new("powershell")
-            .args(rename_string_windows)
-            .output()
-            .expect("failed to execute process");
-            io::stdout().write_all(&output.stdout).unwrap();
-            io::stderr().write_all(&output.stderr).unwrap();
-        //println!("{}", output.status);
-    }
+pub fn rename(source_string: &String, target_string: &String) -> std::io::Result<()> {
+    std::fs::copy(&source_string, &target_string)?;
+    std::fs::remove_file(&source_string)?;
+    Ok(())
 }
+
 //needs to handle the target filepath already existing, overwrite
 pub fn encode(source: &String, target: &String) -> String { //command: &Vec<&str>
     let encode_string: Vec<&str> = vec!["-i", &source, "-c:v", "libx265", "-crf", "25", "-preset", "slower", "-profile:v", "main", "-c:a", "aac", "-q:a", "224k", "-y", &target];
