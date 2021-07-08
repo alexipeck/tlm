@@ -126,7 +126,6 @@ impl Shows {
                 break;
             }
         }
-        //self.shows[show_index].seasons.insert(season_number, Season::new(season_number));
         self[show_index].seasons.push(Season::new(season_number));
     }
 

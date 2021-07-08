@@ -205,7 +205,8 @@ fn main() {
         tracked_root_directories.push(String::from("/home/anpeck/tlm/test_files")); //manual entry
     } else {
         //tracked_root_directories.push(String::from("T:/")); //manual entry
-        tracked_root_directories.push(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\"));
+        tracked_root_directories.push(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generic\"));
+        tracked_root_directories.push(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\episode\"));
         //manual entry
     }
 
@@ -232,7 +233,9 @@ fn main() {
     //loop through all paths
     for raw_filepath in raw_filepaths {
         let mut content = Content::new(&raw_filepath);
-        content.set_show_uid(shows.ensure_show_exists_by_title(content.show_title.clone().unwrap()).0);
+        if content.show_title.is_some() {
+            content.set_show_uid(shows.ensure_show_exists_by_title(content.show_title.clone().unwrap()).0);
+        }
 
         //prepare title
         let mut show_title = String::new();
@@ -251,16 +254,12 @@ fn main() {
             break;
         }
 
-        //////////
         //dumping prepared values into Content struct based on Designation
         match content.designation {
             Designation::Episode => {                
                 let season_episode = content.show_season_episode;
                 content.show_title = Some(show_title);
                 content.show_season_episode = season_episode;
-
-                
-                
 
                 //saves index of the current show in the shows vector
                 //ensures show exists, saving the index and uid
@@ -273,7 +272,6 @@ fn main() {
             ),*/
             _ => {}
         }
-        //////////
         queue.main_queue.push(content);
     }
     let filenames: Vec<String> = Vec::new();
