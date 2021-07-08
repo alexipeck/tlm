@@ -1,104 +1,12 @@
-use regex::Regex;
-use std::fs;
-use std::path::PathBuf;
-use std::process::Command; //borrow::Cow, thread::current,
-use std::time::Instant;
-use twox_hash::xxh3;
-use walkdir::WalkDir;
-use tlm::{Content, Designation, Season, Show, Shows, Queue, re_strip, prioritise_content_by_title, prioritise_content_by_uid};
-
-fn hash_file(path: PathBuf) -> u64 {
-    println!("Hashing: {}...", path.display());
-    let timer = Instant::now();
-    let hash = xxh3::hash64(&fs::read(path.to_str().unwrap()).unwrap());
-    println!("Took: {}ms", timer.elapsed().as_millis());
-    println!("Hash was: {}", hash);
-    hash
-}
-
-
-
-fn rename(source: &String, target: &String) {
-    let rename_string: Vec<&str> = vec!["-f", &source, &target];
-
-    if !cfg!(target_os = "windows") {
-        //linux & friends
-        Command::new("mv")
-            .args(rename_string)
-            .output()
-            .expect("failed to execute process");
-    } else {
-        //windows
-        /* Command::new("mv")
-            .args(rename_string)
-            .output()
-            .expect("failed to execute process"); */
-    }
-}
-//needs to handle the target filepath already existing, overwrite
-fn encode(source: &String, target: &String) -> String { //command: &Vec<&str>
-    let encode_string: Vec<&str> = vec!["-i", &source, "-c:v", "libx265", "-crf", "25", "-preset", "slower", "-profile:v", "main", "-c:a", "aac", "-q:a", "224k", &target];
-    
-    let buffer;
-    if !cfg!(target_os = "windows") {
-        //linux & friends
-        buffer = Command::new("ffmpeg")
-            .args(encode_string)
-            .output()
-            .expect("failed to execute process");
-    } else {
-        //windows
-        buffer = Command::new("ffmpeg")
-            .args(encode_string)
-            .output()
-            .expect("failed to execute process");
-    }
-    String::from_utf8_lossy(&buffer.stdout).to_string()
-}
-
-
-
-
-
-//Return true in string contains any substring from Vector
-fn str_contains_strs(input_str: &str, substrings: &Vec<&str>) -> bool {
-    for substring in substrings {
-        if String::from(input_str).contains(substring) {
-            return true;
-        }
-    }
-    false
-}
-
-fn import_files(
-    file_paths: &mut Vec<PathBuf>,
-    directories: &Vec<String>,
-    allowed_extensions: &Vec<&str>,
-    ignored_paths: &Vec<&str>,
-) {
-    //import all files in tracked root directories
-    for directory in directories {
-        for entry in WalkDir::new(directory).into_iter().filter_map(|e| e.ok()) {
-            if str_contains_strs(entry.path().to_str().unwrap(), ignored_paths) {
-                break;
-            }
-
-            if entry.path().is_file() {
-                if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap())
-                {
-                    file_paths.push(entry.into_path());
-                }
-            }
-        }
-    }
-}
+use tlm::{Content, Designation, Season, Show, Shows, Queue,
+    import_files,
+    encode,
+    rename,
+};
 
 fn main() {
     //Queue
-    let mut queue = Queue {
-        priority_queue: Vec::new(),
-        main_queue: Vec::new(),
-    };
+    let mut queue = Queue::new();
 
     //tracked directories - avoid crossover, it will lead to duplicate entries
     let mut tracked_root_directories: Vec<String> = Vec::new();
@@ -186,9 +94,9 @@ fn main() {
     //uids.push(22);
     //uids.push(35);
 
-    prioritise_content_by_title(&mut queue, filenames.clone());
+    queue.prioritise_content_by_title(filenames.clone());
 
-    prioritise_content_by_uid(&mut queue, uids.clone());
+    queue.prioritise_content_by_uid(uids.clone());
 
     for content in &queue.priority_queue {
         println!("{}{}", content.parent_directory, content.filename);
