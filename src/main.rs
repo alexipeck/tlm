@@ -1,8 +1,4 @@
-use tlm::{Content, Designation, Shows, Queue,
-    import_files,
-    encode,
-    rename,
-};
+use tlm::{encode, import_files, rename, Content, Designation, Queue, Shows};
 
 fn main() {
     //Queue
@@ -12,11 +8,16 @@ fn main() {
     let mut tracked_root_directories: Vec<String> = Vec::new();
     if !cfg!(target_os = "windows") {
         //tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
-        tracked_root_directories.push(String::from("/home/anpeck/tlm/test_files")); //manual entry
+        tracked_root_directories.push(String::from("/home/anpeck/tlm/test_files"));
+    //manual entry
     } else {
         //tracked_root_directories.push(String::from("T:/")); //manual entry
-        tracked_root_directories.push(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generic\"));
-        tracked_root_directories.push(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\episode\"));
+        tracked_root_directories.push(String::from(
+            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generic\",
+        ));
+        tracked_root_directories.push(String::from(
+            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\episode\",
+        ));
         //manual entry
     }
 
@@ -44,7 +45,11 @@ fn main() {
     for raw_filepath in raw_filepaths {
         let mut content = Content::new(&raw_filepath);
         if content.show_title.is_some() {
-            content.set_show_uid(shows.ensure_show_exists_by_title(content.show_title.clone().unwrap()).0);
+            content.set_show_uid(
+                shows
+                    .ensure_show_exists_by_title(content.show_title.clone().unwrap())
+                    .0,
+            );
         }
 
         //prepare title
@@ -52,7 +57,7 @@ fn main() {
 
         //dumping prepared values into Content struct based on Designation
         match content.designation {
-            Designation::Episode => {                
+            Designation::Episode => {
                 let season_episode = content.show_season_episode;
                 content.show_title = Some(show_title);
                 content.show_season_episode = season_episode;
@@ -89,7 +94,7 @@ fn main() {
 
     for content in queue.main_queue {
         let source = content.get_full_path();
-        let encode_target = content.get_full_path_with_suffix("_encodeH4U8".to_string());//want it to use the actual extension rather than just .mp4
+        let encode_target = content.get_full_path_with_suffix("_encodeH4U8".to_string()); //want it to use the actual extension rather than just .mp4
         let rename_target = content.get_full_path_specific_extension("mp4".to_string());
         println!("Encoding file \'{}\'", content.get_filename());
         encode(&source, &encode_target);

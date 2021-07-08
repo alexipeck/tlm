@@ -1,12 +1,12 @@
 use regex::Regex;
-use std::path::{PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::fs;
 use std::ops::{Index, IndexMut};
+use std::path::PathBuf;
 use std::process::Command; //borrow::Cow, thread::current,
-use walkdir::WalkDir;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 use twox_hash::xxh3;
-use std::fs;
+use walkdir::WalkDir;
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static SHOW_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -80,7 +80,6 @@ pub fn import_files(
                     if !directory.contains("_encodeH4U8") {
                         file_paths.push(entry.into_path());
                     }
-                    
                 }
             }
         }
@@ -97,7 +96,11 @@ fn hash_file(path: PathBuf) -> u64 {
 }
 
 pub fn get_os_slash() -> String {
-    return if !cfg!(target_os = "windows") { '/'.to_string() } else { '\\'.to_string() };
+    return if !cfg!(target_os = "windows") {
+        '/'.to_string()
+    } else {
+        '\\'.to_string()
+    };
 }
 
 pub fn rename(source_string: &String, target_string: &String) -> std::io::Result<()> {
@@ -107,8 +110,25 @@ pub fn rename(source_string: &String, target_string: &String) -> std::io::Result
 }
 
 pub fn encode(source: &String, target: &String) -> String {
-    let encode_string: Vec<&str> = vec!["-i", &source, "-c:v", "libx265", "-crf", "25", "-preset", "slower", "-profile:v", "main", "-c:a", "aac", "-q:a", "224k", "-y", &target];
-    
+    let encode_string: Vec<&str> = vec![
+        "-i",
+        &source,
+        "-c:v",
+        "libx265",
+        "-crf",
+        "25",
+        "-preset",
+        "slower",
+        "-profile:v",
+        "main",
+        "-c:a",
+        "aac",
+        "-q:a",
+        "224k",
+        "-y",
+        &target,
+    ];
+
     let buffer;
     if !cfg!(target_os = "windows") {
         //linux & friends
@@ -247,19 +267,21 @@ pub struct Shows {
     pub shows: Vec<Show>,
 }
 
-
 impl Shows {
-    fn find_index_by_uid(&self, uid: usize) -> Option<usize> {//if !is_none(show_uid)
+    fn find_index_by_uid(&self, uid: usize) -> Option<usize> {
+        //if !is_none(show_uid)
         return self.shows.iter().position(|show| show.uid == uid);
     }
 
     pub fn new() -> Shows {
-        Shows {
-            shows: Vec::new(),
-        }
+        Shows { shows: Vec::new() }
     }
 
-    fn ensure_season_exists_by_show_index_and_season_number(&mut self, show_index: usize, season_number: usize) {
+    fn ensure_season_exists_by_show_index_and_season_number(
+        &mut self,
+        show_index: usize,
+        season_number: usize,
+    ) {
         for season in &mut self.shows[show_index].seasons {
             if season.number == season_number {
                 break;
@@ -281,9 +303,16 @@ impl Shows {
         self.shows.push(Show::new(uid, title));
         return (uid, index);
     }
-    
+
     //not actually in order
-    fn insert_in_order(&mut self, show_index: usize, season_number: usize, _episode_number: usize, content: Content) {//remember episode_number
+    fn insert_in_order(
+        &mut self,
+        show_index: usize,
+        season_number: usize,
+        _episode_number: usize,
+        content: Content,
+    ) {
+        //remember episode_number
         //let mut inserted = false;
         for season in &mut self[show_index].seasons {
             if season.number == season_number {
@@ -311,14 +340,15 @@ impl Shows {
 
     //will overwrite data
     pub fn add_episode(&mut self, content: Content) {
-        let show_index = self.ensure_show_exists_by_title(content.show_title.clone().unwrap()).1;
+        let show_index = self
+            .ensure_show_exists_by_title(content.show_title.clone().unwrap())
+            .1;
         let se_temp = content.show_season_episode.clone().unwrap();
         let season_number = se_temp.0.parse::<usize>().unwrap();
         let episode_number = se_temp.1.parse::<usize>().unwrap();
         self.ensure_season_exists_by_show_index_and_season_number(show_index, season_number);
         self.insert_in_order(show_index, season_number, episode_number, content);
     }
-
 
     //insert show
 
@@ -328,14 +358,11 @@ impl Shows {
 
     //pub collect show
 
-
     pub fn print(&self) {
         for show in &self.shows {
             for season in &show.seasons {
                 for episode in &season.episodes {
-                    println!("{}",
-                        episode.filename_woe,
-                    );
+                    println!("{}", episode.filename_woe,);
                 }
             }
         }
@@ -394,7 +421,13 @@ impl Content {
     }
 
     pub fn get_full_path_specific_extension(&self, extension: String) -> String {
-        return format!("{}{}{}.{}", self.parent_directory, get_os_slash(), self.filename_woe, extension);
+        return format!(
+            "{}{}{}.{}",
+            self.parent_directory,
+            get_os_slash(),
+            self.filename_woe,
+            extension
+        );
     }
 
     pub fn get_full_path_from_pathbuf(pathbuf: &PathBuf) -> String {
@@ -406,15 +439,34 @@ impl Content {
     }
 
     pub fn get_show_title_from_pathbuf(pathbuf: &PathBuf) -> String {
-        return pathbuf.parent().unwrap().parent().unwrap().file_name().unwrap().to_string_lossy().to_string();
+        return pathbuf
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
     }
 
     pub fn get_filename(&self) -> String {
-        return self.full_path.file_name().unwrap().to_str().unwrap().to_string();
+        return self
+            .full_path
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
     }
 
     pub fn get_filename_woe(&self) -> String {
-        return self.full_path.file_stem().unwrap().to_string_lossy().to_string();
+        return self
+            .full_path
+            .file_stem()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
     }
 
     fn get_filename_from_pathbuf(pathbuf: &PathBuf) -> String {
@@ -426,11 +478,23 @@ impl Content {
     }
 
     fn get_parent_directory(&self) -> String {
-        return self.full_path.parent().unwrap().to_string_lossy().to_string();
+        return self
+            .full_path
+            .parent()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
     }
 
     pub fn get_full_path_with_suffix(&self, suffix: String) -> String {
-        return format!("{}{}{}{}.{}", self.get_parent_directory(), get_os_slash(), self.get_filename_woe(), suffix, self.extension);
+        return format!(
+            "{}{}{}{}.{}",
+            self.get_parent_directory(),
+            get_os_slash(),
+            self.get_filename_woe(),
+            suffix,
+            self.extension
+        );
     }
 
     fn get_parent_directory_from_pathbuf(pathbuf: &PathBuf) -> String {
@@ -474,7 +538,8 @@ impl Content {
     }
 
     pub fn moved(&mut self, raw_filepath: &PathBuf) {
-        self.parent_directory = String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
+        self.parent_directory =
+            String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
         self.full_path = raw_filepath.clone();
     }
 
@@ -484,7 +549,6 @@ impl Content {
         let mut episode = false;
         seperate_season_episode(&filename, &mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
 
-
         self.extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
 
         if episode {
@@ -493,7 +557,8 @@ impl Content {
             self.designation = Designation::Generic;
         };
         self.full_path = raw_filepath.clone();
-        self.parent_directory = String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
+        self.parent_directory =
+            String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
         self.filename = filename;
         self.filename_woe = String::from(raw_filepath.file_stem().unwrap().to_string_lossy());
         self.extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
