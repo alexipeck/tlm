@@ -1,4 +1,4 @@
-use tlm::{encode, import_files, rename, Content, Designation, Queue, Shows};
+use tlm::{import_files, rename, Content, Designation, Queue, Shows};
 
 fn main() {
     //Queue
@@ -13,10 +13,10 @@ fn main() {
     } else {
         //tracked_root_directories.push(String::from("T:/")); //manual entry
         tracked_root_directories.push(String::from(
-            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generic\",
+            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\",
         ));
         tracked_root_directories.push(String::from(
-            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\episode\",
+            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\",
         ));
         //manual entry
     }
@@ -25,7 +25,6 @@ fn main() {
     let allowed_extensions = vec!["mp4", "mkv", "webm", "MP4"];
 
     //ignored directories
-    //currently works on both linux and windows
     let ignored_paths = vec![".recycle_bin"];
 
     let mut raw_filepaths = Vec::new();
@@ -52,15 +51,11 @@ fn main() {
             );
         }
 
-        //prepare title
-        let show_title = Content::get_show_title_from_pathbuf(&raw_filepath);
-
         //dumping prepared values into Content struct based on Designation
         match content.designation {
             Designation::Episode => {
-                let season_episode = content.show_season_episode;
-                content.show_title = Some(show_title);
-                content.show_season_episode = season_episode;
+                content.show_title = Some(Content::get_show_title_from_pathbuf(&raw_filepath));
+                content.show_season_episode = content.show_season_episode;
                 shows.add_episode(content.clone());
             }
             /*Designation::Movie => (
@@ -92,13 +87,8 @@ fn main() {
         println!("{}{}", content.parent_directory, content.filename);
     }
 
-    for content in queue.main_queue {
-        let source = content.get_full_path();
-        let encode_target = content.get_full_path_with_suffix("_encodeH4U8".to_string()); //want it to use the actual extension rather than just .mp4
-        let rename_target = content.get_full_path_specific_extension("mp4".to_string());
-        println!("Encoding file \'{}\'", content.get_filename());
-        encode(&source, &encode_target);
-        let _ = rename(&encode_target, &rename_target);
+    while queue.get_full_queue_length() > 0 {
+        queue.encode_and_rename_next_unreserved("NUC".to_string());
     }
 
     shows.print();

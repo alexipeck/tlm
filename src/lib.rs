@@ -109,43 +109,6 @@ pub fn rename(source_string: &String, target_string: &String) -> std::io::Result
     Ok(())
 }
 
-pub fn encode(source: &String, target: &String) -> String {
-    let encode_string: Vec<&str> = vec![
-        "-i",
-        &source,
-        "-c:v",
-        "libx265",
-        "-crf",
-        "25",
-        "-preset",
-        "slower",
-        "-profile:v",
-        "main",
-        "-c:a",
-        "aac",
-        "-q:a",
-        "224k",
-        "-y",
-        &target,
-    ];
-
-    let buffer;
-    if !cfg!(target_os = "windows") {
-        //linux & friends
-        buffer = Command::new("ffmpeg")
-            .args(encode_string)
-            .output()
-            .expect("failed to execute process");
-    } else {
-        //windows
-        buffer = Command::new("ffmpeg")
-            .args(encode_string)
-            .output()
-            .expect("failed to execute process");
-    }
-    String::from_utf8_lossy(&buffer.stdout).to_string()
-}
-
 pub struct Queue {
     pub priority_queue: Vec<Content>,
     pub main_queue: Vec<Content>,
@@ -158,6 +121,56 @@ impl Queue {
             main_queue: Vec::new(),
         }
     }
+
+    pub fn get_full_queue_length(&mut self) -> usize {
+        return self.priority_queue.len() + self.main_queue.len();
+    }
+
+    pub fn encode_and_rename_next_unreserved(&mut self, operator: String) {
+        let mut working_content: Option<&mut Content> = None;
+        for content in &mut self.priority_queue {
+            if content.reserved_by == None {
+                working_content = Some(content);
+            }
+        }
+    
+        for content in &mut self.main_queue {
+            if content.reserved_by == None {
+                working_content = Some(content);
+            }
+        }
+
+        match working_content {
+            None => {
+                //nothing available for encode
+            }
+            Some(working_content) => {
+                working_content.reserve(operator);
+                working_content.encode();
+                
+            }
+        }
+    }
+
+    pub fn get_next_unreserved(&mut self, operator: String) -> Option<usize> {
+        for content in &mut self.priority_queue {
+            if content.reserved_by == None {
+                content.reserve(operator);
+                return Some(content.uid);
+            }
+        }
+    
+        for content in &mut self.main_queue {
+            if content.reserved_by == None {
+                content.reserve(operator);
+                return Some(content.uid);
+            }
+        }
+    
+        return None;
+    }
+    
+
 
     //doesn't handle errors correctly
     pub fn prioritise_content_by_title(&mut self, filenames: Vec<String>) {
@@ -420,6 +433,52 @@ impl Content {
         return content;
     }
 
+    pub fn reserve(&mut self, operator: String) {
+        self.reserved_by = Some(operator);
+    }
+
+    pub fn encode(&mut self) -> String {
+        let source = self.get_full_path();
+        let encode_target = self.get_full_path_with_suffix("_encodeH4U8".to_string()); //want it to use the actual extension rather than just .mp4
+        
+        let encode_string: Vec<&str> = vec![
+            "-i",
+            &source,
+            "-c:v",
+            "libx265",
+            "-crf",
+            "25",
+            "-preset",
+            "slower",
+            "-profile:v",
+            "main",
+            "-c:a",
+            "aac",
+            "-q:a",
+            "224k",
+            "-y",
+            &encode_target,
+        ];
+    
+        println!("Encoding file \'{}\'", self.get_filename());
+
+        let buffer;
+        if !cfg!(target_os = "windows") {
+            //linux & friends
+            buffer = Command::new("ffmpeg")
+                .args(encode_string)
+                .output()
+                .expect("failed to execute process");
+        } else {
+            //windows
+            buffer = Command::new("ffmpeg")
+                .args(encode_string)
+                .output()
+                .expect("failed to execute process");
+        }
+        return String::from_utf8_lossy(&buffer.stdout).to_string();
+    }
+
     pub fn get_full_path_specific_extension(&self, extension: String) -> String {
         return format!(
             "{}{}{}.{}",
@@ -566,22 +625,6 @@ impl Content {
         //designation, show_title, show_season_episode
         self.designate_and_fill();
     }
-}
-
-pub fn get_next_unreserved(queue: Queue) -> Option<usize> {
-    for content in queue.priority_queue {
-        if content.reserved_by == None {
-            return Some(content.uid);
-        }
-    }
-
-    for content in queue.main_queue {
-        if content.reserved_by == None {
-            return Some(content.uid);
-        }
-    }
-
-    return None;
 }
 
 fn seperate_season_episode(filename: &String, episode: &mut bool) -> Option<(String, String)> {
