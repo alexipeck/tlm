@@ -1,4 +1,4 @@
-use tlm::{import_files, rename, Content, Designation, Queue, Shows};
+use tlm::{import_files, Content, Designation, Queue, Shows};
 
 fn main() {
     //Queue
@@ -63,7 +63,7 @@ fn main() {
             ),*/
             _ => {}
         }
-        queue.main_queue.push(content);
+        queue.main_queue.push_back(content);
     }
     let filenames: Vec<String> = Vec::new();
     //filenames.push(String::from(r"Weeds - S08E10 - Threshold Bluray-1080p.mkv"));
@@ -75,17 +75,11 @@ fn main() {
     //uids.push(22);
     //uids.push(35);
 
-    queue.prioritise_content_by_title(filenames.clone());
+    //queue.prioritise_content_by_title(filenames.clone());
 
-    queue.prioritise_content_by_uid(uids.clone());
+    //queue.prioritise_content_by_uid(uids.clone());
 
-    for content in &queue.priority_queue {
-        println!("{}{}", content.parent_directory, content.filename);
-    }
-
-    for content in &queue.main_queue {
-        println!("{}{}", content.parent_directory, content.filename);
-    }
+    queue.print();
 
     while queue.get_full_queue_length() > 0 {
         queue.encode_and_rename_next_unreserved("NUC".to_string());

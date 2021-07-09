@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::collections::VecDeque;
 use std::fs;
 use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
@@ -30,6 +31,11 @@ impl Season {
             number: number,
             episodes: episodes,
         }
+    }
+
+    pub fn insert_in_order(&mut self, content: Content) {
+        //not in order, but that's fine for now, just doing member stuff
+        self.episodes.push(content);
     }
 }
 
@@ -110,16 +116,82 @@ pub fn rename(source_string: &String, target_string: &String) -> std::io::Result
 }
 
 pub struct Queue {
-    pub priority_queue: Vec<Content>,
-    pub main_queue: Vec<Content>,
+    pub priority_queue: VecDeque<Content>,
+    pub main_queue: VecDeque<Content>,
+}
+
+pub enum QueueType {
+    MainQueue,
+    PriorityQueue,
+    All,
 }
 
 impl Queue {
     pub fn new() -> Queue {
         Queue {
-            priority_queue: Vec::new(),
-            main_queue: Vec::new(),
+            priority_queue: VecDeque::new(),
+            main_queue: VecDeque::new(),
         }
+    }
+
+    pub fn print(&mut self) {
+        for content in &self.priority_queue {
+            println!("{}", content.get_full_path());
+        }
+    
+        for content in &self.main_queue {
+            println!("{}", content.get_full_path());
+        }
+    }
+
+    pub fn get_index_by_uid_in_queue(&mut self, uid: usize, queue_type: QueueType) -> Option<usize> {
+        match queue_type {
+            QueueType::PriorityQueue => {
+                for (pos, content) in self.priority_queue.iter().enumerate() {
+                    if content.uid == uid {
+                        return Some(pos);
+                    }
+                }
+            },
+            QueueType::MainQueue => {
+                for (pos, content) in self.main_queue.iter().enumerate() {
+                    if content.uid == uid {
+                        return Some(pos);
+                    }
+                }
+            },
+            QueueType::All => {
+                for (pos, content) in self.priority_queue.iter().enumerate() {
+                    if content.uid == uid {
+                        return Some(pos);
+                    }
+                }
+
+                for (pos, content) in self.main_queue.iter().enumerate() {
+                    if content.uid == uid {
+                        return Some(pos);
+                    }
+                }
+            },
+        }
+        
+        return None;
+    }
+
+    pub fn get_index_by_uid(&self, uid: usize) -> Option<(usize, QueueType)> {
+        for (pos, content) in self.priority_queue.iter().enumerate() {
+            if content.uid == uid {
+                return Some((pos, QueueType::PriorityQueue));
+            }
+        }
+
+        for (pos, content) in self.main_queue.iter().enumerate() {
+            if content.uid == uid {
+                return Some((pos, QueueType::PriorityQueue));
+            }
+        }
+
+        return None;
     }
 
     pub fn get_full_queue_length(&mut self) -> usize {
@@ -166,56 +238,115 @@ impl Queue {
                 return Some(content.uid);
             }
         }
-    
+        
         return None;
     }
-    
 
+    pub fn exists_pmq(&self, uid: usize) -> bool {
+        return self.exists_pq(uid) || self.exists_mq(uid);
+    }
 
-    //doesn't handle errors correctly
-    pub fn prioritise_content_by_title(&mut self, filenames: Vec<String>) {
-        for _ in 0..filenames.len() {
-            let mut index: usize = 0;
-            let mut found = false;
-            for content in &self.main_queue {
-                for filename in &filenames {
-                    if content.filename == *filename {
-                        found = true;
-                        break;
+    pub fn exists_pq(&self, uid: usize) -> bool {
+        for content in &self.priority_queue {
+            if content.reserved_by == None {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    pub fn exists_mq(&self, uid: usize) -> bool {
+        for content in &self.main_queue {
+            if content.reserved_by == None {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    pub fn get_content_by_uid(&self, uid: usize) -> Option<(Content, QueueType)> {
+        for content in &self.priority_queue {
+            if content.uid == uid {
+                return Some((content.clone(), QueueType::PriorityQueue));
+            }
+        }
+
+        for content in &self.main_queue {
+            if content.uid == uid {
+                return Some((content.clone(), QueueType::MainQueue));
+            }
+        }
+
+        return None;
+    }
+
+    fn remove_from_queue_by_uid(&mut self, uid: usize, queue_type: QueueType) -> Option<Content> {
+        let temp;
+        match queue_type {
+            QueueType::PriorityQueue => {
+                temp = self.get_index_by_uid_in_queue(uid, QueueType::PriorityQueue);
+                if temp.is_some() {
+                    self.priority_queue.remove(temp.unwrap());
+                }
+            },
+            QueueType::MainQueue => {
+                temp = self.get_index_by_uid_in_queue(uid, QueueType::MainQueue);
+                self.priority_queue.remove(temp.unwrap());
+            },
+            QueueType::All => {
+                let pq = self.get_index_by_uid_in_queue(uid, QueueType::PriorityQueue);
+                if pq.is_some() {
+                    self.priority_queue.remove(pq.unwrap());
+                }
+                let mq = self.get_index_by_uid_in_queue(uid, QueueType::MainQueue);
+                if mq.is_some() {
+                    self.priority_queue.remove(mq.unwrap());
+                }
+            },
+        }
+        return None;
+    }
+
+    pub fn prioritise_existing_encode(&mut self, uid: usize) {
+        let main_queue = self.exists_mq(uid);
+        let priority_queue = self.exists_pq(uid);
+        
+        if main_queue && !priority_queue {
+            match self.get_content_by_uid(uid) {
+                None => {
+                    //nothing to do
+                }
+                Some((content, location)) => {
+                    if content.reserved_by.is_none() {
+                        let content = self.remove_from_queue_by_uid(uid, location);
+                        if content.is_some() {
+                            self.priority_queue.push_back(content.unwrap());
+                        }
                     }
                 }
-                if found {
-                    break;
-                }
-                index += 1;
-            }
-            if found {
-                self.priority_queue.push(self.main_queue.remove(index));
             }
         }
     }
 
-    pub fn prioritise_content_by_uid(&mut self, uids: Vec<usize>) {
-        for _ in 0..uids.len() {
-            let mut index: usize = 0;
-            let mut found = false;
-            for content in &self.main_queue {
-                for uid in &uids {
-                    if content.uid == *uid {
-                        found = true;
-                        break;
-                    }
-                }
-                if found {
-                    break;
-                }
-                index += 1;
-            }
+    pub fn prioritise_content_by_content(&mut self, content: Content) {
+        let mut exists = false;
+        if !self.exists_pq(content.uid) {
+            self.priority_queue.push_back(content);
+        }
+    }
+
+    /* pub fn prioritise_content_by_uids(&mut self, uids: Vec<usize>) {
+        while uids.len() > 0 {
+            let mut exists = false;
+            let current_uid = uids.
+            if !exists
+        }
+        
+            
             if found {
                 self.priority_queue.push(self.main_queue.remove(index));
             }
-        }
-    }
+    } */
 }
 
 pub struct Show {
@@ -321,17 +452,17 @@ impl Shows {
     fn insert_in_order(
         &mut self,
         show_index: usize,
-        season_number: usize,
-        _episode_number: usize,
+        //season_number: usize,
+        //_episode_number: usize,
         content: Content,
     ) {
         //remember episode_number
         //let mut inserted = false;
         for season in &mut self[show_index].seasons {
-            if season.number == season_number {
+            if season.number == content.show_season_episode.unwrap().0 {
                 //let mut index: usize = 0;
 
-                season.episodes.push(content.clone());
+                season.insert_in_order(content.clone());
                 /* for episode in &mut season.episodes {
                     let current = episode.show_season_episode.clone().unwrap().1.parse::<usize>().unwrap();
                     if index + 1 <= season.episodes.len() {
@@ -357,10 +488,10 @@ impl Shows {
             .ensure_show_exists_by_title(content.show_title.clone().unwrap())
             .1;
         let se_temp = content.show_season_episode.clone().unwrap();
-        let season_number = se_temp.0.parse::<usize>().unwrap();
-        let episode_number = se_temp.1.parse::<usize>().unwrap();
+        let season_number = se_temp.0;
+        let episode_number = se_temp.1;
         self.ensure_season_exists_by_show_index_and_season_number(show_index, season_number);
-        self.insert_in_order(show_index, season_number, episode_number, content);
+        self.insert_in_order(show_index, content);
     }
 
     //insert show
@@ -399,7 +530,7 @@ pub struct Content {
     //pub metadata_dump
     pub show_uid: Option<usize>,
     pub show_title: Option<String>,
-    pub show_season_episode: Option<(String, String)>,
+    pub show_season_episode: Option<(usize, usize)>,
 }
 
 impl Content {
@@ -431,6 +562,29 @@ impl Content {
         };
         content.designate_and_fill();
         return content;
+    }
+
+    fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, usize)> {
+        let temp = re_strip(&self.filename, r"S[0-9]*E[0-9\-]*");
+        let episode_string: String;
+    
+        //Check if the regex caught a valid episode format
+        match temp {
+            None => {
+                *episode = false;
+                return None;
+            }
+            Some(temp_string) => {
+                *episode = true;
+                episode_string = temp_string;
+            }
+        }
+    
+        let mut se_iter = episode_string.split('E');
+        Some((
+            se_iter.next().unwrap().parse::<usize>().unwrap(),
+            se_iter.next().unwrap().parse::<usize>().unwrap(),
+        ))
     }
 
     pub fn reserve(&mut self, operator: String) {
@@ -564,13 +718,21 @@ impl Content {
         return pathbuf.extension().unwrap().to_string_lossy().to_string();
     }
 
+    pub fn get_season_number(&mut self) -> usize {
+        return self.show_season_episode.unwrap().0;
+    }
+
+    pub fn get_episode_number(&mut self) -> usize {
+        return self.show_season_episode.unwrap().1;
+    }
+ 
     pub fn set_show_uid(&mut self, show_uid: usize) {
         self.show_uid = Some(show_uid);
     }
 
     pub fn designate_and_fill(&mut self) {
         let mut episode = false;
-        let show_season_episode_conditional = seperate_season_episode(&self.filename, &mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
+        let show_season_episode_conditional = self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
         if episode {
             self.designation = Designation::Episode;
             for section in String::from(
@@ -606,7 +768,7 @@ impl Content {
         let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
 
         let mut episode = false;
-        seperate_season_episode(&filename, &mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
+        self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
 
         self.extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
 
@@ -625,29 +787,6 @@ impl Content {
         //designation, show_title, show_season_episode
         self.designate_and_fill();
     }
-}
-
-fn seperate_season_episode(filename: &String, episode: &mut bool) -> Option<(String, String)> {
-    let temp = re_strip(filename, r"S[0-9]*E[0-9\-]*");
-    let episode_string: String;
-
-    //Check if the regex caught a valid episode format
-    match temp {
-        None => {
-            *episode = false;
-            return None;
-        }
-        Some(temp_string) => {
-            *episode = true;
-            episode_string = temp_string;
-        }
-    }
-
-    let mut se_iter = episode_string.split('E');
-    Some((
-        se_iter.next().unwrap().to_string(),
-        se_iter.next().unwrap().to_string(),
-    ))
 }
 
 pub fn re_strip(input: &String, expression: &str) -> Option<String> {
