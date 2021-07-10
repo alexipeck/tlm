@@ -1,4 +1,12 @@
-use tlm::{import_files, Content, Designation, Queue, Shows};
+use tlm::import_files;
+mod content;
+mod designation;
+mod queue;
+mod shows;
+use content::Content;
+use designation::Designation;
+use queue::Queue;
+use shows::Shows;
 
 fn main() {
     //Queue
