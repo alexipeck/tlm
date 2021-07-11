@@ -1,12 +1,14 @@
-use tlm::import_files;
+use tlm::{import_files, print};
 mod content;
 mod designation;
 mod queue;
 mod shows;
+mod database;
 use content::Content;
 use designation::Designation;
 use queue::Queue;
 use shows::Shows;
+use database::db_connect;
 
 fn main() {
     //Queue
@@ -71,6 +73,15 @@ fn main() {
             ),*/
             _ => {}
         }
+        let error = db_connect(content.clone());
+        match error {
+            Err(err) => {
+                println!("{}", err.to_string());
+            }
+            _ => {
+
+            }
+        }
         queue.main_queue.push_back(content);
     }
     let filenames: Vec<String> = Vec::new();
@@ -89,9 +100,9 @@ fn main() {
 
     queue.print();
 
-    while queue.get_full_queue_length() > 0 {
+    /* while queue.get_full_queue_length() > 0 {
         queue.encode_and_rename_next_unreserved("NUC".to_string());
-    }
+    } */
 
     shows.print();
     //add to db by filename, allowing the same file to be retargeted in another directory, without losing track of all the data associated with the episode

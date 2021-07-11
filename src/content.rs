@@ -4,6 +4,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use postgres_types::{ToSql, FromSql};
+
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 pub fn re_strip(input: &String, expression: &str) -> Option<String> {
@@ -28,8 +30,26 @@ fn get_os_slash() -> String {
     };
 }
 
+/* impl Ord for Content {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.show_season_episode.parse::<usize>().unwrap().cmp(&other.show_season_episode.parse::<usize>().unwrap())
+    }
+}
+
+impl PartialOrd for Content {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Content {
+    fn eq(&self, other: &Self) -> bool {
+        self.height == other.height
+    }
+} */
+
 //generic content container, focus on video
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Content {
     pub uid: usize,
     pub full_path: PathBuf,
@@ -79,7 +99,7 @@ impl Content {
         return content;
     }
 
-    fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, usize)> {
+    pub fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, usize)> {
         let temp = re_strip(&self.filename, r"S[0-9]*E[0-9\-]*");
         let episode_string: String;
 
@@ -197,15 +217,15 @@ impl Content {
             .to_string();
     }
 
-    fn get_filename_from_pathbuf(pathbuf: &PathBuf) -> String {
+    pub fn get_filename_from_pathbuf(pathbuf: &PathBuf) -> String {
         return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
 
-    fn get_filename_woe_from_pathbuf(pathbuf: &PathBuf) -> String {
+    pub fn get_filename_woe_from_pathbuf(pathbuf: &PathBuf) -> String {
         return pathbuf.file_stem().unwrap().to_string_lossy().to_string();
     }
 
-    fn get_parent_directory(&self) -> String {
+    pub fn get_parent_directory(&self) -> String {
         return self
             .full_path
             .parent()
@@ -225,20 +245,20 @@ impl Content {
         );
     }
 
-    fn get_parent_directory_from_pathbuf(pathbuf: &PathBuf) -> String {
+    pub fn get_parent_directory_from_pathbuf(pathbuf: &PathBuf) -> String {
         return pathbuf.parent().unwrap().to_string_lossy().to_string();
     }
 
-    fn get_extension_from_pathbuf(pathbuf: &PathBuf) -> String {
+    pub fn get_extension_from_pathbuf(pathbuf: &PathBuf) -> String {
         return pathbuf.extension().unwrap().to_string_lossy().to_string();
     }
 
-    pub fn get_season_number(&mut self) -> usize {
-        return self.show_season_episode.unwrap().0;
+    pub fn get_season_number(&self) -> Option<usize> {
+        return Some(self.show_season_episode.unwrap().0);
     }
 
-    pub fn get_episode_number(&mut self) -> usize {
-        return self.show_season_episode.unwrap().1;
+    pub fn get_episode_number(&self) -> Option<usize> {
+        return Some(self.show_season_episode.unwrap().1);
     }
 
     pub fn set_show_uid(&mut self, show_uid: usize) {

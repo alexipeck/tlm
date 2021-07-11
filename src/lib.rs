@@ -8,24 +8,6 @@ use std::time::Instant;
 use twox_hash::xxh3;
 use walkdir::WalkDir;
 
-/* impl Ord for Content {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.show_season_episode.parse::<usize>().unwrap().cmp(&other.show_season_episode.parse::<usize>().unwrap())
-    }
-}
-
-impl PartialOrd for Content {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl PartialEq for Content {
-    fn eq(&self, other: &Self) -> bool {
-        self.height == other.height
-    }
-} */
-
 pub fn import_files(
     file_paths: &mut Vec<PathBuf>,
     directories: &Vec<String>,
@@ -74,4 +56,35 @@ pub fn rename(source_string: &String, target_string: &String) -> std::io::Result
     std::fs::copy(&source_string, &target_string)?;
     std::fs::remove_file(&source_string)?;
     Ok(())
+}
+
+///Hierarchy
+pub enum Verbosity {
+    CRITICAL = 1,
+    ERROR = 2,
+    WARNING = 3,
+    INFO = 4,
+    DEBUG = 5,
+    NOTSET = 0,
+}
+
+pub fn print(verbosity: Verbosity, called_from: &str, string: String) {
+    //print(Verbosity::DEBUG, "", format!(""));
+    let set_output_verbosity_level = Verbosity::DEBUG as usize; //would be set as a filter in any output view
+        
+    let current_verbosity_level = verbosity as usize;
+    let verbosity_string: String;
+    match current_verbosity_level {
+        1 => verbosity_string = "CRITICAL".to_string(),
+        2 => verbosity_string = "ERROR".to_string(),
+        3 => verbosity_string = "WARNING".to_string(),
+        4 => verbosity_string = "INFO".to_string(),
+        5 => verbosity_string = "DEBUG".to_string(),
+        _ => verbosity_string = "NOTSET".to_string(),
+    }
+
+    
+    if current_verbosity_level <= set_output_verbosity_level {//Set second condition to the current for now
+        println!("[{}][{}] {}", verbosity_string, called_from, string);
+    }
 }
