@@ -54,11 +54,7 @@ pub struct Content {
     pub uid: usize,
     pub full_path: PathBuf,
     pub designation: Designation,
-    pub parent_directory: String,
-    pub filename: String,
-    pub filename_woe: String,
     pub reserved_by: Option<String>,
-    pub extension: String,
 
     pub hash: Option<u64>,
     //pub versions: Vec<FileVersion>,
@@ -70,27 +66,14 @@ pub struct Content {
 
 impl Content {
     pub fn new(raw_filepath: &PathBuf) -> Content {
-        //prepare filename
-        let filename = Content::get_filename_from_pathbuf(raw_filepath);
-
-        //prepare filename without extension
-        let filename_woe = Content::get_filename_woe_from_pathbuf(raw_filepath);
-
-        //parent directory
-        let parent_directory = Content::get_parent_directory_from_pathbuf(raw_filepath);
-
-        let extension = Content::get_extension_from_pathbuf(raw_filepath);
         let mut content = Content {
             full_path: raw_filepath.clone(),
             designation: Designation::Generic,
             uid: EPISODE_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
-            parent_directory: parent_directory,
-            filename: filename,
-            filename_woe: filename_woe,
             reserved_by: None,
             hash: None,
-            extension: extension,
 
+            //truly optional
             show_title: None,
             show_season_episode: None,
             show_uid: None,
@@ -100,11 +83,10 @@ impl Content {
     }
 
     pub fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, usize)> {
-        let temp = re_strip(&self.filename, r"S[0-9]*E[0-9\-]*");
         let episode_string: String;
 
         //Check if the regex caught a valid episode format
-        match temp {
+        match re_strip(&self.get_filename(), r"S[0-9]*E[0-9\-]*") {
             None => {
                 *episode = false;
                 return None;
@@ -168,34 +150,8 @@ impl Content {
         return String::from_utf8_lossy(&buffer.stdout).to_string();
     }
 
-    pub fn get_full_path_specific_extension(&self, extension: String) -> String {
-        return format!(
-            "{}{}{}.{}",
-            self.parent_directory,
-            get_os_slash(),
-            self.filename_woe,
-            extension
-        );
-    }
-
-    pub fn get_full_path_from_pathbuf(pathbuf: &PathBuf) -> String {
-        return pathbuf.as_os_str().to_str().unwrap().to_string();
-    }
-
     pub fn get_full_path(&self) -> String {
         return self.full_path.as_os_str().to_str().unwrap().to_string();
-    }
-
-    pub fn get_show_title_from_pathbuf(pathbuf: &PathBuf) -> String {
-        return pathbuf
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
     }
 
     pub fn get_filename(&self) -> String {
@@ -217,14 +173,6 @@ impl Content {
             .to_string();
     }
 
-    pub fn get_filename_from_pathbuf(pathbuf: &PathBuf) -> String {
-        return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
-    }
-
-    pub fn get_filename_woe_from_pathbuf(pathbuf: &PathBuf) -> String {
-        return pathbuf.file_stem().unwrap().to_string_lossy().to_string();
-    }
-
     pub fn get_parent_directory(&self) -> String {
         return self
             .full_path
@@ -241,24 +189,12 @@ impl Content {
             get_os_slash(),
             self.get_filename_woe(),
             suffix,
-            self.extension
+            self.full_path.extension().unwrap().to_string_lossy().to_string(),
         );
     }
 
     pub fn get_parent_directory_from_pathbuf(pathbuf: &PathBuf) -> String {
         return pathbuf.parent().unwrap().to_string_lossy().to_string();
-    }
-
-    pub fn get_extension_from_pathbuf(pathbuf: &PathBuf) -> String {
-        return pathbuf.extension().unwrap().to_string_lossy().to_string();
-    }
-
-    pub fn get_season_number(&self) -> Option<usize> {
-        return Some(self.show_season_episode.unwrap().0);
-    }
-
-    pub fn get_episode_number(&self) -> Option<usize> {
-        return Some(self.show_season_episode.unwrap().1);
     }
 
     pub fn set_show_uid(&mut self, show_uid: usize) {
@@ -293,19 +229,13 @@ impl Content {
         }
     }
 
-    pub fn moved(&mut self, raw_filepath: &PathBuf) {
-        self.parent_directory =
-            String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
-        self.full_path = raw_filepath.clone();
+    pub fn moved(&mut self, new_full_path: &PathBuf) {
+        self.full_path = new_full_path.clone();
     }
 
-    pub fn regenerate(&mut self, raw_filepath: &PathBuf) {
-        let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
-
+    pub fn regenerate_from_pathbuf(&mut self, raw_filepath: &PathBuf) {
         let mut episode = false;
         self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
-
-        self.extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
 
         if episode {
             self.designation = Designation::Episode;
@@ -313,11 +243,6 @@ impl Content {
             self.designation = Designation::Generic;
         };
         self.full_path = raw_filepath.clone();
-        self.parent_directory =
-            String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
-        self.filename = filename;
-        self.filename_woe = String::from(raw_filepath.file_stem().unwrap().to_string_lossy());
-        self.extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
 
         //designation, show_title, show_season_episode
         self.designate_and_fill();

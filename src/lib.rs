@@ -43,6 +43,18 @@ pub fn import_files(
     }
 }
 
+pub fn get_show_title_from_pathbuf(pathbuf: &PathBuf) -> String {
+    return pathbuf
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+}
+
 pub fn hash_file(path: PathBuf) -> u64 {
     println!("Hashing: {}...", path.display());
     let timer = Instant::now();

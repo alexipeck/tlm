@@ -181,7 +181,7 @@ impl Shows {
         for show in &self.shows {
             for season in &show.seasons {
                 for episode in &season.episodes {
-                    println!("{}", episode.filename_woe,);
+                    println!("{}", episode.get_filename_woe(),);
                 }
             }
         }

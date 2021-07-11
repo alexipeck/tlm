@@ -1,4 +1,4 @@
-use tlm::{import_files, print};
+use tlm::{import_files, print, get_show_title_from_pathbuf};
 mod content;
 mod designation;
 mod queue;
@@ -64,7 +64,7 @@ fn main() {
         //dumping prepared values into Content struct based on Designation
         match content.designation {
             Designation::Episode => {
-                content.show_title = Some(Content::get_show_title_from_pathbuf(&raw_filepath));
+                content.show_title = Some(get_show_title_from_pathbuf(&raw_filepath));
                 content.show_season_episode = content.show_season_episode;
                 shows.add_episode(content.clone());
             }
