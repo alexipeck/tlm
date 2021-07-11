@@ -100,9 +100,9 @@ fn main() {
 
     queue.print();
 
-    /* while queue.get_full_queue_length() > 0 {
+    while queue.get_full_queue_length() > 0 {
         queue.encode_and_rename_next_unreserved("NUC".to_string());
-    } */
+    }
 
     shows.print();
     //add to db by filename, allowing the same file to be retargeted in another directory, without losing track of all the data associated with the episode
