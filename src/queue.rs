@@ -89,12 +89,6 @@ impl Queue {
     }
 
     pub fn encode_and_rename_next_unreserved(&mut self, operator: String) {
-        fn rename(source_string: &String, target_string: &String) -> std::io::Result<()> {
-            std::fs::copy(&source_string, &target_string)?;
-            std::fs::remove_file(&source_string)?;
-            Ok(())
-        }
-        
         let mut working_content: Option<&mut Content> = None;
         for content in &mut self.priority_queue {
             if content.reserved_by == None {
@@ -113,9 +107,8 @@ impl Queue {
                 //nothing available for encode
             }
             Some(working_content) => {
-                working_content.reserve(operator);
-                working_content.encode();
-                //rename();
+                working_content.add_encode_to_job_queue();
+                working_content.run_encode(operator);
             }
         }
     }

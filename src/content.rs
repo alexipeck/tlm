@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::collections::VecDeque;
+use std::thread::current;
 
 use print;
 
@@ -56,6 +57,7 @@ pub struct Job {
     source_path: PathBuf,
     encode_path: PathBuf,
     encode_string: Vec<String>,
+    pub reserved_by: Option<String>,
     underway_status: bool,
     completed_status: bool,
 }
@@ -67,9 +69,45 @@ impl Job {
             source_path: source_path.clone(),
             encode_path: Content::generate_encode_path_from_pathbuf(source_path),
             encode_string: encode_string,
+            reserved_by: None,
             underway_status: false,
             completed_status: false,
         }
+    }
+
+    pub fn reserve(&mut self, operator: String) {
+        self.reserved_by = Some(operator);
+    }
+
+    pub fn encode(self) {
+        let buffer;
+        if !cfg!(target_os = "windows") {
+            //linux & friends
+            buffer = Command::new("ffmpeg")
+                .args(self.encode_string)
+                .output()
+                .expect("failed to execute process");
+        } else {
+            //windows
+            buffer = Command::new("ffmpeg")
+                .args(self.encode_string)
+                .output()
+                .expect("failed to execute process");
+        }
+        //println!("{}", String::from_utf8_lossy(&buffer.stdout).to_string());
+    }
+
+    pub fn handle(&mut self, operator: String) {
+        self.reserve(operator);
+        self.underway_status = true;
+        
+        self.encode();
+
+        let error = std::fs::copy(self.source_path.to_string_lossy().to_string(), self.encode_path.to_string_lossy().to_string());
+        std::fs::remove_file(self.source_path.to_string_lossy().to_string());
+
+
+        self.completed_status = true;
     }
 }
 
@@ -80,7 +118,6 @@ pub struct Content {
     pub full_path: PathBuf,
     //pub temp_encode_path: Option<PathBuf>,
     pub designation: Designation,
-    pub reserved_by: Option<String>,
     pub job_queue: VecDeque<Job>,
 
     pub hash: Option<u64>,
@@ -98,7 +135,6 @@ impl Content {
             //temp_encode_path: None,
             designation: Designation::Generic,
             uid: EPISODE_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
-            reserved_by: None,
             hash: None,
             job_queue: VecDeque::new(),
 
@@ -137,11 +173,22 @@ impl Content {
         ))
     }
 
-    pub fn reserve(&mut self, operator: String) {
-        self.reserved_by = Some(operator);
+    pub fn run_encode(&mut self, operator: String) {
+        //currently encodes first free option
+        let mut current_job: Option<Job> = None;
+        for job in &self.job_queue {
+            if !(job.completed_status && job.underway_status) {
+                current_job = Some(job.clone());
+            }
+        }
+
+        if current_job.is_some() {
+            println!("Encoding file \'{}\'", self.get_filename());
+            current_job.unwrap().handle(operator);
+        }
     }
 
-    pub fn encode(&mut self) -> String {
+    pub fn add_encode_to_job_queue(&mut self) {
         let encode_target = self.get_full_path_with_suffix_as_string("_encodeH4U8".to_string()); //want it to use the actual extension rather than just .mp4
         let encode_string: Vec<String> = vec![
             "-i".to_string(),
@@ -161,27 +208,7 @@ impl Content {
             "-y".to_string(),
             encode_target,
         ];
-        //prepare job
         self.job_queue.push_back(Job::new(self.full_path.clone(), encode_string.clone()));
-
-        let current_job = self.job_queue.pop_front().unwrap();
-        println!("Encoding file \'{}\'", self.get_filename());
-
-        let buffer;
-        if !cfg!(target_os = "windows") {
-            //linux & friends
-            buffer = Command::new("ffmpeg")
-                .args(current_job.encode_string)
-                .output()
-                .expect("failed to execute process");
-        } else {
-            //windows
-            buffer = Command::new("ffmpeg")
-                .args(current_job.encode_string)
-                .output()
-                .expect("failed to execute process");
-        }
-        return String::from_utf8_lossy(&buffer.stdout).to_string();
     }
 
     /* pub fn set_temp_encode_path(&mut self, pathbuf: std::path::PathBuf) {
