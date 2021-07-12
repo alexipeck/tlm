@@ -64,39 +64,35 @@ pub fn hash_file(path: PathBuf) -> u64 {
     hash
 }
 
-pub fn rename(source_string: &String, target_string: &String) -> std::io::Result<()> {
-    std::fs::copy(&source_string, &target_string)?;
-    std::fs::remove_file(&source_string)?;
-    Ok(())
-}
+pub mod print {
+    ///hierarchy
+    pub enum Verbosity {
+        CRITICAL = 1,
+        ERROR = 2,
+        WARNING = 3,
+        INFO = 4,
+        DEBUG = 5,
+        NOTSET = 0,
+    }
 
-///Hierarchy
-pub enum Verbosity {
-    CRITICAL = 1,
-    ERROR = 2,
-    WARNING = 3,
-    INFO = 4,
-    DEBUG = 5,
-    NOTSET = 0,
-}
-
-pub fn print(verbosity: Verbosity, called_from: &str, string: String) {
-    //print(Verbosity::DEBUG, "", format!(""));
-    let set_output_verbosity_level = Verbosity::DEBUG as usize; //would be set as a filter in any output view
+    pub fn print(verbosity: Verbosity, called_from: &str, string: String) {
+        //print(Verbosity::DEBUG, "", format!(""));
+        let set_output_verbosity_level = Verbosity::DEBUG as usize; //would be set as a filter in any output view
+            
+        let current_verbosity_level = verbosity as usize;
+        let verbosity_string: String;
+        match current_verbosity_level {
+            1 => verbosity_string = "CRITICAL".to_string(),
+            2 => verbosity_string = "ERROR".to_string(),
+            3 => verbosity_string = "WARNING".to_string(),
+            4 => verbosity_string = "INFO".to_string(),
+            5 => verbosity_string = "DEBUG".to_string(),
+            _ => verbosity_string = "NOTSET".to_string(),
+        }
         
-    let current_verbosity_level = verbosity as usize;
-    let verbosity_string: String;
-    match current_verbosity_level {
-        1 => verbosity_string = "CRITICAL".to_string(),
-        2 => verbosity_string = "ERROR".to_string(),
-        3 => verbosity_string = "WARNING".to_string(),
-        4 => verbosity_string = "INFO".to_string(),
-        5 => verbosity_string = "DEBUG".to_string(),
-        _ => verbosity_string = "NOTSET".to_string(),
-    }
-
-    
-    if current_verbosity_level <= set_output_verbosity_level {//Set second condition to the current for now
-        println!("[{}][{}] {}", verbosity_string, called_from, string);
-    }
+        if current_verbosity_level <= set_output_verbosity_level {//Set second condition to the current for now
+            println!("[{}][{}] {}", verbosity_string, called_from, string);
+        }
+    }    
 }
+
