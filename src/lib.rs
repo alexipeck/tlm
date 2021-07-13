@@ -3,12 +3,12 @@ pub mod designation;
 pub mod queue;
 
 use std::collections::VecDeque;
+use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 use twox_hash::xxh3;
 use walkdir::WalkDir;
-use std::error::Error;
 
 pub fn import_files(
     file_paths: &mut Vec<PathBuf>,
@@ -80,7 +80,7 @@ pub mod print {
     pub fn print(verbosity: Verbosity, called_from: &str, string: String) {
         //print(Verbosity::DEBUG, "", format!(""));
         let set_output_verbosity_level = Verbosity::DEBUG as usize; //would be set as a filter in any output view
-            
+
         let current_verbosity_level = verbosity as usize;
         let verbosity_string: String;
         match current_verbosity_level {
@@ -91,10 +91,10 @@ pub mod print {
             5 => verbosity_string = "DEBUG".to_string(),
             _ => verbosity_string = "NOTSET".to_string(),
         }
-        
-        if current_verbosity_level <= set_output_verbosity_level {//Set second condition to the current for now
+
+        if current_verbosity_level <= set_output_verbosity_level {
+            //Set second condition to the current for now
             println!("[{}][{}] {}", verbosity_string, called_from, string);
         }
-    }    
+    }
 }
-

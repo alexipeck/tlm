@@ -162,7 +162,10 @@ impl Shows {
         let show_index = self
             .ensure_show_exists_by_title(content.show_title.clone().unwrap())
             .1;
-        self.ensure_season_exists_by_show_index_and_season_number(show_index, content.show_season_episode.clone().unwrap().0);
+        self.ensure_season_exists_by_show_index_and_season_number(
+            show_index,
+            content.show_season_episode.clone().unwrap().0,
+        );
         self.insert_in_order(show_index, content);
     }
 

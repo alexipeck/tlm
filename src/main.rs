@@ -2,16 +2,16 @@ use std::collections::VecDeque;
 
 use tlm::{content::Job, get_show_title_from_pathbuf, import_files, print};
 mod content;
+mod database;
 mod designation;
 mod queue;
 mod shows;
-mod database;
 //mod job;
 use content::Content;
+use database::{db_insert_content, db_purge, print_content};
 use designation::Designation;
 use queue::Queue;
 use shows::Shows;
-use database::{db_purge, db_insert_content, print_content};
 
 pub struct TrackedDirectories {
     pub root_directories: VecDeque<String>,
@@ -35,14 +35,26 @@ fn main() {
     //let mut cache_directories: Vec<String> = Vec::new();
     if !cfg!(target_os = "windows") {
         //tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
-        tracked_directories.root_directories.push_back(String::from(r"/home/anpeck/tlm/test_files/"));
-        tracked_directories.cache_directories.push_back(String::from(r"/home/anpeck/tlm/test_files/cache/"))
+        tracked_directories
+            .root_directories
+            .push_back(String::from(r"/home/anpeck/tlm/test_files/"));
+        tracked_directories
+            .cache_directories
+            .push_back(String::from(r"/home/anpeck/tlm/test_files/cache/"))
     //manual entry
     } else {
         //tracked_root_directories.push(String::from("T:/")); //manual entry
-        tracked_directories.root_directories.push_back(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\"));
-        tracked_directories.root_directories.push_back(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\shows\"));
-        tracked_directories.cache_directories.push_back(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\cache\"));
+        tracked_directories.root_directories.push_back(String::from(
+            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\",
+        ));
+        tracked_directories.root_directories.push_back(String::from(
+            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\shows\",
+        ));
+        tracked_directories
+            .cache_directories
+            .push_back(String::from(
+                r"C:\Users\Alexi Peck\Desktop\tlm\test_files\cache\",
+            ));
         //manual entry
     }
 
@@ -93,8 +105,6 @@ fn main() {
             ),*/
             _ => {}
         }
-        
-
 
         db_insert_content(content.clone());
         let encode_string = content.generate_encode_string();
@@ -107,7 +117,11 @@ fn main() {
     queue.print();
 
     while queue.get_full_queue_length() > 0 {
-        print::print(print::Verbosity::INFO, "queue_execution", format!("LIQ: {}", queue.get_full_queue_length().to_string()));
+        print::print(
+            print::Verbosity::INFO,
+            "queue_execution",
+            format!("LIQ: {}", queue.get_full_queue_length().to_string()),
+        );
         queue.run_job("nuc".to_string());
     }
 

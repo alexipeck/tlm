@@ -1,12 +1,12 @@
 use crate::designation::Designation;
 use regex::Regex;
+use std::collections::VecDeque;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::collections::VecDeque;
 use std::process::Command;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use postgres_types::{ToSql, FromSql};
+use postgres_types::{FromSql, ToSql};
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static JOB_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -61,8 +61,11 @@ impl Job {
     }
 
     pub fn print(&self, called_from: &str) {
-        
-        crate::print::print(crate::print::Verbosity::INFO, called_from, Content::get_filename_from_pathbuf(self.source_path.clone()));
+        crate::print::print(
+            crate::print::Verbosity::INFO,
+            called_from,
+            Content::get_filename_from_pathbuf(self.source_path.clone()),
+        );
     }
 
     pub fn reserve(&mut self, operator: String) {
@@ -70,8 +73,11 @@ impl Job {
     }
 
     pub fn encode(&self) {
-        println!("Encoding file \'{}\'", Content::get_filename_from_pathbuf(self.source_path.clone()));
-        
+        println!(
+            "Encoding file \'{}\'",
+            Content::get_filename_from_pathbuf(self.source_path.clone())
+        );
+
         let buffer;
         if !cfg!(target_os = "windows") {
             //linux & friends
@@ -92,13 +98,11 @@ impl Job {
     pub fn handle(&mut self, operator: String) {
         self.reserve(operator);
         self.underway_status = true;
-        
+
         self.encode();
 
         let source_path = self.source_path.to_string_lossy().to_string();
         let encode_path = self.encode_path.to_string_lossy().to_string();
-
-
 
         //remove source
         //move/copy encoded file to original filename with new extension (extension is currently the problem)
@@ -108,7 +112,10 @@ impl Job {
         match copy_error {
             Ok(file) => file,
             Err(error) => {
-                println!("ERROR: \nSource: {}\nDestination: {}", &source_path, &encode_path);
+                println!(
+                    "ERROR: \nSource: {}\nDestination: {}",
+                    &source_path, &encode_path
+                );
                 panic!("Problem copying the file: {:?}", error);
             }
         };
@@ -120,11 +127,10 @@ impl Job {
                 panic!("Problem removing the file: {:?}", error);
             }
         };
-        
+
         self.completed_status = true;
     }
 }
-
 
 pub fn re_strip(input: &String, expression: &str) -> Option<String> {
     let output = Regex::new(expression).unwrap().find(input);
@@ -148,7 +154,6 @@ pub struct Content {
     //pub temp_encode_path: Option<PathBuf>,
     pub designation: Designation,
     //pub job_queue: VecDeque<Job>,
-
     pub hash: Option<u64>,
     //pub versions: Vec<FileVersion>,
     //pub metadata_dump
@@ -199,10 +204,13 @@ impl Content {
     }
 
     pub fn generate_target_path(&self) -> String {
-        return self.get_full_path_with_suffix("_encodeH4U8".to_string()).to_string_lossy().to_string();
+        return self
+            .get_full_path_with_suffix("_encodeH4U8".to_string())
+            .to_string_lossy()
+            .to_string();
     }
 
-    pub fn create_job(&mut self, encode_string: Vec<String>) -> Job {        
+    pub fn create_job(&mut self, encode_string: Vec<String>) -> Job {
         return Job::new(self.full_path.clone(), encode_string);
     }
 
@@ -241,12 +249,7 @@ impl Content {
     }
 
     pub fn get_filename_from_pathbuf(pathbuf: PathBuf) -> String {
-        return pathbuf
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string();
+        return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
 
     pub fn get_filename(&self) -> String {
@@ -278,15 +281,19 @@ impl Content {
     }
 
     pub fn get_full_path_with_suffix_as_string(&self, suffix: String) -> String {
-        return self.get_full_path_with_suffix(suffix).to_string_lossy().to_string();
+        return self
+            .get_full_path_with_suffix(suffix)
+            .to_string_lossy()
+            .to_string();
     }
 
     pub fn get_full_path_with_suffix_from_pathbuf(pathbuf: PathBuf, suffix: String) -> PathBuf {
         //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
         //.push(self.full_path.extension().unwrap())
         //bad way of doing it
-        let new_filename = format!("{}{}.{}", 
-            pathbuf.file_stem().unwrap().to_string_lossy().to_string(), 
+        let new_filename = format!(
+            "{}{}.{}",
+            pathbuf.file_stem().unwrap().to_string_lossy().to_string(),
             &suffix,
             pathbuf.extension().unwrap().to_string_lossy().to_string(),
         );
@@ -297,10 +304,19 @@ impl Content {
         //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
         //.push(self.full_path.extension().unwrap())
         //bad way of doing it
-        let new_filename = format!("{}{}.{}", 
-            self.full_path.file_stem().unwrap().to_string_lossy().to_string(), 
+        let new_filename = format!(
+            "{}{}.{}",
+            self.full_path
+                .file_stem()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
             &suffix,
-            self.full_path.extension().unwrap().to_string_lossy().to_string(),
+            self.full_path
+                .extension()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
         );
         return self.full_path.parent().unwrap().join(new_filename);
     }
@@ -344,7 +360,7 @@ impl Content {
     pub fn moved(&mut self, new_full_path: &PathBuf) {
         self.full_path = new_full_path.clone();
     }
-    
+
     pub fn regenerate_from_pathbuf(&mut self, raw_filepath: &PathBuf) {
         let mut episode = false;
         self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic

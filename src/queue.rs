@@ -25,7 +25,7 @@ impl Queue {
     pub fn fill_cache_by_uid(&mut self, uid: usize) {
         let mut done = false;
         for job in &mut self.priority_queue {
-            if job.uid == uid && self.cache_directories.len() > 0{
+            if job.uid == uid && self.cache_directories.len() > 0 {
                 job.cache_directory = Some(self.cache_directories[0].clone());
                 done = true;
             }
@@ -33,7 +33,7 @@ impl Queue {
 
         if !done {
             for job in &mut self.main_queue {
-                if job.uid == uid && self.cache_directories.len() > 0{
+                if job.uid == uid && self.cache_directories.len() > 0 {
                     job.cache_directory = Some(self.cache_directories[0].clone());
                 }
             }
@@ -61,7 +61,7 @@ impl Queue {
         }
         return false;
     }
-    
+
     pub fn add_job_to_queue(&mut self, job: Job) {
         //if the job isn't already in the queue
         if !self.exists_pmq(job.uid) {
@@ -73,7 +73,7 @@ impl Queue {
         //if the job isn't already in the queue
         if !self.exists_pmq(job.uid) {
             self.priority_queue.push_back(job);
-        }      
+        }
     }
 
     pub fn remove_from_queue_by_uid(&mut self, job_uid: usize) -> Option<Job> {
@@ -82,7 +82,7 @@ impl Queue {
                 return self.priority_queue.remove(index);
             }
         }
-        
+
         for (index, job) in self.main_queue.iter().enumerate() {
             if job.uid == job_uid {
                 return self.main_queue.remove(index);
@@ -94,7 +94,7 @@ impl Queue {
 
     pub fn handle_by_uid(&mut self, job_uid: usize, operator: String) {
         let mut delete: bool = false;
-        
+
         for job in &mut self.priority_queue {
             if job.uid == job_uid {
                 job.handle(operator.clone());
@@ -131,8 +131,6 @@ impl Queue {
             self.handle_by_uid(uid_to_handle.unwrap(), operator);
         }
     }
-
-
 
     pub fn prioritise_existing_job(&mut self, job_uid: usize) {
         if self.exists_mq(job_uid) {
