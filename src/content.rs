@@ -1,16 +1,103 @@
 use crate::designation::Designation;
 use regex::Regex;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::collections::VecDeque;
-use std::thread::current;
-
-use print;
+use std::process::Command;
 
 use postgres_types::{ToSql, FromSql};
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+static JOB_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+
+
+#[derive(Clone, Debug)]
+pub struct Job {
+    pub uid: usize,
+    pub source_path: PathBuf,
+    pub encode_path: PathBuf,
+    pub encode_string: Vec<String>,
+    pub reserved_by: Option<String>,
+    pub underway_status: bool,
+    pub completed_status: bool,
+}
+
+impl Job {
+    //maybe best to use a generic string
+    pub fn new(source_path: PathBuf, encode_string: Vec<String>) -> Job {
+        Job {
+            uid: JOB_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
+            source_path: source_path.clone(),
+            encode_path: Content::generate_encode_path_from_pathbuf(source_path),
+            encode_string: encode_string,
+            reserved_by: None,
+            underway_status: false,
+            completed_status: false,
+        }
+    }
+
+    pub fn print(&self, called_from: &str) {
+        
+        crate::print::print(crate::print::Verbosity::INFO, called_from, Content::get_filename_from_pathbuf(self.source_path.clone()));
+    }
+
+    pub fn reserve(&mut self, operator: String) {
+        self.reserved_by = Some(operator);
+    }
+
+    pub fn encode(&self) {
+        println!("Encoding file \'{}\'", Content::get_filename_from_pathbuf(self.source_path.clone()));
+        
+        let buffer;
+        if !cfg!(target_os = "windows") {
+            //linux & friends
+            buffer = Command::new("ffmpeg")
+                .args(&self.encode_string)
+                .output()
+                .expect("failed to execute process");
+        } else {
+            //windows
+            buffer = Command::new("ffmpeg")
+                .args(&self.encode_string)
+                .output()
+                .expect("failed to execute process");
+        }
+        //println!("{}", String::from_utf8_lossy(&buffer.stderr).to_string());
+    }
+
+    pub fn handle(&mut self, operator: String) {
+        println!("CP1");
+        self.reserve(operator);
+        self.underway_status = true;
+        
+        self.encode();
+
+        let source_path = self.source_path.to_string_lossy().to_string();
+        let encode_path = self.encode_path.to_string_lossy().to_string();
+
+        let copy_error = std::fs::copy(&encode_path, &source_path);
+        match copy_error {
+            Ok(file) => file,
+            Err(error) => {
+                println!("ERROR: \nSource: {}\nDestination: {}", &source_path, &encode_path);
+                panic!("Problem copying the file: {:?}", error);
+            }
+        };
+        let remove_error = std::fs::remove_file(&encode_path);
+        match remove_error {
+            Ok(file) => file,
+            Err(error) => {
+                println!("ERROR: \nTarget for removal: {}", &encode_path);
+                panic!("Problem removing the file: {:?}", error);
+            }
+        };
+        
+        self.completed_status = true;
+    }
+}
+
 
 pub fn re_strip(input: &String, expression: &str) -> Option<String> {
     let output = Regex::new(expression).unwrap().find(input);
@@ -26,91 +113,6 @@ fn rem_first_char(value: &str) -> &str {
     chars.as_str()
 }
 
-fn get_os_slash() -> String {
-    return if !cfg!(target_os = "windows") {
-        '/'.to_string()
-    } else {
-        '\\'.to_string()
-    };
-}
-
-/* impl Ord for Content {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.show_season_episode.parse::<usize>().unwrap().cmp(&other.show_season_episode.parse::<usize>().unwrap())
-    }
-}
-
-impl PartialOrd for Content {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl PartialEq for Content {
-    fn eq(&self, other: &Self) -> bool {
-        self.height == other.height
-    }
-} */
-
-#[derive(Clone, Debug)]
-pub struct Job {
-    source_path: PathBuf,
-    encode_path: PathBuf,
-    encode_string: Vec<String>,
-    pub reserved_by: Option<String>,
-    underway_status: bool,
-    completed_status: bool,
-}
-
-impl Job {
-    //maybe best to use a generic string
-    pub fn new(source_path: PathBuf, encode_string: Vec<String>) -> Job {
-        Job {
-            source_path: source_path.clone(),
-            encode_path: Content::generate_encode_path_from_pathbuf(source_path),
-            encode_string: encode_string,
-            reserved_by: None,
-            underway_status: false,
-            completed_status: false,
-        }
-    }
-
-    pub fn reserve(&mut self, operator: String) {
-        self.reserved_by = Some(operator);
-    }
-
-    pub fn encode(self) {
-        let buffer;
-        if !cfg!(target_os = "windows") {
-            //linux & friends
-            buffer = Command::new("ffmpeg")
-                .args(self.encode_string)
-                .output()
-                .expect("failed to execute process");
-        } else {
-            //windows
-            buffer = Command::new("ffmpeg")
-                .args(self.encode_string)
-                .output()
-                .expect("failed to execute process");
-        }
-        //println!("{}", String::from_utf8_lossy(&buffer.stdout).to_string());
-    }
-
-    pub fn handle(&mut self, operator: String) {
-        self.reserve(operator);
-        self.underway_status = true;
-        
-        self.encode();
-
-        let error = std::fs::copy(self.source_path.to_string_lossy().to_string(), self.encode_path.to_string_lossy().to_string());
-        std::fs::remove_file(self.source_path.to_string_lossy().to_string());
-
-
-        self.completed_status = true;
-    }
-}
-
 //generic content container, focus on video
 #[derive(Clone, Debug)]
 pub struct Content {
@@ -118,7 +120,7 @@ pub struct Content {
     pub full_path: PathBuf,
     //pub temp_encode_path: Option<PathBuf>,
     pub designation: Designation,
-    pub job_queue: VecDeque<Job>,
+    //pub job_queue: VecDeque<Job>,
 
     pub hash: Option<u64>,
     //pub versions: Vec<FileVersion>,
@@ -136,7 +138,7 @@ impl Content {
             designation: Designation::Generic,
             uid: EPISODE_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
             hash: None,
-            job_queue: VecDeque::new(),
+            //job_queue: VecDeque::new(),
 
             //truly optional
             show_title: None,
@@ -147,8 +149,38 @@ impl Content {
         return content;
     }
 
-    fn generate_encode_path_from_pathbuf(pathbuf: PathBuf) -> PathBuf {
-        return pathbuf.parent().unwrap().join(pathbuf.file_name().unwrap()).join(r"_encodeH4U8").join(pathbuf.extension().unwrap());
+    //no options currently
+    pub fn generate_encode_string(&self) -> Vec<String> {
+        return vec![
+            "-i".to_string(),
+            self.get_full_path(),
+            "-c:v".to_string(),
+            "libx265".to_string(),
+            "-crf".to_string(),
+            "25".to_string(),
+            "-preset".to_string(),
+            "slower".to_string(),
+            "-profile:v".to_string(),
+            "main".to_string(),
+            "-c:a".to_string(),
+            "aac".to_string(),
+            "-q:a".to_string(),
+            "224k".to_string(),
+            "-y".to_string(),
+            self.generate_target_path(),
+        ];
+    }
+
+    pub fn generate_target_path(&self) -> String {
+        return self.get_full_path_with_suffix("_encodeH4U8".to_string()).to_string_lossy().to_string();
+    }
+
+    pub fn create_job(&mut self, encode_string: Vec<String>) -> Job {        
+        return Job::new(self.full_path.clone(), encode_string);
+    }
+
+    pub fn generate_encode_path_from_pathbuf(pathbuf: PathBuf) -> PathBuf {
+        return Content::get_full_path_with_suffix_from_pathbuf(pathbuf, "_encodeH4U8".to_string());
     }
 
     pub fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, usize)> {
@@ -173,50 +205,21 @@ impl Content {
         ))
     }
 
-    pub fn run_encode(&mut self, operator: String) {
-        //currently encodes first free option
-        let mut current_job: Option<Job> = None;
-        for job in &self.job_queue {
-            if !(job.completed_status && job.underway_status) {
-                current_job = Some(job.clone());
-            }
-        }
-
-        if current_job.is_some() {
-            println!("Encoding file \'{}\'", self.get_filename());
-            current_job.unwrap().handle(operator);
-        }
-    }
-
-    pub fn add_encode_to_job_queue(&mut self) {
-        let encode_target = self.get_full_path_with_suffix_as_string("_encodeH4U8".to_string()); //want it to use the actual extension rather than just .mp4
-        let encode_string: Vec<String> = vec![
-            "-i".to_string(),
-            self.get_full_path(),
-            "-c:v".to_string(),
-            "libx265".to_string(),
-            "-crf".to_string(),
-            "25".to_string(),
-            "-preset".to_string(),
-            "slower".to_string(),
-            "-profile:v".to_string(),
-            "main".to_string(),
-            "-c:a".to_string(),
-            "aac".to_string(),
-            "-q:a".to_string(),
-            "224k".to_string(),
-            "-y".to_string(),
-            encode_target,
-        ];
-        self.job_queue.push_back(Job::new(self.full_path.clone(), encode_string.clone()));
-    }
-
     /* pub fn set_temp_encode_path(&mut self, pathbuf: std::path::PathBuf) {
         self.temp_encode_path = Some(pathbuf);
     } */
 
     pub fn get_full_path(&self) -> String {
         return self.full_path.as_os_str().to_str().unwrap().to_string();
+    }
+
+    pub fn get_filename_from_pathbuf(pathbuf: PathBuf) -> String {
+        return pathbuf
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
     }
 
     pub fn get_filename(&self) -> String {
@@ -248,18 +251,31 @@ impl Content {
     }
 
     pub fn get_full_path_with_suffix_as_string(&self, suffix: String) -> String {
-        return format!(
-            "{}{}{}{}.{}",
-            self.get_parent_directory(),
-            get_os_slash(),
-            self.get_filename_woe(),
-            suffix,
-            self.full_path.extension().unwrap().to_string_lossy().to_string(),
+        return self.get_full_path_with_suffix(suffix).to_string_lossy().to_string();
+    }
+
+    pub fn get_full_path_with_suffix_from_pathbuf(pathbuf: PathBuf, suffix: String) -> PathBuf {
+        //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
+        //.push(self.full_path.extension().unwrap())
+        //bad way of doing it
+        let new_filename = format!("{}{}.{}", 
+            pathbuf.file_stem().unwrap().to_string_lossy().to_string(), 
+            &suffix,
+            pathbuf.extension().unwrap().to_string_lossy().to_string(),
         );
+        return pathbuf.parent().unwrap().join(new_filename);
     }
 
     pub fn get_full_path_with_suffix(&self, suffix: String) -> PathBuf {
-        return self.full_path.parent().unwrap().join(self.full_path.file_name().unwrap()).join(suffix).join(self.full_path.extension().unwrap());
+        //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
+        //.push(self.full_path.extension().unwrap())
+        //bad way of doing it
+        let new_filename = format!("{}{}.{}", 
+            self.full_path.file_stem().unwrap().to_string_lossy().to_string(), 
+            &suffix,
+            self.full_path.extension().unwrap().to_string_lossy().to_string(),
+        );
+        return self.full_path.parent().unwrap().join(new_filename);
     }
 
     pub fn get_parent_directory_from_pathbuf(pathbuf: &PathBuf) -> String {

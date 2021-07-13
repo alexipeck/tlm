@@ -1,9 +1,10 @@
-use tlm::{import_files, print, get_show_title_from_pathbuf};
+use tlm::{content::Job, get_show_title_from_pathbuf, import_files, print};
 mod content;
 mod designation;
 mod queue;
 mod shows;
 mod database;
+//mod job;
 use content::Content;
 use designation::Designation;
 use queue::Queue;
@@ -82,26 +83,17 @@ fn main() {
 
             }
         }
-        queue.main_queue.push_back(content);
+        //queue.main_queue.push_back(content);
+        let encode_string = content.generate_encode_string();
+        let job = content.create_job(encode_string);
+        queue.add_job_to_queue(job);
     }
-    let filenames: Vec<String> = Vec::new();
-    //filenames.push(String::from(r"Weeds - S08E10 - Threshold Bluray-1080p.mkv"));
-    //filenames.push(String::from(r"Weeds - S08E11 - God Willing and the Creek Don't Rise Bluray-1080p.mkv"));
-    //filenames.push(String::from(r"Weeds - S08E12-13 - It's Time Bluray-1080p.mkv"));
-
-    let uids: Vec<usize> = Vec::new();
-    //uids.push(10);
-    //uids.push(22);
-    //uids.push(35);
-
-    //queue.prioritise_content_by_title(filenames.clone());
-
-    //queue.prioritise_content_by_uid(uids.clone());
 
     queue.print();
 
     while queue.get_full_queue_length() > 0 {
-        queue.encode_and_rename_next_unreserved("NUC".to_string());
+        print::print(print::Verbosity::INFO, "main", queue.get_full_queue_length().to_string());
+        queue.run_job("nuc".to_string());
     }
 
     shows.print();
