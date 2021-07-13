@@ -28,11 +28,12 @@ impl TrackedDirectories {
 }
 
 fn main() {
-    let mut tracked_directories = TrackedDirectories::new();
+    db_purge();
 
     //tracked directories - avoid crossover, it will lead to duplicate entries
-    //let mut tracked_root_directories: Vec<String> = Vec::new();
-    //let mut cache_directories: Vec<String> = Vec::new();
+    let mut tracked_directories = TrackedDirectories::new();
+
+    //manual entries
     if !cfg!(target_os = "windows") {
         //tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
         tracked_directories
@@ -41,7 +42,6 @@ fn main() {
         tracked_directories
             .cache_directories
             .push_back(String::from(r"/home/anpeck/tlm/test_files/cache/"))
-    //manual entry
     } else {
         //tracked_root_directories.push(String::from("T:/")); //manual entry
         tracked_directories.root_directories.push_back(String::from(
@@ -55,7 +55,6 @@ fn main() {
             .push_back(String::from(
                 r"C:\Users\Alexi Peck\Desktop\tlm\test_files\cache\",
             ));
-        //manual entry
     }
 
     //queue
@@ -79,8 +78,6 @@ fn main() {
 
     //sort out filepaths into series and seasons
     let mut shows = Shows::new();
-
-    db_purge();
 
     //loop through all paths
     for raw_filepath in raw_filepaths {
@@ -126,7 +123,4 @@ fn main() {
     }
 
     shows.print();
-    //add to db by filename, allowing the same file to be retargeted in another directory, without losing track of all the data associated with the episode
-
-    //unify generic and episode naming (bring together)
 }

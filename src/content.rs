@@ -1,12 +1,9 @@
 use crate::designation::Designation;
 use regex::Regex;
 use std::collections::VecDeque;
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
-
-use postgres_types::{FromSql, ToSql};
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static JOB_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -42,6 +39,7 @@ impl Job {
     pub fn new(source_path: PathBuf, encode_string: Vec<String>) -> Job {
         //default
         let mut tasks: VecDeque<Task> = VecDeque::new();
+
         //eventually move first (to cache)
         tasks.push_back(Task::Encode);
         tasks.push_back(Task::Delete);
@@ -240,10 +238,6 @@ impl Content {
         ))
     }
 
-    /* pub fn set_temp_encode_path(&mut self, pathbuf: std::path::PathBuf) {
-        self.temp_encode_path = Some(pathbuf);
-    } */
-
     pub fn get_full_path(&self) -> String {
         return self.full_path.as_os_str().to_str().unwrap().to_string();
     }
@@ -271,7 +265,7 @@ impl Content {
             .to_string();
     }
 
-    pub fn get_parent_directory(&self) -> String {
+    pub fn get_parent_directory_as_string(&self) -> String {
         return self
             .full_path
             .parent()
@@ -321,7 +315,7 @@ impl Content {
         return self.full_path.parent().unwrap().join(new_filename);
     }
 
-    pub fn get_parent_directory_from_pathbuf(pathbuf: &PathBuf) -> String {
+    pub fn get_parent_directory_from_pathbuf_as_string(pathbuf: &PathBuf) -> String {
         return pathbuf.parent().unwrap().to_string_lossy().to_string();
     }
 

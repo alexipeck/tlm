@@ -67,7 +67,7 @@ pub fn hash_file(path: PathBuf) -> u64 {
 }
 
 pub mod print {
-    ///hierarchy
+    //trickle up
     pub enum Verbosity {
         CRITICAL = 1,
         ERROR = 2,
@@ -93,7 +93,6 @@ pub mod print {
         }
 
         if current_verbosity_level <= set_output_verbosity_level {
-            //Set second condition to the current for now
             println!("[{}][{}] {}", verbosity_string, called_from, string);
         }
     }
