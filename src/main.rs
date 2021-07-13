@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use tlm::{content::Job, get_show_title_from_pathbuf, import_files, print};
 mod content;
 mod designation;
@@ -9,28 +11,43 @@ use content::Content;
 use designation::Designation;
 use queue::Queue;
 use shows::Shows;
-use database::db_connect;
+use database::{db_purge, db_insert_content, print_content};
+
+pub struct TrackedDirectories {
+    pub root_directories: VecDeque<String>,
+    pub cache_directories: VecDeque<String>,
+}
+
+impl TrackedDirectories {
+    pub fn new() -> TrackedDirectories {
+        TrackedDirectories {
+            root_directories: VecDeque::new(),
+            cache_directories: VecDeque::new(),
+        }
+    }
+}
 
 fn main() {
-    //Queue
-    let mut queue = Queue::new();
+    let mut tracked_directories = TrackedDirectories::new();
 
     //tracked directories - avoid crossover, it will lead to duplicate entries
-    let mut tracked_root_directories: Vec<String> = Vec::new();
+    //let mut tracked_root_directories: Vec<String> = Vec::new();
+    //let mut cache_directories: Vec<String> = Vec::new();
     if !cfg!(target_os = "windows") {
         //tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
-        tracked_root_directories.push(String::from("/home/anpeck/tlm/test_files"));
+        tracked_directories.root_directories.push_back(String::from(r"/home/anpeck/tlm/test_files/"));
+        tracked_directories.cache_directories.push_back(String::from(r"/home/anpeck/tlm/test_files/cache/"))
     //manual entry
     } else {
         //tracked_root_directories.push(String::from("T:/")); //manual entry
-        tracked_root_directories.push(String::from(
-            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\",
-        ));
-        tracked_root_directories.push(String::from(
-            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\",
-        ));
+        tracked_directories.root_directories.push_back(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\"));
+        tracked_directories.root_directories.push_back(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\shows\"));
+        tracked_directories.cache_directories.push_back(String::from(r"C:\Users\Alexi Peck\Desktop\tlm\test_files\cache\"));
         //manual entry
     }
+
+    //queue
+    let mut queue = Queue::new(tracked_directories.cache_directories);
 
     //allowed video extensions
     let allowed_extensions = vec!["mp4", "mkv", "webm", "MP4"];
@@ -43,13 +60,15 @@ fn main() {
     //Load all video files under tracked directories exluding all ignored paths
     import_files(
         &mut raw_filepaths,
-        &tracked_root_directories,
+        &tracked_directories.root_directories,
         &allowed_extensions,
         &ignored_paths,
     );
 
     //sort out filepaths into series and seasons
     let mut shows = Shows::new();
+
+    db_purge();
 
     //loop through all paths
     for raw_filepath in raw_filepaths {
@@ -74,25 +93,21 @@ fn main() {
             ),*/
             _ => {}
         }
-        let error = db_connect(content.clone());
-        match error {
-            Err(err) => {
-                println!("{}", err.to_string());
-            }
-            _ => {
+        
 
-            }
-        }
-        //queue.main_queue.push_back(content);
+
+        db_insert_content(content.clone());
         let encode_string = content.generate_encode_string();
         let job = content.create_job(encode_string);
         queue.add_job_to_queue(job);
     }
 
+    print_content();
+
     queue.print();
 
     while queue.get_full_queue_length() > 0 {
-        print::print(print::Verbosity::INFO, "main", queue.get_full_queue_length().to_string());
+        print::print(print::Verbosity::INFO, "queue_execution", format!("LIQ: {}", queue.get_full_queue_length().to_string()));
         queue.run_job("nuc".to_string());
     }
 

@@ -11,14 +11,27 @@ use postgres_types::{ToSql, FromSql};
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static JOB_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-
+#[derive(Clone, Debug)]
+pub enum Task {
+    Encode,
+    Copy,
+    Move,
+    Rename,
+    Delete,
+    Reencode,
+    Duplicate,
+}
 
 #[derive(Clone, Debug)]
 pub struct Job {
     pub uid: usize,
+    pub tasks: VecDeque<Task>,
+
     pub source_path: PathBuf,
     pub encode_path: PathBuf,
     pub encode_string: Vec<String>,
+    pub cache_directory: Option<String>,
+
     pub reserved_by: Option<String>,
     pub underway_status: bool,
     pub completed_status: bool,
@@ -27,11 +40,20 @@ pub struct Job {
 impl Job {
     //maybe best to use a generic string
     pub fn new(source_path: PathBuf, encode_string: Vec<String>) -> Job {
+        //default
+        let mut tasks: VecDeque<Task> = VecDeque::new();
+        //eventually move first (to cache)
+        tasks.push_back(Task::Encode);
+        tasks.push_back(Task::Delete);
+        tasks.push_back(Task::Move);
+
         Job {
             uid: JOB_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
+            tasks: VecDeque::new(),
             source_path: source_path.clone(),
             encode_path: Content::generate_encode_path_from_pathbuf(source_path),
             encode_string: encode_string,
+            cache_directory: None,
             reserved_by: None,
             underway_status: false,
             completed_status: false,
@@ -68,7 +90,6 @@ impl Job {
     }
 
     pub fn handle(&mut self, operator: String) {
-        println!("CP1");
         self.reserve(operator);
         self.underway_status = true;
         
@@ -76,6 +97,12 @@ impl Job {
 
         let source_path = self.source_path.to_string_lossy().to_string();
         let encode_path = self.encode_path.to_string_lossy().to_string();
+
+
+
+        //remove source
+        //move/copy encoded file to original filename with new extension (extension is currently the problem)
+        //remove encoded file if it still exists
 
         let copy_error = std::fs::copy(&encode_path, &source_path);
         match copy_error {

@@ -1,22 +1,42 @@
 use crate::content::Job;
 use std::collections::VecDeque;
 
-pub struct Queue {
-    pub priority_queue: VecDeque<Job>,
-    pub main_queue: VecDeque<Job>,
-}
-
 pub enum QueueType {
     MainQueue,
     PriorityQueue,
     All,
 }
 
+pub struct Queue {
+    pub priority_queue: VecDeque<Job>,
+    pub main_queue: VecDeque<Job>,
+    cache_directories: VecDeque<String>,
+}
+
 impl Queue {
-    pub fn new() -> Queue {
+    pub fn new(cache_directories: VecDeque<String>) -> Queue {
         Queue {
             priority_queue: VecDeque::new(),
             main_queue: VecDeque::new(),
+            cache_directories: cache_directories,
+        }
+    }
+
+    pub fn fill_cache_by_uid(&mut self, uid: usize) {
+        let mut done = false;
+        for job in &mut self.priority_queue {
+            if job.uid == uid && self.cache_directories.len() > 0{
+                job.cache_directory = Some(self.cache_directories[0].clone());
+                done = true;
+            }
+        }
+
+        if !done {
+            for job in &mut self.main_queue {
+                if job.uid == uid && self.cache_directories.len() > 0{
+                    job.cache_directory = Some(self.cache_directories[0].clone());
+                }
+            }
         }
     }
 

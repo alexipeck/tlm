@@ -2,15 +2,17 @@ pub mod content;
 pub mod designation;
 pub mod queue;
 
+use std::collections::VecDeque;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 use twox_hash::xxh3;
 use walkdir::WalkDir;
+use std::error::Error;
 
 pub fn import_files(
     file_paths: &mut Vec<PathBuf>,
-    directories: &Vec<String>,
+    directories: &VecDeque<String>,
     allowed_extensions: &Vec<&str>,
     ignored_paths: &Vec<&str>,
 ) {
