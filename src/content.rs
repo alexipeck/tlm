@@ -88,7 +88,7 @@ impl Job {
     //maybe best to use a generic string
     pub fn new(source_path: PathBuf, encode_string: Vec<String>) -> Job {
         //default
-        let mut tasks: VecDeque<Task> = VecDeque::new();
+        let tasks: VecDeque<Task> = VecDeque::new();
 
         Job {
             uid: JOB_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
@@ -103,17 +103,14 @@ impl Job {
         }
     }
 
-    /* pub fn prepare_tasks(&mut self, operator_uid: usize, ) {
+    pub fn prepare_tasks(&mut self, (worker_uid, worker_string_id):(usize, String)) {
         //eventually move first (to cache)
-        self.tasks.push_back(Task::Reserve(Reserve {
-            status: (false, false),
-            uid:
-            operator: operator_uid,
-        }));
+        self.worker = Some((worker_uid, worker_string_id));
+        self.tasks.push_back(Task::Reserve);
         self.tasks.push_back(Task::Encode);
         self.tasks.push_back(Task::Delete);
         self.tasks.push_back(Task::Move);
-    } */
+    }
 
     pub fn print(&self, called_from: &str) {
         crate::print::print(
@@ -280,8 +277,8 @@ impl Content {
             .to_string();
     }
 
-    pub fn create_job(&mut self, encode_string: Vec<String>) -> Job {
-        return Job::new(self.full_path.clone(), encode_string);
+    pub fn create_job(&mut self) -> Job {
+        return Job::new(self.full_path.clone(), self.generate_encode_string());
     }
 
     pub fn generate_encode_path_from_pathbuf(pathbuf: PathBuf) -> PathBuf {

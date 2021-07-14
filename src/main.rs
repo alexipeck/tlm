@@ -11,10 +11,12 @@ mod queue;
 mod shows;
 //mod job;
 use content::Content;
-use database::{db_insert_content, db_purge, print_content};
+use database::{db_insert_content, db_purge, print_content, db_insert_job};
 use designation::Designation;
 use queue::Queue;
 use shows::Shows;
+
+use crate::database::print_jobs;
 
 pub struct TrackedDirectories {
     pub root_directories: VecDeque<String>,
@@ -160,23 +162,28 @@ fn main() {
         }
 
         db_insert_content(content.clone());
-        let encode_string = content.generate_encode_string();
-        let job = content.create_job(encode_string);
+        let mut job = content.create_job();
+        if worker.is_some() {
+            job.prepare_tasks(worker.clone().unwrap());
+            //db_insert_job(job.clone());
+        }
         queue.add_job_to_queue(job);
     }
 
     print_content();
 
+    //print_jobs();
+
     queue.print();
 
-    while queue.get_full_queue_length() > 0 {
+    /* while queue.get_full_queue_length() > 0 {
         print::print(
             print::Verbosity::INFO,
             "queue_execution",
             format!("LIQ: {}", queue.get_full_queue_length().to_string()),
         );
         queue.run_job(worker.clone().unwrap());
-    }
+    } */
 
     shows.print();
 }

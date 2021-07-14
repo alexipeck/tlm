@@ -105,7 +105,7 @@ pub fn db_insert_job(job: Job) {
     let client = client_connection();
     if client.is_some() {
         let qrid = 390192782;
-        let worker_uid = job.worker.clone().unwrap().0 as i32;
+        let worker_uid = job.clone().worker.clone().unwrap().0 as i32;
         let worker_string_identifier = job.worker.unwrap().1;
         let error = client.unwrap().execute(r"
                 INSERT INTO job_queue (
@@ -136,8 +136,13 @@ pub fn db_insert_job(job: Job) {
             //i only want the latest one that fits this query to contend with the potential statistical crossover
             let result = client.unwrap().query(r"SELECT uid from job_queue WHERE qrid = $1", &[&qrid]);
             if result.is_ok() {
+                //let t = *result.unwrap().get(0).unwrap();
+                //let f = result.unwrap()[0].get(0);
+
+
                 let uid_temp: i32 = result.unwrap()[0].get(0);
                 let uid: usize = uid_temp as usize;
+
                 
                 for (pos, task) in job.tasks.iter().enumerate() {
                     db_insert_task(task.clone() as usize, pos, uid);
@@ -158,6 +163,27 @@ pub fn db_get_by_query(query:  &str) -> Option<Result<Vec<Row>, Error>> {
 pub fn db_purge() {
     execute_query(r"DROP TABLE IF EXISTS content");
     execute_query(r"DROP TABLE IF EXISTS job_queue");
+    execute_query(r"DROP TABLE IF EXISTS job_task_queue");
+}
+
+pub fn print_jobs() {
+    let result = db_get_by_query(r"SELECT id, job_uid, task_id FROM job_queue");
+    if result.is_some() {
+        let result = result.unwrap();
+        if result.is_ok() {
+            let result = result.unwrap();
+            for row in result {
+                let id: i32 = row.get(0);
+                let job_uid: i32 = row.get(1);
+                let task_id: i32 = row.get(2);
+                tlm::print::print(
+                    tlm::print::Verbosity::DEBUG,
+                    "db",
+                    format!("[job_uid: {}][id: {}][task_id: {}]", job_uid, id, task_id),
+                )
+            }
+        }
+    }    
 }
 
 pub fn print_content() {
