@@ -140,7 +140,7 @@ pub fn db_insert_job(job: Job) {
                 let uid: usize = uid_temp as usize;
                 
                 for (pos, task) in job.tasks.iter().enumerate() {
-                    db_insert_task_with_order_id(task.clone() as usize, pos, uid);
+                    db_insert_task(task.clone() as usize, pos, uid);
                 }
             }
         }
