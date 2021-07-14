@@ -92,43 +92,68 @@ impl Queue {
         return None;
     }
 
-    pub fn handle_by_uid(&mut self, job_uid: usize, operator: String) {
+    pub fn handle_by_uid(&mut self, job_uid: usize, worker: (usize, String)) {
         let mut delete: bool = false;
 
+        //looks for job_uid in the priority queue
+        //breaks and skips main queue if it finds the job
         for job in &mut self.priority_queue {
             if job.uid == job_uid {
-                job.handle(operator.clone());
+                crate::print::print(
+                    crate::print::Verbosity::INFO,
+                    "handle_by_uid",
+                    format!("handling job UID#: {}", job_uid),
+                );
+                job.handle(worker.clone());
                 delete = true;
+                break;
             }
         }
-        for job in &mut self.main_queue {
-            if job.uid == job_uid {
-                job.handle(operator.clone());
-                delete = true;
+        //looks for job_uid in the main queue if it didn't find it in the priority queue
+        if !delete {
+            for job in &mut self.main_queue {
+                if job.uid == job_uid {
+                    crate::print::print(
+                        crate::print::Verbosity::INFO,
+                        "handle_by_uid",
+                        format!("handling job UID#: {}", job_uid),
+                    );
+                    job.handle(worker);
+                    delete = true;
+                    break;
+                }
             }
         }
         if delete {
+            crate::print::print(
+                crate::print::Verbosity::INFO,
+                "handle_by_uid",
+                format!("removing from queue job UID#: {}", job_uid),
+            );
             self.remove_from_queue_by_uid(job_uid);
         }
     }
 
-    pub fn run_job(&mut self, operator: String) {
+    pub fn run_job(&mut self, worker: (usize, String)) {
         //currently encodes first unreserved Job
+        //finds job to run
         let mut uid_to_handle: Option<usize> = None;
         for job in &self.priority_queue {
-            if job.reserved_by.is_none() {
+            if job.operator.is_none() {
                 uid_to_handle = Some(job.uid);
                 break;
             }
         }
         for job in &self.main_queue {
-            if job.reserved_by.is_none() {
+            if job.operator.is_none() {
                 uid_to_handle = Some(job.uid);
                 break;
             }
         }
+
+        //handles job by uid (figure out what to do with that particular job) if a job exists and is available
         if uid_to_handle.is_some() {
-            self.handle_by_uid(uid_to_handle.unwrap(), operator);
+            self.handle_by_uid(uid_to_handle.unwrap(), worker);
         }
     }
 
@@ -168,16 +193,16 @@ impl Queue {
         return self.priority_queue.len() + self.main_queue.len();
     }
 
-    pub fn get_next_unreserved(&mut self, operator: String) -> Option<usize> {
+    pub fn get_next_unreserved(&mut self, operator: usize) -> Option<usize> {
         for job in &mut self.priority_queue {
-            if job.reserved_by == None {
+            if job.operator == None {
                 job.reserve(operator);
                 return Some(job.uid);
             }
         }
 
         for job in &mut self.main_queue {
-            if job.reserved_by == None {
+            if job.operator == None {
                 job.reserve(operator);
                 return Some(job.uid);
             }

@@ -1,4 +1,7 @@
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static WORKER_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 use tlm::{content::Job, get_show_title_from_pathbuf, import_files, print};
 mod content;
@@ -27,8 +30,59 @@ impl TrackedDirectories {
     }
 }
 
+pub struct Workers {
+    workers: VecDeque<Worker>,
+}
+
+impl Workers {
+    pub fn new() -> Workers {
+        Workers {
+            workers: VecDeque::new(),
+        }
+    }
+
+    pub fn get_and_reserve_worker(&mut self) -> Option<(usize, String)> {
+        for worker in &mut self.workers {
+            if worker.reserved == false {
+                worker.reserved = true;
+                return Some((worker.uid, worker.string_identifier.clone()));
+            }
+        }
+        return None;
+    }
+}
+
+pub struct Worker {
+    uid: usize,
+    string_identifier: String,
+    reserved: bool,
+    //ip_address
+    //mac_address
+}
+
+impl Worker {
+    pub fn new(string_identifier: String) -> Worker {
+        Worker {
+            uid: WORKER_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
+            string_identifier: string_identifier,
+            reserved: false,
+        }
+    }
+}
+
 fn main() {
     db_purge();
+
+    //remote or local workers
+    let mut encode_workers: Workers = Workers::new();
+    encode_workers.workers.push_back(Worker::new("nuc".to_string()));
+    let temp = encode_workers.get_and_reserve_worker();
+    let mut worker: Option<(usize, String)> = None;
+    if temp.is_some() {
+        worker = Some(temp.unwrap());
+    } else {
+        panic!("No encode worker available");
+    }
 
     //tracked directories - avoid crossover, it will lead to duplicate entries
     let mut tracked_directories = TrackedDirectories::new();
@@ -119,7 +173,7 @@ fn main() {
             "queue_execution",
             format!("LIQ: {}", queue.get_full_queue_length().to_string()),
         );
-        queue.run_job("nuc".to_string());
+        queue.run_job(worker.clone().unwrap());
     }
 
     shows.print();

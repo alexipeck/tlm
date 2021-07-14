@@ -1,7 +1,7 @@
 use crate::designation::Designation;
 use regex::Regex;
 use std::collections::VecDeque;
-use std::path::{PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -9,11 +9,29 @@ static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static JOB_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Clone, Debug)]
+pub struct Reserve {
+    status: (bool, bool),
+    uid: usize,
+    operator: String,
+}
+
+impl Reserve {
+    pub fn new(uid: usize, operator: String) -> Reserve {
+        Reserve {
+            status: (false, false),
+            uid: uid,
+            operator: operator,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum Task {
     Encode,
     Copy,
     Move,
     Rename,
+    Reserve(Reserve),
     Delete,
     Reencode,
     Duplicate,
@@ -29,7 +47,7 @@ pub struct Job {
     pub encode_string: Vec<String>,
     pub cache_directory: Option<String>,
 
-    pub reserved_by: Option<String>,
+    pub operator: Option<usize>,
     pub underway_status: bool,
     pub completed_status: bool,
 }
@@ -40,11 +58,6 @@ impl Job {
         //default
         let mut tasks: VecDeque<Task> = VecDeque::new();
 
-        //eventually move first (to cache)
-        tasks.push_back(Task::Encode);
-        tasks.push_back(Task::Delete);
-        tasks.push_back(Task::Move);
-
         Job {
             uid: JOB_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
             tasks: VecDeque::new(),
@@ -52,11 +65,23 @@ impl Job {
             encode_path: Content::generate_encode_path_from_pathbuf(source_path),
             encode_string: encode_string,
             cache_directory: None,
-            reserved_by: None,
+            operator: None,
             underway_status: false,
             completed_status: false,
         }
     }
+
+    /* pub fn prepare_tasks(&mut self, operator_uid: usize, ) {
+        //eventually move first (to cache)
+        self.tasks.push_back(Task::Reserve(Reserve {
+            status: (false, false),
+            uid:
+            operator: operator_uid,
+        }));
+        self.tasks.push_back(Task::Encode);
+        self.tasks.push_back(Task::Delete);
+        self.tasks.push_back(Task::Move);
+    } */
 
     pub fn print(&self, called_from: &str) {
         crate::print::print(
@@ -64,10 +89,6 @@ impl Job {
             called_from,
             Content::get_filename_from_pathbuf(self.source_path.clone()),
         );
-    }
-
-    pub fn reserve(&mut self, operator: String) {
-        self.reserved_by = Some(operator);
     }
 
     pub fn encode(&self) {
@@ -93,11 +114,32 @@ impl Job {
         //println!("{}", String::from_utf8_lossy(&buffer.stderr).to_string());
     }
 
-    pub fn handle(&mut self, operator: String) {
-        self.reserve(operator);
-        self.underway_status = true;
+    pub fn reserve(&mut self, operator: usize) {
+        self.operator = Some(operator);
+    }
 
+    /* pub fn reserve(&mut self, operator: String) {
+        self.reserved_by = Some(operator);
+        self.underway_status = true;//bye bye
+        crate::print::print(crate::print::Verbosity::INFO, "handle", format!("reserved job UID#: {} for {}", self.uid, operator.clone()));
+    } */
+
+    pub fn handle(&mut self, worker: (usize, String)) {
+        crate::print::print(
+            crate::print::Verbosity::INFO,
+            "handle",
+            format!(
+                "starting encoding job UID#: {} by {}",
+                self.uid,
+                worker.1
+            ),
+        );
         self.encode();
+        crate::print::print(
+            crate::print::Verbosity::INFO,
+            "handle",
+            format!("completed encoding job UID#: {}", self.uid),
+        );
 
         let source_path = self.source_path.to_string_lossy().to_string();
         let encode_path = self.encode_path.to_string_lossy().to_string();
@@ -105,6 +147,8 @@ impl Job {
         //remove source
         //move/copy encoded file to original filename with new extension (extension is currently the problem)
         //remove encoded file if it still exists
+
+        //TODO: need to find the content entry in the db and update the path to include the new filename, most importantly the extension
 
         let copy_error = std::fs::copy(&encode_path, &source_path);
         match copy_error {
