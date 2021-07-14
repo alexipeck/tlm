@@ -41,25 +41,25 @@ pub fn convert_task_id_to_task(task_id: usize) -> Option<Task> {
     match task_id {
         0 => {
             return Some(Task::Encode);
-        },
+        }
         1 => {
             return Some(Task::Copy);
-        },
+        }
         2 => {
             return Some(Task::Move);
-        },
+        }
         3 => {
             return Some(Task::Rename);
-        },
+        }
         4 => {
             return Some(Task::Reserve);
-        },
+        }
         5 => {
             return Some(Task::Delete);
-        },
+        }
         6 => {
             return Some(Task::Reencode);
-        },
+        }
         7 => {
             return Some(Task::Duplicate);
         }
@@ -103,7 +103,7 @@ impl Job {
         }
     }
 
-    pub fn prepare_tasks(&mut self, (worker_uid, worker_string_id):(usize, String)) {
+    pub fn prepare_tasks(&mut self, (worker_uid, worker_string_id): (usize, String)) {
         //eventually move first (to cache)
         self.worker = Some((worker_uid, worker_string_id));
         self.tasks.push_back(Task::Reserve);

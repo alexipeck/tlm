@@ -11,7 +11,7 @@ mod queue;
 mod shows;
 //mod job;
 use content::Content;
-use database::{db_insert_content, db_purge, print_content, db_insert_job};
+use database::{db_insert_content, db_insert_job, db_purge, print_content};
 use designation::Designation;
 use queue::Queue;
 use shows::Shows;

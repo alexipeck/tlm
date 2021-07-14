@@ -51,7 +51,7 @@ pub fn db_insert_content(content: Content) {
 
 pub fn db_insert_task(task_id: usize, id: usize, job_uid: usize) {
     //pull out in order by id
-    
+
     execute_query(
         r"
         CREATE TABLE IF NOT EXISTS job_task_queue (
@@ -73,11 +73,7 @@ pub fn db_insert_task(task_id: usize, id: usize, job_uid: usize) {
                     job_uid,
                     task_uid,
                 ) VALUES ($1, $2, $3)",
-            &[
-                &id,
-                &job_uid,
-                &task_id
-            ],
+            &[&id, &job_uid, &task_id],
         );
     }
 }
@@ -107,7 +103,8 @@ pub fn db_insert_job(job: Job) {
         let qrid = 390192782;
         let worker_uid = job.clone().worker.clone().unwrap().0 as i32;
         let worker_string_identifier = job.worker.unwrap().1;
-        let error = client.unwrap().execute(r"
+        let error = client.unwrap().execute(
+            r"
                 INSERT INTO job_queue (
                     source_path,
                     encode_path,
@@ -128,22 +125,22 @@ pub fn db_insert_job(job: Job) {
                 &job.status_completed,
                 &worker_uid,
                 &worker_string_identifier,
-                &qrid
+                &qrid,
             ],
         );
         let client = client_connection();
         if client.is_some() {
             //i only want the latest one that fits this query to contend with the potential statistical crossover
-            let result = client.unwrap().query(r"SELECT uid from job_queue WHERE qrid = $1", &[&qrid]);
+            let result = client
+                .unwrap()
+                .query(r"SELECT uid from job_queue WHERE qrid = $1", &[&qrid]);
             if result.is_ok() {
                 //let t = *result.unwrap().get(0).unwrap();
                 //let f = result.unwrap()[0].get(0);
 
-
                 let uid_temp: i32 = result.unwrap()[0].get(0);
                 let uid: usize = uid_temp as usize;
 
-                
                 for (pos, task) in job.tasks.iter().enumerate() {
                     db_insert_task(task.clone() as usize, pos, uid);
                 }
@@ -152,7 +149,7 @@ pub fn db_insert_job(job: Job) {
     }
 }
 
-pub fn db_get_by_query(query:  &str) -> Option<Result<Vec<Row>, Error>> {
+pub fn db_get_by_query(query: &str) -> Option<Result<Vec<Row>, Error>> {
     let client = client_connection();
     if client.is_some() {
         return Some(client.unwrap().query(query, &[]));
@@ -183,7 +180,7 @@ pub fn print_jobs() {
                 )
             }
         }
-    }    
+    }
 }
 
 pub fn print_content() {
