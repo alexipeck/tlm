@@ -75,16 +75,18 @@ fn main() {
 
     //remote or local workers
     let mut encode_workers: Workers = Workers::new();
-    encode_workers.workers.push_back(Worker::new("nuc".to_string()));
+    encode_workers
+        .workers
+        .push_back(Worker::new("nuc".to_string()));
     let temp = encode_workers.get_and_reserve_worker();
     let mut worker: Option<(usize, String)> = None;
     if temp.is_some() {
         worker = Some(temp.unwrap());
     } else {
-        panic!("No encode worker available");
+        panic!("No encode workers available");
     }
 
-    //tracked directories - avoid crossover, it will lead to duplicate entries
+    //tracked directories - avoid crossover, it could lead to duplicate entries
     let mut tracked_directories = TrackedDirectories::new();
 
     //manual entries

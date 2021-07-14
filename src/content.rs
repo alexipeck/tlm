@@ -8,33 +8,65 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static JOB_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Clone, Debug)]
+/* #[derive(Clone, Debug)]
 pub struct Reserve {
     status: (bool, bool),
     uid: usize,
-    operator: String,
+    worker: String,
 }
 
 impl Reserve {
-    pub fn new(uid: usize, operator: String) -> Reserve {
+    pub fn new(uid: usize, worker: String) -> Reserve {
         Reserve {
             status: (false, false),
             uid: uid,
-            operator: operator,
+            worker: worker,
         }
     }
-}
+} */
 
 #[derive(Clone, Debug)]
 pub enum Task {
-    Encode,
-    Copy,
-    Move,
-    Rename,
-    Reserve(Reserve),
-    Delete,
-    Reencode,
-    Duplicate,
+    Encode = 0,
+    Copy = 1,
+    Move = 2,
+    Rename = 3,
+    Reserve = 4,
+    Delete = 5,
+    Reencode = 6,
+    Duplicate = 7,
+}
+
+pub fn convert_task_id_to_task(task_id: usize) -> Option<Task> {
+    match task_id {
+        0 => {
+            return Some(Task::Encode);
+        },
+        1 => {
+            return Some(Task::Copy);
+        },
+        2 => {
+            return Some(Task::Move);
+        },
+        3 => {
+            return Some(Task::Rename);
+        },
+        4 => {
+            return Some(Task::Reserve);
+        },
+        5 => {
+            return Some(Task::Delete);
+        },
+        6 => {
+            return Some(Task::Reencode);
+        },
+        7 => {
+            return Some(Task::Duplicate);
+        }
+        _ => {
+            return None;
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -47,9 +79,9 @@ pub struct Job {
     pub encode_string: Vec<String>,
     pub cache_directory: Option<String>,
 
-    pub operator: Option<usize>,
-    pub underway_status: bool,
-    pub completed_status: bool,
+    pub worker: Option<(usize, String)>,
+    pub status_underway: bool,
+    pub status_completed: bool,
 }
 
 impl Job {
@@ -65,9 +97,9 @@ impl Job {
             encode_path: Content::generate_encode_path_from_pathbuf(source_path),
             encode_string: encode_string,
             cache_directory: None,
-            operator: None,
-            underway_status: false,
-            completed_status: false,
+            worker: None,
+            status_underway: false,
+            status_completed: false,
         }
     }
 
@@ -114,8 +146,8 @@ impl Job {
         //println!("{}", String::from_utf8_lossy(&buffer.stderr).to_string());
     }
 
-    pub fn reserve(&mut self, operator: usize) {
-        self.operator = Some(operator);
+    pub fn reserve(&mut self, worker: (usize, String)) {
+        self.worker = Some(worker);
     }
 
     /* pub fn reserve(&mut self, operator: String) {
@@ -128,11 +160,7 @@ impl Job {
         crate::print::print(
             crate::print::Verbosity::INFO,
             "handle",
-            format!(
-                "starting encoding job UID#: {} by {}",
-                self.uid,
-                worker.1
-            ),
+            format!("starting encoding job UID#: {} by {}", self.uid, worker.1),
         );
         self.encode();
         crate::print::print(
@@ -170,7 +198,7 @@ impl Job {
             }
         };
 
-        self.completed_status = true;
+        self.status_completed = true;
     }
 }
 

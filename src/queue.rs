@@ -139,13 +139,13 @@ impl Queue {
         //finds job to run
         let mut uid_to_handle: Option<usize> = None;
         for job in &self.priority_queue {
-            if job.operator.is_none() {
+            if job.worker.is_none() {
                 uid_to_handle = Some(job.uid);
                 break;
             }
         }
         for job in &self.main_queue {
-            if job.operator.is_none() {
+            if job.worker.is_none() {
                 uid_to_handle = Some(job.uid);
                 break;
             }
@@ -193,17 +193,17 @@ impl Queue {
         return self.priority_queue.len() + self.main_queue.len();
     }
 
-    pub fn get_next_unreserved(&mut self, operator: usize) -> Option<usize> {
+    pub fn get_next_unreserved(&mut self, worker: (usize, String)) -> Option<usize> {
         for job in &mut self.priority_queue {
-            if job.operator == None {
-                job.reserve(operator);
+            if job.worker == None {
+                job.reserve(worker);
                 return Some(job.uid);
             }
         }
 
         for job in &mut self.main_queue {
-            if job.operator == None {
-                job.reserve(operator);
+            if job.worker == None {
+                job.reserve(worker);
                 return Some(job.uid);
             }
         }
