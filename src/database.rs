@@ -185,7 +185,7 @@ pub fn db_insert_job(job: Job) {
             tlm::print::Verbosity::DEBUG,
             "db",
             "db_insert_job",
-            format!("[job_uid: {}][Source: {}][Encode: {}]", job.uid, job.source_path.to_string_lossy().to_string(), job.encode_path.to_string_lossy().to_string()),
+            format!("[job_uid: {}][Source: {}][Encode: {}]", uid.unwrap(), job.source_path.to_string_lossy().to_string(), job.encode_path.to_string_lossy().to_string()),
         );
         for (pos, task) in job.tasks.iter().enumerate() {
             db_insert_task(task.clone() as usize, pos, uid.unwrap());
@@ -205,23 +205,21 @@ pub fn db_purge() {
     execute_query(r"DROP TABLE IF EXISTS content");
     execute_query(r"DROP TABLE IF EXISTS job_queue");
     execute_query(r"DROP TABLE IF EXISTS job_task_queue");
-}
+}          
 
 pub fn print_jobs() {
-    let result = db_get_by_query(r"SELECT id, job_uid, task_id FROM job_queue");
+    let result = db_get_by_query(r"SELECT uid FROM job_queue");
     if result.is_some() {
         let result = result.unwrap();
         if result.is_ok() {
             let result = result.unwrap();
             for row in result {
-                let id: i32 = row.get(0);
-                let job_uid: i32 = row.get(1);
-                let task_id: i32 = row.get(2);
+                let uid: i32 = row.get(0);
                 tlm::print::print(
                     tlm::print::Verbosity::DEBUG,
                     "db",
                     "print_jobs",
-                    format!("[job_uid: {}][id: {}][task_id: {}]", job_uid, id, task_id),
+                    format!("[uid: {}]", uid),
                 )
             }
         }

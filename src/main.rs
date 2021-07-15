@@ -173,7 +173,7 @@ fn main() {
 
     //print_content();
 
-    //print_jobs();
+    print_jobs();
 
     //queue.print();
 
