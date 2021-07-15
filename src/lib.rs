@@ -79,7 +79,7 @@ pub mod print {
 
     pub fn print_register() {}
 
-    pub fn print(verbosity: Verbosity, called_from: &str, string: String) {
+    pub fn print(verbosity: Verbosity, module: &str, function: &str, string: String) {
         //print(Verbosity::DEBUG, r"", format!(""));
         let set_output_verbosity_level = Verbosity::DEBUG as usize; //would be set as a filter in any output view
 
@@ -95,7 +95,7 @@ pub mod print {
         }
 
         if current_verbosity_level <= set_output_verbosity_level {
-            println!("[{}][{}] {}", verbosity_string, called_from, string);
+            println!("[{}][{}][{}] {}", verbosity_string, module, function, string);
         }
     }
 }

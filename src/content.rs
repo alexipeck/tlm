@@ -103,9 +103,25 @@ impl Job {
         }
     }
 
-    pub fn prepare_tasks(&mut self, (worker_uid, worker_string_id): (usize, String)) {
+    /* pub fn conver_encode_string_to_vec(&mut self) -> String {
+        
+    } */
+
+    pub fn convert_encode_string_to_actual_string(input: Vec<String>) -> String {
+        let mut temp: String = String::new();
+        for component in &input {
+            temp += " ";
+            temp += component;
+        }
+        return temp;
+    }   
+
+    pub fn prepare_tasks(&mut self, (worker_uid, worker_string_id): (usize, String), cache_directory: Option<String>) {
         //eventually move first (to cache)
         self.worker = Some((worker_uid, worker_string_id));
+        if cache_directory.is_some() {
+            self.cache_directory = Some(cache_directory.unwrap());
+        }
         self.tasks.push_back(Task::Reserve);
         self.tasks.push_back(Task::Encode);
         self.tasks.push_back(Task::Delete);
@@ -115,6 +131,7 @@ impl Job {
     pub fn print(&self, called_from: &str) {
         crate::print::print(
             crate::print::Verbosity::INFO,
+            "job",
             called_from,
             Content::get_filename_from_pathbuf(self.source_path.clone()),
         );
@@ -156,12 +173,14 @@ impl Job {
     pub fn handle(&mut self, worker: (usize, String)) {
         crate::print::print(
             crate::print::Verbosity::INFO,
+            "job",
             "handle",
             format!("starting encoding job UID#: {} by {}", self.uid, worker.1),
         );
         self.encode();
         crate::print::print(
             crate::print::Verbosity::INFO,
+            "job",
             "handle",
             format!("completed encoding job UID#: {}", self.uid),
         );

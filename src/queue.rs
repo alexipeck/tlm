@@ -101,6 +101,7 @@ impl Queue {
             if job.uid == job_uid {
                 crate::print::print(
                     crate::print::Verbosity::INFO,
+                    "queue",
                     "handle_by_uid",
                     format!("handling job UID#: {}", job_uid),
                 );
@@ -115,6 +116,7 @@ impl Queue {
                 if job.uid == job_uid {
                     crate::print::print(
                         crate::print::Verbosity::INFO,
+                        "queue",
                         "handle_by_uid",
                         format!("handling job UID#: {}", job_uid),
                     );
@@ -127,6 +129,7 @@ impl Queue {
         if delete {
             crate::print::print(
                 crate::print::Verbosity::INFO,
+                "queue",
                 "handle_by_uid",
                 format!("removing from queue job UID#: {}", job_uid),
             );

@@ -693,6 +693,7 @@ version = "0.1.0"
 dependencies = [
  "postgres",
  "postgres-types",
+ "rand 0.8.4",
  "regex",
  "tokio-postgres",
  "twox-hash",

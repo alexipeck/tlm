@@ -18,6 +18,7 @@ use shows::Shows;
 
 use crate::database::print_jobs;
 
+#[derive(Clone, Debug)]
 pub struct TrackedDirectories {
     pub root_directories: VecDeque<String>,
     pub cache_directories: VecDeque<String>,
@@ -116,7 +117,7 @@ fn main() {
     }
 
     //queue
-    let mut queue = Queue::new(tracked_directories.cache_directories);
+    let mut queue = Queue::new(tracked_directories.cache_directories.clone());
 
     //allowed video extensions
     let allowed_extensions = vec!["mp4", "mkv", "webm", "MP4"];
@@ -164,17 +165,17 @@ fn main() {
         db_insert_content(content.clone());
         let mut job = content.create_job();
         if worker.is_some() {
-            job.prepare_tasks(worker.clone().unwrap());
-            //db_insert_job(job.clone());
+            job.prepare_tasks(worker.clone().unwrap(), Some(tracked_directories.cache_directories[0].clone()));
+            db_insert_job(job.clone());
         }
         queue.add_job_to_queue(job);
     }
 
-    print_content();
+    //print_content();
 
     //print_jobs();
 
-    queue.print();
+    //queue.print();
 
     /* while queue.get_full_queue_length() > 0 {
         print::print(
@@ -185,5 +186,5 @@ fn main() {
         queue.run_job(worker.clone().unwrap());
     } */
 
-    shows.print();
+    //shows.print();
 }
