@@ -99,8 +99,14 @@ fn main() {
             .root_directories
             .push_back(String::from(r"/home/anpeck/tlm/test_files/"));
         tracked_directories
+            .root_directories
+            .push_back(String::from(r"/home/alexi/tlm/test_files/"));
+        tracked_directories
             .cache_directories
-            .push_back(String::from(r"/home/anpeck/tlm/test_files/cache/"))
+            .push_back(String::from(r"/home/anpeck/tlm/test_files/cache/"));
+        tracked_directories
+            .cache_directories
+            .push_back(String::from(r"/home/alexi/tlm/test_files/cache/"));
     } else {
         //tracked_root_directories.push(String::from("T:/")); //manual entry
         tracked_directories.root_directories.push_back(String::from(

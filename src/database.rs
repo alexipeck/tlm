@@ -6,6 +6,50 @@ use std::path::PathBuf;
 use tlm::print::{self, print};
 use tokio_postgres::{Error, NoTls, Row};
 
+
+//template
+/* pub struct Season {
+    pub number: usize,
+    pub episodes: Vec<Content>,
+}
+
+pub struct Show {
+    pub uid: usize,
+    pub title: String,
+    pub seasons: Vec<Season>,
+}
+
+pub struct Shows {
+    pub shows: Vec<Show>,
+} */
+
+/* execute_query(
+    r"
+    CREATE TABLE IF NOT EXISTS shows (
+        uid             SERIAL PRIMARY KEY,
+        full_path       TEXT NOT NULL
+    )",
+);
+
+let client = client_connection();
+if client.is_some() {
+    let error = client.unwrap().execute(
+        r"INSERT INTO content (full_path) VALUES ($1)",
+        &[&content.get_full_path()],
+    );
+}
+
+let client = client_connection();
+if client.is_some() {
+    let error = client.unwrap().execute(
+        r"INSERT INTO content (full_path) VALUES ($1)",
+        &[&content.get_full_path()],
+    );
+} */
+//template
+
+
+
 fn client_connection() -> Option<Client> {
     let connection_string = r"postgresql://localhost:4531/tlmdb?user=postgres&password=786D3JXegfY8uR6shcPB7UF2oVeQf49ynH8vHgn".to_string();
     let client = Client::connect(&connection_string, NoTls);
