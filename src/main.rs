@@ -165,7 +165,10 @@ fn main() {
         db_insert_content(content.clone());
         let mut job = content.create_job();
         if worker.is_some() {
-            job.prepare_tasks(worker.clone().unwrap(), Some(tracked_directories.cache_directories[0].clone()));
+            job.prepare_tasks(
+                worker.clone().unwrap(),
+                Some(tracked_directories.cache_directories[0].clone()),
+            );
             db_insert_job(job.clone());
         }
         queue.add_job_to_queue(job);

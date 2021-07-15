@@ -95,7 +95,10 @@ pub mod print {
         }
 
         if current_verbosity_level <= set_output_verbosity_level {
-            println!("[{}][{}][{}] {}", verbosity_string, module, function, string);
+            println!(
+                "[{}][{}][{}] {}",
+                verbosity_string, module, function, string
+            );
         }
     }
 }

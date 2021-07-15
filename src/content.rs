@@ -104,7 +104,7 @@ impl Job {
     }
 
     /* pub fn conver_encode_string_to_vec(&mut self) -> String {
-        
+
     } */
 
     pub fn convert_encode_string_to_actual_string(input: Vec<String>) -> String {
@@ -114,9 +114,13 @@ impl Job {
             temp += component;
         }
         return temp;
-    }   
+    }
 
-    pub fn prepare_tasks(&mut self, (worker_uid, worker_string_id): (usize, String), cache_directory: Option<String>) {
+    pub fn prepare_tasks(
+        &mut self,
+        (worker_uid, worker_string_id): (usize, String),
+        cache_directory: Option<String>,
+    ) {
         //eventually move first (to cache)
         self.worker = Some((worker_uid, worker_string_id));
         if cache_directory.is_some() {

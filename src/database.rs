@@ -1,10 +1,10 @@
 use crate::content::{Content, Job, Task};
 use postgres::Client;
 use postgres_types::{FromSql, ToSql};
+use rand::Rng;
 use std::path::PathBuf;
 use tlm::print::{self, print};
 use tokio_postgres::{Error, NoTls, Row};
-use rand::Rng;
 
 fn client_connection() -> Option<Client> {
     let connection_string = r"postgresql://localhost:4531/tlmdb?user=postgres&password=786D3JXegfY8uR6shcPB7UF2oVeQf49ynH8vHgn".to_string();
@@ -141,9 +141,8 @@ pub fn db_insert_job(job: Job) {
         let worker_uid = job.clone().worker.clone().unwrap().0 as i32;
         let worker_string_identifier = job.worker.unwrap().1;
 
-
-        /* println!("{}\n{}\n{:?}\n{:?}\n{}\n{}\n{}\n{}\n{}", 
-            job.source_path.to_string_lossy().to_string(), 
+        /* println!("{}\n{}\n{:?}\n{:?}\n{}\n{}\n{}\n{}\n{}",
+            job.source_path.to_string_lossy().to_string(),
             job.encode_path.to_string_lossy().to_string().as_str(),
             job.cache_directory.clone().unwrap(),
             Job::convert_encode_string_to_actual_string(job.encode_string.clone()),
@@ -153,7 +152,8 @@ pub fn db_insert_job(job: Job) {
             worker_string_identifier,
             qrid
         ); */
-        let error = client.unwrap().execute(r"
+        let error = client.unwrap().execute(
+            r"
                 INSERT INTO job_queue (
                     source_path,
                     encode_path,
@@ -185,7 +185,12 @@ pub fn db_insert_job(job: Job) {
             tlm::print::Verbosity::DEBUG,
             "db",
             "db_insert_job",
-            format!("[job_uid: {}][Source: {}][Encode: {}]", uid.unwrap(), job.source_path.to_string_lossy().to_string(), job.encode_path.to_string_lossy().to_string()),
+            format!(
+                "[job_uid: {}][Source: {}][Encode: {}]",
+                uid.unwrap(),
+                job.source_path.to_string_lossy().to_string(),
+                job.encode_path.to_string_lossy().to_string()
+            ),
         );
         for (pos, task) in job.tasks.iter().enumerate() {
             db_insert_task(task.clone() as usize, pos, uid.unwrap());
@@ -205,7 +210,7 @@ pub fn db_purge() {
     execute_query(r"DROP TABLE IF EXISTS content");
     execute_query(r"DROP TABLE IF EXISTS job_queue");
     execute_query(r"DROP TABLE IF EXISTS job_task_queue");
-}          
+}
 
 pub fn print_jobs() {
     let result = db_get_by_query(r"SELECT uid FROM job_queue");
