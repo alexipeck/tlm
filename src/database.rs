@@ -1,4 +1,4 @@
-use crate::content::{Content, Job, Task};
+use crate::{content::{Content, Job, Task}, shows::Show};
 use postgres::Client;
 use postgres_types::{FromSql, ToSql};
 use rand::Rng;
@@ -48,8 +48,6 @@ if client.is_some() {
 } */
 //template
 
-
-
 fn client_connection() -> Option<Client> {
     let connection_string = r"postgresql://localhost:4531/tlmdb?user=postgres&password=786D3JXegfY8uR6shcPB7UF2oVeQf49ynH8vHgn".to_string();
     let client = Client::connect(&connection_string, NoTls);
@@ -77,6 +75,47 @@ fn execute_query(query: &str) {
     }
 }
 
+/* pub struct Show {
+    pub uid: usize,
+    pub title: String,
+    pub seasons: Vec<Season>,
+} */
+
+fn db_insert_show(show: Show) {
+    execute_query(
+        r"
+        CREATE TABLE IF NOT EXISTS show (
+            uid             SERIAL PRIMARY KEY,
+            title           TEXT NOT NULL,
+            qrid            INTEGER
+        )",
+    );
+
+    let client = client_connection();
+    if client.is_some() {
+        let qrid = generate_qrid();
+        let error = client.unwrap().execute(
+            r"INSERT INTO shows (title, qrid) VALUES ($1, $2)",
+            &[&show.title, &qrid],
+        );
+    }
+
+    //retrieve uid of inserted element and then remove qrid from the table
+}
+
+/* pub struct Content {
+    pub uid: usize,
+    pub full_path: PathBuf,
+    pub designation: Designation,
+    //pub job_queue: VecDeque<Job>,
+    pub hash: Option<u64>,
+    //pub versions: Vec<FileVersion>,
+    //pub metadata_dump
+    pub show_uid: Option<usize>,
+    pub show_title: Option<String>,
+    pub show_season_episode: Option<(usize, usize)>,
+}
+ */
 //i want the auto generated ID of the entry
 pub fn db_insert_content(content: Content) {
     execute_query(
@@ -155,9 +194,16 @@ pub fn db_read_back_uid(qrid: i32) -> Option<usize> {
     return None;
 }
 
+pub fn generate_qrid() -> i32 {
+    let mut rng = rand::thread_rng();
+    let qrid_temp: u32 = rng.gen_range(0..2147483646);
+    return qrid_temp as i32;
+}
+
 pub fn db_insert_job(job: Job) {
     //ensures job table exists
-
+    //cache_directory marked as not null, but realistically it can be None, but won't be shown as such in the database,
+    //it provides no benefit and something else will be stored in the database designate no usable value
     execute_query(
         r"
         CREATE TABLE IF NOT EXISTS job_queue (
@@ -177,25 +223,12 @@ pub fn db_insert_job(job: Job) {
     //get client and inserts job if the client connection is fine
     let client = client_connection();
     if client.is_some() {
-        //quick retreive ID generation
-        let mut rng = rand::thread_rng();
-        let qrid_temp: u32 = rng.gen_range(0..2147483646);
-        let qrid: i32 = qrid_temp as i32;
+        //quick retrieve ID generation
+        let qrid = generate_qrid();
 
-        let worker_uid = job.clone().worker.clone().unwrap().0 as i32;
+        let worker_uid = job.worker.clone().unwrap().0 as i32;
         let worker_string_identifier = job.worker.unwrap().1;
-
-        /* println!("{}\n{}\n{:?}\n{:?}\n{}\n{}\n{}\n{}\n{}",
-            job.source_path.to_string_lossy().to_string(),
-            job.encode_path.to_string_lossy().to_string().as_str(),
-            job.cache_directory.clone().unwrap(),
-            Job::convert_encode_string_to_actual_string(job.encode_string.clone()),
-            job.status_underway,
-            job.status_completed,
-            worker_uid,
-            worker_string_identifier,
-            qrid
-        ); */
+        
         let error = client.unwrap().execute(
             r"
                 INSERT INTO job_queue (

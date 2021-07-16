@@ -37,34 +37,34 @@ pub enum Task {
     Duplicate = 7,
 }
 
-pub fn convert_task_id_to_task(task_id: usize) -> Option<Task> {
+pub fn convert_task_id_to_task(task_id: usize) -> Task {
     match task_id {
         0 => {
-            return Some(Task::Encode);
+            return Task::Encode;
         }
         1 => {
-            return Some(Task::Copy);
+            return Task::Copy;
         }
         2 => {
-            return Some(Task::Move);
+            return Task::Move;
         }
         3 => {
-            return Some(Task::Rename);
+            return Task::Rename;
         }
         4 => {
-            return Some(Task::Reserve);
+            return Task::Reserve;
         }
         5 => {
-            return Some(Task::Delete);
+            return Task::Delete;
         }
         6 => {
-            return Some(Task::Reencode);
+            return Task::Reencode;
         }
         7 => {
-            return Some(Task::Duplicate);
+            return Task::Duplicate;
         }
         _ => {
-            return None;
+            panic!("Not valid task ID");
         }
     }
 }
@@ -241,7 +241,6 @@ fn rem_first_char(value: &str) -> &str {
 pub struct Content {
     pub uid: usize,
     pub full_path: PathBuf,
-    //pub temp_encode_path: Option<PathBuf>,
     pub designation: Designation,
     //pub job_queue: VecDeque<Job>,
     pub hash: Option<u64>,
