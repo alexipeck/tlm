@@ -1,6 +1,7 @@
 use crate::content::Content;
 use std::ops::{Index, IndexMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use crate::database::db_insert_show;
 
 static SHOW_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -119,7 +120,8 @@ impl Shows {
             index += 1;
         }
         let uid = SHOW_UID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        self.shows.push(Show::new(uid, title));
+        self.shows.push(Show::new(uid, title.clone()));
+        db_insert_show(Show::new(uid, title));
         return (uid, index);
     }
 

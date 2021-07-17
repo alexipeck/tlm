@@ -81,26 +81,98 @@ fn execute_query(query: &str) {
     pub seasons: Vec<Season>,
 } */
 
-fn db_insert_show(show: Show) {
-    execute_query(
-        r"
-        CREATE TABLE IF NOT EXISTS show (
-            uid             SERIAL PRIMARY KEY,
-            title           TEXT NOT NULL,
-            qrid            INTEGER
-        )",
-    );
+pub fn print_shows() {
+    let result = db_get_by_query(r"SELECT title FROM show");
+    if result.is_some() {
+        let result = result.unwrap();
+        if result.is_ok() {
+            let result = result.unwrap();
+            for row in result {
+                let title: String = row.get(0);
+                tlm::print::print(
+                    tlm::print::Verbosity::DEBUG,
+                    "db",
+                    "print_shows",
+                    format!("[title: {}]", title),
+                )
+            }
+        }
+    }
+}
 
-    let client = client_connection();
-    if client.is_some() {
-        let qrid = generate_qrid();
-        let error = client.unwrap().execute(
-            r"INSERT INTO shows (title, qrid) VALUES ($1, $2)",
-            &[&show.title, &qrid],
+pub fn db_insert_show(show: Show) {
+    fn ensure_table_exists() {
+        execute_query(
+            r"
+            CREATE TABLE IF NOT EXISTS show (
+                uid             SERIAL PRIMARY KEY,
+                title           TEXT NOT NULL,
+                qrid            INTEGER
+            )",
         );
     }
 
-    //retrieve uid of inserted element and then remove qrid from the table
+    fn show_exists(show_title: &str) -> bool {
+        let client = client_connection();
+        if client.is_some() {
+            let result = client.unwrap().query(r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)", &[&show_title]);
+            if result.is_ok() {
+                let result = result.unwrap();
+                if result.len() > 0 {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    pub fn read_back_show_uid(qrid: i32) -> usize {
+        let client = client_connection();
+        if client.is_some() {
+            //i only want the latest one that fits this query to contend with the potential statistical crossover
+            let result = client
+                .unwrap()
+                .query(r"SELECT uid from show WHERE qrid = $1", &[&qrid]);
+            if result.is_ok() {
+                let result = result.unwrap();
+                let mut uid: Option<i32> = None;
+                if result.len() > 0 {
+                    for row in &result {
+                        uid = row.get(0);
+                    }
+                    if uid.is_some() {
+                        return uid.unwrap() as usize;
+                    }
+                }
+            } else {
+                //print::print(tlm::print::Verbosity::DEBUG, "db", "read_back_show_uid", result.into_err().as_db_error().unwrap())
+            }
+        }
+        panic!("Couldn't find entry that was just inserted, this shouldn't happen.");
+    }
+
+    fn wipe_qrid(qrid: i32) {
+        let client = client_connection();
+        if client.is_some() {
+            let error = client.unwrap().execute(
+                r"UPDATE show SET qrid = NULL WHERE qrid = $1",
+                &[&qrid],
+            );
+        }
+    }
+
+    ensure_table_exists();
+    
+    if !show_exists(&show.title) {
+        let qrid = generate_qrid();
+        let client = client_connection();
+        if client.is_some() {
+            let error = client.unwrap().execute(r"INSERT INTO show VALUES ($1, $2)", &[&show.title, &qrid]);
+            //use if I need to do anything more with the row
+            //let show_uid = read_back_show_uid(qrid);
+            wipe_qrid(qrid);
+        }
+    }
 }
 
 /* pub struct Content {
@@ -168,7 +240,7 @@ pub fn db_insert_task(task_id: usize, id: usize, job_uid: usize) {
     }
 }
 
-pub fn db_read_back_uid(qrid: i32) -> Option<usize> {
+pub fn db_read_back_job_uid(qrid: i32) -> usize {
     let client = client_connection();
     if client.is_some() {
         //i only want the latest one that fits this query to contend with the potential statistical crossover
@@ -177,21 +249,18 @@ pub fn db_read_back_uid(qrid: i32) -> Option<usize> {
             .query(r"SELECT uid from job_queue WHERE qrid = $1", &[&qrid]);
         if result.is_ok() {
             let result = result.unwrap();
-            //let t = *result.unwrap().get(0).unwrap();
-            //let f = result.unwrap()[0].get(0);
             let mut uid: Option<i32> = None;
             if result.len() > 0 {
                 for row in &result {
-                    uid = Some(row.get(0));
-                    //println!("{} : {}", uid.unwrap(), qrid);
+                    uid = row.get(0);
                 }
                 if uid.is_some() {
-                    return Some(uid.unwrap() as usize);
+                    return uid.unwrap() as usize;
                 }
             }
         }
     }
-    return None;
+    panic!("Couldn't find entry that was just inserted, this shouldn't happen.");
 }
 
 pub fn generate_qrid() -> i32 {
@@ -257,20 +326,20 @@ pub fn db_insert_job(job: Job) {
         if error.is_err() {
             println!("{}", error.unwrap_err());
         }
-        let uid = db_read_back_uid(qrid);
+        let uid = db_read_back_job_uid(qrid);
         tlm::print::print(
             tlm::print::Verbosity::DEBUG,
             "db",
             "db_insert_job",
             format!(
                 "[job_uid: {}][Source: {}][Encode: {}]",
-                uid.unwrap(),
+                uid,
                 job.source_path.to_string_lossy().to_string(),
                 job.encode_path.to_string_lossy().to_string()
             ),
         );
         for (pos, task) in job.tasks.iter().enumerate() {
-            db_insert_task(task.clone() as usize, pos, uid.unwrap());
+            db_insert_task(task.clone() as usize, pos, uid);
         }
     }
 }

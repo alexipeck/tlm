@@ -11,7 +11,7 @@ mod queue;
 mod shows;
 //mod job;
 use content::Content;
-use database::{db_insert_content, db_insert_job, db_purge, print_content};
+use database::{db_insert_content, db_insert_job, db_purge, print_content, print_shows};
 use designation::Designation;
 use queue::Queue;
 use shows::Shows;
@@ -75,6 +75,8 @@ impl Worker {
 
 fn main() {
     db_purge();
+
+    //insert_into(content)
 
     //remote or local workers
     let mut encode_workers: Workers = Workers::new();
@@ -181,7 +183,7 @@ fn main() {
     }
 
     //print_content();
-
+    print_shows();
     print_jobs();
 
     //queue.print();

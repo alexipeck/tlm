@@ -237,7 +237,8 @@ fn rem_first_char(value: &str) -> &str {
 }
 
 //generic content container, focus on video
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug)]//, Insertable
+//#[table_name="content"]
 pub struct Content {
     pub uid: usize,
     pub full_path: PathBuf,
