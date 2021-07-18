@@ -1,5 +1,5 @@
 use crate::designation::Designation;
-use crate::print::print;
+use crate::print::{print as print, Verbosity};
 use regex::Regex;
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -134,18 +134,19 @@ impl Job {
     }
 
     pub fn print(&self, called_from: &str) {
-        crate::print::print(
-            crate::print::Verbosity::INFO,
-            "job",
-            called_from,
+        print(
+            Verbosity::INFO,
+            "content",
+            "job.print",
             Content::get_filename_from_pathbuf(self.source_path.clone()),
         );
     }
 
     pub fn encode(&self) {
-        println!(
-            "Encoding file \'{}\'",
-            Content::get_filename_from_pathbuf(self.source_path.clone())
+        print(Verbosity::INFO, 
+            "content",
+            "encode",
+            format!("Encoding file \'{}\'", Content::get_filename_from_pathbuf(self.source_path.clone()))
         );
 
         let buffer;
@@ -162,7 +163,7 @@ impl Job {
                 .output()
                 .expect("failed to execute process");
         }
-        //println!("{}", String::from_utf8_lossy(&buffer.stderr).to_string());
+        //print(Verbosity::INFO, "content", "encode", format!("{}", String::from_utf8_lossy(&buffer.stderr).to_string())); //should be error, but from ffmpeg, stderr mostly consists of stdout information
     }
 
     pub fn reserve(&mut self, worker: (usize, String)) {
@@ -172,19 +173,19 @@ impl Job {
     /* pub fn reserve(&mut self, operator: String) {
         self.reserved_by = Some(operator);
         self.underway_status = true;//bye bye
-        crate::print::print(crate::print::Verbosity::INFO, "handle", format!("reserved job UID#: {} for {}", self.uid, operator.clone()));
+        print(Verbosity::INFO, "content", "handle", format!("reserved job UID#: {} for {}", self.uid, operator.clone()));
     } */
 
     pub fn handle(&mut self, worker: (usize, String)) {
-        crate::print::print(
-            crate::print::Verbosity::INFO,
+        print(
+            Verbosity::INFO,
             "job",
             "handle",
             format!("starting encoding job UID#: {} by {}", self.uid, worker.1),
         );
         self.encode();
-        crate::print::print(
-            crate::print::Verbosity::INFO,
+        print(
+            Verbosity::INFO,
             "job",
             "handle",
             format!("completed encoding job UID#: {}", self.uid),
@@ -203,9 +204,10 @@ impl Job {
         match copy_error {
             Ok(file) => file,
             Err(error) => {
-                println!(
-                    "ERROR: \nSource: {}\nDestination: {}",
-                    &source_path, &encode_path
+                print(Verbosity::ERROR,
+                    "content",
+                    "handle",
+                    format!("Source: {}\nDestination: {}", &source_path, &encode_path)
                 );
                 panic!("Problem copying the file: {:?}", error);
             }
@@ -214,7 +216,11 @@ impl Job {
         match remove_error {
             Ok(file) => file,
             Err(error) => {
-                println!("ERROR: \nTarget for removal: {}", &encode_path);
+                print(Verbosity::ERROR,
+                    "content",
+                    "handle",
+                    format!("Target for removal: {}", &encode_path)
+                );
                 panic!("Problem removing the file: {:?}", error);
             }
         };

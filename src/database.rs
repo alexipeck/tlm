@@ -4,7 +4,8 @@ use postgres_types::{FromSql, ToSql};
 use rand::Rng;
 use core::panic;
 use std::path::PathBuf;
-use tlm::{designation::Designation, print::{self, print}};
+use tlm::designation::Designation;
+use crate::print::{print as print, Verbosity};
 use tokio_postgres::{Error, NoTls, Row};
 
 //primary helper functions
@@ -20,7 +21,7 @@ fn client_connection() -> Option<Client> {
     match client {
         Err(err) => {
             print(
-                print::Verbosity::ERROR,
+                Verbosity::ERROR,
                 "db",
                 "client_connection",
                 err.to_string(),
@@ -35,13 +36,13 @@ fn client_connection() -> Option<Client> {
 
 fn output_insert_error(error: Result<u64, Error>, function_called_from: &str) {
     if error.is_err() {
-        print::print(print::Verbosity::ERROR, "db", function_called_from, format!("{}", error.unwrap_err()));
+        print(Verbosity::ERROR, "db", function_called_from, format!("{}", error.unwrap_err()));
     }
 }
 
 fn output_retrieve_error(error: Result<Vec<Row>, Error>, function_called_from: &str) {
     if error.is_err() {
-        print::print(print::Verbosity::ERROR, "db", function_called_from, format!("{}", error.unwrap_err()));
+        print(Verbosity::ERROR, "db", function_called_from, format!("{}", error.unwrap_err()));
     }
 }
 
@@ -94,7 +95,7 @@ fn execute_query(query: &str) {
         let mut client = client.unwrap();
         let error = client.batch_execute(query);
         if error.is_err() {
-            println!("{}", error.unwrap_err());
+            print(Verbosity::ERROR, "db", "execute_query", format!("{}", error.unwrap_err()));
         }
     }
 }
@@ -295,7 +296,7 @@ pub fn db_insert_content(content: Content) {
         if show_uid.is_some() {
             db_ensure_season_exists_in_show(show_uid.unwrap(), content.show_season_episode.unwrap().0);
         } else {
-            panic!("Show UID couldn't be retreived")
+            panic!("show UID couldn't be retreived")
         }
     }
     
@@ -354,8 +355,8 @@ pub fn db_insert_task(task_id: usize, id: usize, job_uid: usize) {
                 &[&id, &job_uid, &task_id],
             );
             output_insert_error(error, "insert_task");
-            tlm::print::print(
-                tlm::print::Verbosity::INFO,
+            print(
+                Verbosity::INFO,
                 "db",
                 "db_insert_task",
                 format!("[job_uid: {}][id: {}][task_id: {}]", job_uid, id, task_id),
@@ -449,8 +450,8 @@ pub fn db_insert_job(job: Job) {
             );
             output_insert_error(error, "insert_job");
             let uid = db_read_back_job_uid(qrid);
-            tlm::print::print(
-                tlm::print::Verbosity::INFO,
+            print(
+                Verbosity::INFO,
                 "db",
                 "insert_job",
                 format!(
@@ -497,8 +498,8 @@ pub fn print_jobs() {
             let result = result.unwrap();
             for row in result {
                 let uid: i32 = row.get(0);
-                tlm::print::print(
-                    tlm::print::Verbosity::INFO,
+                print(
+                    Verbosity::INFO,
                     "db",
                     "print_jobs",
                     format!("[uid: {}]", uid),
@@ -516,8 +517,8 @@ pub fn print_shows() {
             let result = result.unwrap();
             for row in result {
                 let title: String = row.get(0);
-                tlm::print::print(
-                    tlm::print::Verbosity::INFO,
+                print(
+                    Verbosity::INFO,
                     "db",
                     "print_shows",
                     format!("[title: {}]", title),
@@ -536,8 +537,8 @@ pub fn print_seasons() {
             for row in result {
                 let show_uid: i32 = row.get(0);
                 let season_number: i16 = row.get(1);
-                tlm::print::print(
-                    tlm::print::Verbosity::INFO,
+                print(
+                    Verbosity::INFO,
                     "db",
                     "print_seasons",
                     format!("[show_uid: {}][season_number: {}]", show_uid, season_number),
@@ -559,8 +560,8 @@ pub fn print_contents() {
                 let uid = uid_temp as usize;
                 let full_path_temp: String = row.get(1);
                 let full_path = PathBuf::from(&full_path_temp);
-                tlm::print::print(
-                    tlm::print::Verbosity::DEBUG,
+                print(
+                    Verbosity::DEBUG,
                     "db",
                     "print_content",
                     format!("{:3}:{}", uid, full_path_temp),

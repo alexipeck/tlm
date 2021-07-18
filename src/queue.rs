@@ -1,5 +1,6 @@
 use crate::content::Job;
 use std::collections::VecDeque;
+use crate::print::{print as print, Verbosity};
 
 pub enum QueueType {
     MainQueue,
@@ -99,8 +100,8 @@ impl Queue {
         //breaks and skips main queue if it finds the job
         for job in &mut self.priority_queue {
             if job.uid == job_uid {
-                crate::print::print(
-                    crate::print::Verbosity::INFO,
+                print(
+                    Verbosity::INFO,
                     "queue",
                     "handle_by_uid",
                     format!("handling job UID#: {}", job_uid),
@@ -114,8 +115,8 @@ impl Queue {
         if !delete {
             for job in &mut self.main_queue {
                 if job.uid == job_uid {
-                    crate::print::print(
-                        crate::print::Verbosity::INFO,
+                    print(
+                        Verbosity::INFO,
                         "queue",
                         "handle_by_uid",
                         format!("handling job UID#: {}", job_uid),
@@ -127,8 +128,8 @@ impl Queue {
             }
         }
         if delete {
-            crate::print::print(
-                crate::print::Verbosity::INFO,
+            print(
+                Verbosity::INFO,
                 "queue",
                 "handle_by_uid",
                 format!("removing from queue job UID#: {}", job_uid),

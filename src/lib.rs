@@ -3,7 +3,6 @@ pub mod designation;
 pub mod queue;
 
 use std::collections::VecDeque;
-use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;

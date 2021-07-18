@@ -1,5 +1,4 @@
-use tlm::print::print;
-
+use crate::print::{print as print, Verbosity};
 use crate::content::Content;
 use std::ops::{Index, IndexMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -43,7 +42,7 @@ impl Show {
     }
 
     pub fn print_show(&self) {
-        tlm::print::print(tlm::print::Verbosity::DEBUG, 
+        print(Verbosity::DEBUG, 
             "shows", 
             "print_show", 
             format!("[uid: {}][title: {}]", self.uid, self.title));
@@ -193,7 +192,7 @@ impl Shows {
         for show in &self.shows {
             for season in &show.seasons {
                 for episode in &season.episodes {
-                    println!("{}", episode.get_filename_woe(),);
+                    print(Verbosity::INFO, "shows", "shows.print", format!("{}", episode.get_filename_woe()));
                 }
             }
         }
