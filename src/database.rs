@@ -1,11 +1,14 @@
-use crate::{content::{Content, Job, Task}, shows::{self, Show}};
+use crate::print::{print, Verbosity};
+use crate::{
+    content::{Content, Job, Task},
+    shows::{self, Show},
+};
+use core::panic;
 use postgres::Client;
 use postgres_types::{FromSql, ToSql};
 use rand::Rng;
-use core::panic;
 use std::path::PathBuf;
 use tlm::designation::Designation;
-use crate::print::{print as print, Verbosity};
 use tokio_postgres::{Error, NoTls, Row};
 
 //primary helper functions
@@ -20,12 +23,7 @@ fn client_connection() -> Option<Client> {
     let client = Client::connect(&connection_string, NoTls);
     match client {
         Err(err) => {
-            print(
-                Verbosity::ERROR,
-                "db",
-                "client_connection",
-                err.to_string(),
-            );
+            print(Verbosity::ERROR, "db", "client_connection", err.to_string());
             return None;
         }
         _ => {
@@ -36,16 +34,25 @@ fn client_connection() -> Option<Client> {
 
 fn output_insert_error(error: Result<u64, Error>, function_called_from: &str) {
     if error.is_err() {
-        print(Verbosity::ERROR, "db", function_called_from, format!("{}", error.unwrap_err()));
+        print(
+            Verbosity::ERROR,
+            "db",
+            function_called_from,
+            format!("{}", error.unwrap_err()),
+        );
     }
 }
 
 fn output_retrieve_error(error: Result<Vec<Row>, Error>, function_called_from: &str) {
     if error.is_err() {
-        print(Verbosity::ERROR, "db", function_called_from, format!("{}", error.unwrap_err()));
+        print(
+            Verbosity::ERROR,
+            "db",
+            function_called_from,
+            format!("{}", error.unwrap_err()),
+        );
     }
 }
-
 
 //template
 /* pub struct Season {
@@ -88,14 +95,18 @@ if client.is_some() {
 } */
 //template
 
-
 fn execute_query(query: &str) {
     let client = client_connection();
     if client.is_some() {
         let mut client = client.unwrap();
         let error = client.batch_execute(query);
         if error.is_err() {
-            print(Verbosity::ERROR, "db", "execute_query", format!("{}", error.unwrap_err()));
+            print(
+                Verbosity::ERROR,
+                "db",
+                "execute_query",
+                format!("{}", error.unwrap_err()),
+            );
         }
     }
 }
@@ -122,7 +133,10 @@ pub fn db_ensure_season_exists_in_show(show_uid: usize, season_number: usize) {
         let season_number = season_number as i16;
         let client = client_connection();
         if client.is_some() {
-            let error = client.unwrap().execute(r"INSERT INTO season (show_uid, season_number) VALUES ($1, $2)", &[&show_uid ,&season_number]);
+            let error = client.unwrap().execute(
+                r"INSERT INTO season (show_uid, season_number) VALUES ($1, $2)",
+                &[&show_uid, &season_number],
+            );
             output_insert_error(error, "insert_season");
         }
     }
@@ -132,7 +146,10 @@ pub fn db_ensure_season_exists_in_show(show_uid: usize, season_number: usize) {
         let season_number = season_number as i16;
         let client = client_connection();
         if client.is_some() {
-            let result = client.unwrap().query(r"SELECT EXISTS(SELECT 1 FROM season WHERE show_uid = $1 AND season_number = $2)", &[&show_uid, &season_number]);
+            let result = client.unwrap().query(
+                r"SELECT EXISTS(SELECT 1 FROM season WHERE show_uid = $1 AND season_number = $2)",
+                &[&show_uid, &season_number],
+            );
             if result.is_ok() {
                 let result = result.unwrap();
                 if result.len() > 0 {
@@ -155,19 +172,19 @@ pub fn db_ensure_season_exists_in_show(show_uid: usize, season_number: usize) {
     }
 }
 
-
 /* pub struct Show {
     pub uid: usize,
     pub title: String,
     pub seasons: Vec<Season>,
 } */
 
-pub fn db_get_show_uid_by_title(show_title: String) -> Option<usize>{
+pub fn db_get_show_uid_by_title(show_title: String) -> Option<usize> {
     let client = client_connection();
     if client.is_some() {
-        let result = client
-            .unwrap()
-            .query(r"SELECT show_uid from show WHERE title = $1", &[&show_title]);
+        let result = client.unwrap().query(
+            r"SELECT show_uid from show WHERE title = $1",
+            &[&show_title],
+        );
         if result.is_ok() {
             let result = result.unwrap();
             let mut uid: Option<i32> = None;
@@ -211,7 +228,10 @@ pub fn db_ensure_show_exists(show_title: String) -> Option<usize> {
     fn insert_show(show_title: String, qrid: i32) {
         let client = client_connection();
         if client.is_some() {
-            let error = client.unwrap().execute(r"INSERT INTO show (title, qrid) VALUES ($1, $2)", &[&show_title, &qrid]);
+            let error = client.unwrap().execute(
+                r"INSERT INTO show (title, qrid) VALUES ($1, $2)",
+                &[&show_title, &qrid],
+            );
             //use if I need to do anything more with the row
             //let show_uid = read_back_show_uid(qrid);
             output_insert_error(error, "insert_show");
@@ -221,7 +241,10 @@ pub fn db_ensure_show_exists(show_title: String) -> Option<usize> {
     fn show_exists(show_title: &str) -> bool {
         let client = client_connection();
         if client.is_some() {
-            let result = client.unwrap().query(r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)", &[&show_title]);
+            let result = client.unwrap().query(
+                r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
+                &[&show_title],
+            );
             if result.is_ok() {
                 let result = result.unwrap();
                 if result.len() > 0 {
@@ -265,10 +288,9 @@ pub fn db_ensure_show_exists(show_title: String) -> Option<usize> {
     fn wipe_show_qrid(qrid: i32) {
         let client = client_connection();
         if client.is_some() {
-            let error = client.unwrap().execute(
-                r"UPDATE show SET qrid = NULL WHERE qrid = $1",
-                &[&qrid],
-            );
+            let error = client
+                .unwrap()
+                .execute(r"UPDATE show SET qrid = NULL WHERE qrid = $1", &[&qrid]);
             output_insert_error(error, "wipe_show_qrid")
         }
     }
@@ -294,12 +316,15 @@ pub fn db_insert_content(content: Content) {
     if content.designation == crate::designation::Designation::Episode {
         let show_uid = db_ensure_show_exists(content.show_title.unwrap());
         if show_uid.is_some() {
-            db_ensure_season_exists_in_show(show_uid.unwrap(), content.show_season_episode.unwrap().0);
+            db_ensure_season_exists_in_show(
+                show_uid.unwrap(),
+                content.show_season_episode.unwrap().0,
+            );
         } else {
             panic!("show UID couldn't be retreived")
         }
     }
-    
+
     fn ensure_table_exists() {
         execute_query(
             r"
@@ -324,7 +349,7 @@ pub fn db_insert_content(content: Content) {
 pub fn db_insert_task(task_id: usize, id: usize, job_uid: usize) {
     ensure_table_exists();
     insert_task(task_id, id, job_uid);
-    
+
     //pull out in order by id
     fn ensure_table_exists() {
         execute_query(
@@ -368,7 +393,7 @@ pub fn db_insert_task(task_id: usize, id: usize, job_uid: usize) {
 pub fn db_insert_job(job: Job) {
     ensure_table_exists();
     insert_job(job);
-    
+
     fn ensure_table_exists() {
         //ensures job table exists
         //cache_directory marked as not null, but realistically it can be None, but won't be shown as such in the database,
@@ -389,7 +414,7 @@ pub fn db_insert_job(job: Job) {
             )",
         );
     }
-    
+
     fn db_read_back_job_uid(qrid: i32) -> usize {
         let client = client_connection();
         if client.is_some() {
@@ -422,7 +447,7 @@ pub fn db_insert_job(job: Job) {
 
             let worker_uid = job.worker.clone().unwrap().0 as i32;
             let worker_string_identifier = job.worker.unwrap().1;
-            
+
             let error = client.unwrap().execute(
                 r"
                     INSERT INTO job_queue (
@@ -478,13 +503,7 @@ pub fn db_get_by_query(query: &str) -> Option<Result<Vec<Row>, Error>> {
 
 pub fn db_purge() {
     //the order for dropping tables matters if foreign keys exist (job_task_queue has a foreign key of job_queue)
-    let tables: Vec<&str> = vec![
-        "content",
-        "job_task_queue", 
-        "job_queue",
-        "season",
-        "show"
-    ];
+    let tables: Vec<&str> = vec!["content", "job_task_queue", "job_queue", "season", "show"];
     for table in tables {
         execute_query(&format!("DROP TABLE IF EXISTS {}", table))
     }
@@ -547,7 +566,6 @@ pub fn print_seasons() {
         }
     }
 }
-
 
 pub fn print_contents() {
     let result = db_get_by_query(r"SELECT uid, full_path FROM content");

@@ -1,6 +1,6 @@
 use crate::content::Job;
+use crate::print::{print, Verbosity};
 use std::collections::VecDeque;
-use crate::print::{print as print, Verbosity};
 
 pub enum QueueType {
     MainQueue,

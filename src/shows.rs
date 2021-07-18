@@ -1,8 +1,8 @@
-use crate::print::{print as print, Verbosity};
 use crate::content::Content;
+use crate::database::db_ensure_show_exists;
+use crate::print::{print, Verbosity};
 use std::ops::{Index, IndexMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use crate::database::db_ensure_show_exists;
 
 static SHOW_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -42,10 +42,12 @@ impl Show {
     }
 
     pub fn print_show(&self) {
-        print(Verbosity::DEBUG, 
-            "shows", 
-            "print_show", 
-            format!("[uid: {}][title: {}]", self.uid, self.title));
+        print(
+            Verbosity::DEBUG,
+            "shows",
+            "print_show",
+            format!("[uid: {}][title: {}]", self.uid, self.title),
+        );
     }
 }
 
@@ -192,7 +194,12 @@ impl Shows {
         for show in &self.shows {
             for season in &show.seasons {
                 for episode in &season.episodes {
-                    print(Verbosity::INFO, "shows", "shows.print", format!("{}", episode.get_filename_woe()));
+                    print(
+                        Verbosity::INFO,
+                        "shows",
+                        "shows.print",
+                        format!("{}", episode.get_filename_woe()),
+                    );
                 }
             }
         }

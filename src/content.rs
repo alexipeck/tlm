@@ -1,5 +1,5 @@
 use crate::designation::Designation;
-use crate::print::{print as print, Verbosity};
+use crate::print::{print, Verbosity};
 use regex::Regex;
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -143,10 +143,14 @@ impl Job {
     }
 
     pub fn encode(&self) {
-        print(Verbosity::INFO, 
+        print(
+            Verbosity::INFO,
             "content",
             "encode",
-            format!("Encoding file \'{}\'", Content::get_filename_from_pathbuf(self.source_path.clone()))
+            format!(
+                "Encoding file \'{}\'",
+                Content::get_filename_from_pathbuf(self.source_path.clone())
+            ),
         );
 
         let buffer;
@@ -204,10 +208,11 @@ impl Job {
         match copy_error {
             Ok(file) => file,
             Err(error) => {
-                print(Verbosity::ERROR,
+                print(
+                    Verbosity::ERROR,
                     "content",
                     "handle",
-                    format!("Source: {}\nDestination: {}", &source_path, &encode_path)
+                    format!("Source: {}\nDestination: {}", &source_path, &encode_path),
                 );
                 panic!("Problem copying the file: {:?}", error);
             }
@@ -216,10 +221,11 @@ impl Job {
         match remove_error {
             Ok(file) => file,
             Err(error) => {
-                print(Verbosity::ERROR,
+                print(
+                    Verbosity::ERROR,
                     "content",
                     "handle",
-                    format!("Target for removal: {}", &encode_path)
+                    format!("Target for removal: {}", &encode_path),
                 );
                 panic!("Problem removing the file: {:?}", error);
             }
@@ -244,16 +250,16 @@ fn rem_first_char(value: &str) -> &str {
 }
 
 fn get_os_slash() -> char {
-	return if !cfg!(target_os = "windows") {
-		'/'
-	} else {
-		'\\'
-	};
+    return if !cfg!(target_os = "windows") {
+        '/'
+    } else {
+        '\\'
+    };
 }
 
 //generic content container, focus on video
-#[derive(Clone, Debug)]//, Insertable
-//#[table_name="content"]
+#[derive(Clone, Debug)] //, Insertable
+                        //#[table_name="content"]
 pub struct Content {
     pub uid: usize,
     pub full_path: PathBuf,
@@ -449,7 +455,7 @@ impl Content {
                 self.show_title = Some(String::from(section));
                 break;
             }
-            
+
             self.show_season_episode = show_season_episode_conditional;
             self.show_uid = None;
         } else {

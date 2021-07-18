@@ -86,7 +86,7 @@ pub mod print {
                 verbosity_string, module, function, string
             );
         }
-        
+
         //print(Verbosity::DEBUG, r"", format!(""));
         let set_output_verbosity_level = Verbosity::DEBUG as usize; //would be set as a filter in any output view
         let show_only = Verbosity::DEBUG;
