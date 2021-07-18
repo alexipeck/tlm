@@ -1,5 +1,5 @@
 use crate::content::Job;
-use crate::print::{print, Verbosity};
+use crate::print::{print, Verbosity, From};
 use std::collections::VecDeque;
 
 pub enum QueueType {
@@ -102,7 +102,7 @@ impl Queue {
             if job.uid == job_uid {
                 print(
                     Verbosity::INFO,
-                    "queue",
+                    From::Queue,
                     "handle_by_uid",
                     format!("handling job UID#: {}", job_uid),
                 );
@@ -117,7 +117,7 @@ impl Queue {
                 if job.uid == job_uid {
                     print(
                         Verbosity::INFO,
-                        "queue",
+                        From::Queue,
                         "handle_by_uid",
                         format!("handling job UID#: {}", job_uid),
                     );
@@ -130,7 +130,7 @@ impl Queue {
         if delete {
             print(
                 Verbosity::INFO,
-                "queue",
+                From::Queue,
                 "handle_by_uid",
                 format!("removing from queue job UID#: {}", job_uid),
             );

@@ -1,5 +1,5 @@
 use crate::designation::Designation;
-use crate::print::{print, Verbosity};
+use crate::print::{print, Verbosity, From};
 use regex::Regex;
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -8,6 +8,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static JOB_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+fn print_content(verbosity: Verbosity, called_from: String, ) {
+
+}
 
 /* #[derive(Clone, Debug)]
 pub struct Reserve {
@@ -136,7 +140,7 @@ impl Job {
     pub fn print(&self, called_from: &str) {
         print(
             Verbosity::INFO,
-            "content",
+            From::Content,
             "job.print",
             Content::get_filename_from_pathbuf(self.source_path.clone()),
         );
@@ -145,7 +149,7 @@ impl Job {
     pub fn encode(&self) {
         print(
             Verbosity::INFO,
-            "content",
+            From::Job,
             "encode",
             format!(
                 "Encoding file \'{}\'",
@@ -183,14 +187,14 @@ impl Job {
     pub fn handle(&mut self, worker: (usize, String)) {
         print(
             Verbosity::INFO,
-            "job",
+            From::Job,
             "handle",
             format!("starting encoding job UID#: {} by {}", self.uid, worker.1),
         );
         self.encode();
         print(
             Verbosity::INFO,
-            "job",
+            From::Job,
             "handle",
             format!("completed encoding job UID#: {}", self.uid),
         );
@@ -210,7 +214,7 @@ impl Job {
             Err(error) => {
                 print(
                     Verbosity::ERROR,
-                    "content",
+                    From::Content,
                     "handle",
                     format!("Source: {}\nDestination: {}", &source_path, &encode_path),
                 );
@@ -223,7 +227,7 @@ impl Job {
             Err(error) => {
                 print(
                     Verbosity::ERROR,
-                    "content",
+                    From::Content,
                     "handle",
                     format!("Target for removal: {}", &encode_path),
                 );

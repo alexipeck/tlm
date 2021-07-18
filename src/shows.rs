@@ -1,6 +1,6 @@
 use crate::content::Content;
 use crate::database::db_ensure_show_exists;
-use crate::print::{print, Verbosity};
+use crate::print::{print, Verbosity, From};
 use std::ops::{Index, IndexMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -44,7 +44,7 @@ impl Show {
     pub fn print_show(&self) {
         print(
             Verbosity::DEBUG,
-            "shows",
+            From::Shows,
             "print_show",
             format!("[uid: {}][title: {}]", self.uid, self.title),
         );
@@ -196,7 +196,7 @@ impl Shows {
                 for episode in &season.episodes {
                     print(
                         Verbosity::INFO,
-                        "shows",
+                        From::Shows,
                         "shows.print",
                         format!("{}", episode.get_filename_woe()),
                     );

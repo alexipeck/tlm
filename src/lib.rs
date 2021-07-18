@@ -77,13 +77,24 @@ pub mod print {
         NOTSET = 0,
     }
 
+    pub enum From {
+        NOTSET = 0,
+        Main = 1,
+        Lib = 2,
+        Content = 3,
+        Shows = 4,
+        Queue = 5,
+        DB = 6,
+        Job = 7,
+    }
+
     pub fn print_register() {}
 
-    pub fn print(verbosity: Verbosity, module: &str, function: &str, string: String) {
-        fn print(verbosity_string: String, module: &str, function: &str, string: String) {
+    pub fn print(verbosity: Verbosity, from_module: From, function: &str, string: String) {
+        fn print(verbosity_string: &str, from_module_string: &str, function: &str, string: String) {
             println!(
                 "[{}][{}][{}] {}",
-                verbosity_string, module, function, string
+                verbosity_string, from_module_string, function, string
             );
         }
 
@@ -91,20 +102,34 @@ pub mod print {
         let set_output_verbosity_level = Verbosity::DEBUG as usize; //would be set as a filter in any output view
         let show_only = Verbosity::DEBUG;
 
+        //module called from
+        let from_module_string: &str;
+        match from_module as usize {
+            1 => from_module_string = "main",
+            2 => from_module_string = "lib",
+            3 => from_module_string = "content",
+            4 => from_module_string = "shows",
+            5 => from_module_string = "queue",
+            6 => from_module_string = "db",
+            7 => from_module_string = "job",
+            _ => from_module_string = "notset",
+        }
+
+        //verbosity
         let current_verbosity_level = verbosity.clone() as usize;
-        let verbosity_string: String;
+        let verbosity_string: &str;
         match current_verbosity_level {
-            1 => verbosity_string = "CRITICAL".to_string(),
-            2 => verbosity_string = "ERROR".to_string(),
-            3 => verbosity_string = "WARNING".to_string(),
-            4 => verbosity_string = "INFO".to_string(),
-            5 => verbosity_string = "DEBUG".to_string(),
-            _ => verbosity_string = "NOTSET".to_string(),
+            1 => verbosity_string = "CRITICAL",
+            2 => verbosity_string = "ERROR",
+            3 => verbosity_string = "WARNING",
+            4 => verbosity_string = "INFO",
+            5 => verbosity_string = "DEBUG",
+            _ => verbosity_string = "NOTSET",
         }
         if verbosity == show_only {
-            print(verbosity_string, module, function, string);
+            print(verbosity_string, from_module_string, function, string);
         } else if current_verbosity_level <= set_output_verbosity_level {
-            print(verbosity_string, module, function, string);
+            print(verbosity_string, from_module_string, function, string);
         }
     }
 }

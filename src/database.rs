@@ -1,4 +1,4 @@
-use crate::print::{print, Verbosity};
+use crate::print::{print, Verbosity, From};
 use crate::{
     content::{Content, Job, Task},
     shows::{self, Show},
@@ -23,7 +23,7 @@ fn client_connection() -> Option<Client> {
     let client = Client::connect(&connection_string, NoTls);
     match client {
         Err(err) => {
-            print(Verbosity::ERROR, "db", "client_connection", err.to_string());
+            print(Verbosity::ERROR, From::DB, "client_connection", err.to_string());
             return None;
         }
         _ => {
@@ -36,7 +36,7 @@ fn output_insert_error(error: Result<u64, Error>, function_called_from: &str) {
     if error.is_err() {
         print(
             Verbosity::ERROR,
-            "db",
+            From::DB,
             function_called_from,
             format!("{}", error.unwrap_err()),
         );
@@ -47,7 +47,7 @@ fn output_retrieve_error(error: Result<Vec<Row>, Error>, function_called_from: &
     if error.is_err() {
         print(
             Verbosity::ERROR,
-            "db",
+            From::DB,
             function_called_from,
             format!("{}", error.unwrap_err()),
         );
@@ -103,7 +103,7 @@ fn execute_query(query: &str) {
         if error.is_err() {
             print(
                 Verbosity::ERROR,
-                "db",
+                From::DB,
                 "execute_query",
                 format!("{}", error.unwrap_err()),
             );
@@ -382,7 +382,7 @@ pub fn db_insert_task(task_id: usize, id: usize, job_uid: usize) {
             output_insert_error(error, "insert_task");
             print(
                 Verbosity::INFO,
-                "db",
+                From::DB,
                 "db_insert_task",
                 format!("[job_uid: {}][id: {}][task_id: {}]", job_uid, id, task_id),
             );
@@ -477,7 +477,7 @@ pub fn db_insert_job(job: Job) {
             let uid = db_read_back_job_uid(qrid);
             print(
                 Verbosity::INFO,
-                "db",
+                From::DB,
                 "insert_job",
                 format!(
                     "[job_uid: {}][Source: {}][Encode: {}]",
@@ -519,7 +519,7 @@ pub fn print_jobs() {
                 let uid: i32 = row.get(0);
                 print(
                     Verbosity::INFO,
-                    "db",
+                    From::DB,
                     "print_jobs",
                     format!("[uid: {}]", uid),
                 )
@@ -538,7 +538,7 @@ pub fn print_shows() {
                 let title: String = row.get(0);
                 print(
                     Verbosity::INFO,
-                    "db",
+                    From::DB,
                     "print_shows",
                     format!("[title: {}]", title),
                 )
@@ -558,7 +558,7 @@ pub fn print_seasons() {
                 let season_number: i16 = row.get(1);
                 print(
                     Verbosity::INFO,
-                    "db",
+                    From::DB,
                     "print_seasons",
                     format!("[show_uid: {}][season_number: {}]", show_uid, season_number),
                 )
@@ -580,7 +580,7 @@ pub fn print_contents() {
                 let full_path = PathBuf::from(&full_path_temp);
                 print(
                     Verbosity::DEBUG,
-                    "db",
+                    From::DB,
                     "print_content",
                     format!("{:3}:{}", uid, full_path_temp),
                 )
