@@ -493,12 +493,24 @@ pub fn db_insert_job(job: Job) {
     }
 }
 
-pub fn db_get_by_query(query: &str) -> Option<Result<Vec<Row>, Error>> {
+fn get_client() -> Client {
     let client = client_connection();
     if client.is_some() {
-        return Some(client.unwrap().query(query, &[]));
+        return client.unwrap();
     }
-    return None;
+    panic!("couldn't or haven't handled the error yet");
+}
+
+pub fn db_get_by_query(query: &str) -> Vec<Row> {
+    let result = get_client().query(query, &[]);
+    return handle_result_error(result);
+
+    fn handle_result_error(result: Result<Vec<Row>, Error>) -> Vec<Row> {
+        if result.is_ok() {
+            return result.unwrap();
+        }
+        panic!("couldn't or haven't handled the error yet");
+    }
 }
 
 pub fn db_purge() {
@@ -510,81 +522,53 @@ pub fn db_purge() {
 }
 
 pub fn print_jobs() {
-    let result = db_get_by_query(r"SELECT uid FROM job_queue");
-    if result.is_some() {
-        let result = result.unwrap();
-        if result.is_ok() {
-            let result = result.unwrap();
-            for row in result {
-                let uid: i32 = row.get(0);
-                print(
-                    Verbosity::INFO,
-                    From::DB,
-                    "print_jobs",
-                    format!("[uid: {}]", uid),
-                )
-            }
-        }
+    for row in db_get_by_query(r"SELECT uid FROM job_queue") {
+        let uid: i32 = row.get(0);
+        print(
+            Verbosity::INFO,
+            From::DB,
+            "print_jobs",
+            format!("[uid: {}]", uid),
+        );
     }
 }
 
 pub fn print_shows() {
-    let result = db_get_by_query(r"SELECT title FROM show");
-    if result.is_some() {
-        let result = result.unwrap();
-        if result.is_ok() {
-            let result = result.unwrap();
-            for row in result {
-                let title: String = row.get(0);
-                print(
-                    Verbosity::INFO,
-                    From::DB,
-                    "print_shows",
-                    format!("[title: {}]", title),
-                )
-            }
-        }
+    for row in db_get_by_query(r"SELECT title FROM show") {
+        let title: String = row.get(0);
+        print(
+            Verbosity::INFO,
+            From::DB,
+            "print_shows",
+            format!("[title: {}]", title),
+        );
     }
 }
 
 pub fn print_seasons() {
-    let result = db_get_by_query(r"SELECT show_uid, season_number FROM season");
-    if result.is_some() {
-        let result = result.unwrap();
-        if result.is_ok() {
-            let result = result.unwrap();
-            for row in result {
-                let show_uid: i32 = row.get(0);
-                let season_number: i16 = row.get(1);
-                print(
-                    Verbosity::INFO,
-                    From::DB,
-                    "print_seasons",
-                    format!("[show_uid: {}][season_number: {}]", show_uid, season_number),
-                )
-            }
-        }
+    for row in db_get_by_query(r"SELECT show_uid, season_number FROM season") {
+        let show_uid: i32 = row.get(0);
+        let season_number: i16 = row.get(1);
+        print(
+            Verbosity::INFO,
+            From::DB,
+            "print_seasons",
+            format!("[show_uid: {}][season_number: {}]", show_uid, season_number),
+        )
     }
 }
 
 pub fn print_contents() {
-    let result = db_get_by_query(r"SELECT uid, full_path FROM content");
-    if result.is_some() {
-        let result = result.unwrap();
-        if result.is_ok() {
-            let result = result.unwrap();
-            for row in result {
-                let uid_temp: i32 = row.get(0);
-                let uid = uid_temp as usize;
-                let full_path_temp: String = row.get(1);
-                let full_path = PathBuf::from(&full_path_temp);
-                print(
-                    Verbosity::DEBUG,
-                    From::DB,
-                    "print_content",
-                    format!("{:3}:{}", uid, full_path_temp),
-                )
-            }
-        }
+    for row in db_get_by_query(r"SELECT uid, full_path FROM content") {
+        let uid_temp: i32 = row.get(0);
+        let uid = uid_temp as usize;
+        let full_path_temp: String = row.get(1);
+        let full_path = PathBuf::from(&full_path_temp);
+        print(
+            Verbosity::DEBUG,
+            From::DB,
+            "print_content",
+            format!("{:3}:{}", uid, full_path_temp),
+        )
     }
 }
