@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 static WORKER_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-use tlm::{content::Job, get_show_title_from_pathbuf, import_files, print};
+use tlm::{get_show_title_from_pathbuf, import_files, print};
 mod content;
 mod database;
 mod designation;
@@ -17,8 +17,6 @@ use database::{
 use designation::Designation;
 use queue::Queue;
 use shows::Shows;
-
-use crate::database::print_jobs;
 
 #[derive(Clone, Debug)]
 pub struct TrackedDirectories {
