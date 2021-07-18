@@ -68,6 +68,7 @@ pub fn hash_file(path: PathBuf) -> u64 {
 
 pub mod print {
     //trickle up
+    #[derive(Clone, Debug, PartialEq)]
     pub enum Verbosity {
         CRITICAL = 1,
         ERROR = 2,
@@ -80,10 +81,18 @@ pub mod print {
     pub fn print_register() {}
 
     pub fn print(verbosity: Verbosity, module: &str, function: &str, string: String) {
+        fn print(verbosity_string: String, module: &str, function: &str, string: String) {
+            println!(
+                "[{}][{}][{}] {}",
+                verbosity_string, module, function, string
+            );
+        }
+        
         //print(Verbosity::DEBUG, r"", format!(""));
         let set_output_verbosity_level = Verbosity::DEBUG as usize; //would be set as a filter in any output view
+        let show_only = Verbosity::DEBUG;
 
-        let current_verbosity_level = verbosity as usize;
+        let current_verbosity_level = verbosity.clone() as usize;
         let verbosity_string: String;
         match current_verbosity_level {
             1 => verbosity_string = "CRITICAL".to_string(),
@@ -93,12 +102,10 @@ pub mod print {
             5 => verbosity_string = "DEBUG".to_string(),
             _ => verbosity_string = "NOTSET".to_string(),
         }
-
-        if current_verbosity_level <= set_output_verbosity_level {
-            println!(
-                "[{}][{}][{}] {}",
-                verbosity_string, module, function, string
-            );
+        if verbosity == show_only {
+            print(verbosity_string, module, function, string);
+        } else if current_verbosity_level <= set_output_verbosity_level {
+            print(verbosity_string, module, function, string);
         }
     }
 }

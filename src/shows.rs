@@ -1,7 +1,9 @@
+use tlm::print::print;
+
 use crate::content::Content;
 use std::ops::{Index, IndexMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use crate::database::db_insert_show;
+use crate::database::db_ensure_show_exists;
 
 static SHOW_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -38,6 +40,13 @@ impl Show {
             title: title,
             seasons: Vec::new(),
         }
+    }
+
+    pub fn print_show(&self) {
+        tlm::print::print(tlm::print::Verbosity::DEBUG, 
+            "shows", 
+            "print_show", 
+            format!("[uid: {}][title: {}]", self.uid, self.title));
     }
 }
 
@@ -120,8 +129,9 @@ impl Shows {
             index += 1;
         }
         let uid = SHOW_UID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        self.shows.push(Show::new(uid, title.clone()));
-        db_insert_show(Show::new(uid, title));
+        let temp_show = Show::new(uid, title.clone());
+        db_ensure_show_exists(temp_show.title.clone());
+        self.shows.push(temp_show);
         return (uid, index);
     }
 

@@ -1,4 +1,5 @@
 use crate::designation::Designation;
+use crate::print::print;
 use regex::Regex;
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -236,6 +237,14 @@ fn rem_first_char(value: &str) -> &str {
     chars.as_str()
 }
 
+fn get_os_slash() -> char {
+	return if !cfg!(target_os = "windows") {
+		'/'
+	} else {
+		'\\'
+	};
+}
+
 //generic content container, focus on video
 #[derive(Clone, Debug)]//, Insertable
 //#[table_name="content"]
@@ -428,12 +437,13 @@ impl Content {
                     .unwrap()
                     .to_string_lossy(),
             )
-            .split('/')
+            .split(get_os_slash())
             .rev()
             {
                 self.show_title = Some(String::from(section));
                 break;
             }
+            
             self.show_season_episode = show_season_episode_conditional;
             self.show_uid = None;
         } else {

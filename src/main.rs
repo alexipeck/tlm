@@ -11,7 +11,7 @@ mod queue;
 mod shows;
 //mod job;
 use content::Content;
-use database::{db_insert_content, db_insert_job, db_purge, print_content, print_shows};
+use database::{db_insert_content, db_insert_job, db_purge, print_contents, print_shows, print_seasons};
 use designation::Designation;
 use queue::Queue;
 use shows::Shows;
@@ -182,9 +182,10 @@ fn main() {
         queue.add_job_to_queue(job);
     }
 
-    //print_content();
+    //print_contents();
     print_shows();
-    print_jobs();
+    print_seasons();
+    //print_jobs();
 
     //queue.print();
 
