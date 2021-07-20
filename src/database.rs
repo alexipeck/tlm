@@ -2,8 +2,8 @@ use crate::print::{convert_function_callback_to_string, print, From, Verbosity};
 use crate::{
     content::Content,
     designation::convert_i32_to_designation,
-    shows::{self, Show},
     job::Job,
+    shows::{self, Show},
     task::Task,
 };
 use core::panic;

@@ -1,14 +1,9 @@
-use crate::{
-    designation::Designation,
-    task::Task,
-    job::Job,
-};
+use crate::{designation::Designation, job::Job};
 use regex::Regex;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
-
 
 /* #[derive(Clone, Debug)]
 pub struct Reserve {
@@ -27,9 +22,7 @@ impl Reserve {
     }
 } */
 
-
-
-pub fn re_strip(input: &String, expression: &str) -> Option<String> {
+fn re_strip(input: &String, expression: &str) -> Option<String> {
     let output = Regex::new(expression).unwrap().find(input);
     match output {
         None => return None,
@@ -52,8 +45,7 @@ fn get_os_slash() -> char {
 }
 
 //generic content container, focus on video
-#[derive(Clone, Debug)] //, Insertable
-                        //#[table_name="content"]
+#[derive(Clone, Debug)]
 pub struct Content {
     pub uid: usize,
     pub full_path: PathBuf,

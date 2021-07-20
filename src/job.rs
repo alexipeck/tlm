@@ -1,13 +1,13 @@
 use crate::{
-    task::Task,
     content::Content,
     print::{print, From, Verbosity},
+    task::Task,
 };
 use std::{
     collections::VecDeque,
-    sync::atomic::{AtomicUsize, Ordering},
-    process::Command,
     path::PathBuf,
+    process::Command,
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 static JOB_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);

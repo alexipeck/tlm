@@ -1,15 +1,10 @@
 pub mod content;
 pub mod designation;
+pub mod job;
 pub mod queue;
 pub mod task;
-pub mod job;
 
-use std::{
-    collections::VecDeque,
-    fs,
-    path::PathBuf,
-    time::Instant,
-};
+use std::{collections::VecDeque, fs, path::PathBuf, time::Instant};
 use twox_hash::xxh3;
 use walkdir::WalkDir;
 
