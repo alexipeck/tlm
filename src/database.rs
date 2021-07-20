@@ -2,6 +2,7 @@ use crate::print::{print, Verbosity, From, convert_function_callback_to_string};
 use crate::{
     content::{Content, Job, Task},
     shows::{self, Show},
+    designation::convert_i32_to_designation,
 };
 use core::panic;
 use postgres::Client;
@@ -224,26 +225,12 @@ fn get_uid_from_result(input: Vec<Row>) -> usize {
     panic!("Couldn't find entry that was just inserted, this shouldn't happen.");
 }
 
-/* pub struct Content {
-    pub uid: usize,
-    pub full_path: PathBuf,
-    pub designation: Designation,
-    //pub job_queue: VecDeque<Job>,
-    pub hash: Option<u64>,
-    //pub versions: Vec<FileVersion>,
-    //pub metadata_dump
-    pub show_uid: Option<usize>,
-    pub show_title: Option<String>,
-    pub show_season_episode: Option<(usize, usize)>,
-}
- */
-//i want the auto generated ID of the entry
 pub fn insert_content(content: Content, called_from: Vec<&str>) {
     let mut called_from = called_from.clone();
     called_from.push("insert_content");
     ensure_table_exists(called_from.clone());
     let qrid = generate_qrid();
-    insert_content(content.clone(), qrid, called_from.clone());
+    insert_content_internal(content.clone(), qrid, called_from.clone());
     let uid = read_back_content_uid(qrid, called_from.clone());
     if content.designation == crate::designation::Designation::Episode {
         let show_uid = ensure_show_exists(content.show_title.unwrap(), called_from.clone());
@@ -264,6 +251,18 @@ pub fn insert_content(content: Content, called_from: Vec<&str>) {
         return get_uid_from_result(handle_result_error(get_client(called_from.clone()).query(r"SELECT content_uid FROM content WHERE qrid = $1", &[&qrid]), called_from));
     }
 
+    /* pub struct Content {
+        pub designation: Designation,
+        //pub job_queue: VecDeque<Job>,
+        pub hash: Option<u64>,
+        //pub versions: Vec<FileVersion>,
+        //pub metadata_dump
+        pub show_uid: Option<usize>,
+        pub show_title: Option<String>,
+        pub show_season_episode: Option<(usize, usize)>,
+    }
+    */
+
     fn ensure_table_exists(called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
         called_from.push("ensure_table_exists");
@@ -272,21 +271,21 @@ pub fn insert_content(content: Content, called_from: Vec<&str>) {
             CREATE TABLE IF NOT EXISTS content (
                 content_uid     SERIAL PRIMARY KEY,
                 full_path       TEXT NOT NULL,
+                designation     INTEGER NOT NULL,
                 qrid            INTEGER
             )",
             called_from,
         );
     }
     
-    fn insert_content(content: Content, qrid: i32, called_from: Vec<&str>) {
+    fn insert_content_internal(content: Content, qrid: i32, called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
         called_from.push("insert_content");
-        let mut client = get_client(called_from.clone());
-        let error = client.execute(
-            r"INSERT INTO content (full_path, qrid) VALUES ($1, $2)",
-            &[&content.get_full_path(), &qrid],
-        );
-        output_insert_error(error, called_from.clone());
+        let designation = content.designation as i32;
+        output_insert_error(get_client(called_from.clone()).execute(
+            r"INSERT INTO content (full_path, designation, qrid) VALUES ($1, $2, $3)",
+            &[&content.get_full_path(), &designation, &qrid],
+        ), called_from.clone());
     }
 }
 
@@ -509,16 +508,18 @@ pub fn print_seasons(called_from: Vec<&str>) {
 pub fn print_contents(called_from: Vec<&str>) {
     let mut called_from = called_from.clone();
     called_from.push("print_contents");
-    for row in get_by_query(r"SELECT content_uid, full_path FROM content", called_from.clone()) {
-        let uid_temp: i32 = row.get(0);
-        let uid = uid_temp as usize;
+    for row in get_by_query(r"SELECT content_uid, full_path, designation FROM content", called_from.clone()) {
+        let content_uid_temp: i32 = row.get(0);
+        let content_uid = content_uid_temp as usize;
         let full_path_temp: String = row.get(1);
+        let designation_temp: i32 = row.get(2);
+        let designation = convert_i32_to_designation(designation_temp);
         let full_path = PathBuf::from(&full_path_temp);
         print(
             Verbosity::DEBUG,
             From::DB,
             called_from.clone(),
-            format!("{:3}:{}", uid, full_path_temp),
+            format!("[content_uid: {:2}][designation: {}][full_path: {}]", content_uid, designation as i32, full_path_temp),
         )
     }
 }
