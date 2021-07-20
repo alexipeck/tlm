@@ -12,7 +12,7 @@ mod shows;
 //mod job;
 use content::Content;
 use database::{
-    insert_content, insert_job, db_purge, print_contents, print_seasons, print_shows, print_jobs,
+    db_purge, insert_content, insert_job, print_contents, print_jobs, print_seasons, print_shows,
 };
 use designation::Designation;
 use queue::Queue;
@@ -74,7 +74,7 @@ impl Worker {
 }
 
 fn main() {
-    let mut called_from:Vec<&str> = Vec::new();
+    let mut called_from: Vec<&str> = Vec::new();
     called_from.push("main");
     db_purge(called_from.clone());
 
@@ -154,7 +154,10 @@ fn main() {
         if content.show_title.is_some() {
             content.set_show_uid(
                 shows
-                    .ensure_show_exists_by_title(content.show_title.clone().unwrap(), called_from.clone())
+                    .ensure_show_exists_by_title(
+                        content.show_title.clone().unwrap(),
+                        called_from.clone(),
+                    )
                     .0,
             );
         }

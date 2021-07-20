@@ -1,5 +1,5 @@
 use crate::designation::Designation;
-use crate::print::{print, Verbosity, From};
+use crate::print::{print, From, Verbosity};
 use regex::Regex;
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -9,9 +9,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static JOB_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-fn print_content(verbosity: Verbosity, called_from: String, ) {
-
-}
+fn print_content(verbosity: Verbosity, called_from: String) {}
 
 /* #[derive(Clone, Debug)]
 pub struct Reserve {

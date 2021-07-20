@@ -1,5 +1,5 @@
 use crate::content::Job;
-use crate::print::{print, Verbosity, From};
+use crate::print::{print, From, Verbosity};
 use std::collections::VecDeque;
 
 pub enum QueueType {
@@ -93,7 +93,12 @@ impl Queue {
         return None;
     }
 
-    pub fn handle_by_uid(&mut self, job_uid: usize, worker: (usize, String), called_from: Vec<&str>) {
+    pub fn handle_by_uid(
+        &mut self,
+        job_uid: usize,
+        worker: (usize, String),
+        called_from: Vec<&str>,
+    ) {
         let mut called_from = called_from.clone();
         called_from.push("handle_by_uid");
         let mut delete: bool = false;

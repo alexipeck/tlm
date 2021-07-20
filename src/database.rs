@@ -1,8 +1,8 @@
-use crate::print::{print, Verbosity, From, convert_function_callback_to_string};
+use crate::print::{convert_function_callback_to_string, print, From, Verbosity};
 use crate::{
     content::{Content, Job, Task},
-    shows::{self, Show},
     designation::convert_i32_to_designation,
+    shows::{self, Show},
 };
 use core::panic;
 use postgres::Client;
@@ -52,7 +52,10 @@ fn output_retrieve_error(error: Result<Vec<Row>, Error>, called_from: Vec<&str>)
             called_from.clone(),
             format!("{}", error.unwrap_err()),
         );
-        panic!(&format!("CF: {}, something is wrong with the returned result", convert_function_callback_to_string(called_from.clone())))
+        panic!(&format!(
+            "CF: {}, something is wrong with the returned result",
+            convert_function_callback_to_string(called_from.clone())
+        ))
     }
 }
 
@@ -101,7 +104,9 @@ pub fn ensure_season_exists_in_show(show_uid: usize, season_number: usize, calle
                 show_uid             INTEGER REFERENCES show (show_uid) NOT NULL,
                 season_number        SMALLINT NOT NULL,
 				PRIMARY KEY (show_uid, season_number)
-            )", called_from);
+            )",
+            called_from,
+        );
     }
 
     fn insert_season(show_uid: usize, season_number: usize, called_from: Vec<&str>) {
@@ -117,16 +122,23 @@ pub fn ensure_season_exists_in_show(show_uid: usize, season_number: usize, calle
         output_insert_error(error, called_from.clone());
     }
 
-    fn season_exists_in_show(show_uid: usize, season_number: usize, called_from: Vec<&str>) -> bool {
+    fn season_exists_in_show(
+        show_uid: usize,
+        season_number: usize,
+        called_from: Vec<&str>,
+    ) -> bool {
         let mut called_from = called_from.clone();
         called_from.push("season_exists_in_show");
         let show_uid = show_uid as i32;
         let season_number = season_number as i16;
         let mut client = get_client(called_from.clone());
-        let result = handle_result_error(client.query(
-            r"SELECT EXISTS(SELECT 1 FROM season WHERE show_uid = $1 AND season_number = $2)",
-            &[&show_uid, &season_number],
-        ), called_from);
+        let result = handle_result_error(
+            client.query(
+                r"SELECT EXISTS(SELECT 1 FROM season WHERE show_uid = $1 AND season_number = $2)",
+                &[&show_uid, &season_number],
+            ),
+            called_from,
+        );
         return db_boolean_handle(result);
     }
 }
@@ -135,10 +147,13 @@ pub fn get_show_uid_by_title(show_title: String, called_from: Vec<&str>) -> Opti
     let mut called_from = called_from.clone();
     called_from.push("get_show_uid_by_title");
     let mut client = get_client(called_from.clone());
-    let result = handle_result_error(client.query(
-        r"SELECT show_uid from show WHERE title = $1",
-        &[&show_title],
-    ), called_from);
+    let result = handle_result_error(
+        client.query(
+            r"SELECT show_uid from show WHERE title = $1",
+            &[&show_title],
+        ),
+        called_from,
+    );
     let mut uid: Option<i32> = None;
     for row in &result {
         uid = row.get(0);
@@ -173,7 +188,9 @@ pub fn ensure_show_exists(show_title: String, called_from: Vec<&str>) -> Option<
                 show_uid             SERIAL PRIMARY KEY,
                 title           TEXT NOT NULL,
                 qrid            INTEGER
-            )", called_from);
+            )",
+            called_from,
+        );
     }
 
     fn insert_show(show_title: String, qrid: i32, called_from: Vec<&str>) {
@@ -193,16 +210,23 @@ pub fn ensure_show_exists(show_title: String, called_from: Vec<&str>) -> Option<
         let mut called_from = called_from.clone();
         called_from.push("show_exists");
         let mut client = get_client(called_from.clone());
-        return db_boolean_handle(handle_result_error(client.query(
-            r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
-            &[&show_title],
-        ), called_from));
+        return db_boolean_handle(handle_result_error(
+            client.query(
+                r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
+                &[&show_title],
+            ),
+            called_from,
+        ));
     }
 
-    fn read_back_show_uid(qrid: i32, called_from: Vec<&str>) -> usize {     
+    fn read_back_show_uid(qrid: i32, called_from: Vec<&str>) -> usize {
         let mut called_from = called_from.clone();
-        called_from.push("read_back_show_uid");   
-        return get_uid_from_result(handle_result_error(get_client(called_from.clone()).query(r"SELECT show_uid FROM show WHERE qrid = $1", &[&qrid]), called_from));
+        called_from.push("read_back_show_uid");
+        return get_uid_from_result(handle_result_error(
+            get_client(called_from.clone())
+                .query(r"SELECT show_uid FROM show WHERE qrid = $1", &[&qrid]),
+            called_from,
+        ));
     }
 
     fn wipe_show_qrid(qrid: i32, called_from: Vec<&str>) {
@@ -248,7 +272,11 @@ pub fn insert_content(content: Content, called_from: Vec<&str>) {
     fn read_back_content_uid(qrid: i32, called_from: Vec<&str>) -> usize {
         let mut called_from = called_from.clone();
         called_from.push("read_back_content_uid");
-        return get_uid_from_result(handle_result_error(get_client(called_from.clone()).query(r"SELECT content_uid FROM content WHERE qrid = $1", &[&qrid]), called_from));
+        return get_uid_from_result(handle_result_error(
+            get_client(called_from.clone())
+                .query(r"SELECT content_uid FROM content WHERE qrid = $1", &[&qrid]),
+            called_from,
+        ));
     }
 
     /* pub struct Content {
@@ -277,15 +305,18 @@ pub fn insert_content(content: Content, called_from: Vec<&str>) {
             called_from,
         );
     }
-    
+
     fn insert_content_internal(content: Content, qrid: i32, called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
         called_from.push("insert_content");
         let designation = content.designation as i32;
-        output_insert_error(get_client(called_from.clone()).execute(
-            r"INSERT INTO content (full_path, designation, qrid) VALUES ($1, $2, $3)",
-            &[&content.get_full_path(), &designation, &qrid],
-        ), called_from.clone());
+        output_insert_error(
+            get_client(called_from.clone()).execute(
+                r"INSERT INTO content (full_path, designation, qrid) VALUES ($1, $2, $3)",
+                &[&content.get_full_path(), &designation, &qrid],
+            ),
+            called_from.clone(),
+        );
     }
 }
 
@@ -293,7 +324,7 @@ pub fn insert_task(task_id: usize, id: usize, job_uid: usize, called_from: Vec<&
     let mut called_from = called_from.clone();
     called_from.push("insert_task");
     ensure_table_exists(called_from.clone());
-    insert_task_internal(task_id, id, job_uid,called_from.clone());
+    insert_task_internal(task_id, id, job_uid, called_from.clone());
 
     //pull out in order by id
     fn ensure_table_exists(called_from: Vec<&str>) {
@@ -355,8 +386,9 @@ pub fn insert_job(job: Job, called_from: Vec<&str>) {
         let worker_uid = job.worker.clone().unwrap().0 as i32;
         let worker_string_identifier = job.worker.unwrap().1;
 
-        output_insert_error(client.execute(
-            r"
+        output_insert_error(
+            client.execute(
+                r"
                 INSERT INTO job_queue (
                     source_path,
                     encode_path,
@@ -368,18 +400,20 @@ pub fn insert_job(job: Job, called_from: Vec<&str>) {
                     worker_string_id,
                     qrid
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);",
-            &[
-                &job.source_path.to_string_lossy().to_string().as_str(),
-                &job.encode_path.to_string_lossy().to_string().as_str(),
-                &job.cache_directory.clone().unwrap(),
-                &Job::convert_encode_string_to_actual_string(job.encode_string.clone()),
-                &job.status_underway,
-                &job.status_completed,
-                &worker_uid,
-                &worker_string_identifier,
-                &qrid,
-            ],
-        ), called_from.clone());
+                &[
+                    &job.source_path.to_string_lossy().to_string().as_str(),
+                    &job.encode_path.to_string_lossy().to_string().as_str(),
+                    &job.cache_directory.clone().unwrap(),
+                    &Job::convert_encode_string_to_actual_string(job.encode_string.clone()),
+                    &job.status_underway,
+                    &job.status_completed,
+                    &worker_uid,
+                    &worker_string_identifier,
+                    &qrid,
+                ],
+            ),
+            called_from.clone(),
+        );
         let uid = read_back_job_uid(qrid, called_from.clone());
         print(
             Verbosity::INFO,
@@ -425,7 +459,11 @@ pub fn insert_job(job: Job, called_from: Vec<&str>) {
     fn read_back_job_uid(qrid: i32, called_from: Vec<&str>) -> usize {
         let mut called_from = called_from.clone();
         called_from.push("read_back_job_uid");
-        return get_uid_from_result(handle_result_error(get_client(called_from.clone()).query(r"SELECT job_uid from job_queue WHERE qrid = $1", &[&qrid]), called_from));
+        return get_uid_from_result(handle_result_error(
+            get_client(called_from.clone())
+                .query(r"SELECT job_uid from job_queue WHERE qrid = $1", &[&qrid]),
+            called_from,
+        ));
     }
 }
 
@@ -437,7 +475,10 @@ fn handle_result_error(result: Result<Vec<Row>, Error>, called_from: Vec<&str>) 
         if result.len() > 0 {
             return result;
         } else {
-            panic!(&format!("CF: {}, result contained no rows", convert_function_callback_to_string(called_from)));
+            panic!(&format!(
+                "CF: {}, result contained no rows",
+                convert_function_callback_to_string(called_from)
+            ));
         }
     } else {
         output_retrieve_error(result, called_from);
@@ -458,7 +499,10 @@ pub fn db_purge(called_from: Vec<&str>) {
     //the order for dropping tables matters if foreign keys exist (job_task_queue has a foreign key of job_queue)
     let tables: Vec<&str> = vec!["content", "job_task_queue", "job_queue", "season", "show"];
     for table in tables {
-        execute_query(&format!("DROP TABLE IF EXISTS {}", table), called_from.clone())
+        execute_query(
+            &format!("DROP TABLE IF EXISTS {}", table),
+            called_from.clone(),
+        )
     }
 }
 
@@ -493,7 +537,10 @@ pub fn print_shows(called_from: Vec<&str>) {
 pub fn print_seasons(called_from: Vec<&str>) {
     let mut called_from = called_from.clone();
     called_from.push("print_seasons");
-    for row in get_by_query(r"SELECT show_uid, season_number FROM season", called_from.clone()) {
+    for row in get_by_query(
+        r"SELECT show_uid, season_number FROM season",
+        called_from.clone(),
+    ) {
         let show_uid: i32 = row.get(0);
         let season_number: i16 = row.get(1);
         print(
@@ -508,7 +555,10 @@ pub fn print_seasons(called_from: Vec<&str>) {
 pub fn print_contents(called_from: Vec<&str>) {
     let mut called_from = called_from.clone();
     called_from.push("print_contents");
-    for row in get_by_query(r"SELECT content_uid, full_path, designation FROM content", called_from.clone()) {
+    for row in get_by_query(
+        r"SELECT content_uid, full_path, designation FROM content",
+        called_from.clone(),
+    ) {
         let content_uid_temp: i32 = row.get(0);
         let content_uid = content_uid_temp as usize;
         let full_path_temp: String = row.get(1);
@@ -519,7 +569,10 @@ pub fn print_contents(called_from: Vec<&str>) {
             Verbosity::DEBUG,
             From::DB,
             called_from.clone(),
-            format!("[content_uid: {:2}][designation: {}][full_path: {}]", content_uid, designation as i32, full_path_temp),
+            format!(
+                "[content_uid: {:2}][designation: {}][full_path: {}]",
+                content_uid, designation as i32, full_path_temp
+            ),
         )
     }
 }

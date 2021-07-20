@@ -1,6 +1,6 @@
 use crate::content::Content;
 use crate::database::ensure_show_exists;
-use crate::print::{print, Verbosity, From};
+use crate::print::{print, From, Verbosity};
 use std::ops::{Index, IndexMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -123,7 +123,11 @@ impl Shows {
     }
 
     //returns (uid, index)
-    pub fn ensure_show_exists_by_title(&mut self, title: String, called_from: Vec<&str>) -> (usize, usize) {
+    pub fn ensure_show_exists_by_title(
+        &mut self,
+        title: String,
+        called_from: Vec<&str>,
+    ) -> (usize, usize) {
         let mut index: usize = 0;
         for show in &self.shows {
             if show.title == title {
