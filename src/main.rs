@@ -12,7 +12,7 @@ mod shows;
 //mod job;
 use content::Content;
 use database::{
-    db_insert_content, db_insert_job, db_purge, print_contents, print_seasons, print_shows,
+    insert_content, insert_job, db_purge, print_contents, print_seasons, print_shows, print_jobs,
 };
 use designation::Designation;
 use queue::Queue;
@@ -74,7 +74,9 @@ impl Worker {
 }
 
 fn main() {
-    db_purge();
+    let mut called_from:Vec<&str> = Vec::new();
+    called_from.push("main");
+    db_purge(called_from.clone());
 
     //insert_into(content)
 
@@ -152,7 +154,7 @@ fn main() {
         if content.show_title.is_some() {
             content.set_show_uid(
                 shows
-                    .ensure_show_exists_by_title(content.show_title.clone().unwrap())
+                    .ensure_show_exists_by_title(content.show_title.clone().unwrap(), called_from.clone())
                     .0,
             );
         }
@@ -162,7 +164,7 @@ fn main() {
             Designation::Episode => {
                 content.show_title = Some(get_show_title_from_pathbuf(&raw_filepath));
                 content.show_season_episode = content.show_season_episode;
-                shows.add_episode(content.clone());
+                shows.add_episode(content.clone(), called_from.clone());
             }
             /*Designation::Movie => (
 
@@ -170,22 +172,22 @@ fn main() {
             _ => {}
         }
 
-        db_insert_content(content.clone());
+        insert_content(content.clone(), called_from.clone());
         let mut job = content.create_job();
         if worker.is_some() {
             job.prepare_tasks(
                 worker.clone().unwrap(),
                 Some(tracked_directories.cache_directories[0].clone()),
             );
-            db_insert_job(job.clone());
+            insert_job(job.clone(), called_from.clone());
         }
         queue.add_job_to_queue(job);
     }
 
-    //print_contents();
-    print_shows();
-    print_seasons();
-    //print_jobs();
+    print_contents(called_from.clone());
+    print_shows(called_from.clone());
+    print_seasons(called_from.clone());
+    print_jobs(called_from.clone());
 
     //queue.print();
 

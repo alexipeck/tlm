@@ -137,20 +137,24 @@ impl Job {
         self.tasks.push_back(Task::Move);
     }
 
-    pub fn print(&self, called_from: &str) {
+    pub fn print(&self, called_from: Vec<&str>) {
+        let mut called_from = called_from.clone();
+        called_from.push("print");
         print(
             Verbosity::INFO,
             From::Content,
-            "job.print",
+            called_from,
             Content::get_filename_from_pathbuf(self.source_path.clone()),
         );
     }
 
-    pub fn encode(&self) {
+    pub fn encode(&self, called_from: Vec<&str>) {
+        let mut called_from = called_from.clone();
+        called_from.push("encode");
         print(
             Verbosity::INFO,
             From::Job,
-            "encode",
+            called_from,
             format!(
                 "Encoding file \'{}\'",
                 Content::get_filename_from_pathbuf(self.source_path.clone())
@@ -184,18 +188,20 @@ impl Job {
         print(Verbosity::INFO, "content", "handle", format!("reserved job UID#: {} for {}", self.uid, operator.clone()));
     } */
 
-    pub fn handle(&mut self, worker: (usize, String)) {
+    pub fn handle(&mut self, worker: (usize, String), called_from: Vec<&str>) {
+        let mut called_from = called_from.clone();
+        called_from.push("handle");
         print(
             Verbosity::INFO,
             From::Job,
-            "handle",
+            called_from.clone(),
             format!("starting encoding job UID#: {} by {}", self.uid, worker.1),
         );
-        self.encode();
+        self.encode(called_from.clone());
         print(
             Verbosity::INFO,
             From::Job,
-            "handle",
+            called_from.clone(),
             format!("completed encoding job UID#: {}", self.uid),
         );
 
@@ -215,7 +221,7 @@ impl Job {
                 print(
                     Verbosity::ERROR,
                     From::Content,
-                    "handle",
+                    called_from,
                     format!("Source: {}\nDestination: {}", &source_path, &encode_path),
                 );
                 panic!("Problem copying the file: {:?}", error);
@@ -228,7 +234,7 @@ impl Job {
                 print(
                     Verbosity::ERROR,
                     From::Content,
-                    "handle",
+                    called_from,
                     format!("Target for removal: {}", &encode_path),
                 );
                 panic!("Problem removing the file: {:?}", error);

@@ -1,5 +1,5 @@
 use crate::content::Content;
-use crate::database::db_ensure_show_exists;
+use crate::database::ensure_show_exists;
 use crate::print::{print, Verbosity, From};
 use std::ops::{Index, IndexMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -41,11 +41,13 @@ impl Show {
         }
     }
 
-    pub fn print_show(&self) {
+    pub fn print_show(&self, called_from: Vec<&str>) {
+        let mut called_from = called_from.clone();
+        called_from.push("print_show");
         print(
             Verbosity::DEBUG,
             From::Shows,
-            "print_show",
+            called_from,
             format!("[uid: {}][title: {}]", self.uid, self.title),
         );
     }
@@ -121,7 +123,7 @@ impl Shows {
     }
 
     //returns (uid, index)
-    pub fn ensure_show_exists_by_title(&mut self, title: String) -> (usize, usize) {
+    pub fn ensure_show_exists_by_title(&mut self, title: String, called_from: Vec<&str>) -> (usize, usize) {
         let mut index: usize = 0;
         for show in &self.shows {
             if show.title == title {
@@ -131,7 +133,7 @@ impl Shows {
         }
         let uid = SHOW_UID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let temp_show = Show::new(uid, title.clone());
-        db_ensure_show_exists(temp_show.title.clone());
+        ensure_show_exists(temp_show.title.clone(), called_from);
         self.shows.push(temp_show);
         return (uid, index);
     }
@@ -171,9 +173,11 @@ impl Shows {
     }
 
     //will overwrite data
-    pub fn add_episode(&mut self, content: Content) {
+    pub fn add_episode(&mut self, content: Content, called_from: Vec<&str>) {
+        let mut called_from = called_from.clone();
+        called_from.push("add_episode");
         let show_index = self
-            .ensure_show_exists_by_title(content.show_title.clone().unwrap())
+            .ensure_show_exists_by_title(content.show_title.clone().unwrap(), called_from)
             .1;
         self.ensure_season_exists_by_show_index_and_season_number(
             show_index,
@@ -190,14 +194,16 @@ impl Shows {
 
     //pub collect show
 
-    pub fn print(&self) {
+    pub fn print(&self, called_from: Vec<&str>) {
+        let mut called_from = called_from.clone();
+        called_from.push("print");
         for show in &self.shows {
             for season in &show.seasons {
                 for episode in &season.episodes {
                     print(
                         Verbosity::INFO,
                         From::Shows,
-                        "shows.print",
+                        called_from.clone(),
                         format!("{}", episode.get_filename_woe()),
                     );
                 }

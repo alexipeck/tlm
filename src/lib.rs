@@ -65,7 +65,7 @@ pub fn hash_file(path: PathBuf) -> u64 {
     hash
 }
 
-pub mod print {
+pub mod print {    
     //trickle up
     #[derive(Clone, Debug, PartialEq)]
     pub enum Verbosity {
@@ -88,13 +88,26 @@ pub mod print {
         Job = 7,
     }
 
-    pub fn print_register() {}
+    pub fn convert_function_callback_to_string(input: Vec<&str>) -> String {
+        let mut call_functions_string: String = String::new();
+        let mut single_execute_done = false;
+        for function in &input {
+            if !single_execute_done {
+                call_functions_string += &format!("{}", function);
+                single_execute_done = true;
+            } else {
+                call_functions_string += &format!(" > {}", function);
+            }
+        }
+        return call_functions_string;
+    }
 
-    pub fn print(verbosity: Verbosity, from_module: From, function: &str, string: String) {
-        fn print(verbosity_string: &str, from_module_string: &str, function: &str, string: String) {
+    pub fn print(verbosity: Verbosity, from_module: From, call_functions: Vec<&str>, string: String) {
+        fn print(verbosity_string: &str, from_module_string: &str, call_functions_string: String, string: String) {
+            
             println!(
                 "[{}][{}][{}] {}",
-                verbosity_string, from_module_string, function, string
+                verbosity_string, from_module_string, call_functions_string, string
             );
         }
 
@@ -126,10 +139,19 @@ pub mod print {
             5 => verbosity_string = "DEBUG",
             _ => verbosity_string = "NOTSET",
         }
+
+        //called from
+        let mut call_functions_string: String = String::new();
+        if verbosity.clone() as usize == Verbosity::CRITICAL as usize || verbosity.clone() as usize == Verbosity::ERROR as usize {
+            call_functions_string = convert_function_callback_to_string(call_functions);
+        } else {
+            call_functions_string += &format!("{}", call_functions[call_functions.len() - 1]);
+        }
+
         if verbosity == show_only {
-            print(verbosity_string, from_module_string, function, string);
+            print(verbosity_string, from_module_string, call_functions_string, string);
         } else if current_verbosity_level <= set_output_verbosity_level {
-            print(verbosity_string, from_module_string, function, string);
+            print(verbosity_string, from_module_string, call_functions_string, string);
         }
     }
 }

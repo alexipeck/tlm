@@ -93,7 +93,9 @@ impl Queue {
         return None;
     }
 
-    pub fn handle_by_uid(&mut self, job_uid: usize, worker: (usize, String)) {
+    pub fn handle_by_uid(&mut self, job_uid: usize, worker: (usize, String), called_from: Vec<&str>) {
+        let mut called_from = called_from.clone();
+        called_from.push("handle_by_uid");
         let mut delete: bool = false;
 
         //looks for job_uid in the priority queue
@@ -103,10 +105,10 @@ impl Queue {
                 print(
                     Verbosity::INFO,
                     From::Queue,
-                    "handle_by_uid",
+                    called_from.clone(),
                     format!("handling job UID#: {}", job_uid),
                 );
-                job.handle(worker.clone());
+                job.handle(worker.clone(), called_from.clone());
                 delete = true;
                 break;
             }
@@ -118,10 +120,10 @@ impl Queue {
                     print(
                         Verbosity::INFO,
                         From::Queue,
-                        "handle_by_uid",
+                        called_from.clone(),
                         format!("handling job UID#: {}", job_uid),
                     );
-                    job.handle(worker);
+                    job.handle(worker, called_from.clone());
                     delete = true;
                     break;
                 }
@@ -131,14 +133,16 @@ impl Queue {
             print(
                 Verbosity::INFO,
                 From::Queue,
-                "handle_by_uid",
+                called_from,
                 format!("removing from queue job UID#: {}", job_uid),
             );
             self.remove_from_queue_by_uid(job_uid);
         }
     }
 
-    pub fn run_job(&mut self, worker: (usize, String)) {
+    pub fn run_job(&mut self, worker: (usize, String), called_from: Vec<&str>) {
+        let mut called_from = called_from.clone();
+        called_from.push("run_job");
         //currently encodes first unreserved Job
         //finds job to run
         let mut uid_to_handle: Option<usize> = None;
@@ -157,7 +161,7 @@ impl Queue {
 
         //handles job by uid (figure out what to do with that particular job) if a job exists and is available
         if uid_to_handle.is_some() {
-            self.handle_by_uid(uid_to_handle.unwrap(), worker);
+            self.handle_by_uid(uid_to_handle.unwrap(), worker, called_from);
         }
     }
 
@@ -183,13 +187,15 @@ impl Queue {
         }
     }
 
-    pub fn print(&mut self) {
+    pub fn print(&mut self, called_from: Vec<&str>) {
+        let mut called_from = called_from.clone();
+        called_from.push("print");
         for job in &self.priority_queue {
-            job.print("pq");
+            job.print(called_from.clone()); //this is supposed to include "pq"
         }
 
         for job in &self.main_queue {
-            job.print("mq");
+            job.print(called_from.clone()); //this is supposed to include "mq"
         }
     }
 
