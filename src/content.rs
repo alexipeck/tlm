@@ -1,12 +1,28 @@
-use crate::designation::Designation;
+use crate::{designation::Designation, job::Job};
 use regex::Regex;
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-pub fn re_strip(input: &String, expression: &str) -> Option<String> {
+/* #[derive(Clone, Debug)]
+pub struct Reserve {
+    status: (bool, bool),
+    uid: usize,
+    worker: String,
+}
+
+impl Reserve {
+    pub fn new(uid: usize, worker: String) -> Reserve {
+        Reserve {
+            status: (false, false),
+            uid: uid,
+            worker: worker,
+        }
+    }
+} */
+
+fn re_strip(input: &String, expression: &str) -> Option<String> {
     let output = Regex::new(expression).unwrap().find(input);
     match output {
         None => return None,
@@ -20,26 +36,21 @@ fn rem_first_char(value: &str) -> &str {
     chars.as_str()
 }
 
-fn get_os_slash() -> String {
+fn get_os_slash() -> char {
     return if !cfg!(target_os = "windows") {
-        '/'.to_string()
+        '/'
     } else {
-        '\\'.to_string()
+        '\\'
     };
 }
 
 //generic content container, focus on video
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Content {
     pub uid: usize,
     pub full_path: PathBuf,
     pub designation: Designation,
-    pub parent_directory: String,
-    pub filename: String,
-    pub filename_woe: String,
-    pub reserved_by: Option<String>,
-    pub extension: String,
-
+    //pub job_queue: VecDeque<Job>,
     pub hash: Option<u64>,
     //pub versions: Vec<FileVersion>,
     //pub metadata_dump
@@ -50,27 +61,15 @@ pub struct Content {
 
 impl Content {
     pub fn new(raw_filepath: &PathBuf) -> Content {
-        //prepare filename
-        let filename = Content::get_filename_from_pathbuf(raw_filepath);
-
-        //prepare filename without extension
-        let filename_woe = Content::get_filename_woe_from_pathbuf(raw_filepath);
-
-        //parent directory
-        let parent_directory = Content::get_parent_directory_from_pathbuf(raw_filepath);
-
-        let extension = Content::get_extension_from_pathbuf(raw_filepath);
         let mut content = Content {
             full_path: raw_filepath.clone(),
+            //temp_encode_path: None,
             designation: Designation::Generic,
             uid: EPISODE_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
-            parent_directory: parent_directory,
-            filename: filename,
-            filename_woe: filename_woe,
-            reserved_by: None,
             hash: None,
-            extension: extension,
+            //job_queue: VecDeque::new(),
 
+            //truly optional
             show_title: None,
             show_season_episode: None,
             show_uid: None,
@@ -79,12 +78,48 @@ impl Content {
         return content;
     }
 
-    fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, usize)> {
-        let temp = re_strip(&self.filename, r"S[0-9]*E[0-9\-]*");
+    //no options currently
+    pub fn generate_encode_string(&self) -> Vec<String> {
+        return vec![
+            "-i".to_string(),
+            self.get_full_path(),
+            "-c:v".to_string(),
+            "libx265".to_string(),
+            "-crf".to_string(),
+            "25".to_string(),
+            "-preset".to_string(),
+            "slower".to_string(),
+            "-profile:v".to_string(),
+            "main".to_string(),
+            "-c:a".to_string(),
+            "aac".to_string(),
+            "-q:a".to_string(),
+            "224k".to_string(),
+            "-y".to_string(),
+            self.generate_target_path(),
+        ];
+    }
+
+    pub fn generate_target_path(&self) -> String {
+        return self
+            .get_full_path_with_suffix("_encodeH4U8".to_string())
+            .to_string_lossy()
+            .to_string();
+    }
+
+    pub fn create_job(&mut self) -> Job {
+        return Job::new(self.full_path.clone(), self.generate_encode_string());
+    }
+
+    pub fn generate_encode_path_from_pathbuf(pathbuf: PathBuf) -> PathBuf {
+        return Content::get_full_path_with_suffix_from_pathbuf(pathbuf, "_encodeH4U8".to_string());
+    }
+
+    pub fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, usize)> {
         let episode_string: String;
 
         //Check if the regex caught a valid episode format
-        match temp {
+        match re_strip(&self.get_filename(), r"S[0-9]*E[0-9\-]*") {
             None => {
                 *episode = false;
                 return None;
@@ -102,80 +137,12 @@ impl Content {
         ))
     }
 
-    pub fn reserve(&mut self, operator: String) {
-        self.reserved_by = Some(operator);
-    }
-
-    pub fn encode(&mut self) -> String {
-        let source = self.get_full_path();
-        let encode_target = self.get_full_path_with_suffix("_encodeH4U8".to_string()); //want it to use the actual extension rather than just .mp4
-
-        let encode_string: Vec<&str> = vec![
-            "-i",
-            &source,
-            "-c:v",
-            "libx265",
-            "-crf",
-            "25",
-            "-preset",
-            "slower",
-            "-profile:v",
-            "main",
-            "-c:a",
-            "aac",
-            "-q:a",
-            "224k",
-            "-y",
-            &encode_target,
-        ];
-
-        println!("Encoding file \'{}\'", self.get_filename());
-
-        let buffer;
-        if !cfg!(target_os = "windows") {
-            //linux & friends
-            buffer = Command::new("ffmpeg")
-                .args(encode_string)
-                .output()
-                .expect("failed to execute process");
-        } else {
-            //windows
-            buffer = Command::new("ffmpeg")
-                .args(encode_string)
-                .output()
-                .expect("failed to execute process");
-        }
-        return String::from_utf8_lossy(&buffer.stdout).to_string();
-    }
-
-    pub fn get_full_path_specific_extension(&self, extension: String) -> String {
-        return format!(
-            "{}{}{}.{}",
-            self.parent_directory,
-            get_os_slash(),
-            self.filename_woe,
-            extension
-        );
-    }
-
-    pub fn get_full_path_from_pathbuf(pathbuf: &PathBuf) -> String {
-        return pathbuf.as_os_str().to_str().unwrap().to_string();
-    }
-
     pub fn get_full_path(&self) -> String {
         return self.full_path.as_os_str().to_str().unwrap().to_string();
     }
 
-    pub fn get_show_title_from_pathbuf(pathbuf: &PathBuf) -> String {
-        return pathbuf
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
+    pub fn get_filename_from_pathbuf(pathbuf: PathBuf) -> String {
+        return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
 
     pub fn get_filename(&self) -> String {
@@ -197,15 +164,7 @@ impl Content {
             .to_string();
     }
 
-    fn get_filename_from_pathbuf(pathbuf: &PathBuf) -> String {
-        return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
-    }
-
-    fn get_filename_woe_from_pathbuf(pathbuf: &PathBuf) -> String {
-        return pathbuf.file_stem().unwrap().to_string_lossy().to_string();
-    }
-
-    fn get_parent_directory(&self) -> String {
+    pub fn get_parent_directory_as_string(&self) -> String {
         return self
             .full_path
             .parent()
@@ -214,31 +173,49 @@ impl Content {
             .to_string();
     }
 
-    pub fn get_full_path_with_suffix(&self, suffix: String) -> String {
-        return format!(
-            "{}{}{}{}.{}",
-            self.get_parent_directory(),
-            get_os_slash(),
-            self.get_filename_woe(),
-            suffix,
-            self.extension
+    pub fn get_full_path_with_suffix_as_string(&self, suffix: String) -> String {
+        return self
+            .get_full_path_with_suffix(suffix)
+            .to_string_lossy()
+            .to_string();
+    }
+
+    pub fn get_full_path_with_suffix_from_pathbuf(pathbuf: PathBuf, suffix: String) -> PathBuf {
+        //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
+        //.push(self.full_path.extension().unwrap())
+        //bad way of doing it
+        let new_filename = format!(
+            "{}{}.{}",
+            pathbuf.file_stem().unwrap().to_string_lossy().to_string(),
+            &suffix,
+            pathbuf.extension().unwrap().to_string_lossy().to_string(),
         );
+        return pathbuf.parent().unwrap().join(new_filename);
     }
 
-    fn get_parent_directory_from_pathbuf(pathbuf: &PathBuf) -> String {
+    pub fn get_full_path_with_suffix(&self, suffix: String) -> PathBuf {
+        //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
+        //.push(self.full_path.extension().unwrap())
+        //bad way of doing it
+        let new_filename = format!(
+            "{}{}.{}",
+            self.full_path
+                .file_stem()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            &suffix,
+            self.full_path
+                .extension()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+        );
+        return self.full_path.parent().unwrap().join(new_filename);
+    }
+
+    pub fn get_parent_directory_from_pathbuf_as_string(pathbuf: &PathBuf) -> String {
         return pathbuf.parent().unwrap().to_string_lossy().to_string();
-    }
-
-    fn get_extension_from_pathbuf(pathbuf: &PathBuf) -> String {
-        return pathbuf.extension().unwrap().to_string_lossy().to_string();
-    }
-
-    pub fn get_season_number(&mut self) -> usize {
-        return self.show_season_episode.unwrap().0;
-    }
-
-    pub fn get_episode_number(&mut self) -> usize {
-        return self.show_season_episode.unwrap().1;
     }
 
     pub fn set_show_uid(&mut self, show_uid: usize) {
@@ -258,12 +235,13 @@ impl Content {
                     .unwrap()
                     .to_string_lossy(),
             )
-            .split('/')
+            .split(get_os_slash())
             .rev()
             {
                 self.show_title = Some(String::from(section));
                 break;
             }
+
             self.show_season_episode = show_season_episode_conditional;
             self.show_uid = None;
         } else {
@@ -273,19 +251,13 @@ impl Content {
         }
     }
 
-    pub fn moved(&mut self, raw_filepath: &PathBuf) {
-        self.parent_directory =
-            String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
-        self.full_path = raw_filepath.clone();
+    pub fn moved(&mut self, new_full_path: &PathBuf) {
+        self.full_path = new_full_path.clone();
     }
 
-    pub fn regenerate(&mut self, raw_filepath: &PathBuf) {
-        let filename = String::from(raw_filepath.file_name().unwrap().to_string_lossy());
-
+    pub fn regenerate_from_pathbuf(&mut self, raw_filepath: &PathBuf) {
         let mut episode = false;
         self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
-
-        self.extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
 
         if episode {
             self.designation = Designation::Episode;
@@ -293,11 +265,6 @@ impl Content {
             self.designation = Designation::Generic;
         };
         self.full_path = raw_filepath.clone();
-        self.parent_directory =
-            String::from(raw_filepath.parent().unwrap().to_string_lossy() + "/");
-        self.filename = filename;
-        self.filename_woe = String::from(raw_filepath.file_stem().unwrap().to_string_lossy());
-        self.extension = String::from(raw_filepath.extension().unwrap().to_string_lossy());
 
         //designation, show_title, show_season_episode
         self.designate_and_fill();
