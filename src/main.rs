@@ -9,11 +9,13 @@ mod database;
 mod designation;
 mod queue;
 mod shows;
+mod task;
 //mod job;
 use content::Content;
 use database::{
-    db_purge, insert_content, insert_job, print_contents, print_jobs, print_seasons, print_shows,
+    db_purge, insert_content, insert_job, print_contents, print_jobs, print_shows,
 };
+use task::Task;
 use designation::Designation;
 use queue::Queue;
 use shows::Shows;
@@ -189,7 +191,6 @@ fn main() {
 
     print_contents(called_from.clone());
     print_shows(called_from.clone());
-    print_seasons(called_from.clone());
     print_jobs(called_from.clone());
 
     //queue.print();

@@ -1,8 +1,9 @@
 use crate::print::{convert_function_callback_to_string, print, From, Verbosity};
 use crate::{
-    content::{Content, Job, Task},
+    content::{Content, Job},
     designation::convert_i32_to_designation,
     shows::{self, Show},
+    task::Task,
 };
 use core::panic;
 use postgres::Client;
@@ -22,7 +23,7 @@ fn get_client(called_from: Vec<&str>) -> Client {
     called_from.push("get_client");
 
     let connection_string = r"postgresql://localhost:4531/tlmdb?user=postgres&password=786D3JXegfY8uR6shcPB7UF2oVeQf49ynH8vHgn".to_string();
-    let mut client = Client::connect(&connection_string, NoTls);
+    let client = Client::connect(&connection_string, NoTls);
     match client {
         Err(err) => {
             print(Verbosity::ERROR, From::DB, called_from, err.to_string());
@@ -89,45 +90,66 @@ fn db_boolean_handle(input: Vec<Row>) -> bool {
     }
 }
 
-fn ensure_season_exists_in_show(show_uid: usize, season_number: usize, called_from: Vec<&str>) {
+/* pub struct Content {
+    //pub job_queue: VecDeque<Job>,
+    pub hash: Option<u64>,
+    //pub versions: Vec<FileVersion>,
+    //pub metadata_dump
+    pub show_uid: Option<usize>,
+    pub show_title: Option<String>,
+    pub show_season_episode: Option<(usize, usize)>,
+} */
+
+pub fn insert_episode(
+    content: Content,
+    show_uid: usize,
+    season_number: usize,
+    called_from: Vec<&str>,
+) {
     let mut called_from = called_from.clone();
-    called_from.push("ensure_season_exists_in_show");
+    called_from.push("insert_episode");
 
-    ensure_table_exists(called_from.clone());
-    if !season_exists_in_show(show_uid, season_number, called_from.clone()) {
-        insert_season(show_uid, season_number, called_from.clone());
-    }
+    ensure_episode_table_exists(called_from.clone());
+    //if !season_exists_in_show(show_uid, season_number, called_from.clone()) {
+    insert_episode_internal(content, called_from.clone());
+    //}
 
-    fn ensure_table_exists(called_from: Vec<&str>) {
+    fn ensure_episode_table_exists(called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
-        called_from.push("ensure_table_exists");
+        called_from.push("ensure_episode_table_exists");
 
         execute_query(
             r"
-            CREATE TABLE IF NOT EXISTS season (
-                show_uid             INTEGER REFERENCES show (show_uid) NOT NULL,
-                season_number        SMALLINT NOT NULL,
-				PRIMARY KEY (show_uid, season_number)
+            CREATE TABLE IF NOT EXISTS episode (
+                episode_uid             SERIAL PRIMARY KEY,
+                content_uid             INTEGER REFERENCES content (content_uid) NOT NULL,
+                show_uid                INTEGER REFERENCES show (show_uid) NOT NULL,
+                episode_title           TEXT NOT NULL,
+                season_number           SMALLINT NOT NULL,
+                episode_number          SMALLINT NOT NULL
             )",
             called_from,
         );
     }
 
-    fn insert_season(show_uid: usize, season_number: usize, called_from: Vec<&str>) {
+    fn insert_episode_internal(content: Content, called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
-        called_from.push("insert_season");
+        called_from.push("insert_episode_internal");
 
-        let show_uid = show_uid as i32;
-        let season_number = season_number as i16;
-        let mut client = get_client(called_from.clone());
-        let error = client.execute(
-            r"INSERT INTO season (show_uid, season_number) VALUES ($1, $2)",
-            &[&show_uid, &season_number],
+        let content_uid = 0;
+        let show_uid = content.show_uid.unwrap() as i32;
+        let episode_title = "";
+        let (season_number_temp, episode_number_temp) = content.show_season_episode.unwrap();
+        let season_number = season_number_temp as i32;
+        let episode_number = episode_number_temp as i32;
+        let error = get_client(called_from.clone()).execute(
+            r"INSERT INTO episode (content_uid, show_uid, episode_title, episode_number, season_number) VALUES ($1, $2, $3, $4, $5)",
+            &[&content_uid, &show_uid, &episode_title, &episode_number, &season_number],
         );
         handle_insert_error(error, called_from.clone());
     }
 
-    fn season_exists_in_show(
+    /* fn season_exists_in_show(
         show_uid: usize,
         season_number: usize,
         called_from: Vec<&str>,
@@ -146,7 +168,7 @@ fn ensure_season_exists_in_show(show_uid: usize, season_number: usize, called_fr
             called_from,
         );
         return db_boolean_handle(result);
-    }
+    } */
 }
 
 fn get_show_uid_by_title(show_title: String, called_from: Vec<&str>) -> Option<usize> {
@@ -175,7 +197,7 @@ pub fn ensure_show_exists(show_title: String, called_from: Vec<&str>) -> Option<
     let mut called_from = called_from.clone();
     called_from.push("ensure_show_exists");
 
-    ensure_table_exists(called_from.clone());
+    ensure_show_table_exists(called_from.clone());
     if !show_exists(&show_title, called_from.clone()) {
         let qrid = generate_qrid();
         insert_show(show_title, qrid, called_from.clone());
@@ -186,14 +208,14 @@ pub fn ensure_show_exists(show_title: String, called_from: Vec<&str>) -> Option<
         return get_show_uid_by_title(show_title, called_from);
     }
 
-    fn ensure_table_exists(called_from: Vec<&str>) {
+    fn ensure_show_table_exists(called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
-        called_from.push("ensure_table_exists");
+        called_from.push("ensure_show_table_exists");
 
         execute_query(
             r"
             CREATE TABLE IF NOT EXISTS show (
-                show_uid             SERIAL PRIMARY KEY,
+                show_uid        SERIAL PRIMARY KEY,
                 title           TEXT NOT NULL,
                 qrid            INTEGER
             )",
@@ -265,18 +287,18 @@ pub fn insert_content(content: Content, called_from: Vec<&str>) {
     let mut called_from = called_from.clone();
     called_from.push("insert_content");
 
-    ensure_table_exists(called_from.clone());
+    ensure_content_table_exists(called_from.clone());
     let qrid = generate_qrid();
     insert_content_internal(content.clone(), qrid, called_from.clone());
     let uid = read_back_content_uid(qrid, called_from.clone());
     if content.designation == crate::designation::Designation::Episode {
         let show_uid = ensure_show_exists(content.show_title.unwrap(), called_from.clone());
         if show_uid.is_some() {
-            ensure_season_exists_in_show(
+            /* ensure_season_exists_in_show(
                 show_uid.unwrap(),
                 content.show_season_episode.unwrap().0,
                 called_from.clone(),
-            );
+            ); */
         } else {
             panic!("show UID couldn't be retreived");
         }
@@ -293,21 +315,9 @@ pub fn insert_content(content: Content, called_from: Vec<&str>) {
         ));
     }
 
-    /* pub struct Content {
-        pub designation: Designation,
-        //pub job_queue: VecDeque<Job>,
-        pub hash: Option<u64>,
-        //pub versions: Vec<FileVersion>,
-        //pub metadata_dump
-        pub show_uid: Option<usize>,
-        pub show_title: Option<String>,
-        pub show_season_episode: Option<(usize, usize)>,
-    }
-    */
-
-    fn ensure_table_exists(called_from: Vec<&str>) {
+    fn ensure_content_table_exists(called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
-        called_from.push("ensure_table_exists");
+        called_from.push("ensure_content_table_exists");
 
         execute_query(
             r"
@@ -340,13 +350,13 @@ fn insert_task(task_id: usize, id: usize, job_uid: usize, called_from: Vec<&str>
     let mut called_from = called_from.clone();
     called_from.push("insert_task");
 
-    ensure_table_exists(called_from.clone());
+    ensure_task_table_exists(called_from.clone());
     insert_task_internal(task_id, id, job_uid, called_from.clone());
 
     //pull out in order by id
-    fn ensure_table_exists(called_from: Vec<&str>) {
+    fn ensure_task_table_exists(called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
-        called_from.push("ensure_table_exists");
+        called_from.push("ensure_task_table_exists");
         execute_query(
             r"
             CREATE TABLE IF NOT EXISTS job_task_queue (
@@ -389,7 +399,7 @@ pub fn insert_job(job: Job, called_from: Vec<&str>) {
     let mut called_from = called_from.clone();
     called_from.push("insert_job");
 
-    ensure_table_exists(called_from.clone());
+    ensure_job_table_exists(called_from.clone());
     let uid = insert_job_internal(job, called_from.clone());
 
     fn insert_job_internal(job: Job, called_from: Vec<&str>) -> usize {
@@ -448,9 +458,9 @@ pub fn insert_job(job: Job, called_from: Vec<&str>) {
         return uid;
     }
 
-    fn ensure_table_exists(called_from: Vec<&str>) {
+    fn ensure_job_table_exists(called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
-        called_from.push("ensure_table_exists");
+        called_from.push("ensure_job_table_exists");
 
         //ensures job table exists
         //cache_directory marked as not null, but realistically it can be None, but won't be shown as such in the database,
@@ -554,25 +564,6 @@ pub fn print_shows(called_from: Vec<&str>) {
             called_from.clone(),
             format!("[title: {}]", title),
         );
-    }
-}
-
-pub fn print_seasons(called_from: Vec<&str>) {
-    let mut called_from = called_from.clone();
-    called_from.push("print_seasons");
-
-    for row in get_by_query(
-        r"SELECT show_uid, season_number FROM season",
-        called_from.clone(),
-    ) {
-        let show_uid: i32 = row.get(0);
-        let season_number: i16 = row.get(1);
-        print(
-            Verbosity::INFO,
-            From::DB,
-            called_from.clone(),
-            format!("[show_uid: {}][season_number: {}]", show_uid, season_number),
-        )
     }
 }
 
