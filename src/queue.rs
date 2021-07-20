@@ -1,5 +1,7 @@
-use crate::content::Job;
-use crate::print::{print, From, Verbosity};
+use crate::{
+    job::Job,
+    print::{print, From, Verbosity},
+};
 use std::collections::VecDeque;
 
 pub enum QueueType {

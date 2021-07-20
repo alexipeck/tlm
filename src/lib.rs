@@ -2,6 +2,7 @@ pub mod content;
 pub mod designation;
 pub mod queue;
 pub mod task;
+pub mod job;
 
 use std::{
     collections::VecDeque,

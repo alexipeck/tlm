@@ -10,7 +10,7 @@ mod designation;
 mod queue;
 mod shows;
 mod task;
-//mod job;
+mod job;
 use content::Content;
 use database::{
     db_purge, insert_content, insert_job, print_contents, print_jobs, print_shows,
