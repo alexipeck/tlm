@@ -4,12 +4,9 @@ use crate::{
     shows::{self, Show},
 };
 use core::panic;
-//use core::panicking::panic;
 use postgres::Client;
-use postgres_types::{FromSql, ToSql};
 use rand::Rng;
 use std::path::PathBuf;
-use tlm::designation::Designation;
 use tokio_postgres::{Error, NoTls, Row};
 
 //primary helper functions
@@ -129,13 +126,11 @@ pub fn db_get_show_uid_by_title(show_title: String) -> Option<usize> {
         &[&show_title],
     ));
     let mut uid: Option<i32> = None;
-    if result.len() > 0 {
-        for row in &result {
-            uid = row.get(0);
-        }
-        if uid.is_some() {
-            return Some(uid.unwrap() as usize);
-        }
+    for row in &result {
+        uid = row.get(0);
+    }
+    if uid.is_some() {
+        return Some(uid.unwrap() as usize);
     }
     return None;
 }
@@ -232,7 +227,7 @@ pub fn db_insert_content(content: Content) {
                 content.show_season_episode.unwrap().0,
             );
         } else {
-            panic!("show UID couldn't be retreived")
+            panic!("show UID couldn't be retreived");
         }
     }
 
@@ -250,6 +245,7 @@ pub fn db_insert_content(content: Content) {
             )",
         );
     }
+    
     fn insert_content(content: Content, qrid: i32) {
         let mut client = get_client();
         let error = client.execute(
