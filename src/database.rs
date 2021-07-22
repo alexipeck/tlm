@@ -55,20 +55,21 @@ fn handle_retrieve_error(error: Result<Vec<Row>, Error>, called_from: Vec<&str>)
             called_from.clone(),
             format!("{}", error.unwrap_err()),
         );
-        panic!(&format!(
+        panic!(
             "CF: {}, something is wrong with the returned result",
             convert_function_callback_to_string(called_from.clone())
-        ))
+        )
     }
 }
 
 fn execute_query(query: &str, called_from: Vec<&str>) {
     let mut called_from = called_from.clone();
     called_from.push("execute_query");
-
+    
     let mut client = get_client(called_from.clone());
     let error = client.batch_execute(query);
     if error.is_err() {
+        print(Verbosity::ERROR, From::DB, called_from.clone(), String::from(query));
         print(
             Verbosity::ERROR,
             From::DB,
@@ -103,17 +104,30 @@ fn db_boolean_handle(input: Vec<Row>) -> bool {
 
 pub fn insert_episode(
     content: Content,
-    show_uid: usize,
-    season_number: usize,
     called_from: Vec<&str>,
 ) {
     let mut called_from = called_from.clone();
     called_from.push("insert_episode");
-
-    ensure_episode_table_exists(called_from.clone());
+    if content_is_episode(content.clone(), called_from.clone()) {
+        ensure_episode_table_exists(called_from.clone());
+    } else {
+        panic!("this shouldn't happen");
+    }
+    
     //if !season_exists_in_show(show_uid, season_number, called_from.clone()) {
     insert_episode_internal(content, called_from.clone());
     //}
+
+    fn content_is_episode(content: Content, called_from: Vec<&str>) -> bool {
+        let mut called_from = called_from.clone();
+        called_from.push("episode_is_episode");
+
+        if content.show_uid.is_some() && content.show_title.is_some() && content.show_season_episode.is_some() {
+            return true;
+        }
+        print(Verbosity::ERROR, From::Main, called_from.clone(), format!("{}\n{}\n{}\n", content.show_uid.is_some(), content.show_title.is_some(), content.show_season_episode.is_some()));
+        return false;
+    }
 
     fn ensure_episode_table_exists(called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
@@ -505,10 +519,10 @@ fn handle_result_error(result: Result<Vec<Row>, Error>, called_from: Vec<&str>) 
         if result.len() > 0 {
             return result;
         } else {
-            panic!(&format!(
+            panic!(
                 "CF: {}, result contained no rows",
                 convert_function_callback_to_string(called_from)
-            ));
+            );
         }
     } else {
         handle_retrieve_error(result, called_from);
@@ -529,7 +543,7 @@ pub fn db_purge(called_from: Vec<&str>) {
     called_from.push("db_purge");
 
     //the order for dropping tables matters if foreign keys exist (job_task_queue has a foreign key of job_queue)
-    let tables: Vec<&str> = vec!["content", "job_task_queue", "job_queue", "season", "show"];
+    let tables: Vec<&str> = vec!["content", "job_task_queue", "job_queue", "episode", "season", "show"];
     for table in tables {
         execute_query(
             &format!("DROP TABLE IF EXISTS {}", table),

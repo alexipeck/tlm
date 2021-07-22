@@ -12,8 +12,9 @@ mod queue;
 mod shows;
 mod task;
 use content::Content;
-use database::{db_purge, insert_content, insert_job, print_contents, print_jobs, print_shows};
+use database::{db_purge, insert_content, insert_job, print_contents, print_jobs, print_shows, insert_episode};
 use designation::Designation;
+use crate::print::{print, From, Verbosity};
 use queue::Queue;
 use shows::Shows;
 
@@ -173,14 +174,27 @@ fn main() {
             ),*/
             _ => {}
         }
-
         insert_content(content.clone(), called_from.clone());
+        insert_episode(content.clone(), called_from.clone());
         let mut job = content.create_job();
         if worker.is_some() {
             job.prepare_tasks(
                 worker.clone().unwrap(),
                 Some(tracked_directories.cache_directories[0].clone()),
             );
+
+            /*
+            pub uid: usize,
+            pub full_path: PathBuf,
+            pub designation: Designation,
+            //pub job_queue: VecDeque<Job>,
+            pub hash: Option<u64>,
+            //pub versions: Vec<FileVersion>,
+            //pub metadata_dump
+            pub show_uid: Option<usize>,
+            pub show_title: Option<String>,
+            pub show_season_episode: Option<(usize, usize)>,
+            */
             insert_job(job.clone(), called_from.clone());
         }
         queue.add_job_to_queue(job);
