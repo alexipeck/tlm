@@ -1,3 +1,4 @@
+use crate::print::{convert_function_callback_to_string, print, From, Verbosity};
 use crate::{designation::Designation, job::Job};
 use regex::Regex;
 use std::path::PathBuf;
@@ -222,6 +223,17 @@ impl Content {
         self.show_uid = Some(show_uid);
     }
 
+    pub fn content_is_episode(&self, called_from: Vec<&str>) -> bool {
+        let mut called_from = called_from.clone();
+        called_from.push("content_is_episode");
+
+        if self.show_uid.is_some() && self.show_title.is_some() && self.show_season_episode.is_some() {
+            return true;
+        }
+        print(Verbosity::INFO, From::Main, called_from, format!("exists: [show_uid: {}][show_title: {}][show_season_episode: {}]", self.show_uid.is_some(), self.show_title.is_some(), self.show_season_episode.is_some()));
+        return false;
+    }
+    
     pub fn designate_and_fill(&mut self) {
         let mut episode = false;
         let show_season_episode_conditional = self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic

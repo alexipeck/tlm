@@ -23,20 +23,30 @@ fn get_client(called_from: Vec<&str>) -> Client {
     let mut called_from = called_from.clone();
     called_from.push("get_client");
 
+    /*
+     * logic
+     */
     let connection_string = r"postgresql://localhost:4531/tlmdb?user=postgres&password=786D3JXegfY8uR6shcPB7UF2oVeQf49ynH8vHgn".to_string();
     let client = Client::connect(&connection_string, NoTls);
     match client {
         Err(err) => {
-            print(Verbosity::ERROR, From::DB, called_from, err.to_string());
-            panic!("client couldn't establish a connection");
+            print(Verbosity::ERROR, From::DB, called_from, format!("client couldn't establish a connection: {}", err.to_string()));
+            panic!();
         }
         _ => {
             return client.unwrap();
         }
     }
+    //////////
 }
 
 fn handle_insert_error(error: Result<u64, Error>, called_from: Vec<&str>) {
+    let mut called_from = called_from.clone();
+    called_from.push("handle_insert_error");
+
+    /*
+     * logic
+     */
     if error.is_err() {
         print(
             Verbosity::ERROR,
@@ -45,41 +55,50 @@ fn handle_insert_error(error: Result<u64, Error>, called_from: Vec<&str>) {
             format!("{}", error.unwrap_err()),
         );
     }
+    //////////
 }
 
 fn handle_retrieve_error(error: Result<Vec<Row>, Error>, called_from: Vec<&str>) {
+    let mut called_from = called_from.clone();
+    called_from.push("handle_retrieve_error");
+
+    /*
+     * logic
+     */
     if error.is_err() {
         print(
             Verbosity::ERROR,
             From::DB,
             called_from.clone(),
-            format!("{}", error.unwrap_err()),
+            format!("something is wrong with the returned result: {}", error.unwrap_err()),
         );
-        panic!(
-            "CF: {}, something is wrong with the returned result",
-            convert_function_callback_to_string(called_from.clone())
-        )
+        panic!();
     }
+    //////////
 }
 
 fn execute_query(query: &str, called_from: Vec<&str>) {
     let mut called_from = called_from.clone();
     called_from.push("execute_query");
     
+    /*
+     * logic
+     */
     let mut client = get_client(called_from.clone());
     let error = client.batch_execute(query);
     if error.is_err() {
-        print(Verbosity::ERROR, From::DB, called_from.clone(), String::from(query));
-        print(
-            Verbosity::ERROR,
-            From::DB,
-            called_from,
-            format!("{}", error.unwrap_err()),
-        );
+        print(Verbosity::ERROR, From::DB, called_from.clone(), format!("{}: {}", String::from(query), error.unwrap_err()));
     }
+    //////////
 }
 
-fn db_boolean_handle(input: Vec<Row>) -> bool {
+fn db_boolean_handle(input: Vec<Row>, called_from: Vec<&str>) -> bool {
+    let mut called_from = called_from.clone();
+    called_from.push("db_boolean_handle");
+
+    /*
+     * logic
+     */
     if input.len() > 0 {
         let exists: bool = input[0].get(0);
         if exists {
@@ -88,8 +107,10 @@ fn db_boolean_handle(input: Vec<Row>) -> bool {
             return false;
         }
     } else {
-        panic!("should have returned a boolean from the db, regardless")
+        print(Verbosity::CRITICAL, From::DB, called_from, format!("should have returned a boolean from the db, regardless"));
+        panic!();
     }
+    //////////
 }
 
 /* pub struct Content {
@@ -102,32 +123,24 @@ fn db_boolean_handle(input: Vec<Row>) -> bool {
     pub show_season_episode: Option<(usize, usize)>,
 } */
 
-pub fn insert_episode(
+pub fn insert_episode_if_episode(
     content: Content,
     called_from: Vec<&str>,
 ) {
     let mut called_from = called_from.clone();
-    called_from.push("insert_episode");
-    if content_is_episode(content.clone(), called_from.clone()) {
+    called_from.push("insert_episode_if_episode");
+
+    /*
+     * logic
+     */
+    if content.content_is_episode(called_from.clone()) {
         ensure_episode_table_exists(called_from.clone());
-    } else {
-        panic!("this shouldn't happen");
-    }
-    
-    //if !season_exists_in_show(show_uid, season_number, called_from.clone()) {
-    insert_episode_internal(content, called_from.clone());
-    //}
 
-    fn content_is_episode(content: Content, called_from: Vec<&str>) -> bool {
-        let mut called_from = called_from.clone();
-        called_from.push("episode_is_episode");
-
-        if content.show_uid.is_some() && content.show_title.is_some() && content.show_season_episode.is_some() {
-            return true;
-        }
-        print(Verbosity::ERROR, From::Main, called_from.clone(), format!("{}\n{}\n{}\n", content.show_uid.is_some(), content.show_title.is_some(), content.show_season_episode.is_some()));
-        return false;
+        //if !season_exists_in_show(show_uid, season_number, called_from.clone()) {
+        insert_episode_internal(content, called_from.clone());
+        //}
     }
+    //////////
 
     fn ensure_episode_table_exists(called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
@@ -209,6 +222,9 @@ fn get_show_uid_by_title(show_title: String, called_from: Vec<&str>) -> Option<u
 }
 
 pub fn ensure_show_exists(show_title: String, called_from: Vec<&str>) -> Option<usize> {
+    /*
+     * logic
+     */
     let mut called_from = called_from.clone();
     called_from.push("ensure_show_exists");
 
@@ -222,7 +238,8 @@ pub fn ensure_show_exists(show_title: String, called_from: Vec<&str>) -> Option<
     } else {
         return get_show_uid_by_title(show_title, called_from);
     }
-
+    //////////
+    
     fn ensure_show_table_exists(called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
         called_from.push("ensure_show_table_exists");
@@ -262,8 +279,8 @@ pub fn ensure_show_exists(show_title: String, called_from: Vec<&str>) -> Option<
                 r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
                 &[&show_title],
             ),
-            called_from,
-        ));
+            called_from.clone(),
+        ), called_from);
     }
 
     fn read_back_show_uid(qrid: i32, called_from: Vec<&str>) -> usize {
@@ -273,8 +290,8 @@ pub fn ensure_show_exists(show_title: String, called_from: Vec<&str>) -> Option<
         return get_uid_from_result(handle_result_error(
             get_client(called_from.clone())
                 .query(r"SELECT show_uid FROM show WHERE qrid = $1", &[&qrid]),
-            called_from,
-        ));
+            called_from.clone(),
+        ), called_from);
     }
 
     fn wipe_show_qrid(qrid: i32, called_from: Vec<&str>) {
@@ -287,7 +304,10 @@ pub fn ensure_show_exists(show_title: String, called_from: Vec<&str>) -> Option<
     }
 }
 
-fn get_uid_from_result(input: Vec<Row>) -> usize {
+fn get_uid_from_result(input: Vec<Row>, called_from: Vec<&str>) -> usize {
+    let mut called_from = called_from.clone();
+    called_from.push("get_uid_from_result");
+
     let mut uid: Option<i32> = None;
     for row in &input {
         uid = row.get(0);
@@ -295,7 +315,8 @@ fn get_uid_from_result(input: Vec<Row>) -> usize {
     if uid.is_some() {
         return uid.unwrap() as usize;
     }
-    panic!("Couldn't find entry that was just inserted, this shouldn't happen.");
+    print(Verbosity::CRITICAL, From::DB, called_from, format!("Couldn't find entry that was just inserted, this shouldn't happen."));
+    panic!();
 }
 
 pub fn insert_content(content: Content, called_from: Vec<&str>) {
@@ -315,10 +336,12 @@ pub fn insert_content(content: Content, called_from: Vec<&str>) {
                 called_from.clone(),
             ); */
         } else {
-            panic!("show UID couldn't be retreived");
+            print(Verbosity::ERROR, From::DB, called_from, format!("show UID couldn't be retrieved"));
+            panic!();
         }
     }
 
+    //internal functions
     fn read_back_content_uid(qrid: i32, called_from: Vec<&str>) -> usize {
         let mut called_from = called_from.clone();
         called_from.push("read_back_content_uid");
@@ -326,8 +349,8 @@ pub fn insert_content(content: Content, called_from: Vec<&str>) {
         return get_uid_from_result(handle_result_error(
             get_client(called_from.clone())
                 .query(r"SELECT content_uid FROM content WHERE qrid = $1", &[&qrid]),
-            called_from,
-        ));
+            called_from.clone(),
+        ), called_from);
     }
 
     fn ensure_content_table_exists(called_from: Vec<&str>) {
@@ -368,6 +391,7 @@ fn insert_task(task_id: usize, id: usize, job_uid: usize, called_from: Vec<&str>
     ensure_task_table_exists(called_from.clone());
     insert_task_internal(task_id, id, job_uid, called_from.clone());
 
+    //internal functions
     //pull out in order by id
     fn ensure_task_table_exists(called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
@@ -411,11 +435,15 @@ fn insert_task(task_id: usize, id: usize, job_uid: usize, called_from: Vec<&str>
 }
 
 pub fn insert_job(job: Job, called_from: Vec<&str>) {
+    /*
+     * logic
+     */
     let mut called_from = called_from.clone();
     called_from.push("insert_job");
 
     ensure_job_table_exists(called_from.clone());
     let uid = insert_job_internal(job, called_from.clone());
+    //////////
 
     fn insert_job_internal(job: Job, called_from: Vec<&str>) -> usize {
         let mut called_from = called_from.clone();
@@ -477,6 +505,9 @@ pub fn insert_job(job: Job, called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
         called_from.push("ensure_job_table_exists");
 
+        /*
+         * logic
+         */
         //ensures job table exists
         //cache_directory marked as not null, but realistically it can be None, but won't be shown as such in the database,
         //it provides no benefit and something else will be stored in the database designate no usable value
@@ -496,6 +527,7 @@ pub fn insert_job(job: Job, called_from: Vec<&str>) {
             )",
             called_from,
         );
+        //////////
     }
 
     fn read_back_job_uid(qrid: i32, called_from: Vec<&str>) -> usize {
@@ -505,8 +537,8 @@ pub fn insert_job(job: Job, called_from: Vec<&str>) {
         return get_uid_from_result(handle_result_error(
             get_client(called_from.clone())
                 .query(r"SELECT job_uid from job_queue WHERE qrid = $1", &[&qrid]),
-            called_from,
-        ));
+            called_from.clone(),
+        ), called_from);
     }
 }
 
@@ -514,20 +546,28 @@ fn handle_result_error(result: Result<Vec<Row>, Error>, called_from: Vec<&str>) 
     let mut called_from = called_from.clone();
     called_from.push("handle_result_error");
 
+    /*
+     * logic
+     */
     if result.is_ok() {
         let result = result.unwrap();
         if result.len() > 0 {
             return result;
         } else {
-            panic!(
-                "CF: {}, result contained no rows",
-                convert_function_callback_to_string(called_from)
-            );
+            print(
+                Verbosity::ERROR, 
+                From::DB, 
+                called_from.clone(), 
+                format!("CF: {}, result contained no rows",
+                convert_function_callback_to_string(called_from.clone())
+            ));
         }
     } else {
-        handle_retrieve_error(result, called_from);
+        handle_retrieve_error(result, called_from.clone());
     }
-    panic!("couldn't or haven't handled the error yet");
+    print(Verbosity::ERROR, From::DB, called_from, format!("couldn't or haven't handled the error yet"));
+    panic!();
+    //////////
 }
 
 fn get_by_query(query: &str, called_from: Vec<&str>) -> Vec<Row> {
@@ -556,6 +596,9 @@ pub fn print_jobs(called_from: Vec<&str>) {
     let mut called_from = called_from.clone();
     called_from.push("print_jobs");
 
+    /*
+     * logic
+     */
     for row in get_by_query(r"SELECT job_uid FROM job_queue", called_from.clone()) {
         let uid: i32 = row.get(0);
         print(
@@ -565,12 +608,16 @@ pub fn print_jobs(called_from: Vec<&str>) {
             format!("[job_uid: {}]", uid),
         );
     }
+    //////////
 }
 
 pub fn print_shows(called_from: Vec<&str>) {
     let mut called_from = called_from.clone();
     called_from.push("print_shows");
 
+    /*
+     * logic
+     */
     for row in get_by_query(r"SELECT title FROM show", called_from.clone()) {
         let title: String = row.get(0);
         print(
@@ -580,12 +627,16 @@ pub fn print_shows(called_from: Vec<&str>) {
             format!("[title: {}]", title),
         );
     }
+    //////////
 }
 
 pub fn print_contents(called_from: Vec<&str>) {
     let mut called_from = called_from.clone();
     called_from.push("print_contents");
 
+    /*
+     * logic
+     */
     for row in get_by_query(
         r"SELECT content_uid, full_path, designation FROM content",
         called_from.clone(),
@@ -606,4 +657,5 @@ pub fn print_contents(called_from: Vec<&str>) {
             ),
         )
     }
+    //////////
 }

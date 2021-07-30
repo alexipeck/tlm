@@ -12,7 +12,7 @@ mod queue;
 mod shows;
 mod task;
 use content::Content;
-use database::{db_purge, insert_content, insert_job, print_contents, print_jobs, print_shows, insert_episode};
+use database::{db_purge, insert_content, insert_job, print_contents, print_jobs, print_shows, insert_episode_if_episode};
 use designation::Designation;
 use crate::print::{print, From, Verbosity};
 use queue::Queue;
@@ -175,7 +175,8 @@ fn main() {
             _ => {}
         }
         insert_content(content.clone(), called_from.clone());
-        insert_episode(content.clone(), called_from.clone());
+        insert_episode_if_episode(content.clone(), called_from.clone());
+
         let mut job = content.create_job();
         if worker.is_some() {
             job.prepare_tasks(

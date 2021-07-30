@@ -201,6 +201,10 @@ impl Shows {
     pub fn print(&self, called_from: Vec<&str>) {
         let mut called_from = called_from.clone();
         called_from.push("print");
+
+        /*
+         * logic
+         */
         for show in &self.shows {
             for season in &show.seasons {
                 for episode in &season.episodes {
@@ -213,5 +217,6 @@ impl Shows {
                 }
             }
         }
+        //////////
     }
 }
