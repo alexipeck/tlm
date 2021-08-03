@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 static WORKER_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-use tlm::{get_show_title_from_pathbuf, import_files, print};
+use tlm::{get_show_title_from_pathbuf, import_files};
 mod content;
 mod database;
 mod designation;
@@ -11,10 +11,13 @@ mod job;
 mod queue;
 mod shows;
 mod task;
+mod traceback;
+mod print;
 use content::Content;
 use database::{db_purge, insert_content, insert_job, print_contents, print_jobs, print_shows, insert_episode_if_episode};
 use designation::Designation;
-use crate::print::{print, From, Verbosity};
+use print::{print, From, Verbosity};
+use traceback::Traceback;
 use queue::Queue;
 use shows::Shows;
 
@@ -74,9 +77,12 @@ impl Worker {
 }
 
 fn main() {
-    let mut called_from: Vec<&str> = Vec::new();
-    called_from.push("main");
-    db_purge(called_from.clone());
+    let mut traceback = Traceback::new();
+    traceback.add_location("test");
+
+    //let mut called_from: Vec<&str> = Vec::new();
+    //called_from.push("main");
+    db_purge(traceback.clone());
 
     //insert_into(content)
 
@@ -156,7 +162,7 @@ fn main() {
                 shows
                     .ensure_show_exists_by_title(
                         content.show_title.clone().unwrap(),
-                        called_from.clone(),
+                        traceback.clone(),
                     )
                     .0,
             );
@@ -167,15 +173,15 @@ fn main() {
             Designation::Episode => {
                 content.show_title = Some(get_show_title_from_pathbuf(&raw_filepath));
                 content.show_season_episode = content.show_season_episode;
-                shows.add_episode(content.clone(), called_from.clone());
+                shows.add_episode(content.clone(), traceback.clone());
             }
             /*Designation::Movie => (
 
             ),*/
             _ => {}
         }
-        insert_content(content.clone(), called_from.clone());
-        insert_episode_if_episode(content.clone(), called_from.clone());
+        insert_content(content.clone(), traceback.clone());
+        insert_episode_if_episode(content.clone(), traceback.clone());
 
         let mut job = content.create_job();
         if worker.is_some() {
@@ -196,14 +202,14 @@ fn main() {
             pub show_title: Option<String>,
             pub show_season_episode: Option<(usize, usize)>,
             */
-            insert_job(job.clone(), called_from.clone());
+            insert_job(job.clone(), traceback.clone());
         }
         queue.add_job_to_queue(job);
     }
 
-    print_contents(called_from.clone());
-    print_shows(called_from.clone());
-    print_jobs(called_from.clone());
+    print_contents(traceback.clone());
+    print_shows(traceback.clone());
+    print_jobs(traceback.clone());
 
     //queue.print();
 
