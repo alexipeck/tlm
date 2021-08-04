@@ -5,6 +5,9 @@ pub mod queue;
 pub mod task;
 pub mod traceback;
 pub mod print;
+pub mod filter;
+pub mod database;
+pub mod shows;
 
 use std::{collections::{VecDeque, HashSet}, fs, path::PathBuf, time::Instant};
 use twox_hash::xxh3;

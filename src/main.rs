@@ -13,6 +13,7 @@ mod shows;
 mod task;
 mod traceback;
 mod print;
+mod filter;
 use content::Content;
 use database::{db_purge, insert_content, insert_job, print_contents, print_jobs, print_shows, insert_episode_if_episode};
 use designation::Designation;
@@ -80,11 +81,7 @@ fn main() {
     let mut traceback = Traceback::new();
     traceback.add_location("test");
 
-    //let mut called_from: Vec<&str> = Vec::new();
-    //called_from.push("main");
     db_purge(traceback.clone());
-
-    //insert_into(content)
 
     //remote or local workers
     let mut encode_workers: Workers = Workers::new();

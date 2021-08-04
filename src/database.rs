@@ -613,7 +613,7 @@ fn handle_result_error(result: Result<Vec<Row>, Error>, traceback: Traceback) ->
     //////////
 }
 
-fn get_by_query(query: &str, traceback: Traceback) -> Vec<Row> {
+pub fn get_by_query(query: &str, traceback: Traceback) -> Vec<Row> {
     let mut traceback = traceback.clone();
     traceback.add_location("get_by_query");
 
@@ -680,25 +680,8 @@ pub fn print_contents(traceback: Traceback) {
     /*
      * logic
      */
-    for row in get_by_query(
-        r"SELECT content_uid, full_path, designation FROM content",
-        traceback.clone(),
-    ) {
-        let content_uid_temp: i32 = row.get(0);
-        let content_uid = content_uid_temp as usize;
-        let full_path_temp: String = row.get(1);
-        let designation_temp: i32 = row.get(2);
-        let designation = convert_i32_to_designation(designation_temp);
-        let full_path = PathBuf::from(&full_path_temp);
-        print(
-            Verbosity::DEBUG,
-            From::DB,
-            traceback.clone(),
-            format!(
-                "[content_uid: {:2}][designation: {}][full_path: {}]",
-                content_uid, designation as i32, full_path_temp
-            ),
-        )
+    for content in Content::get_all_contents(traceback.clone()) {
+        content.print_simple(traceback.clone());
     }
     //////////
 }

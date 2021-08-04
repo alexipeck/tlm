@@ -1,9 +1,16 @@
-use crate::print::{print, From, Verbosity};
-use crate::traceback::Traceback;
-use crate::{designation::Designation, job::Job};
+use crate::{
+    print::{print, From, Verbosity},
+    traceback::Traceback,
+    designation::Designation,
+    job::Job,
+    designation::convert_i32_to_designation,
+    filter::{Elements, Filter, DBTable},
+    database::get_by_query,
+};
 use regex::Regex;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use tokio_postgres::Row;
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -78,6 +85,48 @@ impl Content {
         };
         content.designate_and_fill();
         return content;
+    }
+
+    fn from_row(row: Row, traceback: Traceback) -> Content {
+        let mut traceback = traceback.clone();
+        traceback.add_location("from_row");
+
+        let content_uid_temp: i32 = row.get(0);
+        let full_path_temp: String = row.get(1);
+        let designation_temp: i32 = row.get(2);
+        
+        //change to have it pull all info out of the db, it currently generates what it can from the filename 
+        let mut content = Content {
+            full_path: PathBuf::from(&full_path_temp),
+            designation: convert_i32_to_designation(designation_temp),//Designation::Generic
+            uid: content_uid_temp as usize,
+            hash: None,
+
+            //truly optional
+            show_title: None,
+            show_season_episode: None,
+            show_uid: None,
+        };
+        content.designate_and_fill();
+        return content;
+    }
+
+    /* pub fn get_contents_by_filter(filter: Filter) -> Vec<Content> {
+        
+    } */
+
+    pub fn get_all_contents(traceback: Traceback) -> Vec<Content> {
+        let mut traceback = traceback.clone();
+        traceback.add_location("get_all_contents");
+
+        let mut contents: Vec<Content> = Vec::new();
+        for row in get_by_query(
+            r"SELECT content_uid, full_path, designation FROM content",
+            traceback.clone(),
+        ) {
+            contents.push(Content::from_row(row, traceback.clone()));
+        }
+        return contents;
     }
 
     //no options currently
@@ -216,6 +265,20 @@ impl Content {
         return self.full_path.parent().unwrap().join(new_filename);
     }
 
+    pub fn print_simple(&self, traceback: Traceback) {
+        print(
+            Verbosity::DEBUG,
+            From::DB,
+            traceback.clone(),
+            format!(
+                "[content_uid: {:2}][designation: {}][full_path: {}]",
+                self.uid,
+                self.designation as i32,
+                self.get_full_path(),
+            ),
+        );
+    }
+    
     pub fn get_parent_directory_from_pathbuf_as_string(pathbuf: &PathBuf) -> String {
         return pathbuf.parent().unwrap().to_string_lossy().to_string();
     }
