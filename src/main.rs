@@ -141,11 +141,9 @@ fn main() {
     //ignored directories
     let ignored_paths = vec![".recycle_bin"];
 
-    let mut raw_filepaths = Vec::new();
 
     //Load all video files under tracked directories exluding all ignored paths
-    import_files(
-        &mut raw_filepaths,
+    let mut raw_filepaths = import_files(
         &tracked_directories.root_directories,
         &allowed_extensions,
         &ignored_paths,
