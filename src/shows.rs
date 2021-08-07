@@ -1,10 +1,11 @@
-use crate::content::Content;
-use crate::database::ensure_show_exists;
-use crate::print::{print, From, Verbosity};
+use crate::{
+    traceback::Traceback,
+    database::ensure_show_exists,
+    print::{print, From, Verbosity},
+    content::Content,
+};
 use std::ops::{Index, IndexMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
-
-static SHOW_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 pub struct Season {
     pub number: usize,
@@ -41,13 +42,13 @@ impl Show {
         }
     }
 
-    pub fn print_show(&self, called_from: Vec<&str>) {
-        let mut called_from = called_from.clone();
-        called_from.push("print_show");
+    pub fn print_show(&self, traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("print_show");
         print(
             Verbosity::DEBUG,
             From::Shows,
-            called_from,
+            traceback,
             format!("[uid: {}][title: {}]", self.uid, self.title),
         );
     }
@@ -122,26 +123,6 @@ impl Shows {
         self[show_index].seasons.push(Season::new(season_number));
     }
 
-    //returns (uid, index)
-    pub fn ensure_show_exists_by_title(
-        &mut self,
-        title: String,
-        called_from: Vec<&str>,
-    ) -> (usize, usize) {
-        let mut index: usize = 0;
-        for show in &self.shows {
-            if show.title == title {
-                return (show.uid, index);
-            }
-            index += 1;
-        }
-        let uid = SHOW_UID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        let temp_show = Show::new(uid, title.clone());
-        ensure_show_exists(temp_show.title.clone(), called_from);
-        self.shows.push(temp_show);
-        return (uid, index);
-    }
-
     //not actually in order
     fn insert_in_order(
         &mut self,
@@ -176,42 +157,25 @@ impl Shows {
         }
     }
 
-    //will overwrite data
-    pub fn add_episode(&mut self, content: Content, called_from: Vec<&str>) {
-        let mut called_from = called_from.clone();
-        called_from.push("add_episode");
-        let show_index = self
-            .ensure_show_exists_by_title(content.show_title.clone().unwrap(), called_from)
-            .1;
-        self.ensure_season_exists_by_show_index_and_season_number(
-            show_index,
-            content.show_season_episode.clone().unwrap().0,
-        );
-        self.insert_in_order(show_index, content);
-    }
+    pub fn print(&self, traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("print");
 
-    //insert show
-
-    //exists
-
-    //pub collect season
-
-    //pub collect show
-
-    pub fn print(&self, called_from: Vec<&str>) {
-        let mut called_from = called_from.clone();
-        called_from.push("print");
+        /*
+         * logic
+         */
         for show in &self.shows {
             for season in &show.seasons {
                 for episode in &season.episodes {
                     print(
                         Verbosity::INFO,
                         From::Shows,
-                        called_from.clone(),
+                        traceback.clone(),
                         format!("{}", episode.get_filename_woe()),
                     );
                 }
             }
         }
+        //////////
     }
 }

@@ -1,7 +1,17 @@
-use crate::{designation::Designation, job::Job};
+use crate::{
+    database::{get_by_query, ensure_show_exists},
+    designation::Designation,
+    designation::convert_i32_to_designation,
+    filter::{Elements, Filter, DBTable},
+    job::Job,
+    print::{print, From, Verbosity},
+    traceback::{self, Traceback}
+};
 use regex::Regex;
-use std::path::PathBuf;
+use std::{collections::VecDeque, path::PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use tokio_postgres::Row;
+use std::collections::HashSet;
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -60,7 +70,11 @@ pub struct Content {
 }
 
 impl Content {
-    pub fn new(raw_filepath: &PathBuf) -> Content {
+    //needs to be able to be created from a pathbuf or pulled from the database
+    pub fn new(raw_filepath: &PathBuf, traceback: Traceback) -> Content {
+        let mut traceback = traceback.clone();
+        traceback.add_location("new");
+
         let mut content = Content {
             full_path: raw_filepath.clone(),
             //temp_encode_path: None,
@@ -74,8 +88,93 @@ impl Content {
             show_season_episode: None,
             show_uid: None,
         };
-        content.designate_and_fill();
+        content.designate_and_fill(traceback);
         return content;
+    }
+
+    pub fn from_row(row: Row, traceback: Traceback) -> Content {
+        let mut traceback = traceback.clone();
+        traceback.add_location("from_row");
+
+        let content_uid_temp: i32 = row.get(0);
+        let full_path_temp: String = row.get(1);
+        let designation_temp: i32 = row.get(2);
+        
+        //change to have it pull all info out of the db, it currently generates what it can from the filename 
+        let mut content = Content {
+            full_path: PathBuf::from(&full_path_temp),
+            designation: convert_i32_to_designation(designation_temp),//Designation::Generic
+            uid: content_uid_temp as usize,
+            hash: None,
+
+            //truly optional
+            show_title: None,
+            show_season_episode: None,
+            show_uid: None,
+        };
+        content.designate_and_fill(traceback);
+
+        return content;
+    }
+
+    /* pub fn get_contents_by_filter(filter: Filter) -> Vec<Content> {
+        
+    } */
+
+    pub fn get_all_contents(traceback: Traceback) -> Vec<Content> {
+        let mut traceback = traceback.clone();
+        traceback.add_location("get_all_contents");
+
+        let mut contents: Vec<Content> = Vec::new();
+        for row in get_by_query(
+            r"SELECT content_uid, full_path, designation FROM content",
+            traceback.clone(),
+        ) {
+            contents.push(Content::from_row(row, traceback.clone()));
+        }
+        return contents;
+    }
+
+    pub fn filename_from_row_as_pathbuf(row: Row, traceback: Traceback) -> PathBuf {
+        let mut traceback = traceback.clone();
+        traceback.add_location("filename_from_row_as_pathbuf");
+
+        let temp: String = row.get(0);
+        return PathBuf::from(temp);
+
+    }
+
+    pub fn get_all_filenames_as_hashset_from_contents(contents: Vec<Content>, traceback: Traceback) -> HashSet<PathBuf> {
+        let mut traceback = traceback.clone();
+        traceback.add_location("get_all_filenames_as_hashset");
+
+        /*
+         * logic
+         */
+        let mut hashset = HashSet::new();
+        for content in contents {
+            hashset.insert(content.full_path);
+        }
+        return hashset;
+        //////////
+    }
+
+    pub fn get_all_filenames_as_hashset(traceback: Traceback) -> HashSet<PathBuf> {
+        let mut traceback = traceback.clone();
+        traceback.add_location("get_all_filenames_as_hashset");
+
+        /*
+         * logic
+         */
+        let mut hashset = HashSet::new();
+        for row in get_by_query(
+            r"SELECT full_path FROM content",
+            traceback.clone(),
+        ) {
+            hashset.insert(Content::filename_from_row_as_pathbuf(row, traceback.clone()));
+        }
+        return hashset;
+        //////////
     }
 
     //no options currently
@@ -139,6 +238,10 @@ impl Content {
 
     pub fn get_full_path(&self) -> String {
         return self.full_path.as_os_str().to_str().unwrap().to_string();
+    }
+
+    pub fn get_full_path_from_pathbuf(pathbuf: PathBuf) -> String {
+        return pathbuf.to_str().unwrap().to_string();
     }
 
     pub fn get_filename_from_pathbuf(pathbuf: PathBuf) -> String {
@@ -214,6 +317,55 @@ impl Content {
         return self.full_path.parent().unwrap().join(new_filename);
     }
 
+    /*
+    pub show_uid: Option<usize>,
+    pub show_title: Option<String>,
+    pub show_season_episode: Option<(usize, usize)>,
+    */
+
+    pub fn print(&self, traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("print");
+        
+        if self.show_uid.is_some() && self.show_title.is_some() && self.show_season_episode.is_some() {
+            let season_episode = self.show_season_episode.unwrap();
+            print(
+                Verbosity::DEBUG,
+                From::DB,
+                traceback.clone(),
+                format!(
+                    "[content_uid: {:2}][designation: {}][full_path: {}][show_uid: {}][show_title{}][season: {}][episode: {}]",
+                    self.uid,
+                    self.designation as i32,
+                    self.get_full_path(),
+                    self.show_uid.unwrap(),
+                    self.show_title.clone().unwrap(),
+                    season_episode.0,
+                    season_episode.1
+                ),
+            );
+        } else {
+            self.print_simple(traceback);
+        }        
+    }
+
+    fn print_simple(&self, traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("print_simple");
+
+        print(
+            Verbosity::DEBUG,
+            From::DB,
+            traceback.clone(),
+            format!(
+                "[content_uid: {:2}][designation: {}][full_path: {}]",
+                self.uid,
+                self.designation as i32,
+                self.get_full_path(),
+            ),
+        );
+    }
+    
     pub fn get_parent_directory_from_pathbuf_as_string(pathbuf: &PathBuf) -> String {
         return pathbuf.parent().unwrap().to_string_lossy().to_string();
     }
@@ -222,7 +374,21 @@ impl Content {
         self.show_uid = Some(show_uid);
     }
 
-    pub fn designate_and_fill(&mut self) {
+    pub fn content_is_episode(&self, traceback: Traceback) -> bool {
+        let mut traceback = traceback.clone();
+        traceback.add_location("content_is_episode");
+
+        if self.show_uid.is_some() && self.show_title.is_some() && self.show_season_episode.is_some() {
+            return true;
+        }
+        //print(Verbosity::INFO, From::Main, traceback, format!("exists: [show_uid: {}][show_title: {}][show_season_episode: {}]", self.show_uid.is_some(), self.show_title.is_some(), self.show_season_episode.is_some()));
+        return false;
+    }
+    
+    pub fn designate_and_fill(&mut self, traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("designate_and_fill");
+
         let mut episode = false;
         let show_season_episode_conditional = self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
         if episode {
@@ -243,7 +409,9 @@ impl Content {
             }
 
             self.show_season_episode = show_season_episode_conditional;
-            self.show_uid = None;
+            //check if show title already exists in the db, if not, create show and return uid
+            //asd;
+            self.show_uid = ensure_show_exists(self.show_title.clone().unwrap(), traceback);
         } else {
             self.designation = Designation::Generic;
             self.show_title = None;
@@ -255,7 +423,10 @@ impl Content {
         self.full_path = new_full_path.clone();
     }
 
-    pub fn regenerate_from_pathbuf(&mut self, raw_filepath: &PathBuf) {
+    pub fn regenerate_from_pathbuf(&mut self, raw_filepath: &PathBuf, traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("regenerate_from_pathbuf");
+
         let mut episode = false;
         self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
 
@@ -267,6 +438,6 @@ impl Content {
         self.full_path = raw_filepath.clone();
 
         //designation, show_title, show_season_episode
-        self.designate_and_fill();
+        self.designate_and_fill(traceback);
     }
 }
