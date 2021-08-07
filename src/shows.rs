@@ -7,8 +7,6 @@ use crate::{
 use std::ops::{Index, IndexMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-static SHOW_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
-
 pub struct Season {
     pub number: usize,
     pub episodes: Vec<Content>,
@@ -125,29 +123,6 @@ impl Shows {
         self[show_index].seasons.push(Season::new(season_number));
     }
 
-    //returns (uid, index)
-    pub fn ensure_show_exists_by_title(
-        &mut self,
-        title: String,
-        traceback: Traceback,
-    ) -> (usize, usize) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("ensure_show_exists_by_title");
-
-        let mut index: usize = 0;
-        for show in &self.shows {
-            if show.title == title {
-                return (show.uid, index);
-            }
-            index += 1;
-        }
-        let uid = SHOW_UID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        let temp_show = Show::new(uid, title.clone());
-        ensure_show_exists(temp_show.title.clone(), traceback);
-        self.shows.push(temp_show);
-        return (uid, index);
-    }
-
     //not actually in order
     fn insert_in_order(
         &mut self,
@@ -181,28 +156,6 @@ impl Shows {
             }
         }
     }
-
-    //will overwrite data
-    pub fn add_episode(&mut self, content: Content, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("add_episode");
-        let show_index = self
-            .ensure_show_exists_by_title(content.show_title.clone().unwrap(), traceback)
-            .1;
-        self.ensure_season_exists_by_show_index_and_season_number(
-            show_index,
-            content.show_season_episode.clone().unwrap().0,
-        );
-        self.insert_in_order(show_index, content);
-    }
-
-    //insert show
-
-    //exists
-
-    //pub collect season
-
-    //pub collect show
 
     pub fn print(&self, traceback: Traceback) {
         let mut traceback = traceback.clone();

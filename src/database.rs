@@ -12,6 +12,7 @@ use postgres::Client;
 use rand::Rng;
 use std::path::PathBuf;
 use tokio_postgres::{Error, NoTls, Row};
+use std::collections::HashSet;
 
 //primary helper functions
 fn generate_qrid() -> i32 {
@@ -124,7 +125,7 @@ fn db_boolean_handle(input: Vec<Row>, traceback: Traceback) -> bool {
     pub show_season_episode: Option<(usize, usize)>,
 } */
 
-pub fn insert_filename_hash(filename_hash: String, traceback: Traceback) {
+pub fn insert_filename_hash(filename_hash: String, traceback: Traceback) -> bool {
     let mut traceback = traceback.clone();
     traceback.add_location("insert_filename_hash");
 
@@ -132,12 +133,10 @@ pub fn insert_filename_hash(filename_hash: String, traceback: Traceback) {
      * logic
      */
     if filename_hash_not_exists(filename_hash.clone(), traceback.clone()) {
-        ensure_filename_hash_table_exists(traceback.clone());
-
-        //if !season_exists_in_show(show_uid, season_number, traceback.clone()) {
         insert_filename_hash_internal(filename_hash, traceback.clone());
-        //}
+        return true;
     }
+    return false;
     //////////
 
     fn filename_hash_not_exists(filename_hash: String, traceback: Traceback) -> bool {
@@ -156,18 +155,6 @@ pub fn insert_filename_hash(filename_hash: String, traceback: Traceback) {
             traceback.clone(),
         ), traceback);
         //////////
-    }
-
-    fn ensure_filename_hash_table_exists(traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("ensure_episode_table_exists");
-        execute_query(
-            r"
-            CREATE TABLE IF NOT EXISTS filename_hash (
-                filename_hash   INTEGER PRIMARY KEY
-            )",
-            traceback,
-        );
     }
 
     fn insert_filename_hash_internal(filename_hash: String, traceback: Traceback) {
@@ -196,32 +183,12 @@ pub fn insert_episode_if_episode(
     /*
      * logic
      */
-    if content.content_is_episode(traceback.clone()) {
-        ensure_episode_table_exists(traceback.clone());
-
+    if content.content_is_episode(traceback.clone()) {        
         //if !season_exists_in_show(show_uid, season_number, traceback.clone()) {
         insert_episode_internal(content, traceback.clone());
         //}
     }
     //////////
-
-    fn ensure_episode_table_exists(traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("ensure_episode_table_exists");
-
-        execute_query(
-            r"
-            CREATE TABLE IF NOT EXISTS episode (
-                episode_uid             SERIAL PRIMARY KEY,
-                content_uid             INTEGER REFERENCES content (content_uid) NOT NULL,
-                show_uid                INTEGER REFERENCES show (show_uid) NOT NULL,
-                episode_title           TEXT NOT NULL,
-                season_number           SMALLINT NOT NULL,
-                episode_number          SMALLINT NOT NULL
-            )",
-            traceback,
-        );
-    }
 
     fn insert_episode_internal(content: Content, traceback: Traceback) {
         let mut traceback = traceback.clone();
@@ -230,15 +197,15 @@ pub fn insert_episode_if_episode(
         /*
          * logic
          */
-        let content_uid = 0;
+        let content_uid = content.uid as i32;
         let show_uid = content.show_uid.unwrap() as i32;
-        let episode_title = "";
+        println!("{}", show_uid);
         let (season_number_temp, episode_number_temp) = content.show_season_episode.unwrap();
-        let season_number = season_number_temp as i32;
-        let episode_number = episode_number_temp as i32;
+        let season_number = season_number_temp as i16;
+        let episode_number = episode_number_temp as i16;
         let error = get_client(traceback.clone()).execute(
             r"INSERT INTO episode (content_uid, show_uid, episode_title, episode_number, season_number) VALUES ($1, $2, $3, $4, $5)",
-            &[&content_uid, &show_uid, &episode_title, &episode_number, &season_number],
+            &[&content_uid, &show_uid, &content.show_title.unwrap(), &episode_number, &season_number],
         );
         handle_insert_error(error, traceback.clone());
         //////////
@@ -299,7 +266,6 @@ pub fn ensure_show_exists(show_title: String, traceback: Traceback) -> Option<us
     /*
      * logic
      */
-    ensure_show_table_exists(traceback.clone());
     if !show_exists(&show_title, traceback.clone()) {
         let qrid = generate_qrid();
         insert_show(show_title, qrid, traceback.clone());
@@ -310,21 +276,6 @@ pub fn ensure_show_exists(show_title: String, traceback: Traceback) -> Option<us
         return get_show_uid_by_title(show_title, traceback);
     }
     //////////
-    
-    fn ensure_show_table_exists(traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("ensure_show_table_exists");
-
-        execute_query(
-            r"
-            CREATE TABLE IF NOT EXISTS show (
-                show_uid        SERIAL PRIMARY KEY,
-                title           TEXT NOT NULL,
-                qrid            INTEGER
-            )",
-            traceback,
-        );
-    }
 
     fn insert_show(show_title: String, qrid: i32, traceback: Traceback) {
         let mut traceback = traceback.clone();
@@ -410,17 +361,16 @@ fn get_uid_from_result(input: Vec<Row>, traceback: Traceback) -> usize {
     //////////
 }
 
-pub fn insert_content(content: Content, traceback: Traceback) {
+pub fn insert_content(content: Content, traceback: Traceback) -> usize {
     let mut traceback = traceback.clone();
     traceback.add_location("insert_content");
 
     /*
      * logic
      */
-    ensure_content_table_exists(traceback.clone());
     let qrid = generate_qrid();
     insert_content_internal(content.clone(), qrid, traceback.clone());
-    let uid = read_back_content_uid(qrid, traceback.clone());
+    let mut content = content.clone();
     if content.designation == crate::designation::Designation::Episode {
         let show_uid = ensure_show_exists(content.show_title.unwrap(), traceback.clone());
         if show_uid.is_some() {
@@ -434,6 +384,7 @@ pub fn insert_content(content: Content, traceback: Traceback) {
             panic!();
         }
     }
+    return read_back_content_uid(qrid, traceback.clone());
     //////////
 
     fn read_back_content_uid(qrid: i32, traceback: Traceback) -> usize {
@@ -445,22 +396,6 @@ pub fn insert_content(content: Content, traceback: Traceback) {
                 .query(r"SELECT content_uid FROM content WHERE qrid = $1", &[&qrid]),
             traceback.clone(),
         ), traceback);
-    }
-
-    fn ensure_content_table_exists(traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("ensure_content_table_exists");
-
-        execute_query(
-            r"
-            CREATE TABLE IF NOT EXISTS content (
-                content_uid     SERIAL PRIMARY KEY,
-                full_path       TEXT NOT NULL,
-                designation     INTEGER NOT NULL,
-                qrid            INTEGER
-            )",
-            traceback,
-        );
     }
 
     fn insert_content_internal(content: Content, qrid: i32, traceback: Traceback) {
@@ -485,25 +420,8 @@ fn insert_task(task_id: usize, id: usize, job_uid: usize, traceback: Traceback) 
     /*
      * logic
      */
-    ensure_task_table_exists(traceback.clone());
     insert_task_internal(task_id, id, job_uid, traceback.clone());
     //////////
-
-    //pull out in order by id
-    fn ensure_task_table_exists(traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("ensure_task_table_exists");
-        execute_query(
-            r"
-            CREATE TABLE IF NOT EXISTS job_task_queue (
-                id                  INTEGER NOT NULL,
-                job_uid             INTEGER REFERENCES job_queue (job_uid) NOT NULL,
-                task_id             SMALLINT NOT NULL,
-                PRIMARY KEY(job_uid, id)
-            );",
-            traceback,
-        );
-    }
 
     fn insert_task_internal(task_id: usize, id: usize, job_uid: usize, traceback: Traceback) {
         let mut traceback = traceback.clone();
@@ -542,7 +460,6 @@ pub fn insert_job(job: Job, traceback: Traceback) {
     /*
      * logic
      */
-    ensure_job_table_exists(traceback.clone());
     let uid = insert_job_internal(job, traceback.clone());
     //////////
 
@@ -602,35 +519,6 @@ pub fn insert_job(job: Job, traceback: Traceback) {
         return uid;
     }
 
-    fn ensure_job_table_exists(traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("ensure_job_table_exists");
-
-        /*
-         * logic
-         */
-        //ensures job table exists
-        //cache_directory marked as not null, but realistically it can be None, but won't be shown as such in the database,
-        //it provides no benefit and something else will be stored in the database designate no usable value
-        execute_query(
-            r"
-            CREATE TABLE IF NOT EXISTS job_queue (
-                job_uid             SERIAL PRIMARY KEY,
-                source_path         TEXT NOT NULL,
-                encode_path         TEXT NOT NULL,
-                cache_directory     TEXT NOT NULL,
-                encode_string       TEXT NOT NULL,
-                status_underway     BOOLEAN NOT NULL,
-                status_completed    BOOLEAN NOT NULL,
-                worker_uid          INTEGER NOT NULL,
-                worker_string_id    TEXT NOT NULL,
-                qrid                INTEGER NOT NULL
-            )",
-            traceback,
-        );
-        //////////
-    }
-
     fn read_back_job_uid(qrid: i32, traceback: Traceback) -> usize {
         let mut traceback = traceback.clone();
         traceback.add_location("read_back_job_uid");
@@ -670,8 +558,7 @@ fn handle_result_error(result: Result<Vec<Row>, Error>, traceback: Traceback) ->
     } else {
         handle_retrieve_error(result, traceback.clone());
     }
-    print(Verbosity::ERROR, From::DB, traceback, format!("couldn't or haven't handled the error yet"));
-    panic!();
+    return Vec::new();
     //////////
 }
 
@@ -683,6 +570,73 @@ pub fn get_by_query(query: &str, traceback: Traceback) -> Vec<Row> {
     return handle_result_error(result, traceback.clone());
 }
 
+pub fn db_table_create(traceback: Traceback) {
+    let mut traceback = traceback.clone();
+    traceback.add_location("db_table_create");
+
+    execute_query(
+        r"
+        CREATE TABLE IF NOT EXISTS content (
+            content_uid     SERIAL PRIMARY KEY,
+            full_path       TEXT NOT NULL,
+            designation     INTEGER NOT NULL,
+            qrid            INTEGER
+        )",
+        traceback.clone(),
+    );
+
+    execute_query(
+        r"
+        CREATE TABLE IF NOT EXISTS show (
+            show_uid        SERIAL PRIMARY KEY,
+            title           TEXT NOT NULL,
+            qrid            INTEGER
+        )",
+        traceback.clone(),
+    );
+
+    execute_query(
+        r"
+        CREATE TABLE IF NOT EXISTS episode (
+            content_uid             INTEGER REFERENCES content (content_uid) NOT NULL,
+            show_uid                INTEGER REFERENCES show (show_uid) NOT NULL,
+            episode_title           TEXT NOT NULL,
+            season_number           SMALLINT NOT NULL,
+            episode_number          SMALLINT NOT NULL,
+            PRIMARY KEY(show_uid, season_number, episode_number)
+        )",
+        traceback.clone(),
+    );
+
+    execute_query(
+        r"
+        CREATE TABLE IF NOT EXISTS job_queue (
+            job_uid             SERIAL PRIMARY KEY,
+            source_path         TEXT NOT NULL,
+            encode_path         TEXT NOT NULL,
+            cache_directory     TEXT NOT NULL,
+            encode_string       TEXT NOT NULL,
+            status_underway     BOOLEAN NOT NULL,
+            status_completed    BOOLEAN NOT NULL,
+            worker_uid          INTEGER NOT NULL,
+            worker_string_id    TEXT NOT NULL,
+            qrid                INTEGER NOT NULL
+        )",
+        traceback.clone(),
+    );
+
+    execute_query(
+        r"
+        CREATE TABLE IF NOT EXISTS job_task_queue (
+            id                  INTEGER NOT NULL,
+            job_uid             INTEGER REFERENCES job_queue (job_uid) NOT NULL,
+            task_id             SMALLINT NOT NULL,
+            PRIMARY KEY(job_uid, id)
+        );",
+        traceback.clone(),
+    );
+}
+
 pub fn db_purge(traceback: Traceback) {
     let mut traceback = traceback.clone();
     traceback.add_location("db_purge");
@@ -691,7 +645,7 @@ pub fn db_purge(traceback: Traceback) {
     let tables: Vec<&str> = vec!["content", "job_task_queue", "job_queue", "episode", "season", "show"];
     for table in tables {
         execute_query(
-            &format!("DROP TABLE IF EXISTS {}", table),
+            &format!("DROP TABLE IF EXISTS {} CASCADE", table),
             traceback.clone(),
         )
     }
@@ -743,7 +697,7 @@ pub fn print_contents(traceback: Traceback) {
      * logic
      */
     for content in Content::get_all_contents(traceback.clone()) {
-        content.print_simple(traceback.clone());
+        content.print(traceback.clone());
     }
     //////////
 }

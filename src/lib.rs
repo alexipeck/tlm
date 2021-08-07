@@ -13,11 +13,13 @@ use std::{collections::{VecDeque, HashSet}, fs, path::PathBuf, time::Instant};
 use twox_hash::xxh3;
 use walkdir::WalkDir;
 
+//Hash set guarentees no duplicates in O(1) time
 pub fn import_files(
     directories: &VecDeque<String>,
     allowed_extensions: &Vec<&str>,
     ignored_paths: &Vec<&str>,
-) -> Vec<PathBuf>{
+    existing_files: &mut HashSet<PathBuf>,
+) -> Vec<PathBuf> {
     //Return true if string contains any substring from Vector
     fn str_contains_strs(input_str: &str, substrings: &Vec<&str>) -> bool {
         for substring in substrings {
@@ -25,10 +27,10 @@ pub fn import_files(
                 return true;
             }
         }
-        false
+        return false;
     }
 
-    let mut temp_set = HashSet::new(); //Hash set guarentees no duplicates in O(1) time
+    let mut new_files = HashSet::new();
 
     //import all files in tracked root directories
     for directory in directories {
@@ -38,17 +40,24 @@ pub fn import_files(
             }
 
             if entry.path().is_file() {
-                if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap())
-                {
+                if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap()) {
                     if !directory.contains("_encodeH4U8") {
-                        temp_set.insert(entry.into_path());
+                        //make entry into pathbuf into string
+                        //check if string exists in existing_files
+                        //if it doesn't, add it's hash to existing_files HashSet and to the filename_hash
+                        let entry_string = entry.clone().into_path();
+                        if !existing_files.contains(&entry_string) {
+                            existing_files.insert(entry_string);
+                        };
+                        
+                        new_files.insert(entry.into_path());
                     }
                 }
             }
         }
     }
     
-    temp_set.iter().cloned().collect() //return the set as a vector (this is not sorted but there are no duplicates)
+    return new_files.iter().cloned().collect(); //return the set as a vector (this is not sorted but there are no duplicates)
 }
 
 pub fn get_show_title_from_pathbuf(pathbuf: &PathBuf) -> String {

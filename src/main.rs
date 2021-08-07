@@ -15,12 +15,13 @@ mod traceback;
 mod print;
 mod filter;
 use content::Content;
-use database::{db_purge, insert_content, insert_job, print_contents, print_jobs, print_shows, insert_episode_if_episode};
+use database::{db_purge, insert_content, insert_job, print_contents, print_jobs, print_shows, insert_episode_if_episode, db_table_create, ensure_show_exists};
 use designation::Designation;
 use print::{print, From, Verbosity};
 use traceback::Traceback;
 use queue::Queue;
 use shows::Shows;
+use std::{collections::HashSet, path::PathBuf};
 
 #[derive(Clone, Debug)]
 pub struct TrackedDirectories {
@@ -78,13 +79,32 @@ impl Worker {
 }
 
 fn main() {
-    let mut traceback = Traceback::new();
-    traceback.add_location("test");
+    /*
+    load list of existing contents
+    load list of existing files
+    load list of existing show_uids
+    
+    load list of directories, filtering out those already stored as a file
+    create content from this pathbuf
+    insert content
+    fill out show information if content is an episode
+    insert episode from content
+    */
 
-    //db_purge(traceback.clone());
+    let mut traceback = Traceback::new();
+    traceback.add_location("main");
+
+    db_purge(traceback.clone());
+
+    db_table_create(traceback.clone());
+
+    //let mut existing_files = Content::get_all_filenames_as_hashset(traceback.clone());
+    let mut existing_content: Vec<Content> = Content::get_all_contents(traceback.clone());
+    let mut existing_files_hashset: HashSet<PathBuf> = Content::get_all_filenames_as_hashset(traceback.clone());
+    
 
     //remote or local workers
-    let mut encode_workers: Workers = Workers::new();
+    /*let mut encode_workers: Workers = Workers::new();
     encode_workers
         .workers
         .push_back(Worker::new("nuc".to_string()));
@@ -94,9 +114,9 @@ fn main() {
         worker = Some(temp.unwrap());
     } else {
         panic!("No encode workers available");
-    }
+    }*/
 
-    //tracked directories - avoid crossover, it could lead to duplicate entries
+    //tracked directories - avoids duplicate entries
     let mut tracked_directories = TrackedDirectories::new();
 
     //manual entries
@@ -130,7 +150,7 @@ fn main() {
     }
 
     //queue
-    let mut queue = Queue::new(tracked_directories.cache_directories.clone());
+    //let mut queue = Queue::new(tracked_directories.cache_directories.clone());
 
     //allowed video extensions
     let allowed_extensions = vec!["mp4", "mkv", "webm", "MP4"];
@@ -139,45 +159,30 @@ fn main() {
     let ignored_paths = vec![".recycle_bin"];
 
 
-    //Load all video files under tracked directories exluding all ignored paths
-    let mut raw_filepaths = import_files(
+    //raw_filepaths only contains the new files (those that don't already exist in the database)
+    let mut new_files = import_files(
         &tracked_directories.root_directories,
         &allowed_extensions,
         &ignored_paths,
+        &mut existing_files_hashset,
     );
 
+
+
+    
     //sort out filepaths into series and seasons
     let mut shows = Shows::new();
 
-    //loop through all paths
-    for raw_filepath in raw_filepaths {
-        let mut content = Content::new(&raw_filepath);
-        if content.show_title.is_some() {
-            content.set_show_uid(
-                shows
-                    .ensure_show_exists_by_title(
-                        content.show_title.clone().unwrap(),
-                        traceback.clone(),
-                    )
-                    .0,
-            );
-        }
+    //loop through all new files
+    for new_file in new_files {
+        let mut content = Content::new(&new_file, traceback.clone());
 
-        //dumping prepared values into Content struct based on Designation
-        match content.designation {
-            Designation::Episode => {
-                content.show_title = Some(get_show_title_from_pathbuf(&raw_filepath));
-                content.show_season_episode = content.show_season_episode;
-                shows.add_episode(content.clone(), traceback.clone());
-            }
-            /*Designation::Movie => (
+        content.uid = insert_content(content.clone(), traceback.clone());        
 
-            ),*/
-            _ => {}
-        }
-        insert_content(content.clone(), traceback.clone());
+        //content.print(traceback.clone());
         insert_episode_if_episode(content.clone(), traceback.clone());
-
+        /*
+        
         let mut job = content.create_job();
         if worker.is_some() {
             job.prepare_tasks(
@@ -200,11 +205,14 @@ fn main() {
             insert_job(job.clone(), traceback.clone());
         }
         queue.add_job_to_queue(job);
+        */
     }
+    
 
     print_contents(traceback.clone());
     print_shows(traceback.clone());
-    print_jobs(traceback.clone());
+    //print_jobs(traceback.clone());
+    
 
     //queue.print();
 
