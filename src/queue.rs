@@ -96,12 +96,7 @@ impl Queue {
         return None;
     }
 
-    pub fn handle_by_uid(
-        &mut self,
-        job_uid: usize,
-        worker: (usize, String),
-        traceback: Traceback,
-    ) {
+    pub fn handle_by_uid(&mut self, job_uid: usize, worker: (usize, String), traceback: Traceback) {
         let mut traceback = traceback.clone();
         traceback.add_location("handle_by_uid");
         let mut delete: bool = false;

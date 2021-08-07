@@ -1,15 +1,20 @@
 pub mod content;
+pub mod database;
 pub mod designation;
+pub mod filter;
 pub mod job;
+pub mod print;
 pub mod queue;
+pub mod shows;
 pub mod task;
 pub mod traceback;
-pub mod print;
-pub mod filter;
-pub mod database;
-pub mod shows;
 
-use std::{collections::{VecDeque, HashSet}, fs, path::PathBuf, time::Instant};
+use std::{
+    collections::{HashSet, VecDeque},
+    fs,
+    path::PathBuf,
+    time::Instant,
+};
 use twox_hash::xxh3;
 use walkdir::WalkDir;
 
@@ -40,7 +45,8 @@ pub fn import_files(
             }
 
             if entry.path().is_file() {
-                if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap()) {
+                if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap())
+                {
                     if !directory.contains("_encodeH4U8") {
                         //make entry into pathbuf into string
                         //check if string exists in existing_files
@@ -49,14 +55,14 @@ pub fn import_files(
                         if !existing_files.contains(&entry_string) {
                             existing_files.insert(entry_string);
                         };
-                        
+
                         new_files.insert(entry.into_path());
                     }
                 }
             }
         }
     }
-    
+
     return new_files.iter().cloned().collect(); //return the set as a vector (this is not sorted but there are no duplicates)
 }
 

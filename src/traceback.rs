@@ -6,7 +6,7 @@ impl Traceback {
     pub fn new() -> Traceback {
         return Traceback {
             traceback: Vec::new(),
-        }
+        };
     }
 
     pub fn to_string(&self) -> String {
@@ -22,7 +22,7 @@ impl Traceback {
         }
         return call_functions_string;
     }
-    
+
     pub fn add_location(&mut self, called_from: &str) -> Traceback {
         self.traceback.push(String::from(called_from));
         return self.clone();

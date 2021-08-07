@@ -1,8 +1,8 @@
 use crate::{
-    traceback::Traceback,
+    content::Content,
     database::ensure_show_exists,
     print::{print, From, Verbosity},
-    content::Content,
+    traceback::Traceback,
 };
 use std::ops::{Index, IndexMut};
 use std::sync::atomic::{AtomicUsize, Ordering};

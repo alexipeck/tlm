@@ -7,21 +7,24 @@ use tlm::{get_show_title_from_pathbuf, import_files};
 mod content;
 mod database;
 mod designation;
+mod filter;
 mod job;
+mod print;
 mod queue;
 mod shows;
 mod task;
 mod traceback;
-mod print;
-mod filter;
 use content::Content;
-use database::{db_purge, insert_content, insert_job, print_contents, print_jobs, print_shows, insert_episode_if_episode, db_table_create, ensure_show_exists};
+use database::{
+    db_purge, db_table_create, ensure_show_exists, insert_content, insert_episode_if_episode,
+    insert_job, print_contents, print_jobs, print_shows,
+};
 use designation::Designation;
 use print::{print, From, Verbosity};
-use traceback::Traceback;
 use queue::Queue;
 use shows::Shows;
 use std::{collections::HashSet, path::PathBuf};
+use traceback::Traceback;
 
 #[derive(Clone, Debug)]
 pub struct TrackedDirectories {
@@ -83,7 +86,7 @@ fn main() {
     load list of existing contents
     load list of existing files
     load list of existing show_uids
-    
+
     load list of directories, filtering out those already stored as a file
     create content from this pathbuf
     insert content
@@ -100,8 +103,8 @@ fn main() {
 
     //let mut existing_files = Content::get_all_filenames_as_hashset(traceback.clone());
     let mut existing_content: Vec<Content> = Content::get_all_contents(traceback.clone());
-    let mut existing_files_hashset: HashSet<PathBuf> = Content::get_all_filenames_as_hashset(traceback.clone());
-    
+    let mut existing_files_hashset: HashSet<PathBuf> =
+        Content::get_all_filenames_as_hashset(traceback.clone());
 
     //remote or local workers
     /*let mut encode_workers: Workers = Workers::new();
@@ -158,7 +161,6 @@ fn main() {
     //ignored directories
     let ignored_paths = vec![".recycle_bin"];
 
-
     //raw_filepaths only contains the new files (those that don't already exist in the database)
     let mut new_files = import_files(
         &tracked_directories.root_directories,
@@ -167,9 +169,6 @@ fn main() {
         &mut existing_files_hashset,
     );
 
-
-
-    
     //sort out filepaths into series and seasons
     let mut shows = Shows::new();
 
@@ -177,12 +176,12 @@ fn main() {
     for new_file in new_files {
         let mut content = Content::new(&new_file, traceback.clone());
 
-        content.uid = insert_content(content.clone(), traceback.clone());        
+        content.uid = insert_content(content.clone(), traceback.clone());
 
         //content.print(traceback.clone());
         insert_episode_if_episode(content.clone(), traceback.clone());
         /*
-        
+
         let mut job = content.create_job();
         if worker.is_some() {
             job.prepare_tasks(
@@ -207,12 +206,10 @@ fn main() {
         queue.add_job_to_queue(job);
         */
     }
-    
 
     print_contents(traceback.clone());
     print_shows(traceback.clone());
     //print_jobs(traceback.clone());
-    
 
     //queue.print();
 

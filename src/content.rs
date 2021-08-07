@@ -1,17 +1,17 @@
 use crate::{
-    database::{get_by_query, ensure_show_exists},
-    designation::Designation,
+    database::{ensure_show_exists, get_by_query},
     designation::convert_i32_to_designation,
-    filter::{Elements, Filter, DBTable},
+    designation::Designation,
+    filter::{DBTable, Elements, Filter},
     job::Job,
     print::{print, From, Verbosity},
-    traceback::{self, Traceback}
+    traceback::{self, Traceback},
 };
 use regex::Regex;
-use std::{collections::VecDeque, path::PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use tokio_postgres::Row;
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{collections::VecDeque, path::PathBuf};
+use tokio_postgres::Row;
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -99,11 +99,11 @@ impl Content {
         let content_uid_temp: i32 = row.get(0);
         let full_path_temp: String = row.get(1);
         let designation_temp: i32 = row.get(2);
-        
-        //change to have it pull all info out of the db, it currently generates what it can from the filename 
+
+        //change to have it pull all info out of the db, it currently generates what it can from the filename
         let mut content = Content {
             full_path: PathBuf::from(&full_path_temp),
-            designation: convert_i32_to_designation(designation_temp),//Designation::Generic
+            designation: convert_i32_to_designation(designation_temp), //Designation::Generic
             uid: content_uid_temp as usize,
             hash: None,
 
@@ -118,7 +118,7 @@ impl Content {
     }
 
     /* pub fn get_contents_by_filter(filter: Filter) -> Vec<Content> {
-        
+
     } */
 
     pub fn get_all_contents(traceback: Traceback) -> Vec<Content> {
@@ -141,10 +141,12 @@ impl Content {
 
         let temp: String = row.get(0);
         return PathBuf::from(temp);
-
     }
 
-    pub fn get_all_filenames_as_hashset_from_contents(contents: Vec<Content>, traceback: Traceback) -> HashSet<PathBuf> {
+    pub fn get_all_filenames_as_hashset_from_contents(
+        contents: Vec<Content>,
+        traceback: Traceback,
+    ) -> HashSet<PathBuf> {
         let mut traceback = traceback.clone();
         traceback.add_location("get_all_filenames_as_hashset");
 
@@ -167,11 +169,11 @@ impl Content {
          * logic
          */
         let mut hashset = HashSet::new();
-        for row in get_by_query(
-            r"SELECT full_path FROM content",
-            traceback.clone(),
-        ) {
-            hashset.insert(Content::filename_from_row_as_pathbuf(row, traceback.clone()));
+        for row in get_by_query(r"SELECT full_path FROM content", traceback.clone()) {
+            hashset.insert(Content::filename_from_row_as_pathbuf(
+                row,
+                traceback.clone(),
+            ));
         }
         return hashset;
         //////////
@@ -326,8 +328,11 @@ impl Content {
     pub fn print(&self, traceback: Traceback) {
         let mut traceback = traceback.clone();
         traceback.add_location("print");
-        
-        if self.show_uid.is_some() && self.show_title.is_some() && self.show_season_episode.is_some() {
+
+        if self.show_uid.is_some()
+            && self.show_title.is_some()
+            && self.show_season_episode.is_some()
+        {
             let season_episode = self.show_season_episode.unwrap();
             print(
                 Verbosity::DEBUG,
@@ -346,7 +351,7 @@ impl Content {
             );
         } else {
             self.print_simple(traceback);
-        }        
+        }
     }
 
     fn print_simple(&self, traceback: Traceback) {
@@ -365,7 +370,7 @@ impl Content {
             ),
         );
     }
-    
+
     pub fn get_parent_directory_from_pathbuf_as_string(pathbuf: &PathBuf) -> String {
         return pathbuf.parent().unwrap().to_string_lossy().to_string();
     }
@@ -378,13 +383,16 @@ impl Content {
         let mut traceback = traceback.clone();
         traceback.add_location("content_is_episode");
 
-        if self.show_uid.is_some() && self.show_title.is_some() && self.show_season_episode.is_some() {
+        if self.show_uid.is_some()
+            && self.show_title.is_some()
+            && self.show_season_episode.is_some()
+        {
             return true;
         }
         //print(Verbosity::INFO, From::Main, traceback, format!("exists: [show_uid: {}][show_title: {}][show_season_episode: {}]", self.show_uid.is_some(), self.show_title.is_some(), self.show_season_episode.is_some()));
         return false;
     }
-    
+
     pub fn designate_and_fill(&mut self, traceback: Traceback) {
         let mut traceback = traceback.clone();
         traceback.add_location("designate_and_fill");

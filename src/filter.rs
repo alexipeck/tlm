@@ -12,9 +12,7 @@ pub enum Elements {
 }
 
 pub struct Filter {
-    elements: Vec<Elements>,//will be a mix of dbtables and elements etc
+    elements: Vec<Elements>, //will be a mix of dbtables and elements etc
 }
 
-impl Filter {
-    
-}
+impl Filter {}
