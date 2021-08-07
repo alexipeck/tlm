@@ -81,7 +81,7 @@ fn main() {
     let mut traceback = Traceback::new();
     traceback.add_location("test");
 
-    db_purge(traceback.clone());
+    //db_purge(traceback.clone());
 
     //remote or local workers
     let mut encode_workers: Workers = Workers::new();

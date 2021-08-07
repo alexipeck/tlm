@@ -124,6 +124,68 @@ fn db_boolean_handle(input: Vec<Row>, traceback: Traceback) -> bool {
     pub show_season_episode: Option<(usize, usize)>,
 } */
 
+pub fn insert_filename_hash(filename_hash: String, traceback: Traceback) {
+    let mut traceback = traceback.clone();
+    traceback.add_location("insert_filename_hash");
+
+    /*
+     * logic
+     */
+    if filename_hash_not_exists(filename_hash.clone(), traceback.clone()) {
+        ensure_filename_hash_table_exists(traceback.clone());
+
+        //if !season_exists_in_show(show_uid, season_number, traceback.clone()) {
+        insert_filename_hash_internal(filename_hash, traceback.clone());
+        //}
+    }
+    //////////
+
+    fn filename_hash_not_exists(filename_hash: String, traceback: Traceback) -> bool {
+        let mut traceback = traceback.clone();
+        traceback.add_location("filename_hash_not_exists");
+
+        /*
+         * logic
+         */
+        let mut client = get_client(traceback.clone());
+        return db_boolean_handle(handle_result_error(
+            client.query(
+                r"SELECT EXISTS(SELECT 1 FROM filename_hash WHERE filename_hash = $1)",
+                &[&filename_hash],
+            ),
+            traceback.clone(),
+        ), traceback);
+        //////////
+    }
+
+    fn ensure_filename_hash_table_exists(traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("ensure_episode_table_exists");
+        execute_query(
+            r"
+            CREATE TABLE IF NOT EXISTS filename_hash (
+                filename_hash   INTEGER PRIMARY KEY
+            )",
+            traceback,
+        );
+    }
+
+    fn insert_filename_hash_internal(filename_hash: String, traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("insert_filename_hash_internal");
+
+        /*
+         * logic
+         */
+        let error = get_client(traceback.clone()).execute(
+            r"INSERT INTO filename_hash (filename_hash) VALUES ($1)",
+            &[&filename_hash],
+        );
+        handle_insert_error(error, traceback.clone());
+        //////////
+    }
+}
+
 pub fn insert_episode_if_episode(
     content: Content,
     traceback: Traceback,
