@@ -53,6 +53,25 @@ fn get_client(traceback: Traceback) -> Client {
     //////////
 }
 
+fn handle_result_error(result: Result<Vec<Row>, Error>, traceback: Traceback) -> Vec<Row> {
+    let mut traceback = traceback.clone();
+    traceback.add_location("handle_result_error");
+
+    /*
+     * logic
+     */
+    if result.is_ok() {
+        let result = result.unwrap();
+        if result.len() > 0 {
+            return result;
+        }
+    } else {
+        handle_retrieve_error(result, traceback.clone());
+    }
+    return Vec::new();
+    //////////
+}
+
 //prints error of it's actually an error, otherwise, does nothing
 //requires separate function because an insert error actually returns nothing
 fn handle_insert_error(error: Result<u64, Error>, traceback: Traceback) {
@@ -85,7 +104,7 @@ fn handle_retrieve_error(error: Result<Vec<Row>, Error>, traceback: Traceback) {
         print(
             Verbosity::ERROR,
             From::DB,
-            traceback.clone(),
+            traceback,
             format!(
                 "something is wrong with the returned result, or lack their of: {}",
                 error.unwrap_err()
@@ -582,32 +601,6 @@ pub fn insert_job(job: Job, traceback: Traceback) {
         );
         //////////
     }
-}
-
-fn handle_result_error(result: Result<Vec<Row>, Error>, traceback: Traceback) -> Vec<Row> {
-    let mut traceback = traceback.clone();
-    traceback.add_location("handle_result_error");
-
-    /*
-     * logic
-     */
-    if result.is_ok() {
-        let result = result.unwrap();
-        if result.len() > 0 {
-            return result;
-        } else {
-            print(
-                Verbosity::ERROR,
-                From::DB,
-                traceback.clone(),
-                format!("CF: {}, result contained no rows", traceback.to_string()),
-            );
-        }
-    } else {
-        handle_retrieve_error(result, traceback.clone());
-    }
-    return Vec::new();
-    //////////
 }
 
 pub fn get_by_query(query: &str, traceback: Traceback) -> Vec<Row> {
