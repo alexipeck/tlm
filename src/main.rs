@@ -1,5 +1,9 @@
-use std::collections::VecDeque;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{
+    collections::{VecDeque, HashSet},
+    sync::atomic::{AtomicUsize, Ordering},
+    time::Instant,
+    path::PathBuf,
+};
 
 static WORKER_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -29,7 +33,6 @@ use designation::Designation;
 use print::{print, From, Verbosity};//remove from main
 use queue::Queue;
 use shows::Shows;
-use std::{collections::HashSet, path::PathBuf};
 use traceback::Traceback;
 
 fn main() {
@@ -52,10 +55,13 @@ fn main() {
 
     db_table_create(traceback.clone());
 
-    //let mut existing_files = Content::get_all_filenames_as_hashset(traceback.clone());
+    let start = Instant::now();
     let mut existing_content: Vec<Content> = Content::get_all_contents(traceback.clone());
-    let mut existing_files_hashset: HashSet<PathBuf> =
-        Content::get_all_filenames_as_hashset(traceback.clone());
+    print(Verbosity::INFO, From::Main, traceback.clone(), format!("startup: read in 'content' took: {}ms", start.elapsed().as_millis()));
+    
+    let start = Instant::now();
+    let mut existing_files_hashset: HashSet<PathBuf> = Content::get_all_filenames_as_hashset(traceback.clone());
+    print(Verbosity::INFO, From::Main, traceback.clone(), format!("startup: read in 'existing files hashset' took: {}ms", start.elapsed().as_millis()));
 
     //remote or local workers
     /*let mut encode_workers: Workers = Workers::new();
