@@ -33,7 +33,7 @@ pub fn print(
         string: String,
     ) {
         println!(
-            "[{}][{}][{}] {}",
+            "[{}][{}][{}]::{}",
             verbosity_string, from_module_string, call_functions_string, string
         );
     }

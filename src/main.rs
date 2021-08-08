@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 static WORKER_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-use tlm::{get_show_title_from_pathbuf, import_files};
+use tlm::{get_show_title_from_pathbuf, import_files, TrackedDirectories};
 mod content;
 mod database;
 mod designation;
@@ -16,70 +16,21 @@ mod task;
 mod traceback;
 use content::Content;
 use database::{
-    db_purge, db_table_create, ensure_show_exists, insert_content, insert_episode_if_episode,
-    insert_job, print_contents, print_jobs, print_shows,
+    db_purge,
+    db_table_create,
+    insert_content,
+    insert_episode_if_episode,
+    insert_job,
+    print_contents,
+    print_jobs,
+    print_shows,
 };
 use designation::Designation;
-use print::{print, From, Verbosity};
+use print::{print, From, Verbosity};//remove from main
 use queue::Queue;
 use shows::Shows;
 use std::{collections::HashSet, path::PathBuf};
 use traceback::Traceback;
-
-#[derive(Clone, Debug)]
-pub struct TrackedDirectories {
-    pub root_directories: VecDeque<String>,
-    pub cache_directories: VecDeque<String>,
-}
-
-impl TrackedDirectories {
-    pub fn new() -> TrackedDirectories {
-        TrackedDirectories {
-            root_directories: VecDeque::new(),
-            cache_directories: VecDeque::new(),
-        }
-    }
-}
-
-pub struct Workers {
-    workers: VecDeque<Worker>,
-}
-
-impl Workers {
-    pub fn new() -> Workers {
-        Workers {
-            workers: VecDeque::new(),
-        }
-    }
-
-    pub fn get_and_reserve_worker(&mut self) -> Option<(usize, String)> {
-        for worker in &mut self.workers {
-            if worker.reserved == false {
-                worker.reserved = true;
-                return Some((worker.uid, worker.string_identifier.clone()));
-            }
-        }
-        return None;
-    }
-}
-
-pub struct Worker {
-    uid: usize,
-    string_identifier: String,
-    reserved: bool,
-    //ip_address
-    //mac_address
-}
-
-impl Worker {
-    pub fn new(string_identifier: String) -> Worker {
-        Worker {
-            uid: WORKER_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
-            string_identifier: string_identifier,
-            reserved: false,
-        }
-    }
-}
 
 fn main() {
     /*
@@ -162,7 +113,7 @@ fn main() {
     let ignored_paths = vec![".recycle_bin"];
 
     //raw_filepaths only contains the new files (those that don't already exist in the database)
-    let mut new_files = import_files(
+    let new_files = import_files(
         &tracked_directories.root_directories,
         &allowed_extensions,
         &ignored_paths,

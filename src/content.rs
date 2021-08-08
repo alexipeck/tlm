@@ -339,7 +339,7 @@ impl Content {
                 From::DB,
                 traceback.clone(),
                 format!(
-                    "[content_uid: {:2}][designation: {}][full_path: {}][show_uid: {}][show_title{}][season: {}][episode: {}]",
+                    "[content_uid:{}][designation:{}][full_path:\"{}\"][show_uid:{}][show_title:\"{}\"][season:{}][episode:{}]",
                     self.uid,
                     self.designation as i32,
                     self.get_full_path(),
@@ -363,7 +363,7 @@ impl Content {
             From::DB,
             traceback.clone(),
             format!(
-                "[content_uid: {:2}][designation: {}][full_path: {}]",
+                "[content_uid:{}][designation:{}][full_path:{}]",
                 self.uid,
                 self.designation as i32,
                 self.get_full_path(),

@@ -1,26 +1,25 @@
 use crate::{
     content::Content,
-    designation::convert_i32_to_designation,
     job::Job,
     print::{print, From, Verbosity},
     shows::{self, Show},
-    task::Task,
     traceback::Traceback,
 };
 use core::panic;
 use postgres::Client;
 use rand::Rng;
-use std::collections::HashSet;
-use std::path::PathBuf;
 use tokio_postgres::{Error, NoTls, Row};
 
 //primary helper functions
+
+//qrid is a 'quick retrieve id' for collecting a specific entry quickly, it is removed from the database after a single read
 fn generate_qrid() -> i32 {
     let mut rng = rand::thread_rng();
     let qrid_temp: u32 = rng.gen_range(0..2147483646);
     return qrid_temp as i32;
 }
 
+//creates and returns a postgreSQL database client connection
 fn get_client(traceback: Traceback) -> Client {
     let mut traceback = traceback.clone();
     traceback.add_location("get_client");
@@ -28,8 +27,12 @@ fn get_client(traceback: Traceback) -> Client {
     /*
      * logic
      */
+    //credentials aren't secret yet, and aren't only for a testing/development database.
     let connection_string = r"postgresql://localhost:4531/tlmdb?user=postgres&password=786D3JXegfY8uR6shcPB7UF2oVeQf49ynH8vHgn".to_string();
+    //creates actual database client connection
+    //returns unhandled result with client
     let client = Client::connect(&connection_string, NoTls);
+    //if there is an error, it's printed and panics, otherwise unwrapped
     match client {
         Err(err) => {
             print(
@@ -50,6 +53,8 @@ fn get_client(traceback: Traceback) -> Client {
     //////////
 }
 
+//prints error of it's actually an error, otherwise, does nothing
+//requires separate function because an insert error actually returns nothing
 fn handle_insert_error(error: Result<u64, Error>, traceback: Traceback) {
     let mut traceback = traceback.clone();
     traceback.add_location("handle_insert_error");
@@ -68,6 +73,7 @@ fn handle_insert_error(error: Result<u64, Error>, traceback: Traceback) {
     //////////
 }
 
+//prints error of it's actually an error, otherwise, returns unwrapped Vec<Row>
 fn handle_retrieve_error(error: Result<Vec<Row>, Error>, traceback: Traceback) {
     let mut traceback = traceback.clone();
     traceback.add_location("handle_retrieve_error");
@@ -81,7 +87,7 @@ fn handle_retrieve_error(error: Result<Vec<Row>, Error>, traceback: Traceback) {
             From::DB,
             traceback.clone(),
             format!(
-                "something is wrong with the returned result: {}",
+                "something is wrong with the returned result, or lack their of: {}",
                 error.unwrap_err()
             ),
         );
@@ -90,6 +96,7 @@ fn handle_retrieve_error(error: Result<Vec<Row>, Error>, traceback: Traceback) {
     //////////
 }
 
+//used for executing queries that return nothing, errors are handled internally
 fn execute_query(query: &str, traceback: Traceback) {
     let mut traceback = traceback.clone();
     traceback.add_location("execute_query");
@@ -98,6 +105,7 @@ fn execute_query(query: &str, traceback: Traceback) {
      * logic
      */
     let mut client = get_client(traceback.clone());
+    //stores error returned by 
     let error = client.batch_execute(query);
     if error.is_err() {
         print(
@@ -110,6 +118,7 @@ fn execute_query(query: &str, traceback: Traceback) {
     //////////
 }
 
+//given an error handled Vec<Row>, will return boolean or handle the error
 fn db_boolean_handle(input: Vec<Row>, traceback: Traceback) -> bool {
     let mut traceback = traceback.clone();
     traceback.add_location("db_boolean_handle");
@@ -118,8 +127,8 @@ fn db_boolean_handle(input: Vec<Row>, traceback: Traceback) -> bool {
      * logic
      */
     if input.len() > 0 {
-        let exists: bool = input[0].get(0);
-        if exists {
+        //requires explicit type
+        if input[0].get(0) {
             return true;
         } else {
             return false;
@@ -205,9 +214,7 @@ pub fn insert_episode_if_episode(content: Content, traceback: Traceback) {
      * logic
      */
     if content.content_is_episode(traceback.clone()) {
-        //if !season_exists_in_show(show_uid, season_number, traceback.clone()) {
         insert_episode_internal(content, traceback.clone());
-        //}
     }
     //////////
 
@@ -220,7 +227,6 @@ pub fn insert_episode_if_episode(content: Content, traceback: Traceback) {
          */
         let content_uid = content.uid as i32;
         let show_uid = content.show_uid.unwrap() as i32;
-        println!("{}", show_uid);
         let (season_number_temp, episode_number_temp) = content.show_season_episode.unwrap();
         let season_number = season_number_temp as i16;
         let episode_number = episode_number_temp as i16;
@@ -713,7 +719,7 @@ pub fn print_jobs(traceback: Traceback) {
             Verbosity::INFO,
             From::DB,
             traceback.clone(),
-            format!("[job_uid: {}]", uid),
+            format!("[job_uid:{}]", uid),
         );
     }
     //////////
@@ -732,7 +738,7 @@ pub fn print_shows(traceback: Traceback) {
             Verbosity::INFO,
             From::DB,
             traceback.clone(),
-            format!("[title: {}]", title),
+            format!("[title:{}]", title),
         );
     }
     //////////

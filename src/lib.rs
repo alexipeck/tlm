@@ -18,6 +18,21 @@ use std::{
 use twox_hash::xxh3;
 use walkdir::WalkDir;
 
+#[derive(Clone, Debug)]
+pub struct TrackedDirectories {
+    pub root_directories: VecDeque<String>,
+    pub cache_directories: VecDeque<String>,
+}
+
+impl TrackedDirectories {
+    pub fn new() -> TrackedDirectories {
+        TrackedDirectories {
+            root_directories: VecDeque::new(),
+            cache_directories: VecDeque::new(),
+        }
+    }
+}
+
 //Hash set guarentees no duplicates in O(1) time
 pub fn import_files(
     directories: &VecDeque<String>,
@@ -54,9 +69,8 @@ pub fn import_files(
                         let entry_string = entry.clone().into_path();
                         if !existing_files.contains(&entry_string) {
                             existing_files.insert(entry_string);
+                            new_files.insert(entry.into_path());
                         };
-
-                        new_files.insert(entry.into_path());
                     }
                 }
             }
