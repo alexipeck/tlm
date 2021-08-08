@@ -14,10 +14,10 @@ impl Traceback {
         let mut single_execute_done = false;
         for function in &self.traceback {
             if !single_execute_done {
-                call_functions_string += &format!("{}", function);
+                call_functions_string += &format!("'{}'", function);
                 single_execute_done = true;
             } else {
-                call_functions_string += &format!(">{}", function);
+                call_functions_string += &format!(">'{}'", function);
             }
         }
         return call_functions_string;
