@@ -8,6 +8,7 @@ pub mod queue;
 pub mod shows;
 pub mod task;
 pub mod traceback;
+pub mod error_handling;
 
 use std::{
     collections::{HashSet, VecDeque},

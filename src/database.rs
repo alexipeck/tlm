@@ -4,678 +4,674 @@ use crate::{
     print::{print, From, Verbosity},
     shows::{self, Show},
     traceback::Traceback,
+    database::{
+        execution::{get_client, execute_query, get_by_query},
+        error_handling::{handle_insert_error, handle_result_error, db_boolean_handle},
+    }
 };
 use core::panic;
-use postgres::Client;
 use rand::Rng;
-use tokio_postgres::{Error, NoTls, Row};
 
-//primary helper functions
 
-//qrid is a 'quick retrieve id' for collecting a specific entry quickly, it is removed from the database after a single read
-fn generate_qrid() -> i32 {
-    let mut rng = rand::thread_rng();
-    let qrid_temp: u32 = rng.gen_range(0..2147483646);
-    return qrid_temp as i32;
-}
+pub mod error_handling {
+    use tokio_postgres::{Error, Row};
+    use crate::{
+        traceback::Traceback,
+        print::{print, From, Verbosity},
+    };
 
-//creates and returns a postgreSQL database client connection
-fn get_client(traceback: Traceback) -> Client {
-    let mut traceback = traceback.clone();
-    traceback.add_location("get_client");
+    pub fn handle_result_error(result: Result<Vec<Row>, Error>, traceback: Traceback) -> Vec<Row> {
+        let mut traceback = traceback.clone();
+        traceback.add_location("handle_result_error");
 
-    /*
-     * logic
-     */
-    //credentials aren't secret yet, and aren't only for a testing/development database.
-    let connection_string = r"postgresql://localhost:4531/tlmdb?user=postgres&password=786D3JXegfY8uR6shcPB7UF2oVeQf49ynH8vHgn".to_string();
-    //creates actual database client connection
-    //returns unhandled result with client
-    let client = Client::connect(&connection_string, NoTls);
-    //if there is an error, it's printed and panics, otherwise unwrapped
-    match client {
-        Err(err) => {
+        /*
+         * logic
+         */
+        if result.is_ok() {
+            let result = result.unwrap();
+            if result.len() > 0 {
+                return result;
+            }
+        } else {
+            handle_retrieve_error(result, traceback.clone());
+        }
+        return Vec::new();
+        //////////
+    }
+
+    //prints error of it's actually an error, otherwise, does nothing
+    pub fn handle_insert_error(error: Result<u64, Error>, traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("handle_insert_error");
+
+        /*
+         * logic
+         */
+        if error.is_err() {
+            print(
+                Verbosity::ERROR,
+                From::DB,
+                traceback,
+                format!("{}", error.unwrap_err()),
+            );
+        }
+        //////////
+    }
+
+    //prints error of it's actually an error, otherwise, returns unwrapped Vec<Row>
+    pub fn handle_retrieve_error(error: Result<Vec<Row>, Error>, traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("handle_retrieve_error");
+
+        /*
+         * logic
+         */
+        if error.is_err() {
             print(
                 Verbosity::ERROR,
                 From::DB,
                 traceback,
                 format!(
-                    "client couldn't establish a connection: {}",
-                    err.to_string()
+                    "something is wrong with the returned result, or lack their of: {}",
+                    error.unwrap_err()
                 ),
             );
             panic!();
         }
-        _ => {
-            return client.unwrap();
-        }
+        //////////
     }
-    //////////
-}
 
-fn handle_result_error(result: Result<Vec<Row>, Error>, traceback: Traceback) -> Vec<Row> {
-    let mut traceback = traceback.clone();
-    traceback.add_location("handle_result_error");
+    //given an error handled Vec<Row>, will return boolean or handle the error
+    pub fn db_boolean_handle(input: Vec<Row>, traceback: Traceback) -> bool {
+        let mut traceback = traceback.clone();
+        traceback.add_location("db_boolean_handle");
 
-    /*
-     * logic
-     */
-    if result.is_ok() {
-        let result = result.unwrap();
-        if result.len() > 0 {
-            return result;
-        }
-    } else {
-        handle_retrieve_error(result, traceback.clone());
-    }
-    return Vec::new();
-    //////////
-}
-
-//prints error of it's actually an error, otherwise, does nothing
-//requires separate function because an insert error actually returns nothing
-fn handle_insert_error(error: Result<u64, Error>, traceback: Traceback) {
-    let mut traceback = traceback.clone();
-    traceback.add_location("handle_insert_error");
-
-    /*
-     * logic
-     */
-    if error.is_err() {
-        print(
-            Verbosity::ERROR,
-            From::DB,
-            traceback,
-            format!("{}", error.unwrap_err()),
-        );
-    }
-    //////////
-}
-
-//prints error of it's actually an error, otherwise, returns unwrapped Vec<Row>
-fn handle_retrieve_error(error: Result<Vec<Row>, Error>, traceback: Traceback) {
-    let mut traceback = traceback.clone();
-    traceback.add_location("handle_retrieve_error");
-
-    /*
-     * logic
-     */
-    if error.is_err() {
-        print(
-            Verbosity::ERROR,
-            From::DB,
-            traceback,
-            format!(
-                "something is wrong with the returned result, or lack their of: {}",
-                error.unwrap_err()
-            ),
-        );
-        panic!();
-    }
-    //////////
-}
-
-//used for executing queries that return nothing, errors are handled internally
-fn execute_query(query: &str, traceback: Traceback) {
-    let mut traceback = traceback.clone();
-    traceback.add_location("execute_query");
-
-    /*
-     * logic
-     */
-    let mut client = get_client(traceback.clone());
-    //stores error returned by 
-    let error = client.batch_execute(query);
-    if error.is_err() {
-        print(
-            Verbosity::ERROR,
-            From::DB,
-            traceback.clone(),
-            format!("{}: {}", String::from(query), error.unwrap_err()),
-        );
-    }
-    //////////
-}
-
-//given an error handled Vec<Row>, will return boolean or handle the error
-fn db_boolean_handle(input: Vec<Row>, traceback: Traceback) -> bool {
-    let mut traceback = traceback.clone();
-    traceback.add_location("db_boolean_handle");
-
-    /*
-     * logic
-     */
-    if input.len() > 0 {
-        //requires explicit type
-        if input[0].get(0) {
-            return true;
+        /*
+         * logic
+         */
+        if input.len() > 0 {
+            //requires explicit type
+            if input[0].get(0) {
+                return true;
+            } else {
+                return false;
+            }
         } else {
-            return false;
+            print(
+                Verbosity::CRITICAL,
+                From::DB,
+                traceback,
+                format!("should have returned a boolean from the db, regardless"),
+            );
+            panic!();
         }
-    } else {
+        //////////
+    }
+}
+
+pub mod execution {
+    use crate::{
+        traceback::Traceback,
+        print::{print, From, Verbosity},
+        database::error_handling::handle_result_error,
+    };
+    use tokio_postgres::{NoTls, Row};
+    use postgres::Client;
+    
+    pub fn get_by_query(query: &str, traceback: Traceback) -> Vec<Row> {
+        let mut traceback = traceback.clone();
+        traceback.add_location("get_by_query");
+    
+        let result = get_client(traceback.clone()).query(query, &[]);
+        return handle_result_error(result, traceback.clone());
+    }
+    
+    //use enums for database insertion, with helper functions that allow me to directly pass in each variable
+    
+    //creates and returns a postgreSQL database client connection
+    pub fn get_client(traceback: Traceback) -> Client {
+        let mut traceback = traceback.clone();
+        traceback.add_location("get_client");
+    
+        /*
+         * logic
+         */
+        //credentials aren't secret yet, and aren't only for a testing/development database.
+        let connection_string = r"postgresql://localhost:4531/tlmdb?user=postgres&password=786D3JXegfY8uR6shcPB7UF2oVeQf49ynH8vHgn".to_string();
+        //creates actual database client connection
+        //returns unhandled result with client
+        let client = Client::connect(&connection_string, NoTls);
+        //if there is an error, it's printed and panics, otherwise unwrapped
+        match client {
+            Err(err) => {
+                print(
+                    Verbosity::ERROR,
+                    From::DB,
+                    traceback,
+                    format!(
+                        "client couldn't establish a connection: {}",
+                        err.to_string()
+                    ),
+                );
+                panic!();
+            }
+            _ => {
+                return client.unwrap();
+            }
+        }
+        //////////
+    }
+    
+    //used for executing queries that return nothing, errors are handled internally
+    pub fn execute_query(query: &str, traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("execute_query");
+    
+        /*
+         * logic
+         */
+        let mut client = get_client(traceback.clone());
+        //stores error returned by 
+        let error = client.batch_execute(query);
+        if error.is_err() {
+            print(
+                Verbosity::ERROR,
+                From::DB,
+                traceback.clone(),
+                format!("{}: {}", String::from(query), error.unwrap_err()),
+            );
+        }
+        //////////
+    }
+}
+
+pub mod ensure {
+    use crate::{
+        traceback::Traceback,
+        database::{
+            execution::{
+                execute_query,
+                get_client,
+            },
+            generate_qrid,
+            retrieve::{
+                get_show_uid_by_title,
+                get_uid_from_result
+            },
+            error_handling::{
+                handle_insert_error,
+                handle_result_error,
+                db_boolean_handle,
+            },
+        },
+    };
+    pub fn ensure_tables_exist(traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("db_table_create");
+    
+        execute_query(
+            r"
+            CREATE TABLE IF NOT EXISTS content (
+                content_uid     SERIAL PRIMARY KEY,
+                full_path       TEXT NOT NULL,
+                designation     INTEGER NOT NULL,
+                qrid            INTEGER
+            )",
+            traceback.clone(),
+        );
+    
+        execute_query(
+            r"
+            CREATE TABLE IF NOT EXISTS show (
+                show_uid        SERIAL PRIMARY KEY,
+                title           TEXT NOT NULL,
+                qrid            INTEGER
+            )",
+            traceback.clone(),
+        );
+    
+        execute_query(
+            r"
+            CREATE TABLE IF NOT EXISTS episode (
+                content_uid             INTEGER REFERENCES content (content_uid) NOT NULL,
+                show_uid                INTEGER REFERENCES show (show_uid) NOT NULL,
+                episode_title           TEXT NOT NULL,
+                season_number           SMALLINT NOT NULL,
+                episode_number          SMALLINT NOT NULL,
+                PRIMARY KEY(show_uid, season_number, episode_number)
+            )",
+            traceback.clone(),
+        );
+    
+        execute_query(
+            r"
+            CREATE TABLE IF NOT EXISTS job_queue (
+                job_uid             SERIAL PRIMARY KEY,
+                source_path         TEXT NOT NULL,
+                encode_path         TEXT NOT NULL,
+                cache_directory     TEXT NOT NULL,
+                encode_string       TEXT NOT NULL,
+                status_underway     BOOLEAN NOT NULL,
+                status_completed    BOOLEAN NOT NULL,
+                worker_uid          INTEGER NOT NULL,
+                worker_string_id    TEXT NOT NULL,
+                qrid                INTEGER NOT NULL
+            )",
+            traceback.clone(),
+        );
+    
+        execute_query(
+            r"
+            CREATE TABLE IF NOT EXISTS job_task_queue (
+                id                  INTEGER NOT NULL,
+                job_uid             INTEGER REFERENCES job_queue (job_uid) NOT NULL,
+                task_id             SMALLINT NOT NULL,
+                PRIMARY KEY(job_uid, id)
+            );",
+            traceback.clone(),
+        );
+    }
+
+    pub fn ensure_show_exists(show_title: String, traceback: Traceback) -> Option<usize> {
+        let mut traceback = traceback.clone();
+        traceback.add_location("ensure_show_exists");
+    
+        /*
+         * logic
+         */
+        if !show_exists(&show_title, traceback.clone()) {
+            let qrid = generate_qrid();
+            insert_show(show_title, qrid, traceback.clone());
+            let uid = read_back_show_uid(qrid, traceback.clone());
+            wipe_show_qrid(qrid, traceback.clone());
+            return Some(uid);
+        } else {
+            return get_show_uid_by_title(show_title, traceback);
+        }
+        //////////
+    
+        fn insert_show(show_title: String, qrid: i32, traceback: Traceback) {
+            let mut traceback = traceback.clone();
+            traceback.add_location("insert_show");
+    
+            /*
+             * logic
+             */
+            let mut client = get_client(traceback.clone());
+            let error = client.execute(
+                r"INSERT INTO show (title, qrid) VALUES ($1, $2)",
+                &[&show_title, &qrid],
+            );
+            //use if I need to do anything more with the row
+            //let show_uid = read_back_show_uid(qrid);
+            handle_insert_error(error, traceback.clone());
+            //////////
+        }
+    
+        fn show_exists(show_title: &str, traceback: Traceback) -> bool {
+            let mut traceback = traceback.clone();
+            traceback.add_location("show_exists");
+    
+            /*
+             * logic
+             */
+            let mut client = get_client(traceback.clone());
+            return db_boolean_handle(
+                handle_result_error(
+                    client.query(
+                        r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
+                        &[&show_title],
+                    ),
+                    traceback.clone(),
+                ),
+                traceback,
+            );
+            //////////
+        }
+    
+        fn read_back_show_uid(qrid: i32, traceback: Traceback) -> usize {
+            let mut traceback = traceback.clone();
+            traceback.add_location("read_back_show_uid");
+    
+            /*
+             * logic
+             */
+            return get_uid_from_result(
+                handle_result_error(
+                    get_client(traceback.clone())
+                        .query(r"SELECT show_uid FROM show WHERE qrid = $1", &[&qrid]),
+                    traceback.clone(),
+                ),
+                traceback,
+            );
+            //////////
+        }
+    
+        fn wipe_show_qrid(qrid: i32, traceback: Traceback) {
+            let mut traceback = traceback.clone();
+            traceback.add_location("wipe_show_qrid");
+    
+            /*
+             * logic
+             */
+            let mut client = get_client(traceback.clone());
+            let error = client.execute(r"UPDATE show SET qrid = NULL WHERE qrid = $1", &[&qrid]);
+            handle_insert_error(error, traceback.clone());
+            //////////
+        }
+    }
+}
+
+pub mod insert {    
+    use crate::{
+        print::{print, From, Verbosity},
+        job::Job,
+        content::Content,
+        traceback::Traceback,
+        database::{
+            execution::get_client,
+            error_handling::{
+                handle_insert_error,
+                handle_result_error,
+            },
+            retrieve::{
+                get_uid_from_result,
+            },
+            ensure::{
+                ensure_show_exists,
+            },
+            generate_qrid,
+        },
+    };
+
+    pub fn insert_episode_if_episode(content: Content, traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("insert_episode_if_episode");
+    
+        /*
+         * logic
+         */
+        if content.content_is_episode(traceback.clone()) {
+            insert_episode_internal(content, traceback.clone());
+        }
+        //////////
+    
+        fn insert_episode_internal(content: Content, traceback: Traceback) {
+            let mut traceback = traceback.clone();
+            traceback.add_location("insert_episode_internal");
+    
+            /*
+             * logic
+             */
+            let content_uid = content.uid as i32;
+            let show_uid = content.show_uid.unwrap() as i32;
+            let (season_number_temp, episode_number_temp) = content.show_season_episode.unwrap();
+            let season_number = season_number_temp as i16;
+            let episode_number = episode_number_temp as i16;
+            let error = get_client(traceback.clone()).execute(
+                r"INSERT INTO episode (content_uid, show_uid, episode_title, episode_number, season_number) VALUES ($1, $2, $3, $4, $5)",
+                &[&content_uid, &show_uid, &content.show_title.unwrap(), &episode_number, &season_number],
+            );
+            handle_insert_error(error, traceback.clone());
+            //////////
+        }
+    }
+
+    pub fn insert_content(content: Content, traceback: Traceback) -> usize {
+        let mut traceback = traceback.clone();
+        traceback.add_location("insert_content");
+    
+        /*
+         * logic
+         */
+        let qrid = generate_qrid();
+        insert_content_internal(content.clone(), qrid, traceback.clone());
+        let content = content.clone();
+        if content.designation == crate::designation::Designation::Episode {
+            let show_uid = ensure_show_exists(content.show_title.unwrap(), traceback.clone());
+            if show_uid.is_some() {
+                /* ensure_season_exists_in_show(
+                    show_uid.unwrap(),
+                    content.show_season_episode.unwrap().0,
+                    traceback.clone(),
+                ); */
+            } else {
+                print(
+                    Verbosity::ERROR,
+                    From::DB,
+                    traceback,
+                    format!("show UID couldn't be retrieved"),
+                );
+                panic!();
+            }
+        }
+        return read_back_content_uid(qrid, traceback.clone());
+        //////////
+    
+        fn read_back_content_uid(qrid: i32, traceback: Traceback) -> usize {
+            let mut traceback = traceback.clone();
+            traceback.add_location("read_back_content_uid");
+    
+            return get_uid_from_result(
+                handle_result_error(
+                    get_client(traceback.clone())
+                        .query(r"SELECT content_uid FROM content WHERE qrid = $1", &[&qrid]),
+                    traceback.clone(),
+                ),
+                traceback,
+            );
+        }
+    
+        fn insert_content_internal(content: Content, qrid: i32, traceback: Traceback) {
+            let mut traceback = traceback.clone();
+            traceback.add_location("insert_content");
+    
+            let designation = content.designation as i32;
+            handle_insert_error(
+                get_client(traceback.clone()).execute(
+                    r"INSERT INTO content (full_path, designation, qrid) VALUES ($1, $2, $3)",
+                    &[&content.get_full_path(), &designation, &qrid],
+                ),
+                traceback.clone(),
+            );
+        }
+    }
+    
+    fn insert_task(task_id: usize, id: usize, job_uid: usize, traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("insert_task");
+    
+        /*
+         * logic
+         */
+        insert_task_internal(task_id, id, job_uid, traceback.clone());
+        //////////
+    
+        fn insert_task_internal(task_id: usize, id: usize, job_uid: usize, traceback: Traceback) {
+            let mut traceback = traceback.clone();
+            traceback.add_location("insert_task_internal");
+    
+            /*
+             * logic
+             */
+            let mut client = get_client(traceback.clone());
+            let id = id as i32;
+            let job_uid = job_uid as i32;
+            let task_id = task_id as i16;
+            let error = client.execute(
+                r"INSERT INTO job_task_queue (
+                        id,
+                        job_uid,
+                        task_id
+                    ) VALUES ($1, $2, $3)",
+                &[&id, &job_uid, &task_id],
+            );
+            handle_insert_error(error, traceback.clone());
+            print(
+                Verbosity::INFO,
+                From::DB,
+                traceback.clone(),
+                format!("[job_uid: {}][id: {}][task_id: {}]", job_uid, id, task_id),
+            );
+            //////////
+        }
+    }
+    
+    pub fn insert_job(job: Job, traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("insert_job");
+    
+        /*
+         * logic
+         */
+        let uid = insert_job_internal(job, traceback.clone());
+        //////////
+    
+        fn insert_job_internal(job: Job, traceback: Traceback) -> usize {
+            let mut traceback = traceback.clone();
+            traceback.add_location("insert_job_internal");
+    
+            //get client and inserts job if the client connection is fine
+            let mut client = get_client(traceback.clone().clone());
+            //quick retrieve ID
+            let qrid = generate_qrid();
+            let worker_uid = job.worker.clone().unwrap().0 as i32;
+            let worker_string_identifier = job.worker.unwrap().1;
+            handle_insert_error(
+                client.execute(
+                    r"
+                    INSERT INTO job_queue (
+                        source_path,
+                        encode_path,
+                        cache_directory,
+                        encode_string,
+                        status_underway,
+                        status_completed,
+                        worker_uid,
+                        worker_string_id,
+                        qrid
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);",
+                    &[
+                        &job.source_path.to_string_lossy().to_string().as_str(),
+                        &job.encode_path.to_string_lossy().to_string().as_str(),
+                        &job.cache_directory.clone().unwrap(),
+                        &Job::convert_encode_string_to_actual_string(job.encode_string.clone()),
+                        &job.status_underway,
+                        &job.status_completed,
+                        &worker_uid,
+                        &worker_string_identifier,
+                        &qrid,
+                    ],
+                ),
+                traceback.clone(),
+            );
+            let uid = read_back_job_uid(qrid, traceback.clone());
+            print(
+                Verbosity::INFO,
+                From::DB,
+                traceback.clone(),
+                format!(
+                    "[job_uid: {}][Source: {}][Encode: {}]",
+                    uid,
+                    job.source_path.to_string_lossy().to_string(),
+                    job.encode_path.to_string_lossy().to_string()
+                ),
+            );
+            for (pos, task) in job.tasks.iter().enumerate() {
+                insert_task(task.clone() as usize, pos, uid, traceback.clone());
+            }
+            return uid;
+        }
+    
+        fn read_back_job_uid(qrid: i32, traceback: Traceback) -> usize {
+            let mut traceback = traceback.clone();
+            traceback.add_location("read_back_job_uid");
+    
+            /*
+             * logic
+             */
+            return get_uid_from_result(
+                handle_result_error(
+                    get_client(traceback.clone())
+                        .query(r"SELECT job_uid from job_queue WHERE qrid = $1", &[&qrid]),
+                    traceback.clone(),
+                ),
+                traceback,
+            );
+            //////////
+        }
+    }
+}
+
+pub mod retrieve {
+    use tokio_postgres::Row;
+    use crate::{
+        database::{
+            execution::get_client,
+            error_handling::handle_result_error,
+        },
+        traceback::Traceback,
+        print::{print, From, Verbosity},
+    };
+
+    pub fn get_show_uid_by_title(show_title: String, traceback: Traceback) -> Option<usize> {
+        let mut traceback = traceback.clone();
+        traceback.add_location("get_show_uid_by_title");
+    
+        /*
+         * logic
+         */
+        let mut client = get_client(traceback.clone());
+        let result = handle_result_error(
+            client.query(
+                r"SELECT show_uid from show WHERE title = $1",
+                &[&show_title],
+            ),
+            traceback,
+        );
+        let mut uid: Option<i32> = None;
+        for row in &result {
+            uid = row.get(0);
+        }
+        if uid.is_some() {
+            return Some(uid.unwrap() as usize);
+        }
+        return None;
+        //////////
+    }
+
+    pub fn get_uid_from_result(input: Vec<Row>, traceback: Traceback) -> usize {
+        let mut traceback = traceback.clone();
+        traceback.add_location("get_uid_from_result");
+    
+        /*
+         * logic
+         */
+        let mut uid: Option<i32> = None;
+        for row in &input {
+            uid = row.get(0);
+        }
+        if uid.is_some() {
+            return uid.unwrap() as usize;
+        }
         print(
             Verbosity::CRITICAL,
             From::DB,
             traceback,
-            format!("should have returned a boolean from the db, regardless"),
+            format!("Couldn't find entry that was just inserted, this shouldn't happen."),
         );
         panic!();
-    }
-    //////////
-}
-
-/* pub struct Content {
-    //pub job_queue: VecDeque<Job>,
-    pub hash: Option<u64>,
-    //pub versions: Vec<FileVersion>,
-    //pub metadata_dump
-    pub show_uid: Option<usize>,
-    pub show_title: Option<String>,
-    pub show_season_episode: Option<(usize, usize)>,
-} */
-
-pub fn insert_filename_hash(filename_hash: String, traceback: Traceback) -> bool {
-    let mut traceback = traceback.clone();
-    traceback.add_location("insert_filename_hash");
-
-    /*
-     * logic
-     */
-    if filename_hash_not_exists(filename_hash.clone(), traceback.clone()) {
-        insert_filename_hash_internal(filename_hash, traceback.clone());
-        return true;
-    }
-    return false;
-    //////////
-
-    fn filename_hash_not_exists(filename_hash: String, traceback: Traceback) -> bool {
-        let mut traceback = traceback.clone();
-        traceback.add_location("filename_hash_not_exists");
-
-        /*
-         * logic
-         */
-        let mut client = get_client(traceback.clone());
-        return db_boolean_handle(
-            handle_result_error(
-                client.query(
-                    r"SELECT EXISTS(SELECT 1 FROM filename_hash WHERE filename_hash = $1)",
-                    &[&filename_hash],
-                ),
-                traceback.clone(),
-            ),
-            traceback,
-        );
-        //////////
-    }
-
-    fn insert_filename_hash_internal(filename_hash: String, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("insert_filename_hash_internal");
-
-        /*
-         * logic
-         */
-        let error = get_client(traceback.clone()).execute(
-            r"INSERT INTO filename_hash (filename_hash) VALUES ($1)",
-            &[&filename_hash],
-        );
-        handle_insert_error(error, traceback.clone());
         //////////
     }
 }
 
-pub fn insert_episode_if_episode(content: Content, traceback: Traceback) {
-    let mut traceback = traceback.clone();
-    traceback.add_location("insert_episode_if_episode");
+//primary helper functions
 
-    /*
-     * logic
-     */
-    if content.content_is_episode(traceback.clone()) {
-        insert_episode_internal(content, traceback.clone());
-    }
-    //////////
-
-    fn insert_episode_internal(content: Content, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("insert_episode_internal");
-
-        /*
-         * logic
-         */
-        let content_uid = content.uid as i32;
-        let show_uid = content.show_uid.unwrap() as i32;
-        let (season_number_temp, episode_number_temp) = content.show_season_episode.unwrap();
-        let season_number = season_number_temp as i16;
-        let episode_number = episode_number_temp as i16;
-        let error = get_client(traceback.clone()).execute(
-            r"INSERT INTO episode (content_uid, show_uid, episode_title, episode_number, season_number) VALUES ($1, $2, $3, $4, $5)",
-            &[&content_uid, &show_uid, &content.show_title.unwrap(), &episode_number, &season_number],
-        );
-        handle_insert_error(error, traceback.clone());
-        //////////
-    }
-
-    /* fn season_exists_in_show(
-        show_uid: usize,
-        season_number: usize,
-        traceback: Traceback,
-    ) -> bool {
-
-        traceback.add_location("season_exists_in_show");
-
-        let show_uid = show_uid as i32;
-        let season_number = season_number as i16;
-        let mut client = get_client(traceback.clone());
-        let result = handle_result_error(
-            client.query(
-                r"SELECT EXISTS(SELECT 1 FROM season WHERE show_uid = $1 AND season_number = $2)",
-                &[&show_uid, &season_number],
-            ),
-            traceback,
-        );
-        return db_boolean_handle(result);
-    } */
-}
-
-fn get_show_uid_by_title(show_title: String, traceback: Traceback) -> Option<usize> {
-    let mut traceback = traceback.clone();
-    traceback.add_location("get_show_uid_by_title");
-
-    /*
-     * logic
-     */
-    let mut client = get_client(traceback.clone());
-    let result = handle_result_error(
-        client.query(
-            r"SELECT show_uid from show WHERE title = $1",
-            &[&show_title],
-        ),
-        traceback,
-    );
-    let mut uid: Option<i32> = None;
-    for row in &result {
-        uid = row.get(0);
-    }
-    if uid.is_some() {
-        return Some(uid.unwrap() as usize);
-    }
-    return None;
-    //////////
-}
-
-pub fn ensure_show_exists(show_title: String, traceback: Traceback) -> Option<usize> {
-    let mut traceback = traceback.clone();
-    traceback.add_location("ensure_show_exists");
-
-    /*
-     * logic
-     */
-    if !show_exists(&show_title, traceback.clone()) {
-        let qrid = generate_qrid();
-        insert_show(show_title, qrid, traceback.clone());
-        let uid = read_back_show_uid(qrid, traceback.clone());
-        wipe_show_qrid(qrid, traceback.clone());
-        return Some(uid);
-    } else {
-        return get_show_uid_by_title(show_title, traceback);
-    }
-    //////////
-
-    fn insert_show(show_title: String, qrid: i32, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("insert_show");
-
-        /*
-         * logic
-         */
-        let mut client = get_client(traceback.clone());
-        let error = client.execute(
-            r"INSERT INTO show (title, qrid) VALUES ($1, $2)",
-            &[&show_title, &qrid],
-        );
-        //use if I need to do anything more with the row
-        //let show_uid = read_back_show_uid(qrid);
-        handle_insert_error(error, traceback.clone());
-        //////////
-    }
-
-    fn show_exists(show_title: &str, traceback: Traceback) -> bool {
-        let mut traceback = traceback.clone();
-        traceback.add_location("show_exists");
-
-        /*
-         * logic
-         */
-        let mut client = get_client(traceback.clone());
-        return db_boolean_handle(
-            handle_result_error(
-                client.query(
-                    r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
-                    &[&show_title],
-                ),
-                traceback.clone(),
-            ),
-            traceback,
-        );
-        //////////
-    }
-
-    fn read_back_show_uid(qrid: i32, traceback: Traceback) -> usize {
-        let mut traceback = traceback.clone();
-        traceback.add_location("read_back_show_uid");
-
-        /*
-         * logic
-         */
-        return get_uid_from_result(
-            handle_result_error(
-                get_client(traceback.clone())
-                    .query(r"SELECT show_uid FROM show WHERE qrid = $1", &[&qrid]),
-                traceback.clone(),
-            ),
-            traceback,
-        );
-        //////////
-    }
-
-    fn wipe_show_qrid(qrid: i32, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("wipe_show_qrid");
-
-        /*
-         * logic
-         */
-        let mut client = get_client(traceback.clone());
-        let error = client.execute(r"UPDATE show SET qrid = NULL WHERE qrid = $1", &[&qrid]);
-        handle_insert_error(error, traceback.clone());
-        //////////
-    }
-}
-
-fn get_uid_from_result(input: Vec<Row>, traceback: Traceback) -> usize {
-    let mut traceback = traceback.clone();
-    traceback.add_location("get_uid_from_result");
-
-    /*
-     * logic
-     */
-    let mut uid: Option<i32> = None;
-    for row in &input {
-        uid = row.get(0);
-    }
-    if uid.is_some() {
-        return uid.unwrap() as usize;
-    }
-    print(
-        Verbosity::CRITICAL,
-        From::DB,
-        traceback,
-        format!("Couldn't find entry that was just inserted, this shouldn't happen."),
-    );
-    panic!();
-    //////////
-}
-
-pub fn insert_content(content: Content, traceback: Traceback) -> usize {
-    let mut traceback = traceback.clone();
-    traceback.add_location("insert_content");
-
-    /*
-     * logic
-     */
-    let qrid = generate_qrid();
-    insert_content_internal(content.clone(), qrid, traceback.clone());
-    let mut content = content.clone();
-    if content.designation == crate::designation::Designation::Episode {
-        let show_uid = ensure_show_exists(content.show_title.unwrap(), traceback.clone());
-        if show_uid.is_some() {
-            /* ensure_season_exists_in_show(
-                show_uid.unwrap(),
-                content.show_season_episode.unwrap().0,
-                traceback.clone(),
-            ); */
-        } else {
-            print(
-                Verbosity::ERROR,
-                From::DB,
-                traceback,
-                format!("show UID couldn't be retrieved"),
-            );
-            panic!();
-        }
-    }
-    return read_back_content_uid(qrid, traceback.clone());
-    //////////
-
-    fn read_back_content_uid(qrid: i32, traceback: Traceback) -> usize {
-        let mut traceback = traceback.clone();
-        traceback.add_location("read_back_content_uid");
-
-        return get_uid_from_result(
-            handle_result_error(
-                get_client(traceback.clone())
-                    .query(r"SELECT content_uid FROM content WHERE qrid = $1", &[&qrid]),
-                traceback.clone(),
-            ),
-            traceback,
-        );
-    }
-
-    fn insert_content_internal(content: Content, qrid: i32, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("insert_content");
-
-        let designation = content.designation as i32;
-        handle_insert_error(
-            get_client(traceback.clone()).execute(
-                r"INSERT INTO content (full_path, designation, qrid) VALUES ($1, $2, $3)",
-                &[&content.get_full_path(), &designation, &qrid],
-            ),
-            traceback.clone(),
-        );
-    }
-}
-
-fn insert_task(task_id: usize, id: usize, job_uid: usize, traceback: Traceback) {
-    let mut traceback = traceback.clone();
-    traceback.add_location("insert_task");
-
-    /*
-     * logic
-     */
-    insert_task_internal(task_id, id, job_uid, traceback.clone());
-    //////////
-
-    fn insert_task_internal(task_id: usize, id: usize, job_uid: usize, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("insert_task_internal");
-
-        /*
-         * logic
-         */
-        let mut client = get_client(traceback.clone());
-        let id = id as i32;
-        let job_uid = job_uid as i32;
-        let task_id = task_id as i16;
-        let error = client.execute(
-            r"INSERT INTO job_task_queue (
-                    id,
-                    job_uid,
-                    task_id
-                ) VALUES ($1, $2, $3)",
-            &[&id, &job_uid, &task_id],
-        );
-        handle_insert_error(error, traceback.clone());
-        print(
-            Verbosity::INFO,
-            From::DB,
-            traceback.clone(),
-            format!("[job_uid: {}][id: {}][task_id: {}]", job_uid, id, task_id),
-        );
-        //////////
-    }
-}
-
-pub fn insert_job(job: Job, traceback: Traceback) {
-    let mut traceback = traceback.clone();
-    traceback.add_location("insert_job");
-
-    /*
-     * logic
-     */
-    let uid = insert_job_internal(job, traceback.clone());
-    //////////
-
-    fn insert_job_internal(job: Job, traceback: Traceback) -> usize {
-        let mut traceback = traceback.clone();
-        traceback.add_location("insert_job_internal");
-
-        //get client and inserts job if the client connection is fine
-        let mut client = get_client(traceback.clone().clone());
-        //quick retrieve ID
-        let qrid = generate_qrid();
-        let worker_uid = job.worker.clone().unwrap().0 as i32;
-        let worker_string_identifier = job.worker.unwrap().1;
-        handle_insert_error(
-            client.execute(
-                r"
-                INSERT INTO job_queue (
-                    source_path,
-                    encode_path,
-                    cache_directory,
-                    encode_string,
-                    status_underway,
-                    status_completed,
-                    worker_uid,
-                    worker_string_id,
-                    qrid
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);",
-                &[
-                    &job.source_path.to_string_lossy().to_string().as_str(),
-                    &job.encode_path.to_string_lossy().to_string().as_str(),
-                    &job.cache_directory.clone().unwrap(),
-                    &Job::convert_encode_string_to_actual_string(job.encode_string.clone()),
-                    &job.status_underway,
-                    &job.status_completed,
-                    &worker_uid,
-                    &worker_string_identifier,
-                    &qrid,
-                ],
-            ),
-            traceback.clone(),
-        );
-        let uid = read_back_job_uid(qrid, traceback.clone());
-        print(
-            Verbosity::INFO,
-            From::DB,
-            traceback.clone(),
-            format!(
-                "[job_uid: {}][Source: {}][Encode: {}]",
-                uid,
-                job.source_path.to_string_lossy().to_string(),
-                job.encode_path.to_string_lossy().to_string()
-            ),
-        );
-        for (pos, task) in job.tasks.iter().enumerate() {
-            insert_task(task.clone() as usize, pos, uid, traceback.clone());
-        }
-        return uid;
-    }
-
-    fn read_back_job_uid(qrid: i32, traceback: Traceback) -> usize {
-        let mut traceback = traceback.clone();
-        traceback.add_location("read_back_job_uid");
-
-        /*
-         * logic
-         */
-        return get_uid_from_result(
-            handle_result_error(
-                get_client(traceback.clone())
-                    .query(r"SELECT job_uid from job_queue WHERE qrid = $1", &[&qrid]),
-                traceback.clone(),
-            ),
-            traceback,
-        );
-        //////////
-    }
-}
-
-pub fn get_by_query(query: &str, traceback: Traceback) -> Vec<Row> {
-    let mut traceback = traceback.clone();
-    traceback.add_location("get_by_query");
-
-    let result = get_client(traceback.clone()).query(query, &[]);
-    return handle_result_error(result, traceback.clone());
-}
-
-pub fn db_table_create(traceback: Traceback) {
-    let mut traceback = traceback.clone();
-    traceback.add_location("db_table_create");
-
-    execute_query(
-        r"
-        CREATE TABLE IF NOT EXISTS content (
-            content_uid     SERIAL PRIMARY KEY,
-            full_path       TEXT NOT NULL,
-            designation     INTEGER NOT NULL,
-            qrid            INTEGER
-        )",
-        traceback.clone(),
-    );
-
-    execute_query(
-        r"
-        CREATE TABLE IF NOT EXISTS show (
-            show_uid        SERIAL PRIMARY KEY,
-            title           TEXT NOT NULL,
-            qrid            INTEGER
-        )",
-        traceback.clone(),
-    );
-
-    execute_query(
-        r"
-        CREATE TABLE IF NOT EXISTS episode (
-            content_uid             INTEGER REFERENCES content (content_uid) NOT NULL,
-            show_uid                INTEGER REFERENCES show (show_uid) NOT NULL,
-            episode_title           TEXT NOT NULL,
-            season_number           SMALLINT NOT NULL,
-            episode_number          SMALLINT NOT NULL,
-            PRIMARY KEY(show_uid, season_number, episode_number)
-        )",
-        traceback.clone(),
-    );
-
-    execute_query(
-        r"
-        CREATE TABLE IF NOT EXISTS job_queue (
-            job_uid             SERIAL PRIMARY KEY,
-            source_path         TEXT NOT NULL,
-            encode_path         TEXT NOT NULL,
-            cache_directory     TEXT NOT NULL,
-            encode_string       TEXT NOT NULL,
-            status_underway     BOOLEAN NOT NULL,
-            status_completed    BOOLEAN NOT NULL,
-            worker_uid          INTEGER NOT NULL,
-            worker_string_id    TEXT NOT NULL,
-            qrid                INTEGER NOT NULL
-        )",
-        traceback.clone(),
-    );
-
-    execute_query(
-        r"
-        CREATE TABLE IF NOT EXISTS job_task_queue (
-            id                  INTEGER NOT NULL,
-            job_uid             INTEGER REFERENCES job_queue (job_uid) NOT NULL,
-            task_id             SMALLINT NOT NULL,
-            PRIMARY KEY(job_uid, id)
-        );",
-        traceback.clone(),
-    );
+//qrid is a 'quick retrieve id' for collecting a specific entry quickly, it is removed from the database after a single read
+pub fn generate_qrid() -> i32 {
+    let mut rng = rand::thread_rng();
+    let qrid_temp: u32 = rng.gen_range(0..2147483646);
+    return qrid_temp as i32;
 }
 
 pub fn db_purge(traceback: Traceback) {

@@ -1,7 +1,7 @@
 use crate::{
-    database::{ensure_show_exists, get_by_query},
-    designation::convert_i32_to_designation,
-    designation::Designation,
+    database::ensure::ensure_show_exists,
+    database::execution::get_by_query,
+    designation::{Designation, convert_i32_to_designation},
     filter::{DBTable, Elements, Filter},
     job::Job,
     print::{print, From, Verbosity},

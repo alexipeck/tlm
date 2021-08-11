@@ -7,7 +7,7 @@ use std::{
 
 static WORKER_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-use tlm::{get_show_title_from_pathbuf, import_files, TrackedDirectories};
+use tlm::{import_files, TrackedDirectories};
 mod content;
 mod database;
 mod designation;
@@ -18,13 +18,16 @@ mod queue;
 mod shows;
 mod task;
 mod traceback;
+mod error_handling;
 use content::Content;
 use database::{
     db_purge,
-    db_table_create,
-    insert_content,
-    insert_episode_if_episode,
-    insert_job,
+    ensure::ensure_tables_exist,
+    insert::{
+        insert_content,
+        insert_episode_if_episode,
+        insert_job,
+    },
     print_contents,
     print_jobs,
     print_shows,
@@ -53,10 +56,10 @@ fn main() {
 
     db_purge(traceback.clone());
 
-    db_table_create(traceback.clone());
+    ensure_tables_exist(traceback.clone());
 
     let start = Instant::now();
-    let mut existing_content: Vec<Content> = Content::get_all_contents(traceback.clone());
+    let existing_content: Vec<Content> = Content::get_all_contents(traceback.clone());
     print(Verbosity::INFO, From::Main, traceback.clone(), format!("startup: read in 'content' took: {}ms", start.elapsed().as_millis()));
     
     let start = Instant::now();
