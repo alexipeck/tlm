@@ -1,17 +1,3 @@
-use crate::{
-    content::Content,
-    database::{
-        error_handling::{db_boolean_handle, handle_insert_error, handle_result_error},
-        execution::{execute_query, get_by_query, get_client},
-    },
-    job::Job,
-    print::{print, From, Verbosity},
-    shows::{self, Show},
-    traceback::Traceback,
-};
-use core::panic;
-use rand::Rng;
-
 pub mod error_handling {
     use crate::{
         print::{print, From, Verbosity},
@@ -189,7 +175,7 @@ pub mod ensure {
         database::{
             error_handling::{db_boolean_handle, handle_insert_error, handle_result_error},
             execution::{execute_query, get_client},
-            generate_qrid,
+            miscellaneous::generate_qrid,
             retrieve::{get_show_uid_by_title, get_uid_from_result},
         },
         traceback::Traceback,
@@ -358,7 +344,7 @@ pub mod insert {
             ensure::ensure_show_exists,
             error_handling::{handle_insert_error, handle_result_error},
             execution::get_client,
-            generate_qrid,
+            miscellaneous::generate_qrid,
             retrieve::get_uid_from_result,
         },
         job::Job,
@@ -644,83 +630,98 @@ pub mod retrieve {
     }
 }
 
-//primary helper functions
+pub mod miscellaneous {
+    use rand::Rng;
+    use crate::{
+        traceback::Traceback,
+        database::execution::execute_query,
+    };
 
-//qrid is a 'quick retrieve id' for collecting a specific entry quickly, it is removed from the database after a single read
-pub fn generate_qrid() -> i32 {
-    let mut rng = rand::thread_rng();
-    let qrid_temp: u32 = rng.gen_range(0..2147483646);
-    return qrid_temp as i32;
-}
+    //qrid is a 'quick retrieve id' for collecting a specific entry quickly, it is removed from the database after a single read
+    pub fn generate_qrid() -> i32 {
+        let mut rng = rand::thread_rng();
+        let qrid_temp: u32 = rng.gen_range(0..2147483646);
+        return qrid_temp as i32;
+    }
 
-pub fn db_purge(traceback: Traceback) {
-    let mut traceback = traceback.clone();
-    traceback.add_location("db_purge");
-
-    //the order for dropping tables matters if foreign keys exist (job_task_queue has a foreign key of job_queue)
-    let tables: Vec<&str> = vec![
-        "content",
-        "job_task_queue",
-        "job_queue",
-        "episode",
-        "season",
-        "show",
-    ];
-    for table in tables {
-        execute_query(
-            &format!("DROP TABLE IF EXISTS {} CASCADE", table),
-            traceback.clone(),
-        )
+    pub fn db_purge(traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("db_purge");
+    
+        //the order for dropping tables matters if foreign keys exist (job_task_queue has a foreign key of job_queue)
+        let tables: Vec<&str> = vec![
+            "content",
+            "job_task_queue",
+            "job_queue",
+            "episode",
+            "season",
+            "show",
+        ];
+        for table in tables {
+            execute_query(
+                &format!("DROP TABLE IF EXISTS {} CASCADE", table),
+                traceback.clone(),
+            )
+        }
     }
 }
 
-pub fn print_jobs(traceback: Traceback) {
-    let mut traceback = traceback.clone();
-    traceback.add_location("print_jobs");
+pub mod print {
+    use crate::{
+        content::Content,
+        database::execution::get_by_query,
+        print::{print, From, Verbosity},
+        traceback::Traceback,
+    };
 
-    /*
-     * logic
-     */
-    for row in get_by_query(r"SELECT job_uid FROM job_queue", traceback.clone()) {
-        let uid: i32 = row.get(0);
-        print(
-            Verbosity::INFO,
-            From::DB,
-            traceback.clone(),
-            format!("[job_uid:{}]", uid),
-        );
+    pub fn print_jobs(traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("print_jobs");
+    
+        /*
+         * logic
+         */
+        for row in get_by_query(r"SELECT job_uid FROM job_queue", traceback.clone()) {
+            let uid: i32 = row.get(0);
+            print(
+                Verbosity::INFO,
+                From::DB,
+                traceback.clone(),
+                format!("[job_uid:{}]", uid),
+            );
+        }
+        //////////
     }
-    //////////
-}
-
-pub fn print_shows(traceback: Traceback) {
-    let mut traceback = traceback.clone();
-    traceback.add_location("print_shows");
-
-    /*
-     * logic
-     */
-    for row in get_by_query(r"SELECT title FROM show", traceback.clone()) {
-        let title: String = row.get(0);
-        print(
-            Verbosity::INFO,
-            From::DB,
-            traceback.clone(),
-            format!("[title:{}]", title),
-        );
+    
+    pub fn print_shows(traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("print_shows");
+    
+        /*
+         * logic
+         */
+        for row in get_by_query(r"SELECT title FROM show", traceback.clone()) {
+            let title: String = row.get(0);
+            print(
+                Verbosity::INFO,
+                From::DB,
+                traceback.clone(),
+                format!("[title:{}]", title),
+            );
+        }
+        //////////
     }
-    //////////
-}
-
-pub fn print_contents(traceback: Traceback) {
-    let mut traceback = traceback.clone();
-    traceback.add_location("print_contents");
-
-    /*
-     * logic
-     */
-    for content in Content::get_all_contents(traceback.clone()) {
-        content.print(traceback.clone());
-    }
-    //////////
+    
+    pub fn print_contents(traceback: Traceback) {
+        let mut traceback = traceback.clone();
+        traceback.add_location("print_contents");
+    
+        /*
+         * logic
+         */
+        for content in Content::get_all_contents(traceback.clone()) {
+            content.print(traceback.clone());
+        }
+        //////////
+    }    
 }

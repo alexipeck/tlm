@@ -2,15 +2,14 @@ use crate::{
     database::ensure::ensure_show_exists,
     database::execution::get_by_query,
     designation::{convert_i32_to_designation, Designation},
-    filter::{DBTable, Elements, Filter},
     job::Job,
     print::{print, From, Verbosity},
-    traceback::{self, Traceback},
+    traceback::Traceback,
 };
 use regex::Regex;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::{collections::VecDeque, path::PathBuf};
+use std::path::PathBuf;
 use tokio_postgres::Row;
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);

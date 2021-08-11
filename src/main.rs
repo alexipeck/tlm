@@ -21,10 +21,10 @@ mod task;
 mod traceback;
 use content::Content;
 use database::{
-    db_purge,
+    miscellaneous::db_purge,
     ensure::ensure_tables_exist,
     insert::{insert_content, insert_episode_if_episode, insert_job},
-    print_contents, print_jobs, print_shows,
+    print::{print_contents, print_jobs, print_shows},
 };
 use designation::Designation;
 use print::{print, From, Verbosity}; //remove from main
@@ -45,13 +45,13 @@ fn main() {
     insert episode from content
     */
 
-    let mut traceback = Traceback::new();
-    traceback.add_location("main");
+    let traceback = Traceback::new("main");
 
     db_purge(traceback.clone());
 
     ensure_tables_exist(traceback.clone());
 
+    //timing loading contents from db
     let start = Instant::now();
     let existing_content: Vec<Content> = Content::get_all_contents(traceback.clone());
     print(
@@ -64,9 +64,9 @@ fn main() {
         ),
     );
 
+    //timing loading hashset from filenames
     let start = Instant::now();
-    let mut existing_files_hashset: HashSet<PathBuf> =
-        Content::get_all_filenames_as_hashset(traceback.clone());
+    let mut existing_files_hashset: HashSet<PathBuf> = Content::get_all_filenames_as_hashset_from_contents(existing_content, traceback.clone());
     print(
         Verbosity::INFO,
         From::Main,
@@ -141,7 +141,7 @@ fn main() {
     );
 
     //sort out filepaths into series and seasons
-    let mut shows = Shows::new();
+    let shows = Shows::new();
 
     //loop through all new files
     for new_file in new_files {
