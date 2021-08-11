@@ -1,6 +1,6 @@
 use crate::{
     content::Content,
-    database::ensure_show_exists,
+    database::ensure::ensure_show_exists,
     print::{print, From, Verbosity},
     traceback::Traceback,
 };

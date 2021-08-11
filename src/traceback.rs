@@ -3,10 +3,12 @@ pub struct Traceback {
     pub traceback: Vec<String>,
 }
 impl Traceback {
-    pub fn new() -> Traceback {
-        return Traceback {
+    pub fn new(created_from: &str) -> Traceback {
+        let mut traceback = Traceback {
             traceback: Vec::new(),
         };
+        traceback.add_location(created_from);
+        return traceback;
     }
 
     pub fn to_string(&self) -> String {

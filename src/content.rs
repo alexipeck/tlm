@@ -1,36 +1,21 @@
 use crate::{
-    database::{ensure_show_exists, get_by_query},
-    designation::convert_i32_to_designation,
-    designation::Designation,
-    filter::{DBTable, Elements, Filter},
+    database::ensure::ensure_show_exists,
+    database::execution::get_by_query,
+    designation::{convert_i32_to_designation, Designation},
     job::Job,
     print::{print, From, Verbosity},
-    traceback::{self, Traceback},
+    traceback::Traceback,
 };
 use regex::Regex;
-use std::collections::HashSet;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::{collections::VecDeque, path::PathBuf};
+use std::{
+    collections::HashSet,
+    time::Instant,
+    sync::atomic::{AtomicUsize, Ordering},
+    path::PathBuf,
+};
 use tokio_postgres::Row;
 
 static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
-
-/* #[derive(Clone, Debug)]
-pub struct Reserve {
-    status: (bool, bool),
-    uid: usize,
-    worker: String,
-}
-
-impl Reserve {
-    pub fn new(uid: usize, worker: String) -> Reserve {
-        Reserve {
-            status: (false, false),
-            uid: uid,
-            worker: worker,
-        }
-    }
-} */
 
 fn re_strip(input: &String, expression: &str) -> Option<String> {
     let output = Regex::new(expression).unwrap().find(input);
@@ -122,6 +107,7 @@ impl Content {
     } */
 
     pub fn get_all_contents(traceback: Traceback) -> Vec<Content> {
+        let start = Instant::now();
         let mut traceback = traceback.clone();
         traceback.add_location("get_all_contents");
 
@@ -132,6 +118,17 @@ impl Content {
         ) {
             contents.push(Content::from_row(row, traceback.clone()));
         }
+
+        print(
+            Verbosity::INFO,
+            From::Main,
+            traceback.clone(),
+            format!(
+                "startup: read in 'content' took: {}ms",
+                start.elapsed().as_millis()
+            ),
+        );
+        
         return contents;
     }
 
@@ -148,15 +145,27 @@ impl Content {
         traceback: Traceback,
     ) -> HashSet<PathBuf> {
         let mut traceback = traceback.clone();
-        traceback.add_location("get_all_filenames_as_hashset");
+        traceback.add_location("get_all_filenames_as_hashset_from_contents");
 
         /*
          * logic
          */
+        let start = Instant::now();
         let mut hashset = HashSet::new();
         for content in contents {
             hashset.insert(content.full_path);
         }
+
+        print(
+            Verbosity::INFO,
+            From::Main,
+            traceback.clone(),
+            format!(
+                "startup: read in 'existing files hashset' took: {}ms",
+                start.elapsed().as_millis()
+            ),
+        );
+
         return hashset;
         //////////
     }
@@ -319,12 +328,6 @@ impl Content {
         return self.full_path.parent().unwrap().join(new_filename);
     }
 
-    /*
-    pub show_uid: Option<usize>,
-    pub show_title: Option<String>,
-    pub show_season_episode: Option<(usize, usize)>,
-    */
-
     pub fn print(&self, traceback: Traceback) {
         let mut traceback = traceback.clone();
         traceback.add_location("print");
@@ -373,6 +376,10 @@ impl Content {
 
     pub fn get_parent_directory_from_pathbuf_as_string(pathbuf: &PathBuf) -> String {
         return pathbuf.parent().unwrap().to_string_lossy().to_string();
+    }
+
+    pub fn set_uid(&mut self, uid: usize) {
+        self.uid = uid;
     }
 
     pub fn set_show_uid(&mut self, show_uid: usize) {
@@ -425,10 +432,6 @@ impl Content {
             self.show_title = None;
             self.show_season_episode = None;
         }
-    }
-
-    pub fn moved(&mut self, new_full_path: &PathBuf) {
-        self.full_path = new_full_path.clone();
     }
 
     pub fn regenerate_from_pathbuf(&mut self, raw_filepath: &PathBuf, traceback: Traceback) {
