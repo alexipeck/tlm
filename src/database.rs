@@ -1,3 +1,4 @@
+
 pub mod error_handling {
     use crate::{
         print::{print, From, Verbosity},
@@ -712,14 +713,14 @@ pub mod print {
         //////////
     }
     
-    pub fn print_contents(traceback: Traceback) {
+    pub fn print_contents(contents: Vec<Content>, traceback: Traceback) {
         let mut traceback = traceback.clone();
         traceback.add_location("print_contents");
     
         /*
          * logic
          */
-        for content in Content::get_all_contents(traceback.clone()) {
+        for content in contents {
             content.print(traceback.clone());
         }
         //////////

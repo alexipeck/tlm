@@ -16,8 +16,14 @@ use std::{
     path::PathBuf,
     time::Instant,
 };
+use traceback::Traceback;
 use twox_hash::xxh3;
 use walkdir::WalkDir;
+use content::Content;
+use database::insert::{
+    insert_content,
+    insert_episode_if_episode,
+};
 
 #[derive(Clone, Debug)]
 pub struct TrackedDirectories {
@@ -31,6 +37,53 @@ impl TrackedDirectories {
             root_directories: VecDeque::new(),
             cache_directories: VecDeque::new(),
         }
+    }
+}
+
+pub fn handle_tracked_directories() -> TrackedDirectories {
+    let mut tracked_directories = TrackedDirectories::new();
+
+    if !cfg!(target_os = "windows") {
+        //tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
+        tracked_directories
+            .root_directories
+            .push_back(String::from(r"/home/anpeck/tlm/test_files/"));
+        tracked_directories
+            .root_directories
+            .push_back(String::from(r"/home/alexi/tlm/test_files/"));
+        tracked_directories
+            .cache_directories
+            .push_back(String::from(r"/home/anpeck/tlm/test_files/cache/"));
+        tracked_directories
+            .cache_directories
+            .push_back(String::from(r"/home/alexi/tlm/test_files/cache/"));
+    } else {
+        //tracked_root_directories.push(String::from("T:/")); //manual entry
+        tracked_directories.root_directories.push_back(String::from(
+            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\",
+        ));
+        tracked_directories.root_directories.push_back(String::from(
+            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\shows\",
+        ));
+        tracked_directories
+            .cache_directories
+            .push_back(String::from(
+                r"C:\Users\Alexi Peck\Desktop\tlm\test_files\cache\",
+            ));
+    }
+
+    return tracked_directories;
+}
+
+pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Content>, traceback: Traceback) {
+    let mut traceback = traceback.clone();
+    traceback.add_location("process_new_files");
+
+    for new_file in new_files {
+        let mut content = Content::new(&new_file, traceback.clone());
+        content.set_uid(insert_content(content.clone(), traceback.clone()));
+        insert_episode_if_episode(content.clone(), traceback.clone());
+        working_content.push(content);
     }
 }
 
