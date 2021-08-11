@@ -122,7 +122,7 @@ pub mod execution {
         /*
          * logic
          */
-        //credentials aren't secret yet, and aren't only for a testing/development database.
+        //credentials aren't secret yet, and are only for a testing/development database.
         let connection_string = r"postgresql://localhost:4531/tlmdb?user=postgres&password=786D3JXegfY8uR6shcPB7UF2oVeQf49ynH8vHgn".to_string();
         //creates actual database client connection
         //returns unhandled result with client
