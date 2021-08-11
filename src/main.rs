@@ -1,8 +1,8 @@
 use std::{
-    collections::{VecDeque, HashSet},
+    collections::{HashSet, VecDeque},
+    path::PathBuf,
     sync::atomic::{AtomicUsize, Ordering},
     time::Instant,
-    path::PathBuf,
 };
 
 static WORKER_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -11,6 +11,7 @@ use tlm::{import_files, TrackedDirectories};
 mod content;
 mod database;
 mod designation;
+mod error_handling;
 mod filter;
 mod job;
 mod print;
@@ -18,22 +19,15 @@ mod queue;
 mod shows;
 mod task;
 mod traceback;
-mod error_handling;
 use content::Content;
 use database::{
     db_purge,
     ensure::ensure_tables_exist,
-    insert::{
-        insert_content,
-        insert_episode_if_episode,
-        insert_job,
-    },
-    print_contents,
-    print_jobs,
-    print_shows,
+    insert::{insert_content, insert_episode_if_episode, insert_job},
+    print_contents, print_jobs, print_shows,
 };
 use designation::Designation;
-use print::{print, From, Verbosity};//remove from main
+use print::{print, From, Verbosity}; //remove from main
 use queue::Queue;
 use shows::Shows;
 use traceback::Traceback;
@@ -60,11 +54,28 @@ fn main() {
 
     let start = Instant::now();
     let existing_content: Vec<Content> = Content::get_all_contents(traceback.clone());
-    print(Verbosity::INFO, From::Main, traceback.clone(), format!("startup: read in 'content' took: {}ms", start.elapsed().as_millis()));
-    
+    print(
+        Verbosity::INFO,
+        From::Main,
+        traceback.clone(),
+        format!(
+            "startup: read in 'content' took: {}ms",
+            start.elapsed().as_millis()
+        ),
+    );
+
     let start = Instant::now();
-    let mut existing_files_hashset: HashSet<PathBuf> = Content::get_all_filenames_as_hashset(traceback.clone());
-    print(Verbosity::INFO, From::Main, traceback.clone(), format!("startup: read in 'existing files hashset' took: {}ms", start.elapsed().as_millis()));
+    let mut existing_files_hashset: HashSet<PathBuf> =
+        Content::get_all_filenames_as_hashset(traceback.clone());
+    print(
+        Verbosity::INFO,
+        From::Main,
+        traceback.clone(),
+        format!(
+            "startup: read in 'existing files hashset' took: {}ms",
+            start.elapsed().as_millis()
+        ),
+    );
 
     //remote or local workers
     /*let mut encode_workers: Workers = Workers::new();

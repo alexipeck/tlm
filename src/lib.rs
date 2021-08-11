@@ -1,6 +1,7 @@
 pub mod content;
 pub mod database;
 pub mod designation;
+pub mod error_handling;
 pub mod filter;
 pub mod job;
 pub mod print;
@@ -8,7 +9,6 @@ pub mod queue;
 pub mod shows;
 pub mod task;
 pub mod traceback;
-pub mod error_handling;
 
 use std::{
     collections::{HashSet, VecDeque},

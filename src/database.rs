@@ -1,24 +1,23 @@
 use crate::{
     content::Content,
+    database::{
+        error_handling::{db_boolean_handle, handle_insert_error, handle_result_error},
+        execution::{execute_query, get_by_query, get_client},
+    },
     job::Job,
     print::{print, From, Verbosity},
     shows::{self, Show},
     traceback::Traceback,
-    database::{
-        execution::{get_client, execute_query, get_by_query},
-        error_handling::{handle_insert_error, handle_result_error, db_boolean_handle},
-    }
 };
 use core::panic;
 use rand::Rng;
 
-
 pub mod error_handling {
-    use tokio_postgres::{Error, Row};
     use crate::{
-        traceback::Traceback,
         print::{print, From, Verbosity},
+        traceback::Traceback,
     };
+    use tokio_postgres::{Error, Row};
 
     pub fn handle_result_error(result: Result<Vec<Row>, Error>, traceback: Traceback) -> Vec<Row> {
         let mut traceback = traceback.clone();
@@ -111,28 +110,28 @@ pub mod error_handling {
 
 pub mod execution {
     use crate::{
-        traceback::Traceback,
-        print::{print, From, Verbosity},
         database::error_handling::handle_result_error,
+        print::{print, From, Verbosity},
+        traceback::Traceback,
     };
-    use tokio_postgres::{NoTls, Row};
     use postgres::Client;
-    
+    use tokio_postgres::{NoTls, Row};
+
     pub fn get_by_query(query: &str, traceback: Traceback) -> Vec<Row> {
         let mut traceback = traceback.clone();
         traceback.add_location("get_by_query");
-    
+
         let result = get_client(traceback.clone()).query(query, &[]);
         return handle_result_error(result, traceback.clone());
     }
-    
+
     //use enums for database insertion, with helper functions that allow me to directly pass in each variable
-    
+
     //creates and returns a postgreSQL database client connection
     pub fn get_client(traceback: Traceback) -> Client {
         let mut traceback = traceback.clone();
         traceback.add_location("get_client");
-    
+
         /*
          * logic
          */
@@ -161,17 +160,17 @@ pub mod execution {
         }
         //////////
     }
-    
+
     //used for executing queries that return nothing, errors are handled internally
     pub fn execute_query(query: &str, traceback: Traceback) {
         let mut traceback = traceback.clone();
         traceback.add_location("execute_query");
-    
+
         /*
          * logic
          */
         let mut client = get_client(traceback.clone());
-        //stores error returned by 
+        //stores error returned by
         let error = client.batch_execute(query);
         if error.is_err() {
             print(
@@ -187,28 +186,18 @@ pub mod execution {
 
 pub mod ensure {
     use crate::{
-        traceback::Traceback,
         database::{
-            execution::{
-                execute_query,
-                get_client,
-            },
+            error_handling::{db_boolean_handle, handle_insert_error, handle_result_error},
+            execution::{execute_query, get_client},
             generate_qrid,
-            retrieve::{
-                get_show_uid_by_title,
-                get_uid_from_result
-            },
-            error_handling::{
-                handle_insert_error,
-                handle_result_error,
-                db_boolean_handle,
-            },
+            retrieve::{get_show_uid_by_title, get_uid_from_result},
         },
+        traceback::Traceback,
     };
     pub fn ensure_tables_exist(traceback: Traceback) {
         let mut traceback = traceback.clone();
         traceback.add_location("db_table_create");
-    
+
         execute_query(
             r"
             CREATE TABLE IF NOT EXISTS content (
@@ -219,7 +208,7 @@ pub mod ensure {
             )",
             traceback.clone(),
         );
-    
+
         execute_query(
             r"
             CREATE TABLE IF NOT EXISTS show (
@@ -229,7 +218,7 @@ pub mod ensure {
             )",
             traceback.clone(),
         );
-    
+
         execute_query(
             r"
             CREATE TABLE IF NOT EXISTS episode (
@@ -242,7 +231,7 @@ pub mod ensure {
             )",
             traceback.clone(),
         );
-    
+
         execute_query(
             r"
             CREATE TABLE IF NOT EXISTS job_queue (
@@ -259,7 +248,7 @@ pub mod ensure {
             )",
             traceback.clone(),
         );
-    
+
         execute_query(
             r"
             CREATE TABLE IF NOT EXISTS job_task_queue (
@@ -275,7 +264,7 @@ pub mod ensure {
     pub fn ensure_show_exists(show_title: String, traceback: Traceback) -> Option<usize> {
         let mut traceback = traceback.clone();
         traceback.add_location("ensure_show_exists");
-    
+
         /*
          * logic
          */
@@ -289,11 +278,11 @@ pub mod ensure {
             return get_show_uid_by_title(show_title, traceback);
         }
         //////////
-    
+
         fn insert_show(show_title: String, qrid: i32, traceback: Traceback) {
             let mut traceback = traceback.clone();
             traceback.add_location("insert_show");
-    
+
             /*
              * logic
              */
@@ -307,11 +296,11 @@ pub mod ensure {
             handle_insert_error(error, traceback.clone());
             //////////
         }
-    
+
         fn show_exists(show_title: &str, traceback: Traceback) -> bool {
             let mut traceback = traceback.clone();
             traceback.add_location("show_exists");
-    
+
             /*
              * logic
              */
@@ -328,11 +317,11 @@ pub mod ensure {
             );
             //////////
         }
-    
+
         fn read_back_show_uid(qrid: i32, traceback: Traceback) -> usize {
             let mut traceback = traceback.clone();
             traceback.add_location("read_back_show_uid");
-    
+
             /*
              * logic
              */
@@ -346,11 +335,11 @@ pub mod ensure {
             );
             //////////
         }
-    
+
         fn wipe_show_qrid(qrid: i32, traceback: Traceback) {
             let mut traceback = traceback.clone();
             traceback.add_location("wipe_show_qrid");
-    
+
             /*
              * logic
              */
@@ -362,32 +351,25 @@ pub mod ensure {
     }
 }
 
-pub mod insert {    
+pub mod insert {
     use crate::{
-        print::{print, From, Verbosity},
-        job::Job,
         content::Content,
-        traceback::Traceback,
         database::{
+            ensure::ensure_show_exists,
+            error_handling::{handle_insert_error, handle_result_error},
             execution::get_client,
-            error_handling::{
-                handle_insert_error,
-                handle_result_error,
-            },
-            retrieve::{
-                get_uid_from_result,
-            },
-            ensure::{
-                ensure_show_exists,
-            },
             generate_qrid,
+            retrieve::get_uid_from_result,
         },
+        job::Job,
+        print::{print, From, Verbosity},
+        traceback::Traceback,
     };
 
     pub fn insert_episode_if_episode(content: Content, traceback: Traceback) {
         let mut traceback = traceback.clone();
         traceback.add_location("insert_episode_if_episode");
-    
+
         /*
          * logic
          */
@@ -395,11 +377,11 @@ pub mod insert {
             insert_episode_internal(content, traceback.clone());
         }
         //////////
-    
+
         fn insert_episode_internal(content: Content, traceback: Traceback) {
             let mut traceback = traceback.clone();
             traceback.add_location("insert_episode_internal");
-    
+
             /*
              * logic
              */
@@ -420,7 +402,7 @@ pub mod insert {
     pub fn insert_content(content: Content, traceback: Traceback) -> usize {
         let mut traceback = traceback.clone();
         traceback.add_location("insert_content");
-    
+
         /*
          * logic
          */
@@ -447,11 +429,11 @@ pub mod insert {
         }
         return read_back_content_uid(qrid, traceback.clone());
         //////////
-    
+
         fn read_back_content_uid(qrid: i32, traceback: Traceback) -> usize {
             let mut traceback = traceback.clone();
             traceback.add_location("read_back_content_uid");
-    
+
             return get_uid_from_result(
                 handle_result_error(
                     get_client(traceback.clone())
@@ -461,11 +443,11 @@ pub mod insert {
                 traceback,
             );
         }
-    
+
         fn insert_content_internal(content: Content, qrid: i32, traceback: Traceback) {
             let mut traceback = traceback.clone();
             traceback.add_location("insert_content");
-    
+
             let designation = content.designation as i32;
             handle_insert_error(
                 get_client(traceback.clone()).execute(
@@ -476,21 +458,21 @@ pub mod insert {
             );
         }
     }
-    
+
     fn insert_task(task_id: usize, id: usize, job_uid: usize, traceback: Traceback) {
         let mut traceback = traceback.clone();
         traceback.add_location("insert_task");
-    
+
         /*
          * logic
          */
         insert_task_internal(task_id, id, job_uid, traceback.clone());
         //////////
-    
+
         fn insert_task_internal(task_id: usize, id: usize, job_uid: usize, traceback: Traceback) {
             let mut traceback = traceback.clone();
             traceback.add_location("insert_task_internal");
-    
+
             /*
              * logic
              */
@@ -516,21 +498,21 @@ pub mod insert {
             //////////
         }
     }
-    
+
     pub fn insert_job(job: Job, traceback: Traceback) {
         let mut traceback = traceback.clone();
         traceback.add_location("insert_job");
-    
+
         /*
          * logic
          */
         let uid = insert_job_internal(job, traceback.clone());
         //////////
-    
+
         fn insert_job_internal(job: Job, traceback: Traceback) -> usize {
             let mut traceback = traceback.clone();
             traceback.add_location("insert_job_internal");
-    
+
             //get client and inserts job if the client connection is fine
             let mut client = get_client(traceback.clone().clone());
             //quick retrieve ID
@@ -582,11 +564,11 @@ pub mod insert {
             }
             return uid;
         }
-    
+
         fn read_back_job_uid(qrid: i32, traceback: Traceback) -> usize {
             let mut traceback = traceback.clone();
             traceback.add_location("read_back_job_uid");
-    
+
             /*
              * logic
              */
@@ -604,20 +586,17 @@ pub mod insert {
 }
 
 pub mod retrieve {
-    use tokio_postgres::Row;
     use crate::{
-        database::{
-            execution::get_client,
-            error_handling::handle_result_error,
-        },
-        traceback::Traceback,
+        database::{error_handling::handle_result_error, execution::get_client},
         print::{print, From, Verbosity},
+        traceback::Traceback,
     };
+    use tokio_postgres::Row;
 
     pub fn get_show_uid_by_title(show_title: String, traceback: Traceback) -> Option<usize> {
         let mut traceback = traceback.clone();
         traceback.add_location("get_show_uid_by_title");
-    
+
         /*
          * logic
          */
@@ -643,7 +622,7 @@ pub mod retrieve {
     pub fn get_uid_from_result(input: Vec<Row>, traceback: Traceback) -> usize {
         let mut traceback = traceback.clone();
         traceback.add_location("get_uid_from_result");
-    
+
         /*
          * logic
          */
