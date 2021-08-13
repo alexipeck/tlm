@@ -19,6 +19,13 @@ impl Utility {
         self.timer = Some(Instant::now());
     }
 
+    pub fn get_timer_ms(&self) -> u128 {
+        if self.timer.is_some() {
+            return self.timer.unwrap().elapsed().as_millis();
+        }
+        panic!("A timer was never created, your fault.");
+    }
+
     fn add_traceback_location(&mut self, called_from: &str) -> Utility {
         self.traceback.push(String::from(called_from));
         return self.clone();

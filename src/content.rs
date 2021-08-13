@@ -105,8 +105,8 @@ impl Content {
     } */
 
     pub fn get_all_contents(utility: Utility) -> Vec<Content> {
-        let start = Instant::now();
-        let utility = utility.clone_and_add_location("get_all_contents");
+        let mut utility = utility.clone_and_add_location("get_all_contents");
+        utility.start_timer();
 
         let mut contents: Vec<Content> = Vec::new();
         for row in get_by_query(
@@ -122,7 +122,7 @@ impl Content {
             utility.clone(),
             format!(
                 "startup: read in 'content' took: {}ms",
-                start.elapsed().as_millis()
+                utility.get_timer_ms(),
             ),
         );
         
@@ -140,12 +140,12 @@ impl Content {
         contents: Vec<Content>,
         utility: Utility,
     ) -> HashSet<PathBuf> {
-        let utility = utility.clone_and_add_location("get_all_filenames_as_hashset_from_contents");
+        let mut utility = utility.clone_and_add_location("get_all_filenames_as_hashset_from_contents");
+        utility.start_timer();
 
         /*
          * logic
          */
-        let start = Instant::now();
         let mut hashset = HashSet::new();
         for content in contents {
             hashset.insert(content.full_path);
@@ -157,7 +157,7 @@ impl Content {
             utility.clone(),
             format!(
                 "startup: read in 'existing files hashset' took: {}ms",
-                start.elapsed().as_millis()
+                utility.get_timer_ms(),
             ),
         );
 
