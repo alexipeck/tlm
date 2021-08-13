@@ -1,10 +1,11 @@
+use core::time;
 use std::time::Instant;
 use crate::print::{print, From, Verbosity};
 
 #[derive(Clone, Debug)]
 pub struct Utility {
     pub traceback: Vec<String>,
-    pub timers: Vec<(usize, Instant)>,
+    pub timers: Vec<(usize, Instant, Option<u128>)>,
 }
 impl Utility {
     pub fn new(created_from: &str) -> Utility {
@@ -16,16 +17,60 @@ impl Utility {
         return traceback;
     }
     
+    pub fn get_saved_timing(&self, identifier: usize, utility: Utility) -> u128 {
+        for timer in &self.timers {
+            if timer.0 == identifier {
+                return timer.2.unwrap();
+            }
+        }
+        print(
+            Verbosity::ERROR,
+            From::Utility,
+            utility,
+            format!(
+                "A timer was never created or the identifier used matches no timers."
+            ),
+            0,
+        );
+        panic!();
+    }
+
+    pub fn save_timing(&mut self, identifier: usize, utility: Utility) {
+        let mut timer_exists: bool = false;
+        let mut counter: usize = 0;
+        for timer in &self.timers {
+            if timer.0 == identifier {
+                timer_exists = true;
+                break;
+            }
+            counter += 1;
+        }
+        if timer_exists {     
+            self.timers[counter].2 = Some(self.timers[counter].1.elapsed().as_millis());
+        } else {
+            print(
+                Verbosity::ERROR,
+                From::Utility,
+                utility,
+                format!(
+                    "A timer was never created or the identifier used matches no timers."
+                ),
+                0,
+            );
+            panic!();
+        }
+    }
+
     pub fn start_timer(&mut self, identifier: usize) {
         let timer_exists: bool = false;
         for (i, timer) in self.timers.iter().enumerate() {
             if timer.0 == identifier {
-                self.timers[i] = (identifier, Instant::now());
+                self.timers[i] = (identifier, Instant::now(), None);
                 break;
             }
         }
         if !timer_exists {
-            self.timers.push((identifier, Instant::now()));
+            self.timers.push((identifier, Instant::now(), None));
         }
     }
 
@@ -45,6 +90,21 @@ impl Utility {
             0,
         );
         panic!();
+    }
+
+    pub fn print_timer_from_stage_and_task_from_saved(&self, identifier: usize, stage: &str, task: &str, indent: usize, utility: Utility) {
+        print(
+            Verbosity::INFO,
+            From::Utility,
+            self.clone(),
+            format!(
+                "{}: handling task '{}' took: {}ms",
+                stage,
+                task,
+                self.get_saved_timing(identifier, utility),
+            ),
+            indent,
+        );
     }
 
     pub fn print_timer_from_stage_and_task(&self, identifier: usize, stage: &str, task: &str, indent: usize, utility: Utility) {

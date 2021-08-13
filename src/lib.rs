@@ -82,11 +82,24 @@ pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Cont
 
     for new_file in new_files {
         utility.start_timer(1);
+
+        utility.start_timer(2);
         let mut content = Content::new(&new_file, utility.clone());
+        utility.save_timing(2, utility.clone());
+        
+        utility.start_timer(3);
         content.set_uid(insert_content(content.clone(), utility.clone()));
+        utility.save_timing(3, utility.clone());
+        
+        utility.start_timer(4);
         insert_episode_if_episode(content.clone(), utility.clone());
+        utility.save_timing(4, utility.clone());
+
         working_content.push(content);
         utility.print_timer_from_stage_and_task(1, "startup", "creating content from PathBuf", 1, utility.clone());
+        utility.print_timer_from_stage_and_task_from_saved(2, "startup", "creating content from PathBuf", 2, utility.clone());
+        utility.print_timer_from_stage_and_task_from_saved(3, "startup", "inserting content to the database, returning UID", 2, utility.clone());
+        utility.print_timer_from_stage_and_task_from_saved(4, "startup", "inserting episode to the database, if it is", 2, utility.clone());
     }
     utility.print_timer_from_stage_and_task(0, "startup", "processing new files", 0, utility.clone());
 }
