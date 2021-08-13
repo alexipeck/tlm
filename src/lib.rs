@@ -77,14 +77,18 @@ pub fn handle_tracked_directories() -> TrackedDirectories {
 }
 
 pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Content>, utility: Utility) {
-    let utility = utility.clone_and_add_location("process_new_files");
+    let mut utility = utility.clone_and_add_location("process_new_files");
+    utility.start_timer(0);
 
     for new_file in new_files {
+        utility.start_timer(1);
         let mut content = Content::new(&new_file, utility.clone());
         content.set_uid(insert_content(content.clone(), utility.clone()));
         insert_episode_if_episode(content.clone(), utility.clone());
         working_content.push(content);
+        utility.print_timer_from_stage_and_task(1, "startup", "creating content from PathBuf", 1, utility.clone());
     }
+    utility.print_timer_from_stage_and_task(0, "startup", "processing new files", 0, utility.clone());
 }
 
 //Hash set guarentees no duplicates in O(1) time

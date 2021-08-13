@@ -83,6 +83,7 @@ impl Job {
             From::Content,
             utility,
             Content::get_filename_from_pathbuf(self.source_path.clone()),
+            0,
         );
     }
 
@@ -96,6 +97,7 @@ impl Job {
                 "Encoding file \'{}\'",
                 Content::get_filename_from_pathbuf(self.source_path.clone())
             ),
+            0,
         );
 
         let buffer;
@@ -132,6 +134,7 @@ impl Job {
             From::Job,
             utility.clone(),
             format!("starting encoding job UID#: {} by {}", self.uid, worker.1),
+            0,
         );
         self.encode(utility.clone());
         print(
@@ -139,6 +142,7 @@ impl Job {
             From::Job,
             utility.clone(),
             format!("completed encoding job UID#: {}", self.uid),
+            0,
         );
 
         let source_path = self.source_path.to_string_lossy().to_string();
@@ -159,6 +163,7 @@ impl Job {
                     From::Content,
                     utility,
                     format!("Source: {}\nDestination: {}", &source_path, &encode_path),
+                    0,
                 );
                 panic!("Problem copying the file: {:?}", error);
             }
@@ -172,6 +177,7 @@ impl Job {
                     From::Content,
                     utility,
                     format!("Target for removal: {}", &encode_path),
+                    0,
                 );
                 panic!("Problem removing the file: {:?}", error);
             }

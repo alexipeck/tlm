@@ -49,6 +49,7 @@ impl Show {
             From::Shows,
             utility,
             format!("[uid: {}][title: {}]", self.uid, self.title),
+            0,
         );
     }
 }
@@ -170,6 +171,7 @@ impl Shows {
                         From::Shows,
                         utility.clone(),
                         format!("{}", episode.get_filename_woe()),
+                        0,
                     );
                 }
             }

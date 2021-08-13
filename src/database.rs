@@ -37,6 +37,7 @@ pub mod error_handling {
                 From::DB,
                 utility,
                 format!("{}", error.unwrap_err()),
+                0,
             );
         }
         //////////
@@ -58,6 +59,7 @@ pub mod error_handling {
                     "something is wrong with the returned result, or lack their of: {}",
                     error.unwrap_err()
                 ),
+                0,
             );
             panic!();
         }
@@ -84,6 +86,7 @@ pub mod error_handling {
                 From::DB,
                 utility,
                 format!("should have returned a boolean from the db, regardless"),
+                0,
             );
             panic!();
         }
@@ -132,6 +135,7 @@ pub mod execution {
                         "client couldn't establish a connection: {}",
                         err.to_string()
                     ),
+                    0,
                 );
                 panic!();
             }
@@ -158,6 +162,7 @@ pub mod execution {
                 From::DB,
                 utility.clone(),
                 format!("{}: {}", String::from(query), error.unwrap_err()),
+                0,
             );
         }
         //////////
@@ -394,6 +399,7 @@ pub mod insert {
                     From::DB,
                     utility,
                     format!("show UID couldn't be retrieved"),
+                    0,
                 );
                 panic!();
             }
@@ -461,6 +467,7 @@ pub mod insert {
                 From::DB,
                 utility.clone(),
                 format!("[job_uid: {}][id: {}][task_id: {}]", job_uid, id, task_id),
+                0,
             );
             //////////
         }
@@ -523,6 +530,7 @@ pub mod insert {
                     job.source_path.to_string_lossy().to_string(),
                     job.encode_path.to_string_lossy().to_string()
                 ),
+                0,
             );
             for (pos, task) in job.tasks.iter().enumerate() {
                 insert_task(task.clone() as usize, pos, uid, utility.clone());
@@ -600,6 +608,7 @@ pub mod retrieve {
             From::DB,
             utility,
             format!("Couldn't find entry that was just inserted, this shouldn't happen."),
+            0,
         );
         panic!();
         //////////
@@ -662,6 +671,8 @@ pub mod print {
                 From::DB,
                 utility.clone(),
                 format!("[job_uid:{}]", uid),
+                0,
+
             );
         }
         //////////
@@ -680,6 +691,8 @@ pub mod print {
                 From::DB,
                 utility.clone(),
                 format!("[title:{}]", title),
+                0,
+
             );
         }
         //////////

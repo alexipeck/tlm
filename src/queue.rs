@@ -109,6 +109,7 @@ impl Queue {
                     From::Queue,
                     utility.clone(),
                     format!("handling job UID#: {}", job_uid),
+                    0,
                 );
                 job.handle(worker.clone(), utility.clone());
                 delete = true;
@@ -124,6 +125,7 @@ impl Queue {
                         From::Queue,
                         utility.clone(),
                         format!("handling job UID#: {}", job_uid),
+                        0,
                     );
                     job.handle(worker, utility.clone());
                     delete = true;
@@ -137,6 +139,7 @@ impl Queue {
                 From::Queue,
                 utility,
                 format!("removing from queue job UID#: {}", job_uid),
+                0,
             );
             self.remove_from_queue_by_uid(job_uid);
         }

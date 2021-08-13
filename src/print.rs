@@ -16,10 +16,11 @@ pub enum From {
     Main = 1,
     Lib = 2,
     Content = 3,
-    Shows = 4,
-    Queue = 5,
-    DB = 6,
-    Job = 7,
+    Utility = 4,
+    Shows = 5,
+    Queue = 6,
+    DB = 7,
+    Job = 8,
 }
 
 pub fn print(
@@ -27,17 +28,24 @@ pub fn print(
     from_module: From,
     traceback: Utility,
     string: String,
+    indent: usize,
 ) {
     fn print(
         verbosity_string: &str,
         from_module_string: &str,
         call_functions_string: String,
         string: String,
+        indentation: String,
     ) {
         println!(
-            "[{}][{}][{}]::{}",
-            verbosity_string, from_module_string, call_functions_string, string
+            "{}[{}][{}][{}]::{}",
+            indentation, verbosity_string, from_module_string, call_functions_string, string
         );
+    }
+
+    let mut indentation: String = String::new();
+    for _ in 0..(indent * 4) {
+        indentation.push(' ');
     }
 
     //print(Verbosity::DEBUG, r"", format!(""));
@@ -85,6 +93,7 @@ pub fn print(
             from_module_string,
             call_functions_string,
             string,
+            indentation,
         );
     } else if current_verbosity_level <= set_output_verbosity_level {
         print(
@@ -92,6 +101,7 @@ pub fn print(
             from_module_string,
             call_functions_string,
             string,
+            indentation,
         );
     }
 }

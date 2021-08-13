@@ -9,7 +9,6 @@ use crate::{
 use regex::Regex;
 use std::{
     collections::HashSet,
-    time::Instant,
     sync::atomic::{AtomicUsize, Ordering},
     path::PathBuf,
 };
@@ -106,7 +105,7 @@ impl Content {
 
     pub fn get_all_contents(utility: Utility) -> Vec<Content> {
         let mut utility = utility.clone_and_add_location("get_all_contents");
-        utility.start_timer();
+        utility.start_timer(0);
 
         let mut contents: Vec<Content> = Vec::new();
         for row in get_by_query(
@@ -122,16 +121,15 @@ impl Content {
             utility.clone(),
             format!(
                 "startup: read in 'content' took: {}ms",
-                utility.get_timer_ms(),
+                utility.get_timer_ms(0, utility.clone()),
             ),
+            0,
         );
         
         return contents;
     }
 
-    pub fn filename_from_row_as_pathbuf(row: Row, utility: Utility) -> PathBuf {
-        let utility = utility.clone_and_add_location("filename_from_row_as_pathbuf");
-
+    pub fn filename_from_row_as_pathbuf(row: Row) -> PathBuf {
         let temp: String = row.get(0);
         return PathBuf::from(temp);
     }
@@ -141,7 +139,7 @@ impl Content {
         utility: Utility,
     ) -> HashSet<PathBuf> {
         let mut utility = utility.clone_and_add_location("get_all_filenames_as_hashset_from_contents");
-        utility.start_timer();
+        utility.start_timer(0);
 
         /*
          * logic
@@ -157,8 +155,9 @@ impl Content {
             utility.clone(),
             format!(
                 "startup: read in 'existing files hashset' took: {}ms",
-                utility.get_timer_ms(),
+                utility.get_timer_ms(0, utility.clone()),
             ),
+            0,
         );
 
         return hashset;
@@ -167,7 +166,6 @@ impl Content {
 
     pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
         let utility = utility.clone_and_add_location("get_all_filenames_as_hashset");
-
         /*
          * logic
          */
@@ -175,7 +173,6 @@ impl Content {
         for row in get_by_query(r"SELECT full_path FROM content", utility.clone()) {
             hashset.insert(Content::filename_from_row_as_pathbuf(
                 row,
-                utility.clone(),
             ));
         }
         return hashset;
@@ -344,6 +341,7 @@ impl Content {
                     season_episode.0,
                     season_episode.1
                 ),
+            0,
             );
         } else {
             self.print_simple(utility);
@@ -363,6 +361,7 @@ impl Content {
                 self.designation as i32,
                 self.get_full_path(),
             ),
+            0,
         );
     }
 

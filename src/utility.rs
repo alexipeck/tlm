@@ -1,29 +1,65 @@
 use std::time::Instant;
+use crate::print::{print, From, Verbosity};
 
 #[derive(Clone, Debug)]
 pub struct Utility {
     pub traceback: Vec<String>,
-    pub timer: Option<Instant>,
+    pub timers: Vec<(usize, Instant)>,
 }
 impl Utility {
     pub fn new(created_from: &str) -> Utility {
         let mut traceback = Utility {
             traceback: Vec::new(),
-            timer: None,
+            timers: Vec::new(),
         };
         traceback.add_traceback_location(created_from);
         return traceback;
     }
-
-    pub fn start_timer(&mut self) {
-        self.timer = Some(Instant::now());
+    
+    pub fn start_timer(&mut self, identifier: usize) {
+        let timer_exists: bool = false;
+        for (i, timer) in self.timers.iter().enumerate() {
+            if timer.0 == identifier {
+                self.timers[i] = (identifier, Instant::now());
+                break;
+            }
+        }
+        if !timer_exists {
+            self.timers.push((identifier, Instant::now()));
+        }
     }
 
-    pub fn get_timer_ms(&self) -> u128 {
-        if self.timer.is_some() {
-            return self.timer.unwrap().elapsed().as_millis();
+    pub fn get_timer_ms(&self, identifier: usize, utility: Utility) -> u128 {
+        for timer in &self.timers {
+            if timer.0 == identifier {
+                return timer.1.elapsed().as_millis();
+            }
         }
-        panic!("A timer was never created, your fault.");
+        print(
+            Verbosity::ERROR,
+            From::Utility,
+            utility,
+            format!(
+                "A timer was never created or the identifier used matches no timers."
+            ),
+            0,
+        );
+        panic!();
+    }
+
+    pub fn print_timer_from_stage_and_task(&self, identifier: usize, stage: &str, task: &str, indent: usize, utility: Utility) {
+        print(
+            Verbosity::INFO,
+            From::Utility,
+            self.clone(),
+            format!(
+                "{}: handling task '{}' took: {}ms",
+                stage,
+                task,
+                self.get_timer_ms(identifier, utility),
+            ),
+            indent,
+        );
     }
 
     fn add_traceback_location(&mut self, called_from: &str) -> Utility {
