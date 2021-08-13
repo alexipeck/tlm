@@ -1,3 +1,5 @@
+use crate::utility::Utility;
+
 //trickle up
 #[derive(Clone, Debug, PartialEq)]
 pub enum Verbosity {
@@ -23,7 +25,7 @@ pub enum From {
 pub fn print(
     verbosity: Verbosity,
     from_module: From,
-    traceback: crate::traceback::Traceback,
+    traceback: Utility,
     string: String,
 ) {
     fn print(

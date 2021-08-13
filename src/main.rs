@@ -15,7 +15,7 @@ use tlm::{
     },
     content::Content,
     shows::Shows,
-    traceback::Traceback,
+    utility::Utility,
 };
 
 fn main() {
@@ -31,11 +31,11 @@ fn main() {
     insert episode from content
     */
 
-    let traceback = Traceback::new("main");
+    let utility = Utility::new("main");
 
-    db_purge(traceback.clone());
+    db_purge(utility.clone());
 
-    ensure_tables_exist(traceback.clone());
+    ensure_tables_exist(utility.clone());
 
     let tracked_directories: TrackedDirectories = handle_tracked_directories();
 
@@ -44,9 +44,9 @@ fn main() {
     //ignored directories
     let ignored_paths = vec![".recycle_bin"];
 
-    let mut working_content: Vec<Content> = Content::get_all_contents(traceback.clone());
+    let mut working_content: Vec<Content> = Content::get_all_contents(utility.clone());
 
-    let mut existing_files_hashset: HashSet<PathBuf> = Content::get_all_filenames_as_hashset_from_contents(working_content.clone(), traceback.clone());
+    let mut existing_files_hashset: HashSet<PathBuf> = Content::get_all_filenames_as_hashset_from_contents(working_content.clone(), utility.clone());
 
     let shows = Shows::new();
 
@@ -58,12 +58,12 @@ fn main() {
             &mut existing_files_hashset,
         ),
         &mut working_content,
-        traceback.clone(),
+        utility.clone(),
     );
 
-    print_contents(working_content, traceback.clone());
-    print_shows(traceback.clone());
-    //print_jobs(traceback.clone());
+    print_contents(working_content, utility.clone());
+    print_shows(utility.clone());
+    //print_jobs(utility.clone());
 
     //queue.print();
     //shows.print();

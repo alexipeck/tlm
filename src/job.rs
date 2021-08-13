@@ -2,7 +2,7 @@ use crate::{
     content::Content,
     print::{print, From, Verbosity},
     task::Task,
-    traceback::Traceback,
+    utility::Utility,
 };
 use std::{
     collections::VecDeque,
@@ -76,24 +76,22 @@ impl Job {
         self.tasks.push_back(Task::Move);
     }
 
-    pub fn print(&self, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("print");
+    pub fn print(&self, utility: Utility) {
+        let utility = utility.clone_and_add_location("print");
         print(
             Verbosity::INFO,
             From::Content,
-            traceback,
+            utility,
             Content::get_filename_from_pathbuf(self.source_path.clone()),
         );
     }
 
-    pub fn encode(&self, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("encode");
+    pub fn encode(&self, utility: Utility) {
+        let utility = utility.clone_and_add_location("encode");
         print(
             Verbosity::INFO,
             From::Job,
-            traceback,
+            utility,
             format!(
                 "Encoding file \'{}\'",
                 Content::get_filename_from_pathbuf(self.source_path.clone())
@@ -127,20 +125,19 @@ impl Job {
         print(Verbosity::INFO, "content", "handle", format!("reserved job UID#: {} for {}", self.uid, operator.clone()));
     } */
 
-    pub fn handle(&mut self, worker: (usize, String), traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("handle");
+    pub fn handle(&mut self, worker: (usize, String), utility: Utility) {
+        let utility = utility.clone_and_add_location("handle");
         print(
             Verbosity::INFO,
             From::Job,
-            traceback.clone(),
+            utility.clone(),
             format!("starting encoding job UID#: {} by {}", self.uid, worker.1),
         );
-        self.encode(traceback.clone());
+        self.encode(utility.clone());
         print(
             Verbosity::INFO,
             From::Job,
-            traceback.clone(),
+            utility.clone(),
             format!("completed encoding job UID#: {}", self.uid),
         );
 
@@ -160,7 +157,7 @@ impl Job {
                 print(
                     Verbosity::ERROR,
                     From::Content,
-                    traceback,
+                    utility,
                     format!("Source: {}\nDestination: {}", &source_path, &encode_path),
                 );
                 panic!("Problem copying the file: {:?}", error);
@@ -173,7 +170,7 @@ impl Job {
                 print(
                     Verbosity::ERROR,
                     From::Content,
-                    traceback,
+                    utility,
                     format!("Target for removal: {}", &encode_path),
                 );
                 panic!("Problem removing the file: {:?}", error);

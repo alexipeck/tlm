@@ -1,7 +1,7 @@
 use crate::{
     job::Job,
     print::{print, From, Verbosity},
-    traceback::Traceback,
+    utility::Utility,
 };
 use std::collections::VecDeque;
 
@@ -96,9 +96,8 @@ impl Queue {
         return None;
     }
 
-    pub fn handle_by_uid(&mut self, job_uid: usize, worker: (usize, String), traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("handle_by_uid");
+    pub fn handle_by_uid(&mut self, job_uid: usize, worker: (usize, String), utility: Utility) {
+        let utility = utility.clone_and_add_location("handle_by_uid");
         let mut delete: bool = false;
 
         //looks for job_uid in the priority queue
@@ -108,10 +107,10 @@ impl Queue {
                 print(
                     Verbosity::INFO,
                     From::Queue,
-                    traceback.clone(),
+                    utility.clone(),
                     format!("handling job UID#: {}", job_uid),
                 );
-                job.handle(worker.clone(), traceback.clone());
+                job.handle(worker.clone(), utility.clone());
                 delete = true;
                 break;
             }
@@ -123,10 +122,10 @@ impl Queue {
                     print(
                         Verbosity::INFO,
                         From::Queue,
-                        traceback.clone(),
+                        utility.clone(),
                         format!("handling job UID#: {}", job_uid),
                     );
-                    job.handle(worker, traceback.clone());
+                    job.handle(worker, utility.clone());
                     delete = true;
                     break;
                 }
@@ -136,16 +135,15 @@ impl Queue {
             print(
                 Verbosity::INFO,
                 From::Queue,
-                traceback,
+                utility,
                 format!("removing from queue job UID#: {}", job_uid),
             );
             self.remove_from_queue_by_uid(job_uid);
         }
     }
 
-    pub fn run_job(&mut self, worker: (usize, String), traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("run_job");
+    pub fn run_job(&mut self, worker: (usize, String), utility: Utility) {
+        let utility = utility.clone_and_add_location("run_job");
 
         //currently encodes first unreserved Job
         //finds job to run
@@ -165,7 +163,7 @@ impl Queue {
 
         //handles job by uid (figure out what to do with that particular job) if a job exists and is available
         if uid_to_handle.is_some() {
-            self.handle_by_uid(uid_to_handle.unwrap(), worker, traceback);
+            self.handle_by_uid(uid_to_handle.unwrap(), worker, utility);
         }
     }
 
@@ -191,15 +189,14 @@ impl Queue {
         }
     }
 
-    pub fn print(&mut self, traceback: crate::traceback::Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("print");
+    pub fn print(&mut self, utility: Utility) {
+        let utility = utility.clone_and_add_location("print");
         for job in &self.priority_queue {
-            job.print(traceback.clone()); //this is supposed to include "pq"
+            job.print(utility.clone()); //this is supposed to include "pq"
         }
 
         for job in &self.main_queue {
-            job.print(traceback.clone()); //this is supposed to include "mq"
+            job.print(utility.clone()); //this is supposed to include "mq"
         }
     }
 

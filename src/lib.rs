@@ -8,7 +8,7 @@ pub mod print;
 pub mod queue;
 pub mod shows;
 pub mod task;
-pub mod traceback;
+pub mod utility;
 
 use std::{
     collections::{HashSet, VecDeque},
@@ -16,7 +16,7 @@ use std::{
     path::PathBuf,
     time::Instant,
 };
-use traceback::Traceback;
+//use utility;
 use twox_hash::xxh3;
 use walkdir::WalkDir;
 use content::Content;
@@ -24,6 +24,7 @@ use database::insert::{
     insert_content,
     insert_episode_if_episode,
 };
+use utility::Utility;
 
 #[derive(Clone, Debug)]
 pub struct TrackedDirectories {
@@ -75,14 +76,13 @@ pub fn handle_tracked_directories() -> TrackedDirectories {
     return tracked_directories;
 }
 
-pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Content>, traceback: Traceback) {
-    let mut traceback = traceback.clone();
-    traceback.add_location("process_new_files");
+pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Content>, utility: Utility) {
+    let utility = utility.clone_and_add_location("process_new_files");
 
     for new_file in new_files {
-        let mut content = Content::new(&new_file, traceback.clone());
-        content.set_uid(insert_content(content.clone(), traceback.clone()));
-        insert_episode_if_episode(content.clone(), traceback.clone());
+        let mut content = Content::new(&new_file, utility.clone());
+        content.set_uid(insert_content(content.clone(), utility.clone()));
+        insert_episode_if_episode(content.clone(), utility.clone());
         working_content.push(content);
     }
 }

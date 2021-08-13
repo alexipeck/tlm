@@ -2,13 +2,12 @@
 pub mod error_handling {
     use crate::{
         print::{print, From, Verbosity},
-        traceback::Traceback,
+        utility::Utility,
     };
     use tokio_postgres::{Error, Row};
 
-    pub fn handle_result_error(result: Result<Vec<Row>, Error>, traceback: Traceback) -> Vec<Row> {
-        let mut traceback = traceback.clone();
-        traceback.add_location("handle_result_error");
+    pub fn handle_result_error(result: Result<Vec<Row>, Error>, utility: Utility) -> Vec<Row> {
+        let utility = utility.clone_and_add_location("handle_result_error");
 
         /*
          * logic
@@ -19,16 +18,15 @@ pub mod error_handling {
                 return result;
             }
         } else {
-            handle_retrieve_error(result, traceback.clone());
+            handle_retrieve_error(result, utility.clone());
         }
         return Vec::new();
         //////////
     }
 
     //prints error of it's actually an error, otherwise, does nothing
-    pub fn handle_insert_error(error: Result<u64, Error>, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("handle_insert_error");
+    pub fn handle_insert_error(error: Result<u64, Error>, utility: Utility) {
+        let utility = utility.clone_and_add_location("handle_insert_error");
 
         /*
          * logic
@@ -37,7 +35,7 @@ pub mod error_handling {
             print(
                 Verbosity::ERROR,
                 From::DB,
-                traceback,
+                utility,
                 format!("{}", error.unwrap_err()),
             );
         }
@@ -45,9 +43,8 @@ pub mod error_handling {
     }
 
     //prints error of it's actually an error, otherwise, returns unwrapped Vec<Row>
-    pub fn handle_retrieve_error(error: Result<Vec<Row>, Error>, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("handle_retrieve_error");
+    pub fn handle_retrieve_error(error: Result<Vec<Row>, Error>, utility: Utility) {
+        let utility = utility.clone_and_add_location("handle_retrieve_error");
 
         /*
          * logic
@@ -56,7 +53,7 @@ pub mod error_handling {
             print(
                 Verbosity::ERROR,
                 From::DB,
-                traceback,
+                utility,
                 format!(
                     "something is wrong with the returned result, or lack their of: {}",
                     error.unwrap_err()
@@ -68,9 +65,8 @@ pub mod error_handling {
     }
 
     //given an error handled Vec<Row>, will return boolean or handle the error
-    pub fn db_boolean_handle(input: Vec<Row>, traceback: Traceback) -> bool {
-        let mut traceback = traceback.clone();
-        traceback.add_location("db_boolean_handle");
+    pub fn db_boolean_handle(input: Vec<Row>, utility: Utility) -> bool {
+        let utility = utility.clone_and_add_location("db_boolean_handle");
 
         /*
          * logic
@@ -86,7 +82,7 @@ pub mod error_handling {
             print(
                 Verbosity::CRITICAL,
                 From::DB,
-                traceback,
+                utility,
                 format!("should have returned a boolean from the db, regardless"),
             );
             panic!();
@@ -99,25 +95,23 @@ pub mod execution {
     use crate::{
         database::error_handling::handle_result_error,
         print::{print, From, Verbosity},
-        traceback::Traceback,
+        utility::Utility,
     };
     use postgres::Client;
     use tokio_postgres::{NoTls, Row};
 
-    pub fn get_by_query(query: &str, traceback: Traceback) -> Vec<Row> {
-        let mut traceback = traceback.clone();
-        traceback.add_location("get_by_query");
+    pub fn get_by_query(query: &str, utility: Utility) -> Vec<Row> {
+        let utility = utility.clone_and_add_location("get_by_query");
 
-        let result = get_client(traceback.clone()).query(query, &[]);
-        return handle_result_error(result, traceback.clone());
+        let result = get_client(utility.clone()).query(query, &[]);
+        return handle_result_error(result, utility.clone());
     }
 
     //use enums for database insertion, with helper functions that allow me to directly pass in each variable
 
     //creates and returns a postgreSQL database client connection
-    pub fn get_client(traceback: Traceback) -> Client {
-        let mut traceback = traceback.clone();
-        traceback.add_location("get_client");
+    pub fn get_client(utility: Utility) -> Client {
+        let utility = utility.clone_and_add_location("get_client");
 
         /*
          * logic
@@ -133,7 +127,7 @@ pub mod execution {
                 print(
                     Verbosity::ERROR,
                     From::DB,
-                    traceback,
+                    utility,
                     format!(
                         "client couldn't establish a connection: {}",
                         err.to_string()
@@ -149,21 +143,20 @@ pub mod execution {
     }
 
     //used for executing queries that return nothing, errors are handled internally
-    pub fn execute_query(query: &str, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("execute_query");
+    pub fn execute_query(query: &str, utility: Utility) {
+        let utility = utility.clone_and_add_location("execute_query");
 
         /*
          * logic
          */
-        let mut client = get_client(traceback.clone());
+        let mut client = get_client(utility.clone());
         //stores error returned by
         let error = client.batch_execute(query);
         if error.is_err() {
             print(
                 Verbosity::ERROR,
                 From::DB,
-                traceback.clone(),
+                utility.clone(),
                 format!("{}: {}", String::from(query), error.unwrap_err()),
             );
         }
@@ -179,11 +172,10 @@ pub mod ensure {
             miscellaneous::generate_qrid,
             retrieve::{get_show_uid_by_title, get_uid_from_result},
         },
-        traceback::Traceback,
+        utility::Utility,
     };
-    pub fn ensure_tables_exist(traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("db_table_create");
+    pub fn ensure_tables_exist(utility: Utility) {
+        let utility = utility.clone_and_add_location("db_table_create");
 
         execute_query(
             r"
@@ -193,7 +185,7 @@ pub mod ensure {
                 designation     INTEGER NOT NULL,
                 qrid            INTEGER
             )",
-            traceback.clone(),
+            utility.clone(),
         );
 
         execute_query(
@@ -203,7 +195,7 @@ pub mod ensure {
                 title           TEXT NOT NULL,
                 qrid            INTEGER
             )",
-            traceback.clone(),
+            utility.clone(),
         );
 
         execute_query(
@@ -216,7 +208,7 @@ pub mod ensure {
                 episode_number          SMALLINT NOT NULL,
                 PRIMARY KEY(show_uid, season_number, episode_number)
             )",
-            traceback.clone(),
+            utility.clone(),
         );
 
         execute_query(
@@ -233,7 +225,7 @@ pub mod ensure {
                 worker_string_id    TEXT NOT NULL,
                 qrid                INTEGER NOT NULL
             )",
-            traceback.clone(),
+            utility.clone(),
         );
 
         execute_query(
@@ -244,95 +236,90 @@ pub mod ensure {
                 task_id             SMALLINT NOT NULL,
                 PRIMARY KEY(job_uid, id)
             );",
-            traceback.clone(),
+            utility.clone(),
         );
     }
 
-    pub fn ensure_show_exists(show_title: String, traceback: Traceback) -> Option<usize> {
-        let mut traceback = traceback.clone();
-        traceback.add_location("ensure_show_exists");
+    pub fn ensure_show_exists(show_title: String, utility: Utility) -> Option<usize> {
+        let utility = utility.clone_and_add_location("ensure_show_exists");
 
         /*
          * logic
          */
-        if !show_exists(&show_title, traceback.clone()) {
+        if !show_exists(&show_title, utility.clone()) {
             let qrid = generate_qrid();
-            insert_show(show_title, qrid, traceback.clone());
-            let uid = read_back_show_uid(qrid, traceback.clone());
-            wipe_show_qrid(qrid, traceback.clone());
+            insert_show(show_title, qrid, utility.clone());
+            let uid = read_back_show_uid(qrid, utility.clone());
+            wipe_show_qrid(qrid, utility.clone());
             return Some(uid);
         } else {
-            return get_show_uid_by_title(show_title, traceback);
+            return get_show_uid_by_title(show_title, utility);
         }
         //////////
 
-        fn insert_show(show_title: String, qrid: i32, traceback: Traceback) {
-            let mut traceback = traceback.clone();
-            traceback.add_location("insert_show");
+        fn insert_show(show_title: String, qrid: i32, utility: Utility) {
+            let utility = utility.clone_and_add_location("insert_show");
 
             /*
              * logic
              */
-            let mut client = get_client(traceback.clone());
+            let mut client = get_client(utility.clone());
             let error = client.execute(
                 r"INSERT INTO show (title, qrid) VALUES ($1, $2)",
                 &[&show_title, &qrid],
             );
             //use if I need to do anything more with the row
             //let show_uid = read_back_show_uid(qrid);
-            handle_insert_error(error, traceback.clone());
+            handle_insert_error(error, utility.clone());
             //////////
         }
 
-        fn show_exists(show_title: &str, traceback: Traceback) -> bool {
-            let mut traceback = traceback.clone();
-            traceback.add_location("show_exists");
+        fn show_exists(show_title: &str, utility: Utility) -> bool {
+            let utility = utility.clone_and_add_location("show_exists");
 
             /*
              * logic
              */
-            let mut client = get_client(traceback.clone());
+            let mut client = get_client(utility.clone());
             return db_boolean_handle(
                 handle_result_error(
                     client.query(
                         r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
                         &[&show_title],
                     ),
-                    traceback.clone(),
+                    utility.clone(),
                 ),
-                traceback,
+                utility,
             );
             //////////
         }
 
-        fn read_back_show_uid(qrid: i32, traceback: Traceback) -> usize {
-            let mut traceback = traceback.clone();
-            traceback.add_location("read_back_show_uid");
+        fn read_back_show_uid(qrid: i32, utility: Utility) -> usize {
+            let utility = utility.clone_and_add_location("read_back_show_uid");
 
             /*
              * logic
              */
             return get_uid_from_result(
                 handle_result_error(
-                    get_client(traceback.clone())
+                    get_client(utility.clone())
                         .query(r"SELECT show_uid FROM show WHERE qrid = $1", &[&qrid]),
-                    traceback.clone(),
+                    utility.clone(),
                 ),
-                traceback,
+                utility,
             );
             //////////
         }
 
-        fn wipe_show_qrid(qrid: i32, traceback: Traceback) {
-            let mut traceback = traceback.clone();
-            traceback.add_location("wipe_show_qrid");
+        fn wipe_show_qrid(qrid: i32, utility: Utility) {
+            let utility = utility.clone_and_add_location("wipe_show_qrid");
 
             /*
              * logic
              */
-            let mut client = get_client(traceback.clone());
+            let mut client = get_client(utility.clone());
             let error = client.execute(r"UPDATE show SET qrid = NULL WHERE qrid = $1", &[&qrid]);
-            handle_insert_error(error, traceback.clone());
+            handle_insert_error(error, utility.clone());
             //////////
         }
     }
@@ -350,24 +337,22 @@ pub mod insert {
         },
         job::Job,
         print::{print, From, Verbosity},
-        traceback::Traceback,
+        utility::Utility,
     };
 
-    pub fn insert_episode_if_episode(content: Content, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("insert_episode_if_episode");
+    pub fn insert_episode_if_episode(content: Content, utility: Utility) {
+        let utility = utility.clone_and_add_location("insert_episode_if_episode");
 
         /*
          * logic
          */
-        if content.content_is_episode(traceback.clone()) {
-            insert_episode_internal(content, traceback.clone());
+        if content.content_is_episode(utility.clone()) {
+            insert_episode_internal(content, utility.clone());
         }
         //////////
 
-        fn insert_episode_internal(content: Content, traceback: Traceback) {
-            let mut traceback = traceback.clone();
-            traceback.add_location("insert_episode_internal");
+        fn insert_episode_internal(content: Content, utility: Utility) {
+            let utility = utility.clone_and_add_location("insert_episode_internal");
 
             /*
              * logic
@@ -377,93 +362,88 @@ pub mod insert {
             let (season_number_temp, episode_number_temp) = content.show_season_episode.unwrap();
             let season_number = season_number_temp as i16;
             let episode_number = episode_number_temp as i16;
-            let error = get_client(traceback.clone()).execute(
+            let error = get_client(utility.clone()).execute(
                 r"INSERT INTO episode (content_uid, show_uid, episode_title, episode_number, season_number) VALUES ($1, $2, $3, $4, $5)",
                 &[&content_uid, &show_uid, &content.show_title.unwrap(), &episode_number, &season_number],
             );
-            handle_insert_error(error, traceback.clone());
+            handle_insert_error(error, utility.clone());
             //////////
         }
     }
 
-    pub fn insert_content(content: Content, traceback: Traceback) -> usize {
-        let mut traceback = traceback.clone();
-        traceback.add_location("insert_content");
+    pub fn insert_content(content: Content, utility: Utility) -> usize {
+        let utility = utility.clone_and_add_location("insert_content");
 
         /*
          * logic
          */
         let qrid = generate_qrid();
-        insert_content_internal(content.clone(), qrid, traceback.clone());
+        insert_content_internal(content.clone(), qrid, utility.clone());
         let content = content.clone();
         if content.designation == crate::designation::Designation::Episode {
-            let show_uid = ensure_show_exists(content.show_title.unwrap(), traceback.clone());
+            let show_uid = ensure_show_exists(content.show_title.unwrap(), utility.clone());
             if show_uid.is_some() {
                 /* ensure_season_exists_in_show(
                     show_uid.unwrap(),
                     content.show_season_episode.unwrap().0,
-                    traceback.clone(),
+                    utility.clone(),
                 ); */
             } else {
                 print(
                     Verbosity::ERROR,
                     From::DB,
-                    traceback,
+                    utility,
                     format!("show UID couldn't be retrieved"),
                 );
                 panic!();
             }
         }
-        return read_back_content_uid(qrid, traceback.clone());
+        return read_back_content_uid(qrid, utility.clone());
         //////////
 
-        fn read_back_content_uid(qrid: i32, traceback: Traceback) -> usize {
-            let mut traceback = traceback.clone();
-            traceback.add_location("read_back_content_uid");
+        fn read_back_content_uid(qrid: i32, utility: Utility) -> usize {
+            let utility = utility.clone_and_add_location("read_back_content_uid");
 
             return get_uid_from_result(
                 handle_result_error(
-                    get_client(traceback.clone())
+                    get_client(utility.clone())
                         .query(r"SELECT content_uid FROM content WHERE qrid = $1", &[&qrid]),
-                    traceback.clone(),
+                    utility.clone(),
                 ),
-                traceback,
+                utility,
             );
         }
 
-        fn insert_content_internal(content: Content, qrid: i32, traceback: Traceback) {
-            let mut traceback = traceback.clone();
-            traceback.add_location("insert_content");
+        fn insert_content_internal(content: Content, qrid: i32, utility: Utility) {
+            let utility = utility.clone_and_add_location("insert_content");
 
             let designation = content.designation as i32;
             handle_insert_error(
-                get_client(traceback.clone()).execute(
+                get_client(utility.clone()).execute(
                     r"INSERT INTO content (full_path, designation, qrid) VALUES ($1, $2, $3)",
                     &[&content.get_full_path(), &designation, &qrid],
                 ),
-                traceback.clone(),
+                utility.clone(),
             );
         }
     }
 
-    fn insert_task(task_id: usize, id: usize, job_uid: usize, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("insert_task");
+    fn insert_task(task_id: usize, id: usize, job_uid: usize, utility: Utility) {
+        let utility = utility.clone_and_add_location("insert_task");
 
         /*
          * logic
          */
-        insert_task_internal(task_id, id, job_uid, traceback.clone());
+        insert_task_internal(task_id, id, job_uid, utility.clone());
         //////////
 
-        fn insert_task_internal(task_id: usize, id: usize, job_uid: usize, traceback: Traceback) {
-            let mut traceback = traceback.clone();
-            traceback.add_location("insert_task_internal");
+        fn insert_task_internal(task_id: usize, id: usize, job_uid: usize, utility: Utility) {
+            let utility = utility.clone_and_add_location("insert_task_internal");
 
             /*
              * logic
              */
-            let mut client = get_client(traceback.clone());
+            let mut client = get_client(utility.clone());
             let id = id as i32;
             let job_uid = job_uid as i32;
             let task_id = task_id as i16;
@@ -475,33 +455,31 @@ pub mod insert {
                     ) VALUES ($1, $2, $3)",
                 &[&id, &job_uid, &task_id],
             );
-            handle_insert_error(error, traceback.clone());
+            handle_insert_error(error, utility.clone());
             print(
                 Verbosity::INFO,
                 From::DB,
-                traceback.clone(),
+                utility.clone(),
                 format!("[job_uid: {}][id: {}][task_id: {}]", job_uid, id, task_id),
             );
             //////////
         }
     }
 
-    pub fn insert_job(job: Job, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("insert_job");
+    pub fn insert_job(job: Job, utility: Utility) {
+        let utility = utility.clone_and_add_location("insert_job");
 
         /*
          * logic
          */
-        let uid = insert_job_internal(job, traceback.clone());
+        let uid = insert_job_internal(job, utility.clone());
         //////////
 
-        fn insert_job_internal(job: Job, traceback: Traceback) -> usize {
-            let mut traceback = traceback.clone();
-            traceback.add_location("insert_job_internal");
+        fn insert_job_internal(job: Job, utility: Utility) -> usize {
+            let utility = utility.clone_and_add_location("insert_job_internal");
 
             //get client and inserts job if the client connection is fine
-            let mut client = get_client(traceback.clone().clone());
+            let mut client = get_client(utility.clone().clone());
             //quick retrieve ID
             let qrid = generate_qrid();
             let worker_uid = job.worker.clone().unwrap().0 as i32;
@@ -532,13 +510,13 @@ pub mod insert {
                         &qrid,
                     ],
                 ),
-                traceback.clone(),
+                utility.clone(),
             );
-            let uid = read_back_job_uid(qrid, traceback.clone());
+            let uid = read_back_job_uid(qrid, utility.clone());
             print(
                 Verbosity::INFO,
                 From::DB,
-                traceback.clone(),
+                utility.clone(),
                 format!(
                     "[job_uid: {}][Source: {}][Encode: {}]",
                     uid,
@@ -547,25 +525,24 @@ pub mod insert {
                 ),
             );
             for (pos, task) in job.tasks.iter().enumerate() {
-                insert_task(task.clone() as usize, pos, uid, traceback.clone());
+                insert_task(task.clone() as usize, pos, uid, utility.clone());
             }
             return uid;
         }
 
-        fn read_back_job_uid(qrid: i32, traceback: Traceback) -> usize {
-            let mut traceback = traceback.clone();
-            traceback.add_location("read_back_job_uid");
+        fn read_back_job_uid(qrid: i32, utility: Utility) -> usize {
+            let utility = utility.clone_and_add_location("read_back_job_uid");
 
             /*
              * logic
              */
             return get_uid_from_result(
                 handle_result_error(
-                    get_client(traceback.clone())
+                    get_client(utility.clone())
                         .query(r"SELECT job_uid from job_queue WHERE qrid = $1", &[&qrid]),
-                    traceback.clone(),
+                    utility.clone(),
                 ),
-                traceback,
+                utility,
             );
             //////////
         }
@@ -576,24 +553,23 @@ pub mod retrieve {
     use crate::{
         database::{error_handling::handle_result_error, execution::get_client},
         print::{print, From, Verbosity},
-        traceback::Traceback,
+        utility::Utility,
     };
     use tokio_postgres::Row;
 
-    pub fn get_show_uid_by_title(show_title: String, traceback: Traceback) -> Option<usize> {
-        let mut traceback = traceback.clone();
-        traceback.add_location("get_show_uid_by_title");
+    pub fn get_show_uid_by_title(show_title: String, utility: Utility) -> Option<usize> {
+        let utility = utility.clone_and_add_location("get_show_uid_by_title");
 
         /*
          * logic
          */
-        let mut client = get_client(traceback.clone());
+        let mut client = get_client(utility.clone());
         let result = handle_result_error(
             client.query(
                 r"SELECT show_uid from show WHERE title = $1",
                 &[&show_title],
             ),
-            traceback,
+            utility,
         );
         let mut uid: Option<i32> = None;
         for row in &result {
@@ -606,9 +582,8 @@ pub mod retrieve {
         //////////
     }
 
-    pub fn get_uid_from_result(input: Vec<Row>, traceback: Traceback) -> usize {
-        let mut traceback = traceback.clone();
-        traceback.add_location("get_uid_from_result");
+    pub fn get_uid_from_result(input: Vec<Row>, utility: Utility) -> usize {
+        let utility = utility.clone_and_add_location("get_uid_from_result");
 
         /*
          * logic
@@ -623,7 +598,7 @@ pub mod retrieve {
         print(
             Verbosity::CRITICAL,
             From::DB,
-            traceback,
+            utility,
             format!("Couldn't find entry that was just inserted, this shouldn't happen."),
         );
         panic!();
@@ -634,7 +609,7 @@ pub mod retrieve {
 pub mod miscellaneous {
     use rand::Rng;
     use crate::{
-        traceback::Traceback,
+        utility::Utility,
         database::execution::execute_query,
     };
 
@@ -645,9 +620,8 @@ pub mod miscellaneous {
         return qrid_temp as i32;
     }
 
-    pub fn db_purge(traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("db_purge");
+    pub fn db_purge(utility: Utility) {
+        let utility = utility.clone_and_add_location("db_purge");
     
         //the order for dropping tables matters if foreign keys exist (job_task_queue has a foreign key of job_queue)
         let tables: Vec<&str> = vec![
@@ -661,7 +635,7 @@ pub mod miscellaneous {
         for table in tables {
             execute_query(
                 &format!("DROP TABLE IF EXISTS {} CASCADE", table),
-                traceback.clone(),
+                utility.clone(),
             )
         }
     }
@@ -672,56 +646,53 @@ pub mod print {
         content::Content,
         database::execution::get_by_query,
         print::{print, From, Verbosity},
-        traceback::Traceback,
+        utility::Utility,
     };
 
-    pub fn print_jobs(traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("print_jobs");
+    pub fn print_jobs(utility: Utility) {
+        let utility = utility.clone_and_add_location("print_jobs");
     
         /*
          * logic
          */
-        for row in get_by_query(r"SELECT job_uid FROM job_queue", traceback.clone()) {
+        for row in get_by_query(r"SELECT job_uid FROM job_queue", utility.clone()) {
             let uid: i32 = row.get(0);
             print(
                 Verbosity::INFO,
                 From::DB,
-                traceback.clone(),
+                utility.clone(),
                 format!("[job_uid:{}]", uid),
             );
         }
         //////////
     }
     
-    pub fn print_shows(traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("print_shows");
+    pub fn print_shows(utility: Utility) {
+        let utility = utility.clone_and_add_location("print_shows");
     
         /*
          * logic
          */
-        for row in get_by_query(r"SELECT title FROM show", traceback.clone()) {
+        for row in get_by_query(r"SELECT title FROM show", utility.clone()) {
             let title: String = row.get(0);
             print(
                 Verbosity::INFO,
                 From::DB,
-                traceback.clone(),
+                utility.clone(),
                 format!("[title:{}]", title),
             );
         }
         //////////
     }
     
-    pub fn print_contents(contents: Vec<Content>, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("print_contents");
+    pub fn print_contents(contents: Vec<Content>, utility: Utility) {
+        let utility = utility.clone_and_add_location("print_contents");
     
         /*
          * logic
          */
         for content in contents {
-            content.print(traceback.clone());
+            content.print(utility.clone());
         }
         //////////
     }    

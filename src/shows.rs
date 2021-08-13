@@ -2,7 +2,7 @@ use crate::{
     content::Content,
     database::ensure::ensure_show_exists,
     print::{print, From, Verbosity},
-    traceback::Traceback,
+    utility::Utility,
 };
 use std::ops::{Index, IndexMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -42,13 +42,12 @@ impl Show {
         }
     }
 
-    pub fn print_show(&self, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("print_show");
+    pub fn print_show(&self, utility: Utility) {
+        let utility = utility.clone_and_add_location("print_show");
         print(
             Verbosity::DEBUG,
             From::Shows,
-            traceback,
+            utility,
             format!("[uid: {}][title: {}]", self.uid, self.title),
         );
     }
@@ -157,9 +156,8 @@ impl Shows {
         }
     }
 
-    pub fn print(&self, traceback: Traceback) {
-        let mut traceback = traceback.clone();
-        traceback.add_location("print");
+    pub fn print(&self, utility: Utility) {
+        let utility = utility.clone_and_add_location("print");
 
         /*
          * logic
@@ -170,7 +168,7 @@ impl Shows {
                     print(
                         Verbosity::INFO,
                         From::Shows,
-                        traceback.clone(),
+                        utility.clone(),
                         format!("{}", episode.get_filename_woe()),
                     );
                 }
