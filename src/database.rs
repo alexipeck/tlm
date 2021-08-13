@@ -248,27 +248,20 @@ pub mod ensure {
     pub fn ensure_show_exists(show_title: String, utility: Utility) -> Option<usize> {
         let utility = utility.clone_and_add_location("ensure_show_exists");
 
-        /*
-         * logic
-         */
-        if !show_exists(&show_title, utility.clone()) {
+        let mut client = get_client(utility.clone());
+        if !db_boolean_handle(
+            handle_result_error(
+                client.query(
+                    r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
+                    &[&show_title],
+                ),
+                utility.clone(),
+            ),
+            utility.clone(),
+        ) {
             let qrid = generate_qrid();
-            insert_show(show_title, qrid, utility.clone());
-            let uid = read_back_show_uid(qrid, utility.clone());
-            wipe_show_qrid(qrid, utility.clone());
-            return Some(uid);
-        } else {
-            return get_show_uid_by_title(show_title, utility);
-        }
-        //////////
 
-        fn insert_show(show_title: String, qrid: i32, utility: Utility) {
-            let utility = utility.clone_and_add_location("insert_show");
-
-            /*
-             * logic
-             */
-            let mut client = get_client(utility.clone());
+            //insert show
             let error = client.execute(
                 r"INSERT INTO show (title, qrid) VALUES ($1, $2)",
                 &[&show_title, &qrid],
@@ -276,56 +269,20 @@ pub mod ensure {
             //use if I need to do anything more with the row
             //let show_uid = read_back_show_uid(qrid);
             handle_insert_error(error, utility.clone());
-            //////////
-        }
 
-        fn show_exists(show_title: &str, utility: Utility) -> bool {
-            let utility = utility.clone_and_add_location("show_exists");
-
-            /*
-             * logic
-             */
-            let mut client = get_client(utility.clone());
-            return db_boolean_handle(
-                handle_result_error(
-                    client.query(
-                        r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
-                        &[&show_title],
-                    ),
-                    utility.clone(),
-                ),
-                utility,
-            );
-            //////////
-        }
-
-        fn read_back_show_uid(qrid: i32, utility: Utility) -> usize {
-            let utility = utility.clone_and_add_location("read_back_show_uid");
-
-            /*
-             * logic
-             */
-            return get_uid_from_result(
+            let show_uid = get_uid_from_result(
                 handle_result_error(
                     get_client(utility.clone())
                         .query(r"SELECT show_uid FROM show WHERE qrid = $1", &[&qrid]),
                     utility.clone(),
                 ),
-                utility,
+                utility.clone(),
             );
-            //////////
-        }
-
-        fn wipe_show_qrid(qrid: i32, utility: Utility) {
-            let utility = utility.clone_and_add_location("wipe_show_qrid");
-
-            /*
-             * logic
-             */
-            let mut client = get_client(utility.clone());
             let error = client.execute(r"UPDATE show SET qrid = NULL WHERE qrid = $1", &[&qrid]);
             handle_insert_error(error, utility.clone());
-            //////////
+            return Some(show_uid);
+        } else {
+            return get_show_uid_by_title(show_title, utility);
         }
     }
 }
@@ -348,20 +305,7 @@ pub mod insert {
     pub fn insert_episode_if_episode(content: Content, utility: Utility) {
         let utility = utility.clone_and_add_location("insert_episode_if_episode");
 
-        /*
-         * logic
-         */
         if content.content_is_episode(utility.clone()) {
-            insert_episode_internal(content, utility.clone());
-        }
-        //////////
-
-        fn insert_episode_internal(content: Content, utility: Utility) {
-            let utility = utility.clone_and_add_location("insert_episode_internal");
-
-            /*
-             * logic
-             */
             let content_uid = content.uid as i32;
             let show_uid = content.show_uid.unwrap() as i32;
             let (season_number_temp, episode_number_temp) = content.show_season_episode.unwrap();
@@ -372,18 +316,21 @@ pub mod insert {
                 &[&content_uid, &show_uid, &content.show_title.unwrap(), &episode_number, &season_number],
             );
             handle_insert_error(error, utility.clone());
-            //////////
         }
     }
 
     pub fn insert_content(content: Content, utility: Utility) -> usize {
         let utility = utility.clone_and_add_location("insert_content");
 
-        /*
-         * logic
-         */
         let qrid = generate_qrid();
-        insert_content_internal(content.clone(), qrid, utility.clone());
+        let designation = content.designation as i32;
+            handle_insert_error(
+                get_client(utility.clone()).execute(
+                    r"INSERT INTO content (full_path, designation, qrid) VALUES ($1, $2, $3)",
+                    &[&content.get_full_path(), &designation, &qrid],
+                ),
+                utility.clone(),
+            );
         let content = content.clone();
         if content.designation == crate::designation::Designation::Episode {
             let show_uid = ensure_show_exists(content.show_title.unwrap(), utility.clone());
@@ -404,73 +351,39 @@ pub mod insert {
                 panic!();
             }
         }
-        return read_back_content_uid(qrid, utility.clone());
-        //////////
-
-        fn read_back_content_uid(qrid: i32, utility: Utility) -> usize {
-            let utility = utility.clone_and_add_location("read_back_content_uid");
-
-            return get_uid_from_result(
-                handle_result_error(
-                    get_client(utility.clone())
-                        .query(r"SELECT content_uid FROM content WHERE qrid = $1", &[&qrid]),
-                    utility.clone(),
-                ),
-                utility,
-            );
-        }
-
-        fn insert_content_internal(content: Content, qrid: i32, utility: Utility) {
-            let utility = utility.clone_and_add_location("insert_content");
-
-            let designation = content.designation as i32;
-            handle_insert_error(
-                get_client(utility.clone()).execute(
-                    r"INSERT INTO content (full_path, designation, qrid) VALUES ($1, $2, $3)",
-                    &[&content.get_full_path(), &designation, &qrid],
-                ),
+        return get_uid_from_result(
+            handle_result_error(
+                get_client(utility.clone())
+                    .query(r"SELECT content_uid FROM content WHERE qrid = $1", &[&qrid]),
                 utility.clone(),
-            );
-        }
+            ),
+            utility,
+        );
     }
 
     fn insert_task(task_id: usize, id: usize, job_uid: usize, utility: Utility) {
         let utility = utility.clone_and_add_location("insert_task");
 
-        /*
-         * logic
-         */
-        insert_task_internal(task_id, id, job_uid, utility.clone());
-        //////////
-
-        fn insert_task_internal(task_id: usize, id: usize, job_uid: usize, utility: Utility) {
-            let utility = utility.clone_and_add_location("insert_task_internal");
-
-            /*
-             * logic
-             */
-            let mut client = get_client(utility.clone());
-            let id = id as i32;
-            let job_uid = job_uid as i32;
-            let task_id = task_id as i16;
-            let error = client.execute(
-                r"INSERT INTO job_task_queue (
-                        id,
-                        job_uid,
-                        task_id
-                    ) VALUES ($1, $2, $3)",
-                &[&id, &job_uid, &task_id],
-            );
-            handle_insert_error(error, utility.clone());
-            print(
-                Verbosity::INFO,
-                From::DB,
-                utility.clone(),
-                format!("[job_uid: {}][id: {}][task_id: {}]", job_uid, id, task_id),
-                0,
-            );
-            //////////
-        }
+        let mut client = get_client(utility.clone());
+        let id = id as i32;
+        let job_uid = job_uid as i32;
+        let task_id = task_id as i16;
+        let error = client.execute(
+            r"INSERT INTO job_task_queue (
+                    id,
+                    job_uid,
+                    task_id
+                ) VALUES ($1, $2, $3)",
+            &[&id, &job_uid, &task_id],
+        );
+        handle_insert_error(error, utility.clone());
+        print(
+            Verbosity::INFO,
+            From::DB,
+            utility.clone(),
+            format!("[job_uid: {}][id: {}][task_id: {}]", job_uid, id, task_id),
+            0,
+        );
     }
 
     pub fn insert_job(job: Job, utility: Utility) {
