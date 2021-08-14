@@ -93,33 +93,39 @@ impl Utility {
     }
 
     pub fn print_timer_from_stage_and_task_from_saved(&self, identifier: usize, stage: &str, task: &str, indent: usize, utility: Utility) {
-        print(
-            Verbosity::INFO,
-            From::Utility,
-            self.clone(),
-            format!(
-                "{}: handling task '{}' took: {}ms",
-                stage,
-                task,
-                self.get_saved_timing(identifier, utility),
-            ),
-            indent,
-        );
+        let timing = self.get_saved_timing(identifier, utility);
+        if timing > 0 {
+            print(
+                Verbosity::INFO,
+                From::Utility,
+                self.clone(),
+                format!(
+                    "{}: handling task '{}' took: {}ms",
+                    stage,
+                    task,
+                    timing,
+                ),
+                indent,
+            );
+        }
     }
 
     pub fn print_timer_from_stage_and_task(&self, identifier: usize, stage: &str, task: &str, indent: usize, utility: Utility) {
-        print(
-            Verbosity::INFO,
-            From::Utility,
-            self.clone(),
-            format!(
-                "{}: handling task '{}' took: {}ms",
-                stage,
-                task,
-                self.get_timer_ms(identifier, utility),
-            ),
-            indent,
-        );
+        let timing = self.get_timer_ms(identifier, utility);
+        if timing > 0 {
+            print(
+                Verbosity::INFO,
+                From::Utility,
+                self.clone(),
+                format!(
+                    "{}: handling task '{}' took: {}ms",
+                    stage,
+                    task,
+                    timing,
+                ),
+                indent,
+            );
+        }
     }
 
     fn add_traceback_location(&mut self, called_from: &str) -> Utility {
