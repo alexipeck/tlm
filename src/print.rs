@@ -44,8 +44,8 @@ pub fn print(
     }
 
     let mut indentation: String = String::new();
-    for _ in 0..(indent * 4) {
-        indentation.push(' ');
+    for _ in 0..4 {
+        indentation += r"    ";
     }
 
     //print(Verbosity::DEBUG, r"", format!(""));

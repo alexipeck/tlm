@@ -50,7 +50,7 @@ pub struct Content {
     //pub metadata_dump
     pub show_uid: Option<usize>,
     pub show_title: Option<String>,
-    pub show_season_episode: Option<(usize, usize)>,
+    pub show_season_episode: Option<(usize, Vec<usize>)>,
 }
 
 impl Content {
@@ -216,7 +216,7 @@ impl Content {
         return Content::get_full_path_with_suffix_from_pathbuf(pathbuf, "_encodeH4U8".to_string());
     }
 
-    pub fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, usize)> {
+    /* pub fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, usize)> {
         let episode_string: String;
 
         //Check if the regex caught a valid episode format
@@ -230,13 +230,16 @@ impl Content {
                 episode_string = temp_string;
             }
         }
-
+        //asdf;
         let mut se_iter = episode_string.split('E');
+        for t in se_iter.clone() {
+            println!("        {}", t);
+        }
         Some((
             se_iter.next().unwrap().parse::<usize>().unwrap(),
             se_iter.next().unwrap().parse::<usize>().unwrap(),
         ))
-    }
+    } */
 
     pub fn get_full_path(&self) -> String {
         return self.full_path.as_os_str().to_str().unwrap().to_string();
@@ -319,6 +322,29 @@ impl Content {
         return self.full_path.parent().unwrap().join(new_filename);
     }
 
+    pub fn get_episode_string(&self) -> String {
+        if self.show_season_episode.is_some() {
+            let episode = self.show_season_episode.clone().unwrap().1;
+            if episode.len() < 1 {
+                panic!("Bad boy, you fucked up. There was less than 1 episode in the thingo");
+            } else {
+                let prepare = String::new();
+                let first: bool = true;
+                for episode in episode {
+                    if first {
+                        prepare.push_str(&format!("{}", episode));
+                        first = false;
+                    } else {
+                        prepare += &format!("_{}", episode);
+                    }
+                }
+                return prepare;
+            }
+        } else {
+            panic!("Bad boy, you fucked up. show_season_episode is_none");
+        }
+    }
+    
     pub fn print(&self, utility: Utility) {
         let utility = utility.clone_and_add_location("print");
 
@@ -326,7 +352,6 @@ impl Content {
             && self.show_title.is_some()
             && self.show_season_episode.is_some()
         {
-            let season_episode = self.show_season_episode.unwrap();
             print(
                 Verbosity::DEBUG,
                 From::DB,
@@ -338,8 +363,8 @@ impl Content {
                     self.get_full_path(),
                     self.show_uid.unwrap(),
                     self.show_title.clone().unwrap(),
-                    season_episode.0,
-                    season_episode.1
+                    self.show_season_episode.unwrap().0,
+                    self.get_episode_string(),
                 ),
             0,
             );
