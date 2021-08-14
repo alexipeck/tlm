@@ -6,6 +6,14 @@ pub mod error_handling {
     };
     use tokio_postgres::{Error, Row};
 
+    pub fn handle_insert_retrieve_error(result: Result<Vec<Row>, Error>, utility: Utility) -> usize {
+        let utility = utility.clone_and_add_location("handle_insert_retrieve_error");
+
+        let result: i32 = handle_result_error(result, utility.clone())[0].get(0);
+        return result as usize;
+        //panic!("Deal with error stuff later");
+    }
+
     pub fn handle_result_error(result: Result<Vec<Row>, Error>, utility: Utility) -> Vec<Row> {
         let utility = utility.clone_and_add_location("handle_result_error");
 
@@ -172,9 +180,8 @@ pub mod execution {
 pub mod ensure {
     use crate::{
         database::{
-            error_handling::{db_boolean_handle, handle_insert_error, handle_result_error},
+            error_handling::{db_boolean_handle, handle_insert_error, handle_result_error, handle_insert_retrieve_error},
             execution::{execute_query, get_client},
-            miscellaneous::generate_qrid,
             retrieve::{get_show_uid_by_title, get_uid_from_result},
         },
         utility::Utility,
@@ -187,8 +194,7 @@ pub mod ensure {
             CREATE TABLE IF NOT EXISTS content (
                 content_uid     SERIAL PRIMARY KEY,
                 full_path       TEXT NOT NULL,
-                designation     INTEGER NOT NULL,
-                qrid            INTEGER
+                designation     INTEGER NOT NULL
             )",
             utility.clone(),
         );
@@ -197,8 +203,7 @@ pub mod ensure {
             r"
             CREATE TABLE IF NOT EXISTS show (
                 show_uid        SERIAL PRIMARY KEY,
-                title           TEXT NOT NULL,
-                qrid            INTEGER
+                title           TEXT NOT NULL
             )",
             utility.clone(),
         );
@@ -227,8 +232,7 @@ pub mod ensure {
                 status_underway     BOOLEAN NOT NULL,
                 status_completed    BOOLEAN NOT NULL,
                 worker_uid          INTEGER NOT NULL,
-                worker_string_id    TEXT NOT NULL,
-                qrid                INTEGER NOT NULL
+                worker_string_id    TEXT NOT NULL
             )",
             utility.clone(),
         );
@@ -245,11 +249,11 @@ pub mod ensure {
         );
     }
 
-    pub fn ensure_show_exists(show_title: String, utility: Utility) -> Option<usize> {
+    pub fn ensure_show_exists(show_title: String, utility: Utility) -> usize {
         let utility = utility.clone_and_add_location("ensure_show_exists");
-
+        
         let mut client = get_client(utility.clone());
-        if !db_boolean_handle(
+        if db_boolean_handle(
             handle_result_error(
                 client.query(
                     r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
@@ -259,30 +263,12 @@ pub mod ensure {
             ),
             utility.clone(),
         ) {
-            let qrid = generate_qrid();
-
-            //insert show
-            let error = client.execute(
-                r"INSERT INTO show (title, qrid) VALUES ($1, $2)",
-                &[&show_title, &qrid],
-            );
-            //use if I need to do anything more with the row
-            //let show_uid = read_back_show_uid(qrid);
-            handle_insert_error(error, utility.clone());
-
-            let show_uid = get_uid_from_result(
-                handle_result_error(
-                    get_client(utility.clone())
-                        .query(r"SELECT show_uid FROM show WHERE qrid = $1", &[&qrid]),
-                    utility.clone(),
-                ),
-                utility.clone(),
-            );
-            let error = client.execute(r"UPDATE show SET qrid = NULL WHERE qrid = $1", &[&qrid]);
-            handle_insert_error(error, utility.clone());
-            return Some(show_uid);
+            return get_show_uid_by_title(show_title, utility.clone());
         } else {
-            return get_show_uid_by_title(show_title, utility);
+            return handle_insert_retrieve_error(client.query(
+                r"INSERT INTO show (title) VALUES ($1) RETURNING show_uid;",
+                &[&show_title],
+            ), utility.clone());
         }
     }
 }
@@ -291,10 +277,8 @@ pub mod insert {
     use crate::{
         content::Content,
         database::{
-            ensure::ensure_show_exists,
-            error_handling::{handle_insert_error, handle_result_error},
+            error_handling::{handle_insert_error, handle_result_error, handle_insert_retrieve_error},
             execution::get_client,
-            miscellaneous::generate_qrid,
             retrieve::get_uid_from_result,
         },
         job::Job,
@@ -322,46 +306,18 @@ pub mod insert {
     pub fn insert_content(content: Content, utility: Utility) -> usize {
         let utility = utility.clone_and_add_location("insert_content");
 
-        let qrid = generate_qrid();
         let designation = content.designation as i32;
-            handle_insert_error(
-                get_client(utility.clone()).execute(
-                    r"INSERT INTO content (full_path, designation, qrid) VALUES ($1, $2, $3)",
-                    &[&content.get_full_path(), &designation, &qrid],
-                ),
-                utility.clone(),
-            );
-        let content = content.clone();
-        if content.designation == crate::designation::Designation::Episode {
-            let show_uid = ensure_show_exists(content.show_title.unwrap(), utility.clone());
-            if show_uid.is_some() {
-                /* ensure_season_exists_in_show(
-                    show_uid.unwrap(),
-                    content.show_season_episode.unwrap().0,
-                    utility.clone(),
-                ); */
-            } else {
-                print(
-                    Verbosity::ERROR,
-                    From::DB,
-                    utility,
-                    format!("show UID couldn't be retrieved"),
-                    0,
-                );
-                panic!();
-            }
-        }
-        return get_uid_from_result(
-            handle_result_error(
-                get_client(utility.clone())
-                    .query(r"SELECT content_uid FROM content WHERE qrid = $1", &[&qrid]),
-                utility.clone(),
+        let mut client = get_client(utility.clone());
+        let content_uid = handle_insert_retrieve_error(client.query(
+                r"INSERT INTO content (full_path, designation) VALUES ($1, $2) RETURNING content_uid;",
+                &[&content.get_full_path(), &designation],
             ),
-            utility,
+            utility.clone(),
         );
+        return content_uid;
     }
 
-    fn insert_task(task_id: usize, id: usize, job_uid: usize, utility: Utility) {
+    /* fn insert_task(task_id: usize, id: usize, job_uid: usize, utility: Utility) {
         let utility = utility.clone_and_add_location("insert_task");
 
         let mut client = get_client(utility.clone());
@@ -467,7 +423,7 @@ pub mod insert {
             );
             //////////
         }
-    }
+    } */
 }
 
 pub mod retrieve {
@@ -478,7 +434,7 @@ pub mod retrieve {
     };
     use tokio_postgres::Row;
 
-    pub fn get_show_uid_by_title(show_title: String, utility: Utility) -> Option<usize> {
+    pub fn get_show_uid_by_title(show_title: String, utility: Utility) -> usize {
         let utility = utility.clone_and_add_location("get_show_uid_by_title");
 
         /*
@@ -492,14 +448,8 @@ pub mod retrieve {
             ),
             utility,
         );
-        let mut uid: Option<i32> = None;
-        for row in &result {
-            uid = row.get(0);
-        }
-        if uid.is_some() {
-            return Some(uid.unwrap() as usize);
-        }
-        return None;
+        let show_uid: i32 = result[0].get(0);
+        return show_uid as usize;
         //////////
     }
 
@@ -534,13 +484,6 @@ pub mod miscellaneous {
         utility::Utility,
         database::execution::execute_query,
     };
-
-    //qrid is a 'quick retrieve id' for collecting a specific entry quickly, it is removed from the database after a single read
-    pub fn generate_qrid() -> i32 {
-        let mut rng = rand::thread_rng();
-        let qrid_temp: u32 = rng.gen_range(0..2147483646);
-        return qrid_temp as i32;
-    }
 
     pub fn db_purge(utility: Utility) {
         let utility = utility.clone_and_add_location("db_purge");

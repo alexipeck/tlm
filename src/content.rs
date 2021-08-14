@@ -415,7 +415,7 @@ impl Content {
             self.show_season_episode = show_season_episode_conditional;
             //check if show title already exists in the db, if not, create show and return uid
             //asd;
-            self.show_uid = ensure_show_exists(self.show_title.clone().unwrap(), utility);
+            self.show_uid = Some(ensure_show_exists(self.show_title.clone().unwrap(), utility));
         } else {
             self.designation = Designation::Generic;
             self.show_title = None;
