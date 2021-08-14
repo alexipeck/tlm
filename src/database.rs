@@ -252,39 +252,23 @@ pub mod ensure {
     pub fn ensure_show_exists(show_title: String, utility: Utility) -> usize {
         let utility = utility.clone_and_add_location("ensure_show_exists");
         
-        if show_exists(&show_title, utility.clone()) {
-            return get_show_uid_by_title(show_title, utility);
+        let mut client = get_client(utility.clone());
+        if db_boolean_handle(
+            handle_result_error(
+                client.query(
+                    r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
+                    &[&show_title],
+                ),
+                utility.clone(),
+            ),
+            utility.clone(),
+        ) {
+            return get_show_uid_by_title(show_title, utility.clone());
         } else {
-            //let uid = read_back_show_uid(qrid, utility.clone());
-            return insert_show(show_title, utility.clone());
-        }
-
-
-        fn insert_show(show_title: String, utility: Utility) -> usize {
-            let utility = utility.clone_and_add_location("insert_show");
-
-            let mut client = get_client(utility.clone());
-            let show_uid = handle_insert_retrieve_error(client.query(
+            return handle_insert_retrieve_error(client.query(
                 r"INSERT INTO show (title) VALUES ($1) RETURNING show_uid;",
                 &[&show_title],
             ), utility.clone());
-            return show_uid;
-        }
-
-        fn show_exists(show_title: &str, utility: Utility) -> bool {
-            let utility = utility.clone_and_add_location("show_exists");
-
-            let mut client = get_client(utility.clone());
-            return db_boolean_handle(
-                handle_result_error(
-                    client.query(
-                        r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
-                        &[&show_title],
-                    ),
-                    utility.clone(),
-                ),
-                utility,
-            );
         }
     }
 }
