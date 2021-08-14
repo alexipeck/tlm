@@ -6,6 +6,14 @@ pub mod error_handling {
     };
     use tokio_postgres::{Error, Row};
 
+    pub fn handle_insert_retrieve_error(result: Result<Vec<Row>, Error>, utility: Utility) -> usize {
+        let utility = utility.clone_and_add_location("handle_insert_retrieve_error");
+
+        let result: i32 = handle_result_error(result, utility.clone())[0].get(0);
+        return result as usize;
+        //panic!("Deal with error stuff later");
+    }
+
     pub fn handle_result_error(result: Result<Vec<Row>, Error>, utility: Utility) -> Vec<Row> {
         let utility = utility.clone_and_add_location("handle_result_error");
 
@@ -172,7 +180,7 @@ pub mod execution {
 pub mod ensure {
     use crate::{
         database::{
-            error_handling::{db_boolean_handle, handle_insert_error, handle_result_error},
+            error_handling::{db_boolean_handle, handle_insert_error, handle_result_error, handle_insert_retrieve_error},
             execution::{execute_query, get_client},
             retrieve::{get_show_uid_by_title, get_uid_from_result},
         },
@@ -256,12 +264,11 @@ pub mod ensure {
             let utility = utility.clone_and_add_location("insert_show");
 
             let mut client = get_client(utility.clone());
-            handle_insert_error(client.execute(
-                r"INSERT INTO show (title) VALUES ($1);",
+            let show_uid = handle_insert_retrieve_error(client.query(
+                r"INSERT INTO show (title) VALUES ($1) RETURNING show_uid;",
                 &[&show_title],
             ), utility.clone());
-            let show_uid: i32 = handle_result_error(client.query("SELECT currval(pg_get_serial_sequence('show','show_uid'));", &[]), utility.clone())[0].get(0);
-            return show_uid as usize;
+            return show_uid;
         }
 
         fn show_exists(show_title: &str, utility: Utility) -> bool {
@@ -286,7 +293,7 @@ pub mod insert {
     use crate::{
         content::Content,
         database::{
-            error_handling::{handle_insert_error, handle_result_error},
+            error_handling::{handle_insert_error, handle_result_error, handle_insert_retrieve_error},
             execution::get_client,
             retrieve::get_uid_from_result,
         },
@@ -331,14 +338,13 @@ pub mod insert {
 
         let designation = content.designation as i32;
         let mut client = get_client(utility.clone());
-        handle_insert_error(client.execute(
-                r"INSERT INTO content (full_path, designation) VALUES ($1, $2);",
+        let content_uid = handle_insert_retrieve_error(client.query(
+                r"INSERT INTO content (full_path, designation) VALUES ($1, $2) RETURNING content_uid;",
                 &[&content.get_full_path(), &designation],
             ),
             utility.clone(),
         );
-        let content_uid: i64 = handle_result_error(client.query("SELECT currval(pg_get_serial_sequence('show','show_uid'));", &[]), utility.clone())[0].get(0);
-        return content_uid as usize;
+        return content_uid;
     }
 
     /* fn insert_task(task_id: usize, id: usize, job_uid: usize, utility: Utility) {
@@ -486,7 +492,7 @@ pub mod retrieve {
             ),
             utility,
         );
-        let show_uid: i64 = result[0].get(0);
+        let show_uid: i32 = result[0].get(0);
         return show_uid as usize;
         //////////
     }
@@ -522,13 +528,6 @@ pub mod miscellaneous {
         utility::Utility,
         database::execution::execute_query,
     };
-
-    //qrid is a 'quick retrieve id' for collecting a specific entry quickly, it is removed from the database after a single read
-    pub fn generate_qrid() -> i32 {
-        let mut rng = rand::thread_rng();
-        let qrid_temp: u32 = rng.gen_range(0..2147483646);
-        return qrid_temp as i32;
-    }
 
     pub fn db_purge(utility: Utility) {
         let utility = utility.clone_and_add_location("db_purge");
