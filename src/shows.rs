@@ -1,11 +1,14 @@
 use crate::{
     content::Content,
-    database::ensure::ensure_show_exists,
-    database::execution::get_by_query,
+    database::{
+        execution::{get_by_query, get_client},
+        retrieve::get_uid_from_result,
+    },
     print::{print, From, Verbosity},
     utility::Utility,
 };
 use std::ops::{Index, IndexMut};
+use std::collections::HashSet;
 use regex::NoExpand;
 use tokio_postgres::Row;
 
@@ -55,13 +58,71 @@ impl Show {
         );
     }
 
-    pub fn show_exists(show_title: String, working_shows: &mut Vec<Show>) -> Option<usize> {
+    pub fn get_all_show_titles_as_hashset_shows (
+        shows: &mut Vec<Show>,
+        utility: Utility,
+    ) -> HashSet<String> {
+        let mut utility = utility.clone_and_add_location("get_all_show_titles_as_hashset_shows");
+        utility.start_timer(0);
+
+        let mut hashset = HashSet::new();
+        for show in shows {
+            hashset.insert(show.title.clone());
+        }
+
+        print(
+            Verbosity::INFO,
+            From::Main,
+            utility.clone(),
+            format!(
+                "startup: read in 'existing show name hashset' took: {}ms",
+                utility.get_timer_ms(0, utility.clone()),
+            ),
+            0,
+        );
+
+        return hashset;
+    }
+
+    pub fn show_exists(show_title: String, existing_shows: &mut HashSet<String>, working_shows: &mut Vec<Show>) -> Option<usize> {
+        if existing_shows.contains(&show_title) {
+
+        }
+        need to return the show_uid, using hashset doesn't really help that
         for show in working_shows {
             if show.title == show_title {
                 return Some(show.show_uid);
             }
         }
+        println!("Couldn't find show {} in db", show_title);
         return None;
+    }
+
+    pub fn ensure_show_exists(show_title: String, working_shows: &mut Vec<Show>, utility: Utility) -> usize {
+        let mut utility = utility.clone_and_add_location("ensure_show_exists");
+        
+        let show_uid = Show::show_exists(show_title.clone(), working_shows);
+        if show_uid.is_some() {
+            return show_uid.unwrap();
+        } else {
+            println!("Adding a new show: {}", show_title);
+            utility.start_timer(0);
+            let result = get_client(utility.clone()).query(
+                r"INSERT INTO show (title) VALUES ($1) RETURNING show_uid;",
+                &[&show_title],
+            );
+            utility.print_timer_from_stage_and_task(0, "startup", "inserting show UID", 4, utility.clone());
+
+            let show_uid = get_uid_from_result(result, utility.clone());
+            let new_show = Show {
+                show_uid: show_uid,
+                title: show_title,
+                seasons: Vec::new(),
+            };
+            working_shows.push(new_show);
+
+            return show_uid;
+        }
     }
 
     pub fn from_row(row: Row, utility: Utility) -> Show {
@@ -72,7 +133,7 @@ impl Show {
         let title_temp: String = row.get(1);
 
         //change to have it pull all info out of the db, it currently generates what it can from the filename
-        let mut show = Show {
+        let show = Show {
             show_uid: show_uid_temp as usize,
             title: title_temp,
             seasons: Vec::new(),

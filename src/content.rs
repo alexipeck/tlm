@@ -1,5 +1,4 @@
 use crate::{
-    database::ensure::ensure_show_exists,
     database::execution::get_by_query,
     designation::{convert_i32_to_designation, Designation},
     job::Job,
@@ -145,9 +144,6 @@ impl Content {
         let mut utility = utility.clone_and_add_location("get_all_filenames_as_hashset_from_contents");
         utility.start_timer(0);
 
-        /*
-         * logic
-         */
         let mut hashset = HashSet::new();
         for content in contents {
             hashset.insert(content.full_path);
@@ -165,7 +161,6 @@ impl Content {
         );
 
         return hashset;
-        //////////
     }
 
     pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
@@ -452,7 +447,7 @@ impl Content {
 
             utility.start_timer(2);
             self.show_season_episode = show_season_episode_temp;
-            self.show_uid = Some(ensure_show_exists(self.show_title.clone().unwrap(), working_shows, utility.clone()));
+            self.show_uid = Some(Show::ensure_show_exists(self.show_title.clone().unwrap(), working_shows, utility.clone()));
             utility.print_timer_from_stage_and_task(2, "startup", "set show_season_episode from temp, ensure_show_exists", 3, utility.clone());
         } else {
             self.designation = Designation::Generic;

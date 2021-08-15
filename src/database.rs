@@ -218,32 +218,6 @@ pub mod ensure {
         );
     }
     //asdf;
-    pub fn ensure_show_exists(show_title: String, working_shows: &mut Vec<Show>, utility: Utility) -> usize {
-        let mut utility = utility.clone_and_add_location("ensure_show_exists");
-        
-        let show_uid = Show::show_exists(show_title.clone(), working_shows);
-        if show_uid.is_some() {
-            return show_uid.unwrap();
-        } else {
-            println!("Adding a new show: {}", show_title);
-            utility.start_timer(0);
-            let result = get_client(utility.clone()).query(
-                r"INSERT INTO show (title) VALUES ($1) RETURNING show_uid;",
-                &[&show_title],
-            );
-            utility.print_timer_from_stage_and_task(0, "startup", "inserting show UID", 4, utility.clone());
-
-            let show_uid = get_uid_from_result(result, utility.clone());
-            let new_show = Show {
-                show_uid: show_uid,
-                title: show_title,
-                seasons: Vec::new(),
-            };
-            working_shows.push(new_show);
-
-            return show_uid;
-        }
-    }
 }
 
 pub mod insert {
