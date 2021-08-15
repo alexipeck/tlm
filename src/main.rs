@@ -34,7 +34,7 @@ fn main() {
     let mut utility = Utility::new("main");
     utility.enable_print();
 
-    db_purge(utility.clone());
+    //db_purge(utility.clone());
 
     ensure_tables_exist(utility.clone());
 
@@ -51,7 +51,7 @@ fn main() {
 
     let shows = Shows::new();
 
-    utility.disable_print();
+    //utility.disable_print();
 
     process_new_files(
         import_files(

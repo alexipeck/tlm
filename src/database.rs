@@ -184,7 +184,7 @@ pub mod ensure {
                 episode_title           TEXT NOT NULL,
                 season_number           SMALLINT NOT NULL,
                 episode_number          SMALLINT NOT NULL,
-                PRIMARY KEY(show_uid, season_number, episode_number)
+                PRIMARY KEY(content_uid, show_uid, season_number, episode_number)
             )",
             utility.clone(),
         );
