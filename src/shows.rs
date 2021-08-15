@@ -134,7 +134,7 @@ impl Shows {
         //remember episode_number
         //let mut inserted = false;
         for season in &mut self[show_index].seasons {
-            if season.number == content.show_season_episode.unwrap().0 {
+            if season.number == content.show_season_episode.clone().unwrap().0 {
                 //let mut index: usize = 0;
 
                 season.insert_in_order(content.clone());

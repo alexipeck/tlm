@@ -216,7 +216,7 @@ impl Content {
         return Content::get_full_path_with_suffix_from_pathbuf(pathbuf, "_encodeH4U8".to_string());
     }
 
-    /* pub fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, usize)> {
+    pub fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, Vec<usize>)> {
         let episode_string: String;
 
         //Check if the regex caught a valid episode format
@@ -231,15 +231,18 @@ impl Content {
             }
         }
         //asdf;
-        let mut se_iter = episode_string.split('E');
-        for t in se_iter.clone() {
-            println!("        {}", t);
+        let mut season_episode_iter = episode_string.split('E');
+        let season_temp = season_episode_iter.next().unwrap().parse::<usize>().unwrap();
+        let mut episodes: Vec<usize> = Vec::new();
+        for episode in season_episode_iter.next().unwrap().split('-') {
+            episodes.push(episode.parse::<usize>().unwrap());
         }
-        Some((
-            se_iter.next().unwrap().parse::<usize>().unwrap(),
-            se_iter.next().unwrap().parse::<usize>().unwrap(),
+
+        return Some((
+            season_temp,
+            episodes,
         ))
-    } */
+    }
 
     pub fn get_full_path(&self) -> String {
         return self.full_path.as_os_str().to_str().unwrap().to_string();
@@ -328,8 +331,8 @@ impl Content {
             if episode.len() < 1 {
                 panic!("Bad boy, you fucked up. There was less than 1 episode in the thingo");
             } else {
-                let prepare = String::new();
-                let first: bool = true;
+                let mut prepare = String::new();
+                let mut first: bool = true;
                 for episode in episode {
                     if first {
                         prepare.push_str(&format!("{}", episode));
@@ -363,7 +366,8 @@ impl Content {
                     self.get_full_path(),
                     self.show_uid.unwrap(),
                     self.show_title.clone().unwrap(),
-                    self.show_season_episode.unwrap().0,
+                    self.get_episode_string(),
+                    //self.show_season_episode.clone().unwrap().1[0],//asdf;
                     self.get_episode_string(),
                 ),
             0,

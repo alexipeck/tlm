@@ -262,7 +262,7 @@ pub mod insert {
             let show_uid = content.show_uid.unwrap() as i32;
             let (season_number_temp, episode_number_temp) = content.show_season_episode.unwrap();
             let season_number = season_number_temp as i16;
-            let episode_number = episode_number_temp as i16;
+            let episode_number = episode_number_temp[0] as i16;//asdf;
             let error = get_client(utility.clone()).execute(
                 r"INSERT INTO episode (content_uid, show_uid, episode_title, episode_number, season_number) VALUES ($1, $2, $3, $4, $5)",
                 &[&content_uid, &show_uid, &content.show_title.unwrap(), &episode_number, &season_number],

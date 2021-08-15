@@ -31,7 +31,8 @@ fn main() {
     insert episode from content
     */
 
-    let utility = Utility::new("main");
+    let mut utility = Utility::new("main");
+    utility.enable_print();
 
     db_purge(utility.clone());
 
@@ -49,6 +50,8 @@ fn main() {
     let mut existing_files_hashset: HashSet<PathBuf> = Content::get_all_filenames_as_hashset_from_contents(working_content.clone(), utility.clone());
 
     let shows = Shows::new();
+
+    utility.disable_print();
 
     process_new_files(
         import_files(
