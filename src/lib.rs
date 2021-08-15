@@ -25,6 +25,7 @@ use database::insert::{
     insert_episode_if_episode,
 };
 use utility::Utility;
+use shows::Show;
 
 #[derive(Clone, Debug)]
 pub struct TrackedDirectories {
@@ -76,7 +77,7 @@ pub fn handle_tracked_directories() -> TrackedDirectories {
     return tracked_directories;
 }
 
-pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Content>, utility: Utility) {
+pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Content>, working_shows: &mut Vec<Show>, utility: Utility) {
     let mut utility = utility.clone_and_add_location("process_new_files");
     utility.start_timer(0);
 
@@ -84,7 +85,7 @@ pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Cont
         utility.start_timer(1);
 
         utility.start_timer(2);
-        let mut content = Content::new(&new_file, utility.clone());
+        let mut content = Content::new(&new_file, working_shows, utility.clone());
         utility.save_timing(2, utility.clone());
         
         utility.start_timer(3);

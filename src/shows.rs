@@ -1,11 +1,13 @@
 use crate::{
     content::Content,
     database::ensure::ensure_show_exists,
+    database::execution::get_by_query,
     print::{print, From, Verbosity},
     utility::Utility,
 };
 use std::ops::{Index, IndexMut};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use regex::NoExpand;
+use tokio_postgres::Row;
 
 pub struct Season {
     pub number: usize,
@@ -28,7 +30,7 @@ impl Season {
 }
 
 pub struct Show {
-    pub uid: usize,
+    pub show_uid: usize,
     pub title: String,
     pub seasons: Vec<Season>,
 }
@@ -36,7 +38,7 @@ pub struct Show {
 impl Show {
     pub fn new(uid: usize, title: String) -> Show {
         Show {
-            uid: uid,
+            show_uid: uid,
             title: title,
             seasons: Vec::new(),
         }
@@ -48,9 +50,54 @@ impl Show {
             Verbosity::DEBUG,
             From::Shows,
             utility,
-            format!("[uid: {}][title: {}]", self.uid, self.title),
+            format!("[uid: {}][title: {}]", self.show_uid, self.title),
             0,
         );
+    }
+
+    pub fn show_exists(show_title: String, working_shows: &mut Vec<Show>) -> Option<usize> {
+        for show in working_shows {
+            if show.title == show_title {
+                return Some(show.show_uid);
+            }
+        }
+        return None;
+    }
+
+    pub fn from_row(row: Row, utility: Utility) -> Show {
+        let mut utility = utility.clone_and_add_location("from_row");
+
+        utility.start_timer(0);
+        let show_uid_temp: i32 = row.get(0);
+        let title_temp: String = row.get(1);
+
+        //change to have it pull all info out of the db, it currently generates what it can from the filename
+        let mut show = Show {
+            show_uid: show_uid_temp as usize,
+            title: title_temp,
+            seasons: Vec::new(),
+        };
+        utility.print_timer_from_stage_and_task(0, "startup", "from_row: create show from row", 1, utility.clone());
+
+        return show;
+    }
+
+    pub fn get_all_shows(utility: Utility) -> Vec<Show> {
+        let mut utility = utility.clone_and_add_location("get_all_shows");
+        utility.start_timer(0);
+
+
+        let raw_shows = get_by_query(r"SELECT uid, title FROM shows", utility.clone());
+
+
+        let mut shows: Vec<Show> = Vec::new();
+        for row in raw_shows {
+            shows.push(Show::from_row(row, utility.clone()));
+        }
+
+        utility.print_timer_from_stage_and_task(0, "startup", "read in shows", 0, utility.clone());
+        
+        return shows;
     }
 }
 
@@ -103,7 +150,7 @@ pub struct Shows {
 impl Shows {
     fn find_index_by_uid(&self, uid: usize) -> Option<usize> {
         //if !is_none(show_uid)
-        return self.shows.iter().position(|show| show.uid == uid);
+        return self.shows.iter().position(|show| show.show_uid == uid);
     }
 
     pub fn new() -> Shows {

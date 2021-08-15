@@ -152,6 +152,7 @@ pub mod ensure {
             execution::{execute_query, get_client},
             retrieve::{get_show_uid_by_title, get_uid_from_result},
         },
+        shows::Show,
         utility::Utility,
     };
     pub fn ensure_tables_exist(utility: Utility) {
@@ -216,27 +217,31 @@ pub mod ensure {
             utility.clone(),
         );
     }
-
-    pub fn ensure_show_exists(show_title: String, utility: Utility) -> usize {
-        let utility = utility.clone_and_add_location("ensure_show_exists");
+    //asdf;
+    pub fn ensure_show_exists(show_title: String, working_shows: &mut Vec<Show>, utility: Utility) -> usize {
+        let mut utility = utility.clone_and_add_location("ensure_show_exists");
         
-        let mut client = get_client(utility.clone());
-        if db_boolean_handle(
-            handle_result_error(
-                client.query(
-                    r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
-                    &[&show_title],
-                ),
-                utility.clone(),
-            ),
-            utility.clone(),
-        ) {
-            return get_show_uid_by_title(show_title, utility.clone());
+        let show_uid = Show::show_exists(show_title.clone(), working_shows);
+        if show_uid.is_some() {
+            return show_uid.unwrap();
         } else {
-            return get_uid_from_result(client.query(
+            println!("Adding a new show: {}", show_title);
+            utility.start_timer(0);
+            let result = get_client(utility.clone()).query(
                 r"INSERT INTO show (title) VALUES ($1) RETURNING show_uid;",
                 &[&show_title],
-            ), utility.clone());
+            );
+            utility.print_timer_from_stage_and_task(0, "startup", "inserting show UID", 4, utility.clone());
+
+            let show_uid = get_uid_from_result(result, utility.clone());
+            let new_show = Show {
+                show_uid: show_uid,
+                title: show_title,
+                seasons: Vec::new(),
+            };
+            working_shows.push(new_show);
+
+            return show_uid;
         }
     }
 }
@@ -258,7 +263,7 @@ pub mod insert {
         let utility = utility.clone_and_add_location("insert_episode_if_episode");
 
         if content.content_is_episode(utility.clone()) {
-            let content_uid = content.uid as i32;
+            let content_uid = content.content_uid.unwrap() as i32;
             let show_uid = content.show_uid.unwrap() as i32;
             let (season_number_temp, episode_number_temp) = content.show_season_episode.unwrap();
             let season_number = season_number_temp as i16;
@@ -403,20 +408,19 @@ pub mod retrieve {
     use tokio_postgres::{Row, Error};
 
     pub fn get_show_uid_by_title(show_title: String, utility: Utility) -> usize {
-        let utility = utility.clone_and_add_location("get_show_uid_by_title");
+        let mut utility = utility.clone_and_add_location("get_show_uid_by_title");
 
-        /*
-         * logic
-         */
+        utility.start_timer(0);
         let mut client = get_client(utility.clone());
         let result = handle_result_error(
             client.query(
                 r"SELECT show_uid from show WHERE title = $1",
                 &[&show_title],
             ),
-            utility,
+            utility.clone(),
         );
         let show_uid: i32 = result[0].get(0);
+        utility.print_timer_from_stage_and_task(0, "startup", "ensure_show_exists: get_show_uid_by_title", 4, utility.clone());
         return show_uid as usize;
         //////////
     }
@@ -430,7 +434,6 @@ pub mod retrieve {
 }
 
 pub mod miscellaneous {
-    use rand::Rng;
     use crate::{
         utility::Utility,
         database::execution::execute_query,
