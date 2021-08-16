@@ -65,7 +65,6 @@ impl Show {
                 return Some(show.show_uid);
             }
         }
-        println!("Couldn't find show {} in db", show_title);
         return None;
     }
 
@@ -87,10 +86,12 @@ impl Show {
             let show_uid = get_uid_from_result(result, utility.clone());
             let new_show = Show {
                 show_uid: show_uid,
-                title: show_title,
+                title: show_title.clone(),
                 seasons: Vec::new(),
             };
             working_shows.push(new_show);
+
+            Show::show_exists(show_title.clone(), working_shows.clone());
 
             return show_uid;
         }
@@ -119,7 +120,7 @@ impl Show {
         utility.start_timer(0);
 
 
-        let raw_shows = get_by_query(r"SELECT uid, title FROM shows", utility.clone());
+        let raw_shows = get_by_query(r"SELECT show_uid, title FROM show", utility.clone());
 
 
         let mut shows: Vec<Show> = Vec::new();
