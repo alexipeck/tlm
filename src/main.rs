@@ -14,7 +14,7 @@ use tlm::{
         print::{print_contents, print_shows},
     },
     content::Content,
-    shows::Shows,
+    shows::{Shows, Show},
     utility::Utility,
 };
 
@@ -31,9 +31,10 @@ fn main() {
     insert episode from content
     */
 
-    let utility = Utility::new("main");
+    let mut utility = Utility::new("main");
+    utility.enable_print();
 
-    db_purge(utility.clone());
+    //db_purge(utility.clone());
 
     ensure_tables_exist(utility.clone());
 
@@ -44,11 +45,11 @@ fn main() {
     //ignored directories
     let ignored_paths = vec![".recycle_bin"];
 
-    let mut working_content: Vec<Content> = Content::get_all_contents(utility.clone());
+    let mut working_shows: Vec<Show> = Show::get_all_shows(utility.clone());
+
+    let mut working_content: Vec<Content> = Content::get_all_contents(&mut working_shows, utility.clone());
 
     let mut existing_files_hashset: HashSet<PathBuf> = Content::get_all_filenames_as_hashset_from_contents(working_content.clone(), utility.clone());
-
-    let shows = Shows::new();
 
     process_new_files(
         import_files(
@@ -58,8 +59,11 @@ fn main() {
             &mut existing_files_hashset,
         ),
         &mut working_content,
+        &mut working_shows,
         utility.clone(),
     );
+
+    utility.disable_print();
 
     print_contents(working_content, utility.clone());
     print_shows(utility.clone());

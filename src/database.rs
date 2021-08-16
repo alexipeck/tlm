@@ -6,20 +6,9 @@ pub mod error_handling {
     };
     use tokio_postgres::{Error, Row};
 
-    pub fn handle_insert_retrieve_error(result: Result<Vec<Row>, Error>, utility: Utility) -> usize {
-        let utility = utility.clone_and_add_location("handle_insert_retrieve_error");
-
-        let result: i32 = handle_result_error(result, utility.clone())[0].get(0);
-        return result as usize;
-        //panic!("Deal with error stuff later");
-    }
-
     pub fn handle_result_error(result: Result<Vec<Row>, Error>, utility: Utility) -> Vec<Row> {
         let utility = utility.clone_and_add_location("handle_result_error");
 
-        /*
-         * logic
-         */
         if result.is_ok() {
             let result = result.unwrap();
             if result.len() > 0 {
@@ -29,16 +18,12 @@ pub mod error_handling {
             handle_retrieve_error(result, utility.clone());
         }
         return Vec::new();
-        //////////
     }
 
     //prints error of it's actually an error, otherwise, does nothing
     pub fn handle_insert_error(error: Result<u64, Error>, utility: Utility) {
         let utility = utility.clone_and_add_location("handle_insert_error");
 
-        /*
-         * logic
-         */
         if error.is_err() {
             print(
                 Verbosity::ERROR,
@@ -48,16 +33,12 @@ pub mod error_handling {
                 0,
             );
         }
-        //////////
     }
 
     //prints error of it's actually an error, otherwise, returns unwrapped Vec<Row>
     pub fn handle_retrieve_error(error: Result<Vec<Row>, Error>, utility: Utility) {
         let utility = utility.clone_and_add_location("handle_retrieve_error");
 
-        /*
-         * logic
-         */
         if error.is_err() {
             print(
                 Verbosity::ERROR,
@@ -71,16 +52,12 @@ pub mod error_handling {
             );
             panic!();
         }
-        //////////
     }
 
     //given an error handled Vec<Row>, will return boolean or handle the error
     pub fn db_boolean_handle(input: Vec<Row>, utility: Utility) -> bool {
         let utility = utility.clone_and_add_location("db_boolean_handle");
 
-        /*
-         * logic
-         */
         if input.len() > 0 {
             //requires explicit type
             if input[0].get(0) {
@@ -98,7 +75,6 @@ pub mod error_handling {
             );
             panic!();
         }
-        //////////
     }
 }
 
@@ -124,9 +100,6 @@ pub mod execution {
     pub fn get_client(utility: Utility) -> Client {
         let utility = utility.clone_and_add_location("get_client");
 
-        /*
-         * logic
-         */
         //credentials aren't secret yet, and are only for a testing/development database.
         let connection_string = r"postgresql://localhost:4531/tlmdb?user=postgres&password=786D3JXegfY8uR6shcPB7UF2oVeQf49ynH8vHgn".to_string();
         //creates actual database client connection
@@ -151,16 +124,12 @@ pub mod execution {
                 return client.unwrap();
             }
         }
-        //////////
     }
 
     //used for executing queries that return nothing, errors are handled internally
     pub fn execute_query(query: &str, utility: Utility) {
         let utility = utility.clone_and_add_location("execute_query");
 
-        /*
-         * logic
-         */
         let mut client = get_client(utility.clone());
         //stores error returned by
         let error = client.batch_execute(query);
@@ -173,17 +142,17 @@ pub mod execution {
                 0,
             );
         }
-        //////////
     }
 }
 
 pub mod ensure {
     use crate::{
         database::{
-            error_handling::{db_boolean_handle, handle_insert_error, handle_result_error, handle_insert_retrieve_error},
+            error_handling::{db_boolean_handle, handle_result_error},
             execution::{execute_query, get_client},
             retrieve::{get_show_uid_by_title, get_uid_from_result},
         },
+        shows::Show,
         utility::Utility,
     };
     pub fn ensure_tables_exist(utility: Utility) {
@@ -216,7 +185,7 @@ pub mod ensure {
                 episode_title           TEXT NOT NULL,
                 season_number           SMALLINT NOT NULL,
                 episode_number          SMALLINT NOT NULL,
-                PRIMARY KEY(show_uid, season_number, episode_number)
+                PRIMARY KEY(content_uid, show_uid, season_number, episode_number)
             )",
             utility.clone(),
         );
@@ -248,36 +217,14 @@ pub mod ensure {
             utility.clone(),
         );
     }
-
-    pub fn ensure_show_exists(show_title: String, utility: Utility) -> usize {
-        let utility = utility.clone_and_add_location("ensure_show_exists");
-        
-        let mut client = get_client(utility.clone());
-        if db_boolean_handle(
-            handle_result_error(
-                client.query(
-                    r"SELECT EXISTS(SELECT 1 FROM show WHERE title = $1)",
-                    &[&show_title],
-                ),
-                utility.clone(),
-            ),
-            utility.clone(),
-        ) {
-            return get_show_uid_by_title(show_title, utility.clone());
-        } else {
-            return handle_insert_retrieve_error(client.query(
-                r"INSERT INTO show (title) VALUES ($1) RETURNING show_uid;",
-                &[&show_title],
-            ), utility.clone());
-        }
-    }
+    //asdf;
 }
 
 pub mod insert {
     use crate::{
         content::Content,
         database::{
-            error_handling::{handle_insert_error, handle_result_error, handle_insert_retrieve_error},
+            error_handling::{handle_insert_error, handle_result_error},
             execution::get_client,
             retrieve::get_uid_from_result,
         },
@@ -290,11 +237,11 @@ pub mod insert {
         let utility = utility.clone_and_add_location("insert_episode_if_episode");
 
         if content.content_is_episode(utility.clone()) {
-            let content_uid = content.uid as i32;
+            let content_uid = content.content_uid.unwrap() as i32;
             let show_uid = content.show_uid.unwrap() as i32;
             let (season_number_temp, episode_number_temp) = content.show_season_episode.unwrap();
             let season_number = season_number_temp as i16;
-            let episode_number = episode_number_temp as i16;
+            let episode_number = episode_number_temp[0] as i16;//asdf;
             let error = get_client(utility.clone()).execute(
                 r"INSERT INTO episode (content_uid, show_uid, episode_title, episode_number, season_number) VALUES ($1, $2, $3, $4, $5)",
                 &[&content_uid, &show_uid, &content.show_title.unwrap(), &episode_number, &season_number],
@@ -308,7 +255,7 @@ pub mod insert {
 
         let designation = content.designation as i32;
         let mut client = get_client(utility.clone());
-        let content_uid = handle_insert_retrieve_error(client.query(
+        let content_uid = get_uid_from_result(client.query(
                 r"INSERT INTO content (full_path, designation) VALUES ($1, $2) RETURNING content_uid;",
                 &[&content.get_full_path(), &designation],
             ),
@@ -432,54 +379,35 @@ pub mod retrieve {
         print::{print, From, Verbosity},
         utility::Utility,
     };
-    use tokio_postgres::Row;
+    use tokio_postgres::{Row, Error};
 
     pub fn get_show_uid_by_title(show_title: String, utility: Utility) -> usize {
-        let utility = utility.clone_and_add_location("get_show_uid_by_title");
+        let mut utility = utility.clone_and_add_location("get_show_uid_by_title");
 
-        /*
-         * logic
-         */
+        utility.start_timer(0);
         let mut client = get_client(utility.clone());
         let result = handle_result_error(
             client.query(
                 r"SELECT show_uid from show WHERE title = $1",
                 &[&show_title],
             ),
-            utility,
+            utility.clone(),
         );
         let show_uid: i32 = result[0].get(0);
+        utility.print_timer_from_stage_and_task(0, "startup", "ensure_show_exists: get_show_uid_by_title", 4, utility.clone());
         return show_uid as usize;
         //////////
     }
 
-    pub fn get_uid_from_result(input: Vec<Row>, utility: Utility) -> usize {
-        let utility = utility.clone_and_add_location("get_uid_from_result");
+    pub fn get_uid_from_result(result: Result<Vec<Row>, Error>, utility: Utility) -> usize {
+        let utility = utility.clone_and_add_location("handle_insert_retrieve_error");
 
-        /*
-         * logic
-         */
-        let mut uid: Option<i32> = None;
-        for row in &input {
-            uid = row.get(0);
-        }
-        if uid.is_some() {
-            return uid.unwrap() as usize;
-        }
-        print(
-            Verbosity::CRITICAL,
-            From::DB,
-            utility,
-            format!("Couldn't find entry that was just inserted, this shouldn't happen."),
-            0,
-        );
-        panic!();
-        //////////
+        let result: i32 = handle_result_error(result, utility.clone())[0].get(0);
+        return result as usize;
     }
 }
 
 pub mod miscellaneous {
-    use rand::Rng;
     use crate::{
         utility::Utility,
         database::execution::execute_query,

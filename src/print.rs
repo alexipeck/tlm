@@ -23,6 +23,14 @@ pub enum From {
     Job = 8,
 }
 
+pub fn get_indentation_from_tab_count(tab_count: usize) -> String {
+    let mut indentation: String = String::new();
+    for _ in 0..tab_count {
+        indentation += r"    ";
+    }
+    return indentation;
+}
+
 pub fn print(
     verbosity: Verbosity,
     from_module: From,
@@ -42,11 +50,8 @@ pub fn print(
             indentation, verbosity_string, from_module_string, call_functions_string, string
         );
     }
-
-    let mut indentation: String = String::new();
-    for _ in 0..(indent * 4) {
-        indentation.push(' ');
-    }
+    //asdf;
+    let indentation = get_indentation_from_tab_count(indent);
 
     //print(Verbosity::DEBUG, r"", format!(""));
     let set_output_verbosity_level = Verbosity::DEBUG as usize; //would be set as a filter in any output view

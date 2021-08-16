@@ -1,4 +1,3 @@
-use core::time;
 use std::time::Instant;
 use crate::print::{print, From, Verbosity};
 
@@ -6,15 +5,25 @@ use crate::print::{print, From, Verbosity};
 pub struct Utility {
     pub traceback: Vec<String>,
     pub timers: Vec<(usize, Instant, Option<u128>)>,
+    pub print: bool,
 }
 impl Utility {
     pub fn new(created_from: &str) -> Utility {
         let mut traceback = Utility {
             traceback: Vec::new(),
             timers: Vec::new(),
+            print: false,
         };
         traceback.add_traceback_location(created_from);
         return traceback;
+    }
+
+    pub fn enable_print(&mut self) {
+        self.print = true;
+    }
+
+    pub fn disable_print(&mut self) {
+        self.print = false;
     }
     
     pub fn get_saved_timing(&self, identifier: usize, utility: Utility) -> u128 {
@@ -92,39 +101,43 @@ impl Utility {
         panic!();
     }
 
-    pub fn print_timer_from_stage_and_task_from_saved(&self, identifier: usize, stage: &str, task: &str, indent: usize, utility: Utility) {
-        let timing = self.get_saved_timing(identifier, utility);
-        if timing > 0 {
-            print(
-                Verbosity::INFO,
-                From::Utility,
-                self.clone(),
-                format!(
-                    "{}: handling task '{}' took: {}ms",
-                    stage,
-                    task,
-                    timing,
-                ),
-                indent,
-            );
+    pub fn print_timer_from_stage_and_task_from_saved(&self, identifier: usize, stage: &str, task: &str, indentation_tabs: usize, utility: Utility) {
+        if self.print {
+            let timing = self.get_saved_timing(identifier, utility);
+            if timing > 0 {
+                print(
+                    Verbosity::INFO,
+                    From::Utility,
+                    self.clone(),
+                    format!(
+                        "{}: handling task '{}' took: {}ms",
+                        stage,
+                        task,
+                        timing,
+                    ),
+                    indentation_tabs,
+                );
+            }
         }
     }
 
     pub fn print_timer_from_stage_and_task(&self, identifier: usize, stage: &str, task: &str, indent: usize, utility: Utility) {
-        let timing = self.get_timer_ms(identifier, utility);
-        if timing > 0 {
-            print(
-                Verbosity::INFO,
-                From::Utility,
-                self.clone(),
-                format!(
-                    "{}: handling task '{}' took: {}ms",
-                    stage,
-                    task,
-                    timing,
-                ),
-                indent,
-            );
+        if self.print {
+            let timing = self.get_timer_ms(identifier, utility);
+            if timing > 0 {
+                print(
+                    Verbosity::INFO,
+                    From::Utility,
+                    self.clone(),
+                    format!(
+                        "{}: handling task '{}' took: {}ms",
+                        stage,
+                        task,
+                        timing,
+                    ),
+                    indent,
+                );
+            }
         }
     }
 

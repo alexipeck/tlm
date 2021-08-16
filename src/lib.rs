@@ -25,6 +25,7 @@ use database::insert::{
     insert_episode_if_episode,
 };
 use utility::Utility;
+use shows::Show;
 
 #[derive(Clone, Debug)]
 pub struct TrackedDirectories {
@@ -59,13 +60,13 @@ pub fn handle_tracked_directories() -> TrackedDirectories {
             .cache_directories
             .push_back(String::from(r"/home/alexi/tlm/test_files/cache/"));
     } else {
-        //tracked_root_directories.push(String::from("T:/")); //manual entry
-        tracked_directories.root_directories.push_back(String::from(
+        tracked_directories.root_directories.push_back(String::from("T:\\"));
+        /*tracked_directories.root_directories.push_back(String::from(
             r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\",
         ));
         tracked_directories.root_directories.push_back(String::from(
             r"C:\Users\Alexi Peck\Desktop\tlm\test_files\shows\",
-        ));
+        ));*/
         tracked_directories
             .cache_directories
             .push_back(String::from(
@@ -76,7 +77,7 @@ pub fn handle_tracked_directories() -> TrackedDirectories {
     return tracked_directories;
 }
 
-pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Content>, utility: Utility) {
+pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Content>, working_shows: &mut Vec<Show>, utility: Utility) {
     let mut utility = utility.clone_and_add_location("process_new_files");
     utility.start_timer(0);
 
@@ -84,7 +85,7 @@ pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Cont
         utility.start_timer(1);
 
         utility.start_timer(2);
-        let mut content = Content::new(&new_file, utility.clone());
+        let mut content = Content::new(&new_file, working_shows, utility.clone());
         utility.save_timing(2, utility.clone());
         
         utility.start_timer(3);
@@ -98,8 +99,8 @@ pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Cont
         working_content.push(content);
         utility.print_timer_from_stage_and_task(1, "startup", "creating content from PathBuf", 1, utility.clone());
         utility.print_timer_from_stage_and_task_from_saved(2, "startup", "creating content from PathBuf", 2, utility.clone());
-        utility.print_timer_from_stage_and_task_from_saved(3, "startup", "inserting content to the database, returning UID", 2, utility.clone());
-        utility.print_timer_from_stage_and_task_from_saved(4, "startup", "inserting episode to the database, if it is", 2, utility.clone());
+        utility.print_timer_from_stage_and_task_from_saved(3, "startup", "inserting content to the database", 2, utility.clone());
+        utility.print_timer_from_stage_and_task_from_saved(4, "startup", "inserting episode to the database", 2, utility.clone());
     }
     utility.print_timer_from_stage_and_task(0, "startup", "processing new files", 0, utility.clone());
 }

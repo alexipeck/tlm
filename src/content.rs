@@ -1,10 +1,10 @@
 use crate::{
-    database::ensure::ensure_show_exists,
     database::execution::get_by_query,
     designation::{convert_i32_to_designation, Designation},
     job::Job,
     print::{print, From, Verbosity},
     utility::Utility,
+    shows::Show,
 };
 use regex::Regex;
 use std::{
@@ -13,8 +13,6 @@ use std::{
     path::PathBuf,
 };
 use tokio_postgres::Row;
-
-static EPISODE_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 fn re_strip(input: &String, expression: &str) -> Option<String> {
     let output = Regex::new(expression).unwrap().find(input);
@@ -41,7 +39,7 @@ fn get_os_slash() -> char {
 //generic content container, focus on video
 #[derive(Clone, Debug)]
 pub struct Content {
-    pub uid: usize,
+    pub content_uid: Option<usize>,
     pub full_path: PathBuf,
     pub designation: Designation,
     //pub job_queue: VecDeque<Job>,
@@ -50,19 +48,19 @@ pub struct Content {
     //pub metadata_dump
     pub show_uid: Option<usize>,
     pub show_title: Option<String>,
-    pub show_season_episode: Option<(usize, usize)>,
+    pub show_season_episode: Option<(usize, Vec<usize>)>,
 }
 
 impl Content {
     //needs to be able to be created from a pathbuf or pulled from the database
-    pub fn new(raw_filepath: &PathBuf, utility: Utility) -> Content {
+    pub fn new(raw_filepath: &PathBuf, working_shows: &mut Vec<Show>, utility: Utility) -> Content {
         let utility = utility.clone_and_add_location("new");
 
         let mut content = Content {
             full_path: raw_filepath.clone(),
             //temp_encode_path: None,
             designation: Designation::Generic,
-            uid: EPISODE_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
+            content_uid: None,
             hash: None,
             //job_queue: VecDeque::new(),
 
@@ -71,13 +69,14 @@ impl Content {
             show_season_episode: None,
             show_uid: None,
         };
-        content.designate_and_fill(utility);
+        content.designate_and_fill(working_shows, utility.clone());
         return content;
     }
 
-    pub fn from_row(row: Row, utility: Utility) -> Content {
-        let utility = utility.clone_and_add_location("from_row");
+    pub fn from_row(row: Row, working_shows: &mut Vec<Show>, utility: Utility) -> Content {
+        let mut utility = utility.clone_and_add_location("from_row");
 
+        utility.start_timer(0);
         let content_uid_temp: i32 = row.get(0);
         let full_path_temp: String = row.get(1);
         let designation_temp: i32 = row.get(2);
@@ -86,7 +85,7 @@ impl Content {
         let mut content = Content {
             full_path: PathBuf::from(&full_path_temp),
             designation: convert_i32_to_designation(designation_temp), //Designation::Generic
-            uid: content_uid_temp as usize,
+            content_uid: Some(content_uid_temp as usize),
             hash: None,
 
             //truly optional
@@ -94,7 +93,11 @@ impl Content {
             show_season_episode: None,
             show_uid: None,
         };
-        content.designate_and_fill(utility);
+        utility.print_timer_from_stage_and_task(0, "startup", "from_row: initial content fill", 2, utility.clone());
+
+        utility.start_timer(1);
+        content.designate_and_fill(working_shows, utility.clone());
+        utility.print_timer_from_stage_and_task(0, "startup", "from_row: designate_and_fill", 2, utility.clone());
 
         return content;
     }
@@ -103,30 +106,30 @@ impl Content {
 
     } */
 
-    pub fn get_all_contents(utility: Utility) -> Vec<Content> {
+    pub fn get_all_contents(working_shows: &mut Vec<Show>, utility: Utility) -> Vec<Content> {
         let mut utility = utility.clone_and_add_location("get_all_contents");
         utility.start_timer(0);
 
-        let mut contents: Vec<Content> = Vec::new();
-        for row in get_by_query(
-            r"SELECT content_uid, full_path, designation FROM content",
-            utility.clone(),
-        ) {
-            contents.push(Content::from_row(row, utility.clone()));
+        utility.start_timer(1);
+        let raw_content = get_by_query(r"SELECT content_uid, full_path, designation FROM content", utility.clone());
+        utility.save_timing(1, utility.clone());
+
+        let mut content: Vec<Content> = Vec::new();
+        let mut counter = 2;
+        for row in raw_content {
+            utility.start_timer(counter);
+            content.push(Content::from_row(row, working_shows, utility.clone()));
+            utility.save_timing(counter, utility.clone());
+
+            counter += 1;
         }
 
-        print(
-            Verbosity::INFO,
-            From::Main,
-            utility.clone(),
-            format!(
-                "startup: read in 'content' took: {}ms",
-                utility.get_timer_ms(0, utility.clone()),
-            ),
-            0,
-        );
+        utility.print_timer_from_stage_and_task(0, "startup", "read in content", 0, utility.clone());
+        for i in 2..utility.timers.len() {
+            utility.print_timer_from_stage_and_task_from_saved(i, "startup", &format!("creating content from row: {}", i), 1, utility.clone());
+        }
         
-        return contents;
+        return content;
     }
 
     pub fn filename_from_row_as_pathbuf(row: Row) -> PathBuf {
@@ -141,9 +144,6 @@ impl Content {
         let mut utility = utility.clone_and_add_location("get_all_filenames_as_hashset_from_contents");
         utility.start_timer(0);
 
-        /*
-         * logic
-         */
         let mut hashset = HashSet::new();
         for content in contents {
             hashset.insert(content.full_path);
@@ -161,7 +161,6 @@ impl Content {
         );
 
         return hashset;
-        //////////
     }
 
     pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
@@ -216,7 +215,7 @@ impl Content {
         return Content::get_full_path_with_suffix_from_pathbuf(pathbuf, "_encodeH4U8".to_string());
     }
 
-    pub fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, usize)> {
+    pub fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, Vec<usize>)> {
         let episode_string: String;
 
         //Check if the regex caught a valid episode format
@@ -230,11 +229,17 @@ impl Content {
                 episode_string = temp_string;
             }
         }
+        //asdf;
+        let mut season_episode_iter = episode_string.split('E');
+        let season_temp = season_episode_iter.next().unwrap().parse::<usize>().unwrap();
+        let mut episodes: Vec<usize> = Vec::new();
+        for episode in season_episode_iter.next().unwrap().split('-') {
+            episodes.push(episode.parse::<usize>().unwrap());
+        }
 
-        let mut se_iter = episode_string.split('E');
-        Some((
-            se_iter.next().unwrap().parse::<usize>().unwrap(),
-            se_iter.next().unwrap().parse::<usize>().unwrap(),
+        return Some((
+            season_temp,
+            episodes,
         ))
     }
 
@@ -319,6 +324,29 @@ impl Content {
         return self.full_path.parent().unwrap().join(new_filename);
     }
 
+    pub fn get_episode_string(&self) -> String {
+        if self.show_season_episode.is_some() {
+            let episode = self.show_season_episode.clone().unwrap().1;
+            if episode.len() < 1 {
+                panic!("Bad boy, you fucked up. There was less than 1 episode in the thingo");
+            } else {
+                let mut prepare = String::new();
+                let mut first: bool = true;
+                for episode in episode {
+                    if first {
+                        prepare.push_str(&format!("{}", episode));
+                        first = false;
+                    } else {
+                        prepare += &format!("_{}", episode);
+                    }
+                }
+                return prepare;
+            }
+        } else {
+            panic!("Bad boy, you fucked up. show_season_episode is_none");
+        }
+    }
+    
     pub fn print(&self, utility: Utility) {
         let utility = utility.clone_and_add_location("print");
 
@@ -326,20 +354,20 @@ impl Content {
             && self.show_title.is_some()
             && self.show_season_episode.is_some()
         {
-            let season_episode = self.show_season_episode.unwrap();
             print(
                 Verbosity::DEBUG,
                 From::DB,
                 utility.clone(),
                 format!(
                     "[content_uid:'{}'][designation:'{}'][full_path:'{}'][show_uid:'{}'][show_title:'{}'][season:'{}'][episode:'{}']",
-                    self.uid,
+                    self.content_uid.unwrap(),
                     self.designation as i32,
                     self.get_full_path(),
                     self.show_uid.unwrap(),
                     self.show_title.clone().unwrap(),
-                    season_episode.0,
-                    season_episode.1
+                    self.get_episode_string(),
+                    //self.show_season_episode.clone().unwrap().1[0],//asdf;
+                    self.get_episode_string(),
                 ),
             0,
             );
@@ -357,7 +385,7 @@ impl Content {
             utility.clone(),
             format!(
                 "[content_uid:'{}'][designation:'{}'][full_path:'{}']",
-                self.uid,
+                self.content_uid.unwrap(),
                 self.designation as i32,
                 self.get_full_path(),
             ),
@@ -369,8 +397,8 @@ impl Content {
         return pathbuf.parent().unwrap().to_string_lossy().to_string();
     }
 
-    pub fn set_uid(&mut self, uid: usize) {
-        self.uid = uid;
+    pub fn set_uid(&mut self, content_uid: usize) {
+        self.content_uid = Some(content_uid);
     }
 
     pub fn set_show_uid(&mut self, show_uid: usize) {
@@ -390,12 +418,16 @@ impl Content {
         return false;
     }
 
-    pub fn designate_and_fill(&mut self, utility: Utility) {
-        let utility = utility.clone_and_add_location("designate_and_fill");
+    pub fn designate_and_fill(&mut self, working_shows: &mut Vec<Show>, utility: Utility) {
+        let mut utility = utility.clone_and_add_location("designate_and_fill");
 
+        utility.start_timer(0);
         let mut episode = false;
-        let show_season_episode_conditional = self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
+        let show_season_episode_temp = self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
+        utility.print_timer_from_stage_and_task(0, "startup", "separate out season and episode from filename", 3, utility.clone());
+
         if episode {
+            utility.start_timer(1);
             self.designation = Designation::Episode;
             for section in String::from(
                 self.full_path
@@ -411,11 +443,12 @@ impl Content {
                 self.show_title = Some(String::from(section));
                 break;
             }
+            utility.print_timer_from_stage_and_task(1, "startup", "get show title from filename", 3, utility.clone());
 
-            self.show_season_episode = show_season_episode_conditional;
-            //check if show title already exists in the db, if not, create show and return uid
-            //asd;
-            self.show_uid = Some(ensure_show_exists(self.show_title.clone().unwrap(), utility));
+            utility.start_timer(2);
+            self.show_season_episode = show_season_episode_temp;
+            self.show_uid = Some(Show::ensure_show_exists(self.show_title.clone().unwrap(), working_shows, utility.clone()));
+            utility.print_timer_from_stage_and_task(2, "startup", "set show_season_episode from temp, ensure_show_exists", 3, utility.clone());
         } else {
             self.designation = Designation::Generic;
             self.show_title = None;
@@ -423,7 +456,7 @@ impl Content {
         }
     }
 
-    pub fn regenerate_from_pathbuf(&mut self, raw_filepath: &PathBuf, utility: Utility) {
+    pub fn regenerate_from_pathbuf(&mut self, working_shows: &mut Vec<Show>, raw_filepath: &PathBuf, utility: Utility) {
         let utility = utility.clone_and_add_location("regenerate_from_pathbuf");
 
         let mut episode = false;
@@ -437,6 +470,6 @@ impl Content {
         self.full_path = raw_filepath.clone();
 
         //designation, show_title, show_season_episode
-        self.designate_and_fill(utility);
+        self.designate_and_fill(working_shows, utility);
     }
 }
