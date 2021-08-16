@@ -12,6 +12,7 @@ use std::collections::HashSet;
 use regex::NoExpand;
 use tokio_postgres::Row;
 
+#[derive(Clone, Debug)]
 pub struct Season {
     pub number: usize,
     pub episodes: Vec<Content>,
@@ -31,7 +32,7 @@ impl Season {
         self.episodes.push(content);
     }
 }
-
+#[derive(Clone, Debug)]
 pub struct Show {
     pub show_uid: usize,
     pub title: String,
@@ -58,37 +59,7 @@ impl Show {
         );
     }
 
-    pub fn get_all_show_titles_as_hashset_shows (
-        shows: &mut Vec<Show>,
-        utility: Utility,
-    ) -> HashSet<String> {
-        let mut utility = utility.clone_and_add_location("get_all_show_titles_as_hashset_shows");
-        utility.start_timer(0);
-
-        let mut hashset = HashSet::new();
-        for show in shows {
-            hashset.insert(show.title.clone());
-        }
-
-        print(
-            Verbosity::INFO,
-            From::Main,
-            utility.clone(),
-            format!(
-                "startup: read in 'existing show name hashset' took: {}ms",
-                utility.get_timer_ms(0, utility.clone()),
-            ),
-            0,
-        );
-
-        return hashset;
-    }
-
-    pub fn show_exists(show_title: String, existing_shows: &mut HashSet<String>, working_shows: &mut Vec<Show>) -> Option<usize> {
-        if existing_shows.contains(&show_title) {
-
-        }
-        need to return the show_uid, using hashset doesn't really help that
+    pub fn show_exists(show_title: String, working_shows: Vec<Show>) -> Option<usize> {
         for show in working_shows {
             if show.title == show_title {
                 return Some(show.show_uid);
@@ -101,7 +72,7 @@ impl Show {
     pub fn ensure_show_exists(show_title: String, working_shows: &mut Vec<Show>, utility: Utility) -> usize {
         let mut utility = utility.clone_and_add_location("ensure_show_exists");
         
-        let show_uid = Show::show_exists(show_title.clone(), working_shows);
+        let show_uid = Show::show_exists(show_title.clone(), working_shows.clone());
         if show_uid.is_some() {
             return show_uid.unwrap();
         } else {

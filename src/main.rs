@@ -47,8 +47,6 @@ fn main() {
 
     let mut working_shows: Vec<Show> = Show::get_all_shows(utility.clone());
 
-    let mut existing_shows_hashset: HashSet<String> = Show::get_all_show_titles_as_hashset_shows(&mut working_shows, utility.clone());
-
     let mut working_content: Vec<Content> = Content::get_all_contents(&mut working_shows, utility.clone());
 
     let mut existing_files_hashset: HashSet<PathBuf> = Content::get_all_filenames_as_hashset_from_contents(working_content.clone(), utility.clone());
