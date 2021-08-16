@@ -14,7 +14,7 @@ use tlm::{
         print::{print_contents, print_shows},
     },
     content::Content,
-    shows::{Shows, Show},
+    shows::Show,
     utility::Utility,
 };
 
@@ -32,7 +32,7 @@ fn main() {
     */
 
     let mut utility = Utility::new("main");
-    utility.enable_print();
+    utility.enable_timing_print();
 
     //db_purge(utility.clone());
 
@@ -63,7 +63,7 @@ fn main() {
         utility.clone(),
     );
 
-    utility.disable_print();
+    utility.disable_timing_print();
 
     print_contents(working_content, utility.clone());
     print_shows(utility.clone());

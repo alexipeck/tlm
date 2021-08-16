@@ -18,11 +18,11 @@ impl Utility {
         return traceback;
     }
 
-    pub fn enable_print(&mut self) {
+    pub fn enable_timing_print(&mut self) {
         self.print = true;
     }
 
-    pub fn disable_print(&mut self) {
+    pub fn disable_timing_print(&mut self) {
         self.print = false;
     }
     
