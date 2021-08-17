@@ -17,15 +17,12 @@ use std::{
     time::Instant,
 };
 //use utility;
-use twox_hash::xxh3;
-use walkdir::WalkDir;
 use content::Content;
-use database::insert::{
-    insert_content,
-    insert_episode_if_episode,
-};
-use utility::Utility;
+use database::insert::{insert_content, insert_episode_if_episode};
 use shows::Show;
+use twox_hash::xxh3;
+use utility::Utility;
+use walkdir::WalkDir;
 
 #[derive(Clone, Debug)]
 pub struct TrackedDirectories {
@@ -60,7 +57,9 @@ pub fn handle_tracked_directories() -> TrackedDirectories {
             .cache_directories
             .push_back(String::from(r"/home/alexi/tlm/test_files/cache/"));
     } else {
-        tracked_directories.root_directories.push_back(String::from("T:\\"));
+        tracked_directories
+            .root_directories
+            .push_back(String::from("T:\\"));
         /*tracked_directories.root_directories.push_back(String::from(
             r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\",
         ));
@@ -77,7 +76,12 @@ pub fn handle_tracked_directories() -> TrackedDirectories {
     return tracked_directories;
 }
 
-pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Content>, working_shows: &mut Vec<Show>, utility: Utility) {
+pub fn process_new_files(
+    new_files: Vec<PathBuf>,
+    working_content: &mut Vec<Content>,
+    working_shows: &mut Vec<Show>,
+    utility: Utility,
+) {
     let mut utility = utility.clone_and_add_location("process_new_files");
     utility.start_timer(0);
 
@@ -87,22 +91,52 @@ pub fn process_new_files(new_files: Vec<PathBuf>, working_content: &mut Vec<Cont
         utility.start_timer(2);
         let mut content = Content::new(&new_file, working_shows, utility.clone());
         utility.save_timing(2, utility.clone());
-        
+
         utility.start_timer(3);
         content.set_uid(insert_content(content.clone(), utility.clone()));
         utility.save_timing(3, utility.clone());
-        
+
         utility.start_timer(4);
         insert_episode_if_episode(content.clone(), utility.clone());
         utility.save_timing(4, utility.clone());
 
         working_content.push(content);
-        utility.print_timer_from_stage_and_task(1, "startup", "creating content from PathBuf", 1, utility.clone());
-        utility.print_timer_from_stage_and_task_from_saved(2, "startup", "creating content from PathBuf", 2, utility.clone());
-        utility.print_timer_from_stage_and_task_from_saved(3, "startup", "inserting content to the database", 2, utility.clone());
-        utility.print_timer_from_stage_and_task_from_saved(4, "startup", "inserting episode to the database", 2, utility.clone());
+        utility.print_timer_from_stage_and_task(
+            1,
+            "startup",
+            "creating content from PathBuf",
+            1,
+            utility.clone(),
+        );
+        utility.print_timer_from_stage_and_task_from_saved(
+            2,
+            "startup",
+            "creating content from PathBuf",
+            2,
+            utility.clone(),
+        );
+        utility.print_timer_from_stage_and_task_from_saved(
+            3,
+            "startup",
+            "inserting content to the database",
+            2,
+            utility.clone(),
+        );
+        utility.print_timer_from_stage_and_task_from_saved(
+            4,
+            "startup",
+            "inserting episode to the database",
+            2,
+            utility.clone(),
+        );
     }
-    utility.print_timer_from_stage_and_task(0, "startup", "processing new files", 0, utility.clone());
+    utility.print_timer_from_stage_and_task(
+        0,
+        "startup",
+        "processing new files",
+        0,
+        utility.clone(),
+    );
 }
 
 //Hash set guarentees no duplicates in O(1) time

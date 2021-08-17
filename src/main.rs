@@ -1,21 +1,16 @@
-use std::{
-    collections::HashSet,
-    path::PathBuf,
-};
+use std::{collections::HashSet, path::PathBuf};
 
 use tlm::{
-    TrackedDirectories,
-    process_new_files,
-    import_files,
-    handle_tracked_directories,
+    content::Content,
     database::{
-        miscellaneous::db_purge,
         ensure::ensure_tables_exist,
+        miscellaneous::db_purge,
         print::{print_contents, print_shows},
     },
-    content::Content,
+    handle_tracked_directories, import_files, process_new_files,
     shows::Show,
     utility::Utility,
+    TrackedDirectories,
 };
 
 fn main() {
@@ -47,9 +42,14 @@ fn main() {
 
     let mut working_shows: Vec<Show> = Show::get_all_shows(utility.clone());
 
-    let mut working_content: Vec<Content> = Content::get_all_contents(&mut working_shows, utility.clone());
+    let mut working_content: Vec<Content> =
+        Content::get_all_contents(&mut working_shows, utility.clone());
 
-    let mut existing_files_hashset: HashSet<PathBuf> = Content::get_all_filenames_as_hashset_from_contents(working_content.clone(), utility.clone());
+    let mut existing_files_hashset: HashSet<PathBuf> =
+        Content::get_all_filenames_as_hashset_from_contents(
+            working_content.clone(),
+            utility.clone(),
+        );
 
     process_new_files(
         import_files(

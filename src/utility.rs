@@ -1,5 +1,5 @@
-use std::time::Instant;
 use crate::print::{print, From, Verbosity};
+use std::time::Instant;
 
 #[derive(Clone, Debug)]
 pub struct Utility {
@@ -25,7 +25,7 @@ impl Utility {
     pub fn disable_timing_print(&mut self) {
         self.print = false;
     }
-    
+
     pub fn get_saved_timing(&self, identifier: usize, utility: Utility) -> u128 {
         for timer in &self.timers {
             if timer.0 == identifier {
@@ -36,9 +36,7 @@ impl Utility {
             Verbosity::ERROR,
             From::Utility,
             utility,
-            format!(
-                "A timer was never created or the identifier used matches no timers."
-            ),
+            format!("A timer was never created or the identifier used matches no timers."),
             0,
         );
         panic!();
@@ -54,16 +52,14 @@ impl Utility {
             }
             counter += 1;
         }
-        if timer_exists {     
+        if timer_exists {
             self.timers[counter].2 = Some(self.timers[counter].1.elapsed().as_millis());
         } else {
             print(
                 Verbosity::ERROR,
                 From::Utility,
                 utility,
-                format!(
-                    "A timer was never created or the identifier used matches no timers."
-                ),
+                format!("A timer was never created or the identifier used matches no timers."),
                 0,
             );
             panic!();
@@ -93,15 +89,20 @@ impl Utility {
             Verbosity::ERROR,
             From::Utility,
             utility,
-            format!(
-                "A timer was never created or the identifier used matches no timers."
-            ),
+            format!("A timer was never created or the identifier used matches no timers."),
             0,
         );
         panic!();
     }
 
-    pub fn print_timer_from_stage_and_task_from_saved(&self, identifier: usize, stage: &str, task: &str, indentation_tabs: usize, utility: Utility) {
+    pub fn print_timer_from_stage_and_task_from_saved(
+        &self,
+        identifier: usize,
+        stage: &str,
+        task: &str,
+        indentation_tabs: usize,
+        utility: Utility,
+    ) {
         if self.print {
             let timing = self.get_saved_timing(identifier, utility);
             if timing > 0 {
@@ -109,19 +110,21 @@ impl Utility {
                     Verbosity::INFO,
                     From::Utility,
                     self.clone(),
-                    format!(
-                        "{}: handling task '{}' took: {}ms",
-                        stage,
-                        task,
-                        timing,
-                    ),
+                    format!("{}: handling task '{}' took: {}ms", stage, task, timing,),
                     indentation_tabs,
                 );
             }
         }
     }
 
-    pub fn print_timer_from_stage_and_task(&self, identifier: usize, stage: &str, task: &str, indent: usize, utility: Utility) {
+    pub fn print_timer_from_stage_and_task(
+        &self,
+        identifier: usize,
+        stage: &str,
+        task: &str,
+        indent: usize,
+        utility: Utility,
+    ) {
         if self.print {
             let timing = self.get_timer_ms(identifier, utility);
             if timing > 0 {
@@ -129,12 +132,7 @@ impl Utility {
                     Verbosity::INFO,
                     From::Utility,
                     self.clone(),
-                    format!(
-                        "{}: handling task '{}' took: {}ms",
-                        stage,
-                        task,
-                        timing,
-                    ),
+                    format!("{}: handling task '{}' took: {}ms", stage, task, timing,),
                     indent,
                 );
             }

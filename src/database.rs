@@ -1,4 +1,3 @@
-
 pub mod error_handling {
     use crate::{
         print::{print, From, Verbosity},
@@ -241,7 +240,7 @@ pub mod insert {
             let show_uid = content.show_uid.unwrap() as i32;
             let (season_number_temp, episode_number_temp) = content.show_season_episode.unwrap();
             let season_number = season_number_temp as i16;
-            let episode_number = episode_number_temp[0] as i16;//asdf;
+            let episode_number = episode_number_temp[0] as i16; //asdf;
             let error = get_client(utility.clone()).execute(
                 r"INSERT INTO episode (content_uid, show_uid, episode_title, episode_number, season_number) VALUES ($1, $2, $3, $4, $5)",
                 &[&content_uid, &show_uid, &content.show_title.unwrap(), &episode_number, &season_number],
@@ -379,7 +378,7 @@ pub mod retrieve {
         print::{print, From, Verbosity},
         utility::Utility,
     };
-    use tokio_postgres::{Row, Error};
+    use tokio_postgres::{Error, Row};
 
     pub fn get_show_uid_by_title(show_title: String, utility: Utility) -> usize {
         let mut utility = utility.clone_and_add_location("get_show_uid_by_title");
@@ -394,7 +393,13 @@ pub mod retrieve {
             utility.clone(),
         );
         let show_uid: i32 = result[0].get(0);
-        utility.print_timer_from_stage_and_task(0, "startup", "ensure_show_exists: get_show_uid_by_title", 4, utility.clone());
+        utility.print_timer_from_stage_and_task(
+            0,
+            "startup",
+            "ensure_show_exists: get_show_uid_by_title",
+            4,
+            utility.clone(),
+        );
         return show_uid as usize;
         //////////
     }
@@ -408,14 +413,11 @@ pub mod retrieve {
 }
 
 pub mod miscellaneous {
-    use crate::{
-        utility::Utility,
-        database::execution::execute_query,
-    };
+    use crate::{database::execution::execute_query, utility::Utility};
 
     pub fn db_purge(utility: Utility) {
         let utility = utility.clone_and_add_location("db_purge");
-    
+
         //the order for dropping tables matters if foreign keys exist (job_task_queue has a foreign key of job_queue)
         let tables: Vec<&str> = vec![
             "content",
@@ -444,7 +446,7 @@ pub mod print {
 
     pub fn print_jobs(utility: Utility) {
         let utility = utility.clone_and_add_location("print_jobs");
-    
+
         /*
          * logic
          */
@@ -456,15 +458,14 @@ pub mod print {
                 utility.clone(),
                 format!("[job_uid:{}]", uid),
                 0,
-
             );
         }
         //////////
     }
-    
+
     pub fn print_shows(utility: Utility) {
         let utility = utility.clone_and_add_location("print_shows");
-    
+
         /*
          * logic
          */
@@ -476,15 +477,14 @@ pub mod print {
                 utility.clone(),
                 format!("[title:{}]", title),
                 0,
-
             );
         }
         //////////
     }
-    
+
     pub fn print_contents(contents: Vec<Content>, utility: Utility) {
         let utility = utility.clone_and_add_location("print_contents");
-    
+
         /*
          * logic
          */
@@ -492,5 +492,5 @@ pub mod print {
             content.print(utility.clone());
         }
         //////////
-    }    
+    }
 }

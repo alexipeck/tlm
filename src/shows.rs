@@ -7,9 +7,9 @@ use crate::{
     print::{print, From, Verbosity},
     utility::Utility,
 };
-use std::ops::{Index, IndexMut};
-use std::collections::HashSet;
 use regex::NoExpand;
+use std::collections::HashSet;
+use std::ops::{Index, IndexMut};
 use tokio_postgres::Row;
 
 #[derive(Clone, Debug)]
@@ -68,9 +68,13 @@ impl Show {
         return None;
     }
 
-    pub fn ensure_show_exists(show_title: String, working_shows: &mut Vec<Show>, utility: Utility) -> usize {
+    pub fn ensure_show_exists(
+        show_title: String,
+        working_shows: &mut Vec<Show>,
+        utility: Utility,
+    ) -> usize {
         let mut utility = utility.clone_and_add_location("ensure_show_exists");
-        
+
         let show_uid = Show::show_exists(show_title.clone(), working_shows.clone());
         if show_uid.is_some() {
             return show_uid.unwrap();
@@ -81,7 +85,13 @@ impl Show {
                 r"INSERT INTO show (title) VALUES ($1) RETURNING show_uid;",
                 &[&show_title],
             );
-            utility.print_timer_from_stage_and_task(0, "startup", "inserting show UID", 4, utility.clone());
+            utility.print_timer_from_stage_and_task(
+                0,
+                "startup",
+                "inserting show UID",
+                4,
+                utility.clone(),
+            );
 
             let show_uid = get_uid_from_result(result, utility.clone());
             let new_show = Show {
@@ -110,7 +120,13 @@ impl Show {
             title: title_temp,
             seasons: Vec::new(),
         };
-        utility.print_timer_from_stage_and_task(0, "startup", "from_row: create show from row", 1, utility.clone());
+        utility.print_timer_from_stage_and_task(
+            0,
+            "startup",
+            "from_row: create show from row",
+            1,
+            utility.clone(),
+        );
 
         return show;
     }
@@ -119,9 +135,7 @@ impl Show {
         let mut utility = utility.clone_and_add_location("get_all_shows");
         utility.start_timer(0);
 
-
         let raw_shows = get_by_query(r"SELECT show_uid, title FROM show", utility.clone());
-
 
         let mut shows: Vec<Show> = Vec::new();
         for row in raw_shows {
@@ -129,7 +143,7 @@ impl Show {
         }
 
         utility.print_timer_from_stage_and_task(0, "startup", "read in shows", 0, utility.clone());
-        
+
         return shows;
     }
 }
