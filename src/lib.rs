@@ -2,7 +2,6 @@ pub mod content;
 pub mod database;
 pub mod designation;
 pub mod error_handling;
-pub mod filter;
 pub mod job;
 pub mod print;
 pub mod queue;
@@ -16,7 +15,6 @@ use std::{
     path::PathBuf,
     time::Instant,
 };
-//use utility;
 use content::Content;
 use database::insert::{insert_content, insert_episode_if_episode};
 use shows::Show;

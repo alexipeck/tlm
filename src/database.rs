@@ -228,7 +228,7 @@ pub mod insert {
     pub fn insert_episode_if_episode(content: Content, utility: Utility) {
         let utility = utility.clone_and_add_location("insert_episode_if_episode");
 
-        if content.content_is_episode(utility.clone()) {
+        if content.content_is_episode() {
             let content_uid = content.content_uid.unwrap() as i32;
             let show_uid = content.show_uid.unwrap() as i32;
             let (season_number_temp, episode_number_temp) = content.show_season_episode.unwrap();

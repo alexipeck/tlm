@@ -47,10 +47,6 @@ impl Job {
         }
     }
 
-    /* pub fn conver_encode_string_to_vec(&mut self) -> String {
-
-    } */
-
     pub fn convert_encode_string_to_actual_string(input: Vec<String>) -> String {
         let mut temp: String = String::new();
         for component in &input {
@@ -144,7 +140,7 @@ impl Job {
             format!("completed encoding job UID#: {}", self.uid),
             0,
         );
-
+        
         let source_path = self.source_path.to_string_lossy().to_string();
         let encode_path = self.encode_path.to_string_lossy().to_string();
 
