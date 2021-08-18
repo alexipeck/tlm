@@ -1,12 +1,9 @@
+use crate::{
+    content::Content, database::ensure::ensure_tables_exist, show::Show, utility::Utility,
+};
 use std::{
     collections::{HashSet, VecDeque},
     path::PathBuf,
-};
-use crate::{
-    show::Show,
-    content::Content,
-    utility::Utility,
-    database::ensure::ensure_tables_exist,
 };
 
 #[derive(Clone, Debug)]
@@ -26,10 +23,14 @@ impl TrackedDirectories {
     pub fn add_manual_directories(&mut self) {
         if !cfg!(target_os = "windows") {
             //self.push(String::from("/mnt/nas/tvshows")); //manual entry
-            self.root_directories.push_back(String::from(r"/home/anpeck/tlm/test_files/"));
-            self.root_directories.push_back(String::from(r"/home/alexi/tlm/test_files/"));
-            self.cache_directories.push_back(String::from(r"/home/anpeck/tlm/test_files/cache/"));
-            self.cache_directories.push_back(String::from(r"/home/alexi/tlm/test_files/cache/"));
+            self.root_directories
+                .push_back(String::from(r"/home/anpeck/tlm/test_files/"));
+            self.root_directories
+                .push_back(String::from(r"/home/alexi/tlm/test_files/"));
+            self.cache_directories
+                .push_back(String::from(r"/home/anpeck/tlm/test_files/cache/"));
+            self.cache_directories
+                .push_back(String::from(r"/home/alexi/tlm/test_files/cache/"));
         } else {
             self.root_directories.push_back(String::from("T:\\"));
             /*self.root_directories.push_back(String::from(
@@ -38,16 +39,12 @@ impl TrackedDirectories {
             self.root_directories.push_back(String::from(
                 r"C:\Users\Alexi Peck\Desktop\tlm\test_files\shows\",
             ));*/
-            self
-                .cache_directories
-                .push_back(String::from(
-                    r"C:\Users\Alexi Peck\Desktop\tlm\test_files\cache\",
-                ));
+            self.cache_directories.push_back(String::from(
+                r"C:\Users\Alexi Peck\Desktop\tlm\test_files\cache\",
+            ));
         }
     }
 }
-
-
 
 pub struct FileManager {
     //ordered by dependencies
@@ -60,7 +57,7 @@ pub struct FileManager {
 impl FileManager {
     pub fn new(utility: Utility) -> FileManager {
         let utility = utility.clone_and_add_location("new_file_manager");
-        
+
         ensure_tables_exist(utility.clone());
 
         let mut file_manager = FileManager {
@@ -72,8 +69,13 @@ impl FileManager {
 
         file_manager.tracked_directories.add_manual_directories();
         file_manager.working_shows = Show::get_all_shows(utility.clone());
-        file_manager.working_content = Content::get_all_contents(&mut file_manager.working_shows.clone(), utility.clone());
-        file_manager.existing_files_hashset = Some(Content::get_all_filenames_as_hashset_from_contents(file_manager.working_content.clone(), utility.clone()));
+        file_manager.working_content =
+            Content::get_all_contents(&mut file_manager.working_shows.clone(), utility.clone());
+        file_manager.existing_files_hashset =
+            Some(Content::get_all_filenames_as_hashset_from_contents(
+                file_manager.working_content.clone(),
+                utility.clone(),
+            ));
 
         return file_manager;
     }

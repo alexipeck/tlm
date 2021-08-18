@@ -145,10 +145,7 @@ pub mod execution {
 }
 
 pub mod ensure {
-    use crate::{
-        database::execution::execute_query,
-        utility::Utility,
-    };
+    use crate::{database::execution::execute_query, utility::Utility};
 
     pub fn ensure_tables_exist(utility: Utility) {
         let utility = utility.clone_and_add_location("db_table_create");
@@ -218,8 +215,7 @@ pub mod insert {
     use crate::{
         content::Content,
         database::{
-            error_handling::handle_insert_error,
-            execution::get_client,
+            error_handling::handle_insert_error, execution::get_client,
             retrieve::get_uid_from_result,
         },
         utility::Utility,
@@ -358,10 +354,7 @@ pub mod insert {
 }
 
 pub mod retrieve {
-    use crate::{
-        database::error_handling::handle_result_error,
-        utility::Utility,
-    };
+    use crate::{database::error_handling::handle_result_error, utility::Utility};
     use tokio_postgres::{Error, Row};
 
     pub fn get_uid_from_result(result: Result<Vec<Row>, Error>, utility: Utility) -> usize {

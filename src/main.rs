@@ -4,9 +4,10 @@ use tlm::{
         miscellaneous::db_purge,
         print::{print_contents, print_shows},
     },
-    import_files, process_new_files,
-    utility::Utility,
+    import_files,
     manager::FileManager,
+    process_new_files,
+    utility::Utility,
 };
 
 fn main() {
@@ -32,7 +33,7 @@ fn main() {
 
     let allowed_extensions = vec!["mp4", "mkv", "webm", "MP4"];
     let ignored_paths = vec![".recycle_bin"];
-    
+
     process_new_files(
         import_files(
             &file_manager.tracked_directories.root_directories,

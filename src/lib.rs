@@ -3,17 +3,22 @@ pub mod database;
 pub mod designation;
 pub mod error_handling;
 pub mod job;
+pub mod manager;
 pub mod print;
 pub mod queue;
 pub mod show;
 pub mod task;
 pub mod utility;
-pub mod manager;
 
-use std::{collections::{HashSet, VecDeque}, fs, path::PathBuf, time::Instant};
 use content::Content;
 use database::insert::{insert_content, insert_episode_if_episode};
 use show::Show;
+use std::{
+    collections::{HashSet, VecDeque},
+    fs,
+    path::PathBuf,
+    time::Instant,
+};
 use twox_hash::xxh3;
 use utility::Utility;
 use walkdir::WalkDir;
@@ -83,7 +88,7 @@ pub fn process_new_files(
 
 pub fn load_from_database(utility: Utility) -> (Vec<Content>, Vec<Show>, HashSet<PathBuf>) {
     let utility = utility.clone_and_add_location("load_from_database");
-    
+
     let mut working_shows: Vec<Show> = Show::get_all_shows(utility.clone());
 
     let working_content = Content::get_all_contents(&mut working_shows, utility.clone());

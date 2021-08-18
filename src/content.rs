@@ -6,12 +6,9 @@ use crate::{
     show::Show,
     utility::Utility,
 };
-use std::{
-    collections::HashSet,
-    path::PathBuf,
-};
-use tokio_postgres::Row;
 use regex::Regex;
+use std::{collections::HashSet, path::PathBuf};
+use tokio_postgres::Row;
 
 fn re_strip(input: &String, expression: &str) -> Option<String> {
     let output = Regex::new(expression).unwrap().find(input);
