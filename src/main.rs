@@ -4,45 +4,28 @@ use tlm::{
         miscellaneous::db_purge,
         print::{print_contents, print_shows},
     },
-    import_files,
     manager::FileManager,
-    process_new_files,
     utility::Utility,
 };
 
 fn main() {
-    /*
-    load list of existing contents
-    load list of existing files
-    load list of existing show_uids
-
-    load list of directories, filtering out those already stored as a file
-    create content from this pathbuf
-    insert content
-    fill out show information if content is an episode
-    insert episode from content
-    */
-
+    //traceback and timing utility
     let mut utility = Utility::new("main");
     utility.enable_timing_print();
 
+    //purges the database, should be used selectively
     //db_purge(utility.clone());
-    ensure_tables_exist(utility.clone());
 
+    //A FileManager stores working files, hashsets and supporting functions related to updating those files
     let mut file_manager: FileManager = FileManager::new(utility.clone());
 
     let allowed_extensions = vec!["mp4", "mkv", "webm", "MP4"];
     let ignored_paths = vec![".recycle_bin"];
 
-    process_new_files(
-        import_files(
-            &file_manager.tracked_directories.root_directories,
-            &allowed_extensions,
-            &ignored_paths,
-            &mut file_manager.existing_files_hashset.unwrap(),
-        ),
-        &mut file_manager.working_content,
-        &mut file_manager.working_shows,
+    let t = file_manager.import_files(&allowed_extensions, &ignored_paths);
+
+    file_manager.process_new_files(
+        t,
         utility.clone(),
     );
 
