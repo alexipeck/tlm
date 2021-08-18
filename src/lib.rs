@@ -8,71 +8,15 @@ pub mod queue;
 pub mod show;
 pub mod task;
 pub mod utility;
+pub mod manager;
 
-use std::{
-    collections::{HashSet, VecDeque},
-    fs,
-    path::PathBuf,
-    time::Instant,
-};
+use std::{collections::{HashSet, VecDeque}, fs, path::PathBuf, time::Instant};
 use content::Content;
 use database::insert::{insert_content, insert_episode_if_episode};
 use show::Show;
 use twox_hash::xxh3;
 use utility::Utility;
 use walkdir::WalkDir;
-
-#[derive(Clone, Debug)]
-pub struct TrackedDirectories {
-    pub root_directories: VecDeque<String>,
-    pub cache_directories: VecDeque<String>,
-}
-
-impl TrackedDirectories {
-    pub fn new() -> TrackedDirectories {
-        TrackedDirectories {
-            root_directories: VecDeque::new(),
-            cache_directories: VecDeque::new(),
-        }
-    }
-}
-
-pub fn handle_tracked_directories() -> TrackedDirectories {
-    let mut tracked_directories = TrackedDirectories::new();
-
-    if !cfg!(target_os = "windows") {
-        //tracked_root_directories.push(String::from("/mnt/nas/tvshows")); //manual entry
-        tracked_directories
-            .root_directories
-            .push_back(String::from(r"/home/anpeck/tlm/test_files/"));
-        tracked_directories
-            .root_directories
-            .push_back(String::from(r"/home/alexi/tlm/test_files/"));
-        tracked_directories
-            .cache_directories
-            .push_back(String::from(r"/home/anpeck/tlm/test_files/cache/"));
-        tracked_directories
-            .cache_directories
-            .push_back(String::from(r"/home/alexi/tlm/test_files/cache/"));
-    } else {
-        tracked_directories
-            .root_directories
-            .push_back(String::from("T:\\"));
-        /*tracked_directories.root_directories.push_back(String::from(
-            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\",
-        ));
-        tracked_directories.root_directories.push_back(String::from(
-            r"C:\Users\Alexi Peck\Desktop\tlm\test_files\shows\",
-        ));*/
-        tracked_directories
-            .cache_directories
-            .push_back(String::from(
-                r"C:\Users\Alexi Peck\Desktop\tlm\test_files\cache\",
-            ));
-    }
-
-    return tracked_directories;
-}
 
 pub fn process_new_files(
     new_files: Vec<PathBuf>,
@@ -135,6 +79,22 @@ pub fn process_new_files(
         0,
         utility.clone(),
     );
+}
+
+pub fn load_from_database(utility: Utility) -> (Vec<Content>, Vec<Show>, HashSet<PathBuf>) {
+    let utility = utility.clone_and_add_location("load_from_database");
+    
+    let mut working_shows: Vec<Show> = Show::get_all_shows(utility.clone());
+
+    let working_content = Content::get_all_contents(&mut working_shows, utility.clone());
+
+    let existing_files_hashset: HashSet<PathBuf> =
+        Content::get_all_filenames_as_hashset_from_contents(
+            working_content.clone(),
+            utility.clone(),
+        );
+
+    return (working_content, working_shows, existing_files_hashset);
 }
 
 //Hash set guarentees no duplicates in O(1) time
