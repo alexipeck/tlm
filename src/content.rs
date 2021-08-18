@@ -3,16 +3,15 @@ use crate::{
     designation::{convert_i32_to_designation, Designation},
     job::Job,
     print::{print, From, Verbosity},
-    shows::Show,
+    show::Show,
     utility::Utility,
 };
-use regex::Regex;
 use std::{
     collections::HashSet,
     path::PathBuf,
-    sync::atomic::{AtomicUsize, Ordering},
 };
 use tokio_postgres::Row;
+use regex::Regex;
 
 fn re_strip(input: &String, expression: &str) -> Option<String> {
     let output = Regex::new(expression).unwrap().find(input);
@@ -39,6 +38,7 @@ fn get_os_slash() -> char {
 //generic content container, focus on video
 #[derive(Clone, Debug)]
 pub struct Content {
+    //generic
     pub content_uid: Option<usize>,
     pub full_path: PathBuf,
     pub designation: Designation,
@@ -46,6 +46,8 @@ pub struct Content {
     pub hash: Option<u64>,
     //pub versions: Vec<FileVersion>,
     //pub metadata_dump
+
+    //episode
     pub show_uid: Option<usize>,
     pub show_title: Option<String>,
     pub show_season_episode: Option<(usize, Vec<usize>)>,
@@ -58,13 +60,10 @@ impl Content {
 
         let mut content = Content {
             full_path: raw_filepath.clone(),
-            //temp_encode_path: None,
             designation: Designation::Generic,
             content_uid: None,
             hash: None,
-            //job_queue: VecDeque::new(),
 
-            //truly optional
             show_title: None,
             show_season_episode: None,
             show_uid: None,
@@ -113,10 +112,6 @@ impl Content {
 
         return content;
     }
-
-    /* pub fn get_contents_by_filter(filter: Filter) -> Vec<Content> {
-
-    } */
 
     pub fn get_all_contents(working_shows: &mut Vec<Show>, utility: Utility) -> Vec<Content> {
         let mut utility = utility.clone_and_add_location("get_all_contents");
@@ -193,15 +188,12 @@ impl Content {
 
     pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
         let utility = utility.clone_and_add_location("get_all_filenames_as_hashset");
-        /*
-         * logic
-         */
+
         let mut hashset = HashSet::new();
         for row in get_by_query(r"SELECT full_path FROM content", utility.clone()) {
             hashset.insert(Content::filename_from_row_as_pathbuf(row));
         }
         return hashset;
-        //////////
     }
 
     //no options currently
@@ -255,7 +247,7 @@ impl Content {
                 episode_string = temp_string;
             }
         }
-        //asdf;
+
         let mut season_episode_iter = episode_string.split('E');
         let season_temp = season_episode_iter
             .next()
@@ -432,9 +424,7 @@ impl Content {
         self.show_uid = Some(show_uid);
     }
 
-    pub fn content_is_episode(&self, utility: Utility) -> bool {
-        let utility = utility.clone_and_add_location("content_is_episode");
-
+    pub fn content_is_episode(&self) -> bool {
         if self.show_uid.is_some()
             && self.show_title.is_some()
             && self.show_season_episode.is_some()
@@ -523,7 +513,6 @@ impl Content {
         };
         self.full_path = raw_filepath.clone();
 
-        //designation, show_title, show_season_episode
         self.designate_and_fill(working_shows, utility);
     }
 }

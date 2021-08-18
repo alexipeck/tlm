@@ -31,9 +31,6 @@ pub struct Job {
 impl Job {
     //maybe best to use a generic string
     pub fn new(source_path: PathBuf, encode_string: Vec<String>) -> Job {
-        //default
-        let tasks: VecDeque<Task> = VecDeque::new();
-
         Job {
             uid: JOB_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
             tasks: VecDeque::new(),
@@ -46,10 +43,6 @@ impl Job {
             status_completed: false,
         }
     }
-
-    /* pub fn conver_encode_string_to_vec(&mut self) -> String {
-
-    } */
 
     pub fn convert_encode_string_to_actual_string(input: Vec<String>) -> String {
         let mut temp: String = String::new();

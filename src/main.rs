@@ -1,16 +1,12 @@
-use std::{collections::HashSet, path::PathBuf};
-
 use tlm::{
-    content::Content,
     database::{
         ensure::ensure_tables_exist,
         miscellaneous::db_purge,
         print::{print_contents, print_shows},
     },
-    handle_tracked_directories, import_files, process_new_files,
-    shows::Show,
+    import_files, process_new_files,
     utility::Utility,
-    TrackedDirectories,
+    manager::FileManager,
 };
 
 fn main() {
@@ -30,42 +26,28 @@ fn main() {
     utility.enable_timing_print();
 
     //db_purge(utility.clone());
-
     ensure_tables_exist(utility.clone());
 
-    let tracked_directories: TrackedDirectories = handle_tracked_directories();
+    let mut file_manager: FileManager = FileManager::new(utility.clone());
 
     let allowed_extensions = vec!["mp4", "mkv", "webm", "MP4"];
-
-    //ignored directories
     let ignored_paths = vec![".recycle_bin"];
-
-    let mut working_shows: Vec<Show> = Show::get_all_shows(utility.clone());
-
-    let mut working_content: Vec<Content> =
-        Content::get_all_contents(&mut working_shows, utility.clone());
-
-    let mut existing_files_hashset: HashSet<PathBuf> =
-        Content::get_all_filenames_as_hashset_from_contents(
-            working_content.clone(),
-            utility.clone(),
-        );
-
+    
     process_new_files(
         import_files(
-            &tracked_directories.root_directories,
+            &file_manager.tracked_directories.root_directories,
             &allowed_extensions,
             &ignored_paths,
-            &mut existing_files_hashset,
+            &mut file_manager.existing_files_hashset.unwrap(),
         ),
-        &mut working_content,
-        &mut working_shows,
+        &mut file_manager.working_content,
+        &mut file_manager.working_shows,
         utility.clone(),
     );
 
     utility.disable_timing_print();
 
-    print_contents(working_content, utility.clone());
+    print_contents(file_manager.working_content.clone(), utility.clone());
     print_shows(utility.clone());
     //print_jobs(utility.clone());
 
