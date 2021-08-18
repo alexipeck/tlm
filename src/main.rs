@@ -8,7 +8,7 @@ use tlm::{
         print::{print_contents, print_shows},
     },
     handle_tracked_directories, import_files, process_new_files,
-    shows::Show,
+    show::Show,
     utility::Utility,
     TrackedDirectories,
 };

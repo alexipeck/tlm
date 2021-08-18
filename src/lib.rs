@@ -5,7 +5,7 @@ pub mod error_handling;
 pub mod job;
 pub mod print;
 pub mod queue;
-pub mod shows;
+pub mod show;
 pub mod task;
 pub mod utility;
 
@@ -17,7 +17,7 @@ use std::{
 };
 use content::Content;
 use database::insert::{insert_content, insert_episode_if_episode};
-use shows::Show;
+use show::Show;
 use twox_hash::xxh3;
 use utility::Utility;
 use walkdir::WalkDir;

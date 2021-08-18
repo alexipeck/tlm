@@ -7,7 +7,6 @@ use crate::{
     print::{print, From, Verbosity},
     utility::Utility,
 };
-use std::ops::{Index, IndexMut};
 use tokio_postgres::Row;
 
 #[derive(Clone, Debug)]
@@ -143,29 +142,5 @@ impl Show {
         utility.print_timer_from_stage_and_task(0, "startup", "read in shows", 0, utility.clone());
 
         return shows;
-    }
-}
-
-pub struct Shows {
-    pub shows: Vec<Show>,
-}
-
-impl Shows {
-    pub fn print(&self, utility: Utility) {
-        let utility = utility.clone_and_add_location("print");
-        
-        for show in &self.shows {
-            for season in &show.seasons {
-                for episode in &season.episodes {
-                    print(
-                        Verbosity::INFO,
-                        From::Shows,
-                        utility.clone(),
-                        format!("{}", episode.get_filename_woe()),
-                        0,
-                    );
-                }
-            }
-        }
     }
 }

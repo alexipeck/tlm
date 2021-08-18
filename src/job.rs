@@ -31,9 +31,6 @@ pub struct Job {
 impl Job {
     //maybe best to use a generic string
     pub fn new(source_path: PathBuf, encode_string: Vec<String>) -> Job {
-        //default
-        let tasks: VecDeque<Task> = VecDeque::new();
-
         Job {
             uid: JOB_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
             tasks: VecDeque::new(),
@@ -140,7 +137,7 @@ impl Job {
             format!("completed encoding job UID#: {}", self.uid),
             0,
         );
-        
+
         let source_path = self.source_path.to_string_lossy().to_string();
         let encode_path = self.encode_path.to_string_lossy().to_string();
 

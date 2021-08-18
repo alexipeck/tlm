@@ -3,7 +3,7 @@ use crate::{
     designation::{convert_i32_to_designation, Designation},
     job::Job,
     print::{print, From, Verbosity},
-    shows::Show,
+    show::Show,
     utility::Utility,
 };
 use std::{
@@ -512,7 +512,7 @@ impl Content {
             self.designation = Designation::Generic;
         };
         self.full_path = raw_filepath.clone();
-        
+
         self.designate_and_fill(working_shows, utility);
     }
 }
