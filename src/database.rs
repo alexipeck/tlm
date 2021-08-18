@@ -146,14 +146,10 @@ pub mod execution {
 
 pub mod ensure {
     use crate::{
-        database::{
-            error_handling::{db_boolean_handle, handle_result_error},
-            execution::{execute_query, get_client},
-            retrieve::{get_show_uid_by_title, get_uid_from_result},
-        },
-        shows::Show,
+        database::execution::execute_query,
         utility::Utility,
     };
+
     pub fn ensure_tables_exist(utility: Utility) {
         let utility = utility.clone_and_add_location("db_table_create");
 
@@ -216,19 +212,16 @@ pub mod ensure {
             utility.clone(),
         );
     }
-    //asdf;
 }
 
 pub mod insert {
     use crate::{
         content::Content,
         database::{
-            error_handling::{handle_insert_error, handle_result_error},
+            error_handling::handle_insert_error,
             execution::get_client,
             retrieve::get_uid_from_result,
         },
-        job::Job,
-        print::{print, From, Verbosity},
         utility::Utility,
     };
 
@@ -291,11 +284,7 @@ pub mod insert {
     pub fn insert_job(job: Job, utility: Utility) {
         let utility = utility.clone_and_add_location("insert_job");
 
-        /*
-         * logic
-         */
         let uid = insert_job_internal(job, utility.clone());
-        //////////
 
         fn insert_job_internal(job: Job, utility: Utility) -> usize {
             let utility = utility.clone_and_add_location("insert_job_internal");
@@ -356,9 +345,6 @@ pub mod insert {
         fn read_back_job_uid(qrid: i32, utility: Utility) -> usize {
             let utility = utility.clone_and_add_location("read_back_job_uid");
 
-            /*
-             * logic
-             */
             return get_uid_from_result(
                 handle_result_error(
                     get_client(utility.clone())
@@ -367,45 +353,19 @@ pub mod insert {
                 ),
                 utility,
             );
-            //////////
         }
     } */
 }
 
 pub mod retrieve {
     use crate::{
-        database::{error_handling::handle_result_error, execution::get_client},
-        print::{print, From, Verbosity},
+        database::error_handling::handle_result_error,
         utility::Utility,
     };
     use tokio_postgres::{Error, Row};
 
-    pub fn get_show_uid_by_title(show_title: String, utility: Utility) -> usize {
-        let mut utility = utility.clone_and_add_location("get_show_uid_by_title");
-
-        utility.start_timer(0);
-        let mut client = get_client(utility.clone());
-        let result = handle_result_error(
-            client.query(
-                r"SELECT show_uid from show WHERE title = $1",
-                &[&show_title],
-            ),
-            utility.clone(),
-        );
-        let show_uid: i32 = result[0].get(0);
-        utility.print_timer_from_stage_and_task(
-            0,
-            "startup",
-            "ensure_show_exists: get_show_uid_by_title",
-            4,
-            utility.clone(),
-        );
-        return show_uid as usize;
-        //////////
-    }
-
     pub fn get_uid_from_result(result: Result<Vec<Row>, Error>, utility: Utility) -> usize {
-        let utility = utility.clone_and_add_location("handle_insert_retrieve_error");
+        let utility = utility.clone_and_add_location("get_uid_from_result");
 
         let result: i32 = handle_result_error(result, utility.clone())[0].get(0);
         return result as usize;
@@ -447,9 +407,6 @@ pub mod print {
     pub fn print_jobs(utility: Utility) {
         let utility = utility.clone_and_add_location("print_jobs");
 
-        /*
-         * logic
-         */
         for row in get_by_query(r"SELECT job_uid FROM job_queue", utility.clone()) {
             let uid: i32 = row.get(0);
             print(
@@ -460,15 +417,11 @@ pub mod print {
                 0,
             );
         }
-        //////////
     }
 
     pub fn print_shows(utility: Utility) {
         let utility = utility.clone_and_add_location("print_shows");
 
-        /*
-         * logic
-         */
         for row in get_by_query(r"SELECT title FROM show", utility.clone()) {
             let title: String = row.get(0);
             print(
@@ -479,18 +432,13 @@ pub mod print {
                 0,
             );
         }
-        //////////
     }
 
     pub fn print_contents(contents: Vec<Content>, utility: Utility) {
         let utility = utility.clone_and_add_location("print_contents");
 
-        /*
-         * logic
-         */
         for content in contents {
             content.print(utility.clone());
         }
-        //////////
     }
 }
