@@ -77,18 +77,12 @@ impl Show {
             return show_uid.unwrap();
         } else {
             println!("Adding a new show: {}", show_title);
-            utility.start_timer(0);
+            utility.add_timer(0, "startup: inserting show UID");
             let result = get_client(utility.clone()).query(
                 r"INSERT INTO show (title) VALUES ($1) RETURNING show_uid;",
                 &[&show_title],
             );
-            utility.print_timer_from_stage_and_task(
-                0,
-                "startup",
-                "inserting show UID",
-                4,
-                utility.clone(),
-            );
+            utility.print_specific_timer_by_uid(0, 4, utility.clone());
 
             let show_uid = get_uid_from_result(result, utility.clone());
             let new_show = Show {
@@ -107,7 +101,7 @@ impl Show {
     pub fn from_row(row: Row, utility: Utility) -> Show {
         let mut utility = utility.clone_and_add_location("from_row");
 
-        utility.start_timer(0);
+        utility.add_timer(0, "startup: from_row: create show from row");
         let show_uid_temp: i32 = row.get(0);
         let title_temp: String = row.get(1);
 
@@ -117,20 +111,14 @@ impl Show {
             title: title_temp,
             seasons: Vec::new(),
         };
-        utility.print_timer_from_stage_and_task(
-            0,
-            "startup",
-            "from_row: create show from row",
-            1,
-            utility.clone(),
-        );
+        utility.print_specific_timer_by_uid(0, 1, utility.clone());
 
         return show;
     }
 
     pub fn get_all_shows(utility: Utility) -> Vec<Show> {
         let mut utility = utility.clone_and_add_location("get_all_shows");
-        utility.start_timer(0);
+        utility.add_timer(0, "startup: read in shows");
 
         let raw_shows = get_by_query(r"SELECT show_uid, title FROM show", utility.clone());
 
@@ -139,7 +127,7 @@ impl Show {
             shows.push(Show::from_row(row, utility.clone()));
         }
 
-        utility.print_timer_from_stage_and_task(0, "startup", "read in shows", 0, utility.clone());
+        utility.print_specific_timer_by_uid(0, 0, utility.clone());
 
         return shows;
     }

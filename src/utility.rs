@@ -1,5 +1,4 @@
 use crate::{
-    print::{print, From, Verbosity},
     timer::Timer,
 };
 
@@ -20,6 +19,48 @@ impl Utility {
         return traceback.add_traceback_location(created_from);
     }
 
+    pub fn add_timer(&mut self, uid: usize, stage_task_identifier: &str) {
+        self.timers.push(Timer::create_timer(uid, String::from(stage_task_identifier)));
+    }
+
+    pub fn store_timing_by_uid(&mut self, uid: usize) {
+        for timer in &mut self.timers {
+            if timer.uid == uid {
+                timer.store_timing();
+            }
+        }
+    }
+
+    pub fn print_specific_timer_by_uid(&mut self, uid: usize, indent: usize, utility: Utility) {
+        for timer in &mut self.timers {
+            if timer.uid == uid {
+                timer.print_timer(indent, utility.clone());
+            }
+        }
+    }
+
+    pub fn print_all_timers_except_one(&mut self, uid: usize, indent: usize, utility: Utility) {
+        for timer in &mut self.timers {
+            if !(timer.uid == uid) {
+                timer.print_timer(indent, utility.clone());
+            }
+        }
+    }
+
+    pub fn print_all_timers_except_many(&mut self, uid: Vec<usize>, indent: usize, utility: Utility) {
+        for timer in &mut self.timers {
+            if !uid.contains(&timer.uid) {
+                timer.print_timer(indent, utility.clone());
+            }
+        }
+    }
+
+    pub fn print_all_timers(&mut self, indent: usize, utility: Utility) {
+        for timer in &mut self.timers {
+            timer.print_timer(indent, utility.clone());
+        }
+    }
+
     pub fn enable_timing_print(&mut self) {
         self.print_timing = true;
     }
@@ -28,29 +69,12 @@ impl Utility {
         self.print_timing = false;
     }
 
-    pub fn get_saved_timing(&self, identifier: String, utility: Utility) -> u128 {
-        let utility = utility.clone_and_add_location("get_saved_timing");
-
-        for timer in &self.timers {
-            if timer.stage_task_identifier == identifier {
-                return timer.saved_time.unwrap();
-            }
-        }
-        print(
-            Verbosity::ERROR,
-            From::Utility,
-            utility,
-            format!("A timer was never created or the identifier used matches no timers."),
-            0,
-        );
-        panic!();
-    }
-
     fn add_traceback_location(&mut self, called_from: &str) -> Utility {
         self.traceback.push(String::from(called_from));
         return self.clone();
     }
 
+    //wipes timers on clone
     pub fn clone_and_add_location(&self, called_from: &str) -> Utility {
         let mut temp = self.clone();
         temp.timers = Vec::new();

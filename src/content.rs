@@ -72,7 +72,7 @@ impl Content {
     pub fn from_row(row: Row, working_shows: &mut Vec<Show>, utility: Utility) -> Content {
         let mut utility = utility.clone_and_add_location("from_row");
 
-        utility.start_timer(0);
+        utility.add_timer(0, "startup: from_row: initial content fill");
         let content_uid_temp: i32 = row.get(0);
         let full_path_temp: String = row.get(1);
         let designation_temp: i32 = row.get(2);
@@ -89,64 +89,38 @@ impl Content {
             show_season_episode: None,
             show_uid: None,
         };
-        utility.print_timer_from_stage_and_task(
-            0,
-            "startup",
-            "from_row: initial content fill",
-            2,
-            utility.clone(),
-        );
+        utility.print_specific_timer_by_uid(1, 2, utility.clone());
 
-        utility.start_timer(1);
+        utility.add_timer(1, "startup, from_row: designate_and_fill");
         content.designate_and_fill(working_shows, utility.clone());
-        utility.print_timer_from_stage_and_task(
-            0,
-            "startup",
-            "from_row: designate_and_fill",
-            2,
-            utility.clone(),
-        );
+        utility.print_specific_timer_by_uid(1, 1, utility.clone());
 
         return content;
     }
 
     pub fn get_all_contents(working_shows: &mut Vec<Show>, utility: Utility) -> Vec<Content> {
         let mut utility = utility.clone_and_add_location("get_all_contents");
-        utility.start_timer(0);
+        utility.add_timer(0, "startup: read in content");
 
-        utility.start_timer(1);
+        utility.add_timer(1, "startup: reading in content from database");
         let raw_content = get_by_query(
             r"SELECT content_uid, full_path, designation FROM content",
             utility.clone(),
         );
-        utility.save_timing(1, utility.clone());
+        utility.store_timing_by_uid(1);
 
         let mut content: Vec<Content> = Vec::new();
         let mut counter = 2;
         for row in raw_content {
-            utility.start_timer(counter);
+            utility.add_timer(counter, &format!("startup: creating content from row: {}", counter - 1));
             content.push(Content::from_row(row, working_shows, utility.clone()));
-            utility.save_timing(counter, utility.clone());
+            utility.store_timing_by_uid(counter);
 
             counter += 1;
         }
 
-        utility.print_timer_from_stage_and_task(
-            0,
-            "startup",
-            "read in content",
-            0,
-            utility.clone(),
-        );
-        for i in 2..utility.timers.len() {
-            utility.print_timer_from_stage_and_task_from_saved(
-                i,
-                "startup",
-                &format!("creating content from row: {}", i),
-                1,
-                utility.clone(),
-            );
-        }
+        utility.print_specific_timer_by_uid(0, 1, utility.clone());
+        utility.print_all_timers_except_one(0, 2, utility.clone());
 
         return content;
     }
@@ -162,23 +136,14 @@ impl Content {
     ) -> HashSet<PathBuf> {
         let mut utility =
             utility.clone_and_add_location("get_all_filenames_as_hashset_from_contents");
-        utility.start_timer(0);
+        utility.add_timer(0, "startup: read in 'existing files hashset'");
 
         let mut hashset = HashSet::new();
         for content in contents {
             hashset.insert(content.full_path);
         }
 
-        print(
-            Verbosity::INFO,
-            From::Main,
-            utility.clone(),
-            format!(
-                "startup: read in 'existing files hashset' took: {}ms",
-                utility.get_timer_ms(0, utility.clone()),
-            ),
-            0,
-        );
+        utility.print_specific_timer_by_uid(0, 1, utility.clone());
 
         return hashset;
     }
@@ -435,19 +400,13 @@ impl Content {
     pub fn designate_and_fill(&mut self, working_shows: &mut Vec<Show>, utility: Utility) {
         let mut utility = utility.clone_and_add_location("designate_and_fill");
 
-        utility.start_timer(0);
+        utility.add_timer(0, "startup: separate out season and episode from filename");
         let mut episode = false;
         let show_season_episode_temp = self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
-        utility.print_timer_from_stage_and_task(
-            0,
-            "startup",
-            "separate out season and episode from filename",
-            3,
-            utility.clone(),
-        );
+        utility.print_specific_timer_by_uid(0, 3, utility.clone());
 
         if episode {
-            utility.start_timer(1);
+            utility.add_timer(1, "startup: get show title from filename");
             self.designation = Designation::Episode;
             for section in String::from(
                 self.full_path
@@ -463,28 +422,16 @@ impl Content {
                 self.show_title = Some(String::from(section));
                 break;
             }
-            utility.print_timer_from_stage_and_task(
-                1,
-                "startup",
-                "get show title from filename",
-                3,
-                utility.clone(),
-            );
+            utility.print_specific_timer_by_uid(1, 3, utility.clone());
 
-            utility.start_timer(2);
+            utility.add_timer(2, "startup: set show_season_episode from temp, ensure_show_exists");
             self.show_season_episode = show_season_episode_temp;
             self.show_uid = Some(Show::ensure_show_exists(
                 self.show_title.clone().unwrap(),
                 working_shows,
                 utility.clone(),
             ));
-            utility.print_timer_from_stage_and_task(
-                2,
-                "startup",
-                "set show_season_episode from temp, ensure_show_exists",
-                3,
-                utility.clone(),
-            );
+            utility.print_specific_timer_by_uid(2, 3, utility.clone());
         } else {
             self.designation = Designation::Generic;
             self.show_title = None;

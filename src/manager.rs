@@ -87,60 +87,27 @@ impl FileManager {
         utility: Utility,
     ) {
         let mut utility = utility.clone_and_add_location("process_new_files");
-        utility.start_timer(0);
+        utility.add_timer(0, "startup: processing new files");
     
         for new_file in new_files {
-            utility.start_timer(1);
+            utility.add_timer(1, "startup: creating content from PathBuf");
     
-            utility.start_timer(2);
+            utility.add_timer(2, "startup: creating content from PathBuf");
             let mut content = Content::new(&new_file, &mut self.working_shows, utility.clone());
-            utility.save_timing(2, utility.clone());
+            utility.store_timing_by_uid(2);
     
-            utility.start_timer(3);
+            utility.add_timer(3, "startup: creating content from PathBuf");
             content.set_uid(insert_content(content.clone(), utility.clone()));
-            utility.save_timing(3, utility.clone());
+            utility.store_timing_by_uid(3);
     
-            utility.start_timer(4);
+            utility.add_timer(4, "startup: creating content from PathBuf");
             insert_episode_if_episode(content.clone(), utility.clone());
-            utility.save_timing(4, utility.clone());
+            utility.store_timing_by_uid(4);
     
             self.working_content.push(content);
-            utility.print_timer_from_stage_and_task(
-                1,
-                "startup",
-                "creating content from PathBuf",
-                1,
-                utility.clone(),
-            );
-            utility.print_timer_from_stage_and_task_from_saved(
-                2,
-                "startup",
-                "creating content from PathBuf",
-                2,
-                utility.clone(),
-            );
-            utility.print_timer_from_stage_and_task_from_saved(
-                3,
-                "startup",
-                "inserting content to the database",
-                2,
-                utility.clone(),
-            );
-            utility.print_timer_from_stage_and_task_from_saved(
-                4,
-                "startup",
-                "inserting episode to the database",
-                2,
-                utility.clone(),
-            );
+            utility.print_all_timers_except_one(0, 2, utility.clone());
         }
-        utility.print_timer_from_stage_and_task(
-            0,
-            "startup",
-            "processing new files",
-            0,
-            utility.clone(),
-        );
+        utility.print_specific_timer_by_uid(0, 1, utility.clone());
     }
 
     //Hash set guarentees no duplicates in O(1) time
@@ -152,7 +119,7 @@ impl FileManager {
         //Return true if string contains any substring from Vector
         fn str_contains_strs(input_str: &str, substrings: &Vec<&str>) -> bool {
             for substring in substrings {
-                if String::from(input_str).contains(substring) {
+                if String::from(input_str).contains(&substring.to_lowercase()) {
                     return true;
                 }
             }
@@ -164,14 +131,11 @@ impl FileManager {
         //import all files in tracked root directories
         for directory in &self.tracked_directories.root_directories {
             for entry in WalkDir::new(directory).into_iter().filter_map(|e| e.ok()) {
-                if str_contains_strs(entry.path().to_str().unwrap(), ignored_paths) {
+                if str_contains_strs(&entry.path().to_str().unwrap().to_lowercase(), ignored_paths) {
                     break;
                 }
-
                 if entry.path().is_file() {
-                    if allowed_extensions
-                        .contains(&entry.path().extension().unwrap().to_str().unwrap())
-                    {
+                    if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap()) {
                         if !directory.contains("_encodeH4U8") {
                             //make entry into pathbuf into string
                             //check if string exists in existing_files

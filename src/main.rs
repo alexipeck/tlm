@@ -19,7 +19,7 @@ fn main() {
     let mut file_manager: FileManager = FileManager::new(utility.clone());
 
     let allowed_extensions = vec!["mp4", "mkv", "webm", "MP4"];
-    let ignored_paths = vec![".recycle_bin"];
+    let ignored_paths = vec![".recycle_bin", ".Recycle.Bin"];
 
     let t = file_manager.import_files(&allowed_extensions, &ignored_paths);
 
