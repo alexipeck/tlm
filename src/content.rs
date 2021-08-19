@@ -1,7 +1,7 @@
 use crate::{
     database::execution::get_by_query,
     designation::{convert_i32_to_designation, Designation},
-    job::Job,
+    //job::Job,
     print::{print, From, Verbosity},
     show::Show,
     utility::Utility,
@@ -222,9 +222,9 @@ impl Content {
             .to_string();
     }
 
-    pub fn create_job(&mut self) -> Job {
+    /* pub fn create_job(&mut self) -> Job {
         return Job::new(self.full_path.clone(), self.generate_encode_string());
-    }
+    } */
 
     pub fn generate_encode_path_from_pathbuf(pathbuf: PathBuf) -> PathBuf {
         return Content::get_full_path_with_suffix_from_pathbuf(pathbuf, "_encodeH4U8".to_string());
