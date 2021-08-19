@@ -9,6 +9,7 @@ pub mod queue;
 pub mod show;
 pub mod task;
 pub mod utility;
+pub mod timer;
 
 use content::Content;
 use show::Show;
