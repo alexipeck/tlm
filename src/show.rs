@@ -49,7 +49,7 @@ impl Show {
         let utility = utility.clone_and_add_location("print_show");
         print(
             Verbosity::DEBUG,
-            From::Shows,
+            From::Show,
             utility,
             format!("[uid: {}][title: {}]", self.show_uid, self.title),
             0,

@@ -14,8 +14,8 @@ impl Utility {
             timers: Vec::new(),
             print: false,
         };
-        traceback.add_traceback_location(created_from);
-        return traceback;
+        //does this do the same calling it first, then returning? I hope so
+        return traceback.add_traceback_location(created_from);
     }
 
     pub fn enable_timing_print(&mut self) {

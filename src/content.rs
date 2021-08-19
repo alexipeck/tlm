@@ -372,7 +372,7 @@ impl Content {
         {
             print(
                 Verbosity::DEBUG,
-                From::DB,
+                From::Content,
                 utility.clone(),
                 format!(
                     "[content_uid:'{}'][designation:'{}'][full_path:'{}'][show_uid:'{}'][show_title:'{}'][season:'{}'][episode:'{}']",
