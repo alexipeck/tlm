@@ -1,6 +1,5 @@
 use tlm::{
     database::{
-        ensure::ensure_tables_exist,
         miscellaneous::db_purge,
         print::{print_contents, print_shows},
     },

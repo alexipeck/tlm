@@ -13,7 +13,7 @@ pub mod utility;
 use content::Content;
 use show::Show;
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::HashSet,
     fs,
     path::PathBuf,
     time::Instant,
