@@ -4,29 +4,32 @@ use std::time::Instant;
 #[derive(Clone, Debug)]
 pub struct Utility {
     pub traceback: Vec<String>,
-    pub timers: Vec<(usize, Instant, Option<u128>)>,
-    pub print: bool,
+    //identifier: String, timer: Instant, saved_time: Option<u128>
+    pub timers: Vec<(String, Instant, Option<u128>)>,
+    pub print_timing: bool,
 }
 impl Utility {
     pub fn new(created_from: &str) -> Utility {
         let mut traceback = Utility {
             traceback: Vec::new(),
             timers: Vec::new(),
-            print: false,
+            print_timing: false,
         };
-        //does this do the same calling it first, then returning? I hope so
+
         return traceback.add_traceback_location(created_from);
     }
 
     pub fn enable_timing_print(&mut self) {
-        self.print = true;
+        self.print_timing = true;
     }
 
     pub fn disable_timing_print(&mut self) {
-        self.print = false;
+        self.print_timing = false;
     }
 
-    pub fn get_saved_timing(&self, identifier: usize, utility: Utility) -> u128 {
+    pub fn get_saved_timing(&self, identifier: String, utility: Utility) -> u128 {
+        let utility = utility.clone_and_add_location("get_saved_timing");
+
         for timer in &self.timers {
             if timer.0 == identifier {
                 return timer.2.unwrap();
@@ -43,6 +46,8 @@ impl Utility {
     }
 
     pub fn save_timing(&mut self, identifier: usize, utility: Utility) {
+        let utility = utility.clone_and_add_location("save_timing");
+
         let mut timer_exists: bool = false;
         let mut counter: usize = 0;
         for timer in &self.timers {
@@ -80,6 +85,8 @@ impl Utility {
     }
 
     pub fn get_timer_ms(&self, identifier: usize, utility: Utility) -> u128 {
+        let utility = utility.clone_and_add_location("get_timer_ms");
+
         for timer in &self.timers {
             if timer.0 == identifier {
                 return timer.1.elapsed().as_millis();
@@ -103,7 +110,9 @@ impl Utility {
         indentation_tabs: usize,
         utility: Utility,
     ) {
-        if self.print {
+        let utility = utility.clone_and_add_location("print_timer_from_stage_and_task_from_saved");
+        
+        if self.print_timing {
             let timing = self.get_saved_timing(identifier, utility);
             if timing > 0 {
                 print(
@@ -125,7 +134,9 @@ impl Utility {
         indent: usize,
         utility: Utility,
     ) {
-        if self.print {
+        let utility = utility.clone_and_add_location("print_timer_from_stage_and_task");
+
+        if self.print_timing {
             let timing = self.get_timer_ms(identifier, utility);
             if timing > 0 {
                 print(
