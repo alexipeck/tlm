@@ -395,6 +395,7 @@ pub mod print {
         database::execution::get_by_query,
         print::{print, From, Verbosity},
         utility::Utility,
+        show::Show,
     };
 
     pub fn print_jobs(utility: Utility) {
@@ -412,16 +413,15 @@ pub mod print {
         }
     }
 
-    pub fn print_shows(utility: Utility) {
+    pub fn print_shows(shows: Vec<Show>, utility: Utility) {
         let utility = utility.clone_and_add_location("print_shows");
 
-        for row in get_by_query(r"SELECT title FROM show", utility.clone()) {
-            let title: String = row.get(0);
+        for show in shows {
             print(
                 Verbosity::INFO,
                 From::DB,
                 utility.clone(),
-                format!("[title:{}]", title),
+                format!("[title:{}]", show.title),
                 0,
             );
         }

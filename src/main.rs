@@ -31,7 +31,7 @@ fn main() {
     utility.disable_timing_print();
 
     print_contents(file_manager.working_content.clone(), utility.clone());
-    print_shows(utility.clone());
+    print_shows(file_manager.working_shows.clone(), utility.clone());
     //print_jobs(utility.clone());
 
     //queue.print();
