@@ -151,7 +151,6 @@ impl FileManager {
                             if !self.existing_files_hashset.contains(&entry_string) {
                                 self.existing_files_hashset.insert(entry_string.clone());
                                 self.new_files_queue.push(entry.clone().into_path());
-                                println!("{}", &entry_string.to_string_lossy().to_string());
                             };
                         }
                     }
