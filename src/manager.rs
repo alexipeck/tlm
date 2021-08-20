@@ -35,16 +35,16 @@ impl TrackedDirectories {
             self.cache_directories
                 .push_back(String::from(r"/home/alexi/tlm/test_files/cache/"));
         } else {
-            self.root_directories.push_back(String::from("T:\\"));
+            self.root_directories.push_back(String::from("D:\\Desktop\\tlmfiles"));
             /*self.root_directories.push_back(String::from(
                 r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\",
             ));
             self.root_directories.push_back(String::from(
                 r"C:\Users\Alexi Peck\Desktop\tlm\test_files\shows\",
-            ));*/
+            ));
             self.cache_directories.push_back(String::from(
                 r"C:\Users\Alexi Peck\Desktop\tlm\test_files\cache\",
-            ));
+            ));*/
         }
     }
 }
