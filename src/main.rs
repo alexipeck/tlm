@@ -12,7 +12,7 @@ fn main() {
     utility.enable_timing_print();
 
     //purges the database, should be used selectively
-    //db_purge(utility.clone());
+    db_purge(utility.clone());
 
     //The FileManager stores working files, hashsets and supporting functions related to updating those files
     let mut file_manager: FileManager = FileManager::new(utility.clone());
@@ -21,6 +21,7 @@ fn main() {
     let ignored_paths = vec![".recycle_bin", ".Recycle.Bin"];
 
     file_manager.import_files(&allowed_extensions, &ignored_paths);
+    println!("{}", file_manager.new_files_queue.len());
 
     file_manager.process_new_files(utility.clone());
 

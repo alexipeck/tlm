@@ -37,6 +37,7 @@ impl TrackedDirectories {
                 .push_back(String::from(r"/home/alexi/tlm/test_files/cache/"));
         } else {
             self.root_directories.push_back(String::from("T:\\"));
+            
             /*self.root_directories.push_back(String::from(
                 r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\",
             ));
@@ -74,7 +75,15 @@ impl FileManager {
         };
 
         file_manager.tracked_directories.add_manual_directories();
-        file_manager.working_content = Content::get_all_contents(&mut file_manager.tv.working_shows, utility.clone());
+
+        let t = Content::get_all_contents(&mut file_manager.tv.working_shows, utility.clone());
+
+        if t.len() < 1 {println!("fuck")};
+        for t in &t {
+            t.print(utility.clone());
+        }
+
+        file_manager.working_content = t;
         file_manager.existing_files_hashset = Content::get_all_filenames_as_hashset_from_contents(
             file_manager.working_content.clone(),
             utility.clone(),
@@ -107,16 +116,16 @@ impl FileManager {
                 }
                 if entry.path().is_file() {
                     if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap()) {
-                        if !directory.contains("_encodeH4U8") {
-                            //make entry into pathbuf into string
-                            //check if string exists in existing_files
-                            //if it doesn't, add it's hash to existing_files HashSet and to the filename_hash
-                            let entry_string = entry.clone().into_path();
-                            if !self.existing_files_hashset.contains(&entry_string) {
-                                self.existing_files_hashset.insert(entry_string);
-                                self.new_files_queue.push(entry.clone().into_path());
-                            };
-                        }
+                        //make entry into pathbuf into string
+                        //check if string exists in existing_files
+                        //if it doesn't, add it's hash to existing_files HashSet and to the filename_hash
+                        let entry_string = entry.clone().into_path();
+                        println!("{}", entry_string.to_string_lossy().to_string());
+                        if !self.existing_files_hashset.contains(&entry_string) {
+                            self.existing_files_hashset.insert(entry_string.clone());
+                            self.new_files_queue.push(entry.clone().into_path());
+                            println!("{}", entry_string.to_string_lossy().to_string());
+                        };
                     }
                 }
             }
