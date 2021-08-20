@@ -3,39 +3,39 @@ use crate::{
     database::insert::{insert_content, insert_episode_if_episode},
 };
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{HashSet},
     path::PathBuf,
 };
 
 use walkdir::WalkDir;
 
-#[derive(Clone, Debug)]
+#[derive(Default, Debug)]
 pub struct TrackedDirectories {
-    pub root_directories: VecDeque<String>,
-    pub cache_directories: VecDeque<String>,
+    pub root_directories: Vec<String>,
+    pub cache_directories: Vec<String>,
 }
 
 impl TrackedDirectories {
     pub fn new() -> TrackedDirectories {
         TrackedDirectories {
-            root_directories: VecDeque::new(),
-            cache_directories: VecDeque::new(),
+            root_directories: Vec::new(),
+            cache_directories: Vec::new(),
         }
     }
-
+    
     pub fn add_manual_directories(&mut self) {
         if !cfg!(target_os = "windows") {
             //self.push(String::from("/mnt/nas/tvshows")); //manual entry
             self.root_directories
-                .push_back(String::from(r"/home/anpeck/tlm/test_files/"));
+                .push(String::from(r"/home/anpeck/tlm/test_files/"));
             self.root_directories
-                .push_back(String::from(r"/home/alexi/tlm/test_files/"));
+                .push(String::from(r"/home/alexi/tlm/test_files/"));
             self.cache_directories
-                .push_back(String::from(r"/home/anpeck/tlm/test_files/cache/"));
+                .push(String::from(r"/home/anpeck/tlm/test_files/cache/"));
             self.cache_directories
-                .push_back(String::from(r"/home/alexi/tlm/test_files/cache/"));
+                .push(String::from(r"/home/alexi/tlm/test_files/cache/"));
         } else {
-            self.root_directories.push_back(String::from("D:\\Desktop\\tlmfiles"));
+            self.root_directories.push(String::from("D:\\Desktop\\tlmfiles"));
             /*self.root_directories.push_back(String::from(
                 r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\",
             ));
@@ -55,6 +55,7 @@ pub struct FileManager {
     pub working_content: Vec<Content>,
     pub existing_files_hashset: HashSet<PathBuf>,
     pub working_shows: Vec<Show>,
+    pub new_files_queue: Vec<PathBuf>
 }
 
 impl FileManager {
@@ -68,6 +69,7 @@ impl FileManager {
             working_shows: Vec::new(),
             working_content: Vec::new(),
             existing_files_hashset: HashSet::new(),
+            new_files_queue: Vec::new()
         };
 
         file_manager.tracked_directories.add_manual_directories();
@@ -83,13 +85,12 @@ impl FileManager {
     }
 
     pub fn process_new_files(&mut self,
-        new_files: Vec<PathBuf>,
         utility: Utility,
     ) {
         let mut utility = utility.clone_and_add_location("process_new_files");
         utility.start_timer(0);
     
-        for new_file in new_files {
+        for new_file in &self.new_files_queue {
             utility.start_timer(1);
     
             utility.start_timer(2);
@@ -148,45 +149,39 @@ impl FileManager {
         &mut self,
         allowed_extensions: &Vec<&str>,
         ignored_paths: &Vec<&str>,
-    ) -> Vec<PathBuf> {
+    ) {
         //Return true if string contains any substring from Vector
         fn str_contains_strs(input_str: &str, substrings: &Vec<&str>) -> bool {
             for substring in substrings {
-                if String::from(input_str).contains(substring) {
+                if String::from(input_str).contains(&substring.to_lowercase()) {
                     return true;
                 }
             }
             return false;
         }
 
-        let mut new_files = HashSet::new();
-
         //import all files in tracked root directories
         for directory in &self.tracked_directories.root_directories {
             for entry in WalkDir::new(directory).into_iter().filter_map(|e| e.ok()) {
-                if str_contains_strs(entry.path().to_str().unwrap(), ignored_paths) {
+                if str_contains_strs(&entry.path().to_str().unwrap().to_lowercase(), ignored_paths) {
                     break;
                 }
-
                 if entry.path().is_file() {
-                    if allowed_extensions
-                        .contains(&entry.path().extension().unwrap().to_str().unwrap())
-                    {
+                    if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap()) {
                         if !directory.contains("_encodeH4U8") {
                             //make entry into pathbuf into string
                             //check if string exists in existing_files
                             //if it doesn't, add it's hash to existing_files HashSet and to the filename_hash
                             let entry_string = entry.clone().into_path();
                             if !self.existing_files_hashset.contains(&entry_string) {
-                                self.existing_files_hashset.insert(entry_string);
-                                new_files.insert(entry.into_path());
+                                self.existing_files_hashset.insert(entry_string.clone());
+                                self.new_files_queue.push(entry.clone().into_path());
+                                println!("{}", &entry_string.to_string_lossy().to_string());
                             };
                         }
                     }
                 }
             }
         }
-
-        return new_files.iter().cloned().collect(); //return the set as a vector (this is not sorted but there are no duplicates)
     }
 }
