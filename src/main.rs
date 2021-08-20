@@ -2,7 +2,7 @@ use tlm::{
     content::Content,
     database::miscellaneous::db_purge,
     manager::FileManager,
-    show::Show,
+    tv::print,
     utility::Utility,
 };
 
@@ -20,15 +20,12 @@ fn main() {
     let allowed_extensions = vec!["mp4", "mkv", "webm", "MP4"];
     let ignored_paths = vec![".recycle_bin", ".Recycle.Bin"];
 
-    let t = file_manager.import_files(&allowed_extensions, &ignored_paths);
+    file_manager.import_files(&allowed_extensions, &ignored_paths);
 
-    file_manager.process_new_files(
-        t,
-        utility.clone(),
-    );
+    file_manager.process_new_files(utility.clone());
 
     utility.disable_timing_print();
 
     Content::print_contents(file_manager.working_content.clone(), utility.clone());
-    Show::print_shows(file_manager.working_shows.clone(), utility.clone());
+    print::print_shows(file_manager.tv.working_shows.clone(), utility.clone());
 }

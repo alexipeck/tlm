@@ -3,7 +3,7 @@ use crate::{
     designation::{convert_i32_to_designation, Designation},
     //job::Job,
     print::{print, From, Verbosity},
-    show::Show,
+    tv::show::Show,
     utility::Utility,
 };
 use regex::Regex;

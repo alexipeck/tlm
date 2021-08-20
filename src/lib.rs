@@ -10,9 +10,10 @@ pub mod show;
 pub mod task;
 pub mod utility;
 pub mod timer;
+pub mod tv;
 
+use tv::show::Show;
 use content::Content;
-use show::Show;
 use std::{
     collections::HashSet,
     fs,

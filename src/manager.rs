@@ -1,5 +1,6 @@
 use crate::{
-    content::Content, database::ensure::ensure_tables_exist, show::Show, utility::Utility,
+    tv::TV,
+    content::Content, database::ensure::ensure_tables_exist, utility::Utility,
     database::insert::{insert_content, insert_episode_if_episode},
 };
 use std::{
@@ -54,7 +55,8 @@ pub struct FileManager {
     pub tracked_directories: TrackedDirectories,
     pub working_content: Vec<Content>,
     pub existing_files_hashset: HashSet<PathBuf>,
-    pub working_shows: Vec<Show>,
+    pub tv: TV,
+    pub new_files_queue: Vec<PathBuf>,
 }
 
 impl FileManager {
@@ -65,15 +67,14 @@ impl FileManager {
 
         let mut file_manager = FileManager {
             tracked_directories: TrackedDirectories::new(),
-            working_shows: Vec::new(),
+            tv: TV::new(utility.clone()),
             working_content: Vec::new(),
             existing_files_hashset: HashSet::new(),
+            new_files_queue: Vec::new(),
         };
 
         file_manager.tracked_directories.add_manual_directories();
-        file_manager.working_shows = Show::get_all_shows(utility.clone());
-        file_manager.working_content =
-            Content::get_all_contents(&mut file_manager.working_shows.clone(), utility.clone());
+        file_manager.working_content = Content::get_all_contents(&mut file_manager.tv.working_shows, utility.clone());
         file_manager.existing_files_hashset = Content::get_all_filenames_as_hashset_from_contents(
             file_manager.working_content.clone(),
             utility.clone(),
@@ -82,40 +83,12 @@ impl FileManager {
         return file_manager;
     }
 
-    pub fn process_new_files(&mut self,
-        new_files: Vec<PathBuf>,
-        utility: Utility,
-    ) {
-        let mut utility = utility.clone_and_add_location("process_new_files");
-        utility.add_timer(0, "startup: processing new files");
-    
-        for new_file in new_files {
-            utility.add_timer(1, "startup: creating content from PathBuf");
-    
-            utility.add_timer(2, "startup: creating content from PathBuf");
-            let mut content = Content::new(&new_file, &mut self.working_shows, utility.clone());
-            utility.store_timing_by_uid(2);
-    
-            utility.add_timer(3, "startup: creating content from PathBuf");
-            content.set_uid(insert_content(content.clone(), utility.clone()));
-            utility.store_timing_by_uid(3);
-    
-            utility.add_timer(4, "startup: creating content from PathBuf");
-            insert_episode_if_episode(content.clone(), utility.clone());
-            utility.store_timing_by_uid(4);
-    
-            self.working_content.push(content);
-            utility.print_all_timers_except_one(0, 2, utility.clone());
-        }
-        utility.print_specific_timer_by_uid(0, 1, utility.clone());
-    }
-
     //Hash set guarentees no duplicates in O(1) time
     pub fn import_files(
         &mut self,
         allowed_extensions: &Vec<&str>,
         ignored_paths: &Vec<&str>,
-    ) -> Vec<PathBuf> {
+    ) {
         //Return true if string contains any substring from Vector
         fn str_contains_strs(input_str: &str, substrings: &Vec<&str>) -> bool {
             for substring in substrings {
@@ -125,8 +98,6 @@ impl FileManager {
             }
             return false;
         }
-
-        let mut new_files = HashSet::new();
 
         //import all files in tracked root directories
         for directory in &self.tracked_directories.root_directories {
@@ -143,14 +114,43 @@ impl FileManager {
                             let entry_string = entry.clone().into_path();
                             if !self.existing_files_hashset.contains(&entry_string) {
                                 self.existing_files_hashset.insert(entry_string);
-                                new_files.insert(entry.into_path());
+                                self.new_files_queue.push(entry.clone().into_path());
                             };
                         }
                     }
                 }
             }
         }
+    }
 
-        return new_files.iter().cloned().collect(); //return the set as a vector (this is not sorted but there are no duplicates)
+    pub fn process_new_files(&mut self, utility: Utility) {
+        let mut utility = utility.clone_and_add_location("process_new_files");
+        utility.add_timer(0, "startup: processing new files");
+        
+        while self.new_files_queue.len() > 0 {
+            let current = self.new_files_queue.pop();
+            if current.is_some() {
+                let current = current.unwrap();
+
+                utility.add_timer(1, "startup: creating content from PathBuf");
+    
+                utility.add_timer(2, "startup: creating content from PathBuf");
+                let mut content = Content::new(&current, &mut self.tv.working_shows, utility.clone());
+                utility.store_timing_by_uid(2);
+        
+                utility.add_timer(3, "startup: creating content from PathBuf");
+                content.set_uid(insert_content(content.clone(), utility.clone()));
+                utility.store_timing_by_uid(3);
+        
+                utility.add_timer(4, "startup: creating content from PathBuf");
+                insert_episode_if_episode(content.clone(), utility.clone());
+                utility.store_timing_by_uid(4);
+        
+                self.working_content.push(content);
+                utility.print_all_timers_except_one(0, 2, utility.clone());
+            }
+        }
+
+        utility.print_specific_timer_by_uid(0, 1, utility.clone());
     }
 }
