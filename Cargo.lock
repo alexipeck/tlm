@@ -767,6 +767,7 @@ dependencies = [
  "regex",
  "serde",
  "tokio-postgres",
+ "toml",
  "twox-hash",
  "walkdir",
 ]

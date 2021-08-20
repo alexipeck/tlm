@@ -2,9 +2,15 @@ use tlm::{database::{
         miscellaneous::db_purge,
         print::{print_contents, print_shows},
     }, manager::{FileManager, TrackedDirectories}, utility::Utility};
-use argparse::{ArgumentParser, StoreTrue, StoreFalse};
+use argparse::{ArgumentParser, Store, StoreTrue, StoreFalse};
+use serde::{Deserialize, Serialize};
+use std::path::Path;
+use std::fs;
 
-struct ConfigFile {
+#[derive(Deserialize, Serialize)]
+struct Config {
+    allowed_extensions: Vec<String>,
+    ignored_paths: Vec<String>,
     tracked_directories: TrackedDirectories,
 }
 
@@ -14,6 +20,7 @@ struct Options {
     print_shows: bool,
     print_general: bool,
     db_purge: bool,
+    config_file_path: String,
 }
 
 impl Options {
@@ -23,7 +30,8 @@ impl Options {
             print_contents: false,
             print_shows: false,
             print_general: false,
-            db_purge: false
+            db_purge: false,
+            config_file_path: String::from("./.tlm_config")
         }
     }
 }
@@ -52,9 +60,31 @@ fn main() {
         parser
             .refer(&mut options.print_general)
             .add_option(&["--print-general"], StoreTrue, "Enable printing general debug information");
+        parser
+            .refer(&mut options.config_file_path)
+            .add_option(&["--config"], Store, "Set a custom config path");
     
         parser.parse_args_or_exit();
     }
+
+    let config: Config;
+    
+    //Default config
+    if Path::new(&options.config_file_path).exists() {
+        let config_toml = fs::read_to_string(&options.config_file_path).unwrap();
+        config = toml::from_str(&config_toml).unwrap();
+    } else {
+        let allowed_extensions = vec![String::from("mp4"), String::from("mkv"), String::from("webm"), String::from("MP4")];
+        let ignored_paths = vec![String::from(".recycle_bin")];
+        let mut tracked_directories = TrackedDirectories::new();
+        tracked_directories.root_directories = vec![String::from(r"D:\Desktop\tlmfiles")];
+        config = Config{allowed_extensions, ignored_paths, tracked_directories};
+        let toml = toml::to_string(&config).unwrap();
+        fs::write(&options.config_file_path, toml).unwrap();
+    }
+
+
+
 
     if options.default_print || options.print_general {
         utility.enable_timing_print();
@@ -68,10 +98,9 @@ fn main() {
     //A FileManager stores working files, hashsets and supporting functions related to updating those files
     let mut file_manager: FileManager = FileManager::new(utility.clone());
 
-    let allowed_extensions = vec!["mp4", "mkv", "webm", "MP4"];
-    let ignored_paths = vec![".recycle_bin"];
 
-    file_manager.import_files(&allowed_extensions, &ignored_paths);
+    file_manager.tracked_directories = config.tracked_directories;
+    file_manager.import_files(&config.allowed_extensions, &config.ignored_paths);
 
     file_manager.process_new_files(
         utility.clone(),

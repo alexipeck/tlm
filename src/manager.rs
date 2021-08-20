@@ -6,10 +6,10 @@ use std::{
     collections::{HashSet},
     path::PathBuf,
 };
-
+use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct TrackedDirectories {
     pub root_directories: Vec<String>,
     pub cache_directories: Vec<String>,
@@ -20,31 +20,6 @@ impl TrackedDirectories {
         TrackedDirectories {
             root_directories: Vec::new(),
             cache_directories: Vec::new(),
-        }
-    }
-    
-    pub fn add_manual_directories(&mut self) {
-        if !cfg!(target_os = "windows") {
-            //self.push(String::from("/mnt/nas/tvshows")); //manual entry
-            self.root_directories
-                .push(String::from(r"/home/anpeck/tlm/test_files/"));
-            self.root_directories
-                .push(String::from(r"/home/alexi/tlm/test_files/"));
-            self.cache_directories
-                .push(String::from(r"/home/anpeck/tlm/test_files/cache/"));
-            self.cache_directories
-                .push(String::from(r"/home/alexi/tlm/test_files/cache/"));
-        } else {
-            self.root_directories.push(String::from("D:\\Desktop\\tlmfiles"));
-            /*self.root_directories.push_back(String::from(
-                r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\",
-            ));
-            self.root_directories.push_back(String::from(
-                r"C:\Users\Alexi Peck\Desktop\tlm\test_files\shows\",
-            ));
-            self.cache_directories.push_back(String::from(
-                r"C:\Users\Alexi Peck\Desktop\tlm\test_files\cache\",
-            ));*/
         }
     }
 }
@@ -72,7 +47,6 @@ impl FileManager {
             new_files_queue: Vec::new()
         };
 
-        file_manager.tracked_directories.add_manual_directories();
         file_manager.working_shows = Show::get_all_shows(utility.clone());
         file_manager.working_content =
             Content::get_all_contents(&mut file_manager.working_shows.clone(), utility.clone());
@@ -147,11 +121,11 @@ impl FileManager {
     //Hash set guarentees no duplicates in O(1) time
     pub fn import_files(
         &mut self,
-        allowed_extensions: &Vec<&str>,
-        ignored_paths: &Vec<&str>,
+        allowed_extensions: &Vec<String>,
+        ignored_paths: &Vec<String>,
     ) {
         //Return true if string contains any substring from Vector
-        fn str_contains_strs(input_str: &str, substrings: &Vec<&str>) -> bool {
+        fn str_contains_strs(input_str: &str, substrings: &Vec<String>) -> bool {
             for substring in substrings {
                 if String::from(input_str).contains(&substring.to_lowercase()) {
                     return true;
@@ -167,7 +141,8 @@ impl FileManager {
                     break;
                 }
                 if entry.path().is_file() {
-                    if allowed_extensions.contains(&entry.path().extension().unwrap().to_str().unwrap()) {
+                    let temp_string = String::from(entry.path().extension().unwrap().to_str().unwrap());
+                    if allowed_extensions.contains(&temp_string) {
                         if !directory.contains("_encodeH4U8") {
                             //make entry into pathbuf into string
                             //check if string exists in existing_files
