@@ -1,9 +1,6 @@
 use tlm::{
     content::Content,
-    database::{
-        db_print::{print_content_from_db, print_shows_from_db},
-        miscellaneous::db_purge
-    },
+    database::miscellaneous::db_purge,
     manager::FileManager,
     show::Show,
     utility::Utility,
@@ -17,7 +14,7 @@ fn main() {
     //purges the database, should be used selectively
     //db_purge(utility.clone());
 
-    //A FileManager stores working files, hashsets and supporting functions related to updating those files
+    //The FileManager stores working files, hashsets and supporting functions related to updating those files
     let mut file_manager: FileManager = FileManager::new(utility.clone());
 
     let allowed_extensions = vec!["mp4", "mkv", "webm", "MP4"];
@@ -34,6 +31,4 @@ fn main() {
 
     Content::print_contents(file_manager.working_content.clone(), utility.clone());
     Show::print_shows(file_manager.working_shows.clone(), utility.clone());
-    //print_content_from_db(utility.clone());
-    //print_shows_from_db(utility.clone());
 }
