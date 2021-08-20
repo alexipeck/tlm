@@ -1,9 +1,11 @@
 use tlm::{
+    content::Content,
     database::{
-        miscellaneous::db_purge,
-        print::{print_contents, print_shows},
+        db_print::{print_content_from_db, print_shows_from_db},
+        miscellaneous::db_purge
     },
     manager::FileManager,
+    show::Show,
     utility::Utility,
 };
 
@@ -30,10 +32,8 @@ fn main() {
 
     utility.disable_timing_print();
 
-    print_contents(file_manager.working_content.clone(), utility.clone());
-    print_shows(file_manager.working_shows.clone(), utility.clone());
-    //print_jobs(utility.clone());
-
-    //queue.print();
-    //shows.print();
+    Content::print_contents(file_manager.working_content.clone(), utility.clone());
+    Show::print_shows(file_manager.working_shows.clone(), utility.clone());
+    //print_content_from_db(utility.clone());
+    //print_shows_from_db(utility.clone());
 }

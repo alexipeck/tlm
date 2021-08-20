@@ -389,7 +389,8 @@ pub mod miscellaneous {
     }
 }
 
-pub mod print {
+//this module is somewhat redundant, but they can be easily used as a template to make more interesting queries
+pub mod db_print {
     use crate::{
         content::Content,
         database::execution::get_by_query,
@@ -398,8 +399,49 @@ pub mod print {
         show::Show,
     };
 
-    pub fn print_jobs(utility: Utility) {
-        let utility = utility.clone_and_add_location("print_jobs");
+    pub fn print_shows_from_db(utility: Utility) {
+        let utility = utility.clone_and_add_location("print_shows_from_db");
+
+        for row in get_by_query(r"SELECT title FROM show", utility.clone()) {
+            let title: i32 = row.get(0);
+            print(
+                Verbosity::INFO,
+                From::DB,
+                utility.clone(),
+                format!("[title:{}]", title),
+                0,
+            );
+        }
+    }
+    
+    pub fn print_content_from_db(utility: Utility) {
+        let mut utility = utility.clone_and_add_location("print_content_from_db");
+        utility.add_timer(0, "debug_print: read in content, then print");
+        
+        utility.add_timer(1, "debug_print: read in content from database");
+        let raw_content = get_by_query(
+            r"SELECT content_uid, full_path, designation FROM content",
+            utility.clone(),
+        );
+        utility.store_timing_by_uid(1);
+
+        //no shows will actually be added to this, the database should always have the same data as in memory
+        //if something fucks up, the show will still be added to it and used for creating Contents, but will be thrown away.
+        let mut working_shows = Show::get_all_shows(utility.clone());
+        
+        utility.add_timer(2, "debug_print: create content from rows and print");
+        for row in raw_content {
+            let content = Content::from_row(row, &mut working_shows, utility.clone());
+            content.print(utility.clone());
+        }
+
+        utility.print_specific_timer_by_uid(0, 1, utility.clone());
+        utility.print_specific_timer_by_uid(1, 2, utility.clone());
+        utility.print_specific_timer_by_uid(2, 2, utility.clone());
+    }
+
+    pub fn print_jobs_from_db(utility: Utility) {
+        let utility = utility.clone_and_add_location("print_jobs_from_db");
 
         for row in get_by_query(r"SELECT job_uid FROM job_queue", utility.clone()) {
             let uid: i32 = row.get(0);
@@ -410,28 +452,6 @@ pub mod print {
                 format!("[job_uid:{}]", uid),
                 0,
             );
-        }
-    }
-
-    pub fn print_shows(shows: Vec<Show>, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_shows");
-
-        for show in shows {
-            print(
-                Verbosity::INFO,
-                From::DB,
-                utility.clone(),
-                format!("[title:{}]", show.title),
-                0,
-            );
-        }
-    }
-
-    pub fn print_contents(contents: Vec<Content>, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_contents");
-
-        for content in contents {
-            content.print(utility.clone());
         }
     }
 }

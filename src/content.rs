@@ -305,6 +305,44 @@ impl Content {
         return self.full_path.parent().unwrap().join(new_filename);
     }
 
+    pub fn get_season_number(&self) -> usize {
+        return self.show_season_episode.clone().unwrap().0;
+    }
+
+    pub fn get_show_title(&self, utility: Utility) -> String {
+        let utility = utility.clone_and_add_location("get_show_title");
+
+        if self.show_title.is_some() {
+            return self.show_title.clone().unwrap();
+        } else {
+            print(
+                Verbosity::CRITICAL,
+                From::Content,
+                utility,
+                String::from("You called get_show_title on a content that didn't have an episode designation or was incorrectly created"),
+                0,
+            );
+            panic!();
+        }
+    }
+
+    pub fn get_show_uid(&self, utility: Utility) -> usize {
+        let utility = utility.clone_and_add_location("get_show_uid");
+
+        if self.show_uid.is_some() {
+            return self.show_uid.unwrap();
+        } else {
+            print(
+                Verbosity::CRITICAL,
+                From::Content,
+                utility,
+                String::from("You called get_show_uid on a content that didn't have an episode designation or was incorrectly created"),
+                0,
+            );
+            panic!();
+        }
+    }
+
     pub fn get_episode_string(&self) -> String {
         if self.show_season_episode.is_some() {
             let episode = self.show_season_episode.clone().unwrap().1;
@@ -328,6 +366,23 @@ impl Content {
         }
     }
 
+    pub fn get_content_uid(&self, utility: Utility) -> usize {
+        let utility = utility.clone_and_add_location("get_content_uid");
+
+        if self.content_uid.is_some() {
+            return self.content_uid.unwrap();
+        } else {
+            print(
+                Verbosity::CRITICAL,
+                From::Content,
+                utility,
+                String::from("You called get_content_uid on a content that hasn't been inserted into the db yet or hasn't been assigned a content_uid from the database correctly"),
+                0,
+            );
+            panic!();
+        }
+    }
+
     pub fn print(&self, utility: Utility) {
         let utility = utility.clone_and_add_location("print");
 
@@ -340,15 +395,14 @@ impl Content {
                 From::Content,
                 utility.clone(),
                 format!(
-                    "[content_uid:'{}'][designation:'{}'][full_path:'{}'][show_uid:'{}'][show_title:'{}'][season:'{}'][episode:'{}']",
-                    self.content_uid.unwrap(),
+                    "[content_uid:'{:4}'][designation:'{}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
+                    self.get_content_uid(utility.clone()),
                     self.designation as i32,
+                    self.get_show_uid(utility.clone()),
+                    self.get_season_number(),
+                    self.get_episode_string(),
                     self.get_full_path(),
-                    self.show_uid.unwrap(),
-                    self.show_title.clone().unwrap(),
-                    self.get_episode_string(),
-                    //self.show_season_episode.clone().unwrap().1[0],//asdf;
-                    self.get_episode_string(),
+                    self.get_show_title(utility.clone()),
                 ),
             0,
             );
@@ -458,5 +512,13 @@ impl Content {
         self.full_path = raw_filepath.clone();
 
         self.designate_and_fill(working_shows, utility);
+    }
+
+    pub fn print_contents(contents: Vec<Content>, utility: Utility) {
+        let utility = utility.clone_and_add_location("print_contents");
+
+        for content in contents {
+            content.print(utility.clone());
+        }
     }
 }
