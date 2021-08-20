@@ -56,6 +56,20 @@ impl Show {
         );
     }
 
+    pub fn print_shows(shows: Vec<Show>, utility: Utility) {
+        let utility = utility.clone_and_add_location("print_shows");
+
+        for show in shows {
+            print(
+                Verbosity::INFO,
+                From::Show,
+                utility.clone(),
+                format!("[title:{}]", show.title),
+                0,
+            );
+        }
+    }
+
     pub fn show_exists(show_title: String, working_shows: Vec<Show>) -> Option<usize> {
         for show in working_shows {
             if show.title == show_title {
