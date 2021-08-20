@@ -12,12 +12,7 @@ pub mod utility;
 
 use content::Content;
 use show::Show;
-use std::{
-    collections::HashSet,
-    fs,
-    path::PathBuf,
-    time::Instant,
-};
+use std::{collections::HashSet, fs, path::PathBuf, time::Instant};
 use twox_hash::xxh3;
 use utility::Utility;
 

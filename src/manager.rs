@@ -1,12 +1,12 @@
 use crate::{
-    content::Content, database::ensure::ensure_tables_exist, show::Show, utility::Utility,
+    content::Content,
+    database::ensure::ensure_tables_exist,
     database::insert::{insert_content, insert_episode_if_episode},
-};
-use std::{
-    collections::{HashSet},
-    path::PathBuf,
+    show::Show,
+    utility::Utility,
 };
 use serde::{Deserialize, Serialize};
+use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
 
 #[derive(Default, Debug, Deserialize, Serialize)]
@@ -30,7 +30,7 @@ pub struct FileManager {
     pub working_content: Vec<Content>,
     pub existing_files_hashset: HashSet<PathBuf>,
     pub working_shows: Vec<Show>,
-    pub new_files_queue: Vec<PathBuf>
+    pub new_files_queue: Vec<PathBuf>,
 }
 
 impl FileManager {
@@ -44,7 +44,7 @@ impl FileManager {
             working_shows: Vec::new(),
             working_content: Vec::new(),
             existing_files_hashset: HashSet::new(),
-            new_files_queue: Vec::new()
+            new_files_queue: Vec::new(),
         };
 
         file_manager.working_shows = Show::get_all_shows(utility.clone());
@@ -58,27 +58,25 @@ impl FileManager {
         return file_manager;
     }
 
-    pub fn process_new_files(&mut self,
-        utility: Utility,
-    ) {
+    pub fn process_new_files(&mut self, utility: Utility) {
         let mut utility = utility.clone_and_add_location("process_new_files");
         utility.start_timer(0);
-    
+
         for new_file in &self.new_files_queue {
             utility.start_timer(1);
-    
+
             utility.start_timer(2);
             let mut content = Content::new(&new_file, &mut self.working_shows, utility.clone());
             utility.save_timing(2, utility.clone());
-    
+
             utility.start_timer(3);
             content.set_uid(insert_content(content.clone(), utility.clone()));
             utility.save_timing(3, utility.clone());
-    
+
             utility.start_timer(4);
             insert_episode_if_episode(content.clone(), utility.clone());
             utility.save_timing(4, utility.clone());
-    
+
             self.working_content.push(content);
             utility.print_timer_from_stage_and_task(
                 1,
@@ -119,11 +117,7 @@ impl FileManager {
     }
 
     //Hash set guarentees no duplicates in O(1) time
-    pub fn import_files(
-        &mut self,
-        allowed_extensions: &Vec<String>,
-        ignored_paths: &Vec<String>,
-    ) {
+    pub fn import_files(&mut self, allowed_extensions: &Vec<String>, ignored_paths: &Vec<String>) {
         //Return true if string contains any substring from Vector
         fn str_contains_strs(input_str: &str, substrings: &Vec<String>) -> bool {
             for substring in substrings {
@@ -137,11 +131,15 @@ impl FileManager {
         //import all files in tracked root directories
         for directory in &self.tracked_directories.root_directories {
             for entry in WalkDir::new(directory).into_iter().filter_map(|e| e.ok()) {
-                if str_contains_strs(&entry.path().to_str().unwrap().to_lowercase(), ignored_paths) {
+                if str_contains_strs(
+                    &entry.path().to_str().unwrap().to_lowercase(),
+                    ignored_paths,
+                ) {
                     break;
                 }
                 if entry.path().is_file() {
-                    let temp_string = String::from(entry.path().extension().unwrap().to_str().unwrap());
+                    let temp_string =
+                        String::from(entry.path().extension().unwrap().to_str().unwrap());
                     if allowed_extensions.contains(&temp_string) {
                         if !directory.contains("_encodeH4U8") {
                             //make entry into pathbuf into string
