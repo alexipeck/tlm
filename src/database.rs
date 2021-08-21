@@ -100,7 +100,7 @@ pub mod execution {
         let utility = utility.clone_and_add_location("get_client");
 
         //credentials aren't secret yet, and are only for a testing/development database.
-        let connection_string = r"postgresql://localhost:5432/tlmdb?user=postgres&password=786D3JXegfY8uR6shcPB7UF2oVeQf49ynH8vHgn".to_string();
+        let connection_string = r"postgresql://localhost:4531/tlmdb?user=postgres&password=786D3JXegfY8uR6shcPB7UF2oVeQf49ynH8vHgn".to_string();
         //creates actual database client connection
         //returns unhandled result with client
         let client = Client::connect(&connection_string, NoTls);
