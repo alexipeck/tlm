@@ -1,3 +1,4 @@
+
 use super::schema::{content, episode};
 
 #[derive(Insertable)]
@@ -26,35 +27,35 @@ pub struct NewEpisode {
 
 #[derive(Queryable)]
 pub struct EpisodeModel {
-    content_uid: i32,
-    show_uid: i32,
-    episode_title: String,
-    season_number: i32,
-    episode_number: i32,
+    pub content_uid: i32,
+    pub show_uid: i32,
+    pub episode_title: String,
+    pub season_number: i32,
+    pub episode_number: i32,
 }
 
 #[derive(Queryable)]
 pub struct JobQueueModel{
-        job_uid: i32,
-        source_path: String,
-        encode_path: String,
-        cache_directory: String,
-        encode_string: String,
-        status_underway: bool,
-        status_completed: bool,
-        worker_uid: i32,
-        worker_string_id: String,
+        pub job_uid: i32,
+        pub source_path: String,
+        pub encode_path: String,
+        pub cache_directory: String,
+        pub encode_string: String,
+        pub status_underway: bool,
+        pub status_completed: bool,
+        pub worker_uid: i32,
+        pub worker_string_id: String,
 }
 
 #[derive(Queryable)]
 pub struct JobTaskQueueModel {
-    id: i32,
-    job_uid: i32,
-    task_id: i32,
+    pub id: i32,
+    pub job_uid: i32,
+    pub task_id: i32,
 }
 
 #[derive(Queryable)]
 pub struct ShowModel {
-    show_uid: i32,
-    title: String,
+    pub show_uid: i32,
+    pub title: String,
 }

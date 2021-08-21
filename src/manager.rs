@@ -1,17 +1,11 @@
 use crate::{
     content::Content,
-    database::ensure::ensure_tables_exist,
-    database::insert::{insert_content, insert_episode_if_episode},
     tv::TV,
     utility::Utility,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
-
-use crate::model::*;
-use crate::diesel::prelude::*;
-use crate::schema::content::dsl::*;
 use crate::{establish_connection, create_content, create_episode};
 
 #[derive(Default, Debug, Deserialize, Serialize)]
@@ -42,8 +36,6 @@ impl FileManager {
     pub fn new(utility: Utility) -> FileManager {
         let utility = utility.clone_and_add_location("new_file_manager");
 
-        ensure_tables_exist(utility.clone());
-
         let mut file_manager = FileManager {
             tracked_directories: TrackedDirectories::new(),
             tv: TV::new(utility.clone()),
@@ -66,7 +58,6 @@ impl FileManager {
         let mut utility = utility.clone_and_add_location("process_new_files");
         let connection = establish_connection();
         utility.add_timer(0, "startup: processing new files");
-        println!("WHATHTEFUCK{}", self.new_files_queue.len());
         while self.new_files_queue.len() > 0 {
             let current = self.new_files_queue.pop();
             if current.is_some() {
