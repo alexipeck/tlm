@@ -29,7 +29,7 @@ pub struct FileManager {
 
 impl FileManager {
     pub fn new(utility: Utility) -> FileManager {
-        let utility = utility.clone_and_add_location("new_file_manager");
+        let utility = utility.clone_and_add_location("new(FileManager)");
 
         ensure_tables_exist(utility.clone());
 
@@ -52,7 +52,7 @@ impl FileManager {
     }
 
     pub fn print_number_of_content(&self, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_number_of_content");
+        let utility = utility.clone_and_add_location("print_number_of_content(FileManager)");
 
         print(
             crate::print::Verbosity::INFO,
@@ -64,7 +64,7 @@ impl FileManager {
     }
 
     pub fn print_number_of_shows(&self, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_number_of_shows");
+        let utility = utility.clone_and_add_location("print_number_of_shows(FileManager)");
 
         print(
             crate::print::Verbosity::INFO,
@@ -76,7 +76,7 @@ impl FileManager {
     }
 
     pub fn process_new_files(&mut self, utility: Utility) {
-        let mut utility = utility.clone_and_add_location("process_new_files");
+        let mut utility = utility.clone_and_add_location("process_new_files(FileManager)");
         utility.add_timer(0, "startup: processing new files");
 
         while self.new_files_queue.len() > 0 {

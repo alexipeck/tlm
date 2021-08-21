@@ -15,6 +15,8 @@ pub struct TV {
 
 impl TV {
     pub fn new(utility: Utility) -> TV {
+        let utility = utility.clone_and_add_location("new(TV)");
+
         return TV {
             working_shows: Show::get_all_shows(utility.clone()),
         };
@@ -61,7 +63,7 @@ impl Show {
     }
 
     pub fn print_show(&self, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_show");
+        let utility = utility.clone_and_add_location("print_show(Show)");
         print(
             Verbosity::DEBUG,
             From::Show,
@@ -85,7 +87,7 @@ impl Show {
         working_shows: &mut Vec<Show>,
         utility: Utility,
     ) -> usize {
-        let mut utility = utility.clone_and_add_location("ensure_show_exists");
+        let mut utility = utility.clone_and_add_location("ensure_show_exists(Show)");
 
         let show_uid = Show::show_exists(show_title.clone(), working_shows.clone());
         if show_uid.is_some() {
@@ -114,7 +116,7 @@ impl Show {
     }
 
     pub fn from_row(row: Row, utility: Utility) -> Show {
-        let mut utility = utility.clone_and_add_location("from_row");
+        let mut utility = utility.clone_and_add_location("from_row(Show)");
 
         utility.add_timer(0, "startup: from_row: create show from row");
         let show_uid_temp: i32 = row.get(0);
@@ -132,7 +134,7 @@ impl Show {
     }
 
     pub fn get_all_shows(utility: Utility) -> Vec<Show> {
-        let mut utility = utility.clone_and_add_location("get_all_shows");
+        let mut utility = utility.clone_and_add_location("get_all_shows(Show)");
         utility.add_timer(0, "startup: read in shows");
 
         let raw_shows = get_by_query(r"SELECT show_uid, title FROM show", utility.clone());
@@ -149,7 +151,7 @@ impl Show {
 }
 
 pub fn print_shows(shows: Vec<Show>, utility: Utility) {
-    let utility = utility.clone_and_add_location("print_shows");
+    let utility = utility.clone_and_add_location("print_shows(Show)");
 
     for show in shows {
         print(

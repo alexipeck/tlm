@@ -113,6 +113,8 @@ impl Utility {
     }
 
     pub fn print_specific_timer_by_uid(&mut self, uid: usize, indent: usize, utility: Utility) {
+        let utility = utility.clone_and_add_location("print_specific_timer_by_uid(Utility)");
+
         for timer in &mut self.timers {
             if timer.uid == uid {
                 timer.print_timer(indent, utility.clone());
@@ -121,6 +123,8 @@ impl Utility {
     }
 
     pub fn print_all_timers_except_one(&mut self, uid: usize, indent: usize, utility: Utility) {
+        let utility = utility.clone_and_add_location("print_all_timers_except_one(Utility)");
+
         for timer in &mut self.timers {
             if !(timer.uid == uid) {
                 timer.print_timer(indent, utility.clone());
@@ -134,6 +138,8 @@ impl Utility {
         indent: usize,
         utility: Utility,
     ) {
+        let utility = utility.clone_and_add_location("print_all_timers_except_many(Utility)");
+
         for timer in &mut self.timers {
             if !uid.contains(&timer.uid) {
                 timer.print_timer(indent, utility.clone());
@@ -142,6 +148,8 @@ impl Utility {
     }
 
     pub fn print_all_timers(&mut self, indent: usize, utility: Utility) {
+        let utility = utility.clone_and_add_location("print_all_timers(Utility)");
+
         for timer in &mut self.timers {
             timer.print_timer(indent, utility.clone());
         }

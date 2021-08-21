@@ -32,10 +32,11 @@ impl Timer {
     }
 
     pub fn print_timer(&mut self, indent: usize, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_timer");
         if !utility.print_timing {
             return;
         }
+
+        let utility = utility.clone_and_add_location("print_timer");        
 
         if self.stored_time.is_none() {
             self.store_timing();

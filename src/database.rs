@@ -148,7 +148,7 @@ pub mod ensure {
     use crate::{database::execution::execute_query, utility::Utility};
 
     pub fn ensure_tables_exist(utility: Utility) {
-        let utility = utility.clone_and_add_location("db_table_create");
+        let utility = utility.clone_and_add_location("ensure_tables_exist");
 
         execute_query(
             r"
