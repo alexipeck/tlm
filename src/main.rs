@@ -1,11 +1,7 @@
-use argparse::{ArgumentParser, Store, StoreFalse, StoreTrue};
-use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::Path;
 use tlm::{
     config::{Config, Preferences},
     database::miscellaneous::db_purge,
-    manager::{FileManager, TrackedDirectories},
+    manager::FileManager,
     utility::Utility,
 };
 
@@ -35,12 +31,6 @@ fn main() {
 
     utility.disable_timing_print();
 
-    println!(
-        "Number of contents loaded in memory: {}",
-        file_manager.working_content.len()
-    );
-    println!(
-        "Number of shows loaded in memory: {}",
-        file_manager.tv.working_shows.len()
-    );
+    file_manager.print_number_of_content(utility.clone());
+    file_manager.print_number_of_shows(utility.clone());
 }

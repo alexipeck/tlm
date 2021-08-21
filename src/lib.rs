@@ -15,17 +15,15 @@ pub mod utility;
 
 use content::Content;
 use std::{collections::HashSet, fs, path::PathBuf, time::Instant};
-use tv::show::Show;
+use tv::Show;
 use twox_hash::xxh3;
 use utility::Utility;
 
 pub fn load_from_database(utility: Utility) -> (Vec<Content>, Vec<Show>, HashSet<PathBuf>) {
     let utility = utility.clone_and_add_location("load_from_database");
-
+    
     let mut working_shows: Vec<Show> = Show::get_all_shows(utility.clone());
-
     let working_content = Content::get_all_contents(&mut working_shows, utility.clone());
-
     let existing_files_hashset: HashSet<PathBuf> =
         Content::get_all_filenames_as_hashset_from_contents(
             working_content.clone(),

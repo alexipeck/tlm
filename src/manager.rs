@@ -1,10 +1,4 @@
-use crate::{
-    content::Content,
-    database::ensure::ensure_tables_exist,
-    database::insert::{insert_content, insert_episode_if_episode},
-    tv::TV,
-    utility::Utility,
-};
+use crate::{print::{print, From, Verbosity}, content::Content, database::ensure::ensure_tables_exist, database::insert::{insert_content, insert_episode_if_episode}, tv::TV, utility::Utility};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
@@ -55,6 +49,30 @@ impl FileManager {
         );
 
         return file_manager;
+    }
+
+    pub fn print_number_of_content(&self, utility: Utility) {
+        let utility = utility.clone_and_add_location("print_number_of_content");
+
+        print(
+            crate::print::Verbosity::INFO,
+            From::Manager,
+            utility,
+            format!("Number of content loaded in memory: {}", self.working_content.len()),
+            0
+        );
+    }
+
+    pub fn print_number_of_shows(&self, utility: Utility) {
+        let utility = utility.clone_and_add_location("print_number_of_shows");
+
+        print(
+            crate::print::Verbosity::INFO,
+            From::Manager,
+            utility,
+            format!("Number of shows loaded in memory: {}", self.tv.working_shows.len()),
+            0
+        );
     }
 
     pub fn process_new_files(&mut self, utility: Utility) {

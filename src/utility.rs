@@ -59,10 +59,8 @@ impl Utility {
             if uids.contains(&timer.uid) {
                 prepare.push(counter);
             }
-
             counter += 1;
         }
-
         return prepare;
     }
 
@@ -73,10 +71,8 @@ impl Utility {
             if !uids.contains(&timer.uid) {
                 prepare.push(counter);
             }
-
             counter += 1;
         }
-
         return prepare;
     }
 
@@ -87,10 +83,8 @@ impl Utility {
             if !uids.contains(&timer.uid) {
                 prepare.push(counter);
             }
-
             counter += 1;
         }
-
         return prepare;
     }
 
