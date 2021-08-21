@@ -111,19 +111,13 @@ impl FileManager {
                     break;
                 }
                 if entry.path().is_file() {
-                    let temp_string =
-                        String::from(entry.path().extension().unwrap().to_str().unwrap());
-                    if allowed_extensions.contains(&temp_string) {
-                        if !directory.contains("_encodeH4U8") {
-                            //make entry into pathbuf into string
-                            //check if string exists in existing_files
-                            //if it doesn't, add it's hash to existing_files HashSet and to the filename_hash
-                            let entry_string = entry.clone().into_path();
-                            if !self.existing_files_hashset.contains(&entry_string) {
-                                self.existing_files_hashset.insert(entry_string.clone());
-                                self.new_files_queue.push(entry.clone().into_path());
-                            };
-                        }
+                    let temp_string = entry.path().extension().unwrap().to_str().unwrap();
+                    if allowed_extensions.contains(&temp_string.to_lowercase()) {
+                        let entry_string = entry.clone().into_path();
+                        if !self.existing_files_hashset.contains(&entry_string) {
+                            self.existing_files_hashset.insert(entry_string.clone());
+                            self.new_files_queue.push(entry.clone().into_path());
+                        };
                     }
                 }
             }

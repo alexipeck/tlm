@@ -11,6 +11,7 @@ pub mod task;
 pub mod utility;
 pub mod timer;
 pub mod tv;
+pub mod config;
 
 use tv::show::Show;
 use content::Content;
