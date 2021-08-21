@@ -19,8 +19,88 @@ impl Utility {
         return traceback.add_traceback_location(created_from);
     }
 
-    pub fn add_timer(&mut self, uid: usize, stage_task_identifier: &str) {
-        self.timers.push(Timer::create_timer(uid, String::from(stage_task_identifier)));
+    pub fn add_timer(&mut self, identifier: usize, stage_task_identifier: &str) {
+        if self.timer_exists(identifier) {
+            self.delete_or_reset_single_timer(false, identifier);
+        } else {
+            self.timers.push(Timer::create_timer(identifier, String::from(stage_task_identifier)));
+        }
+    }
+
+    pub fn timer_exists(&self, uid: usize) -> bool {
+        for timer in &self.timers {
+            if timer.uid == uid {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    pub fn delete_or_reset_single_timer(&mut self, delete: bool, timer_identifier: usize) {
+        self.delete_or_reset_multiple_timers(delete, vec![timer_identifier]);
+    }
+
+    pub fn delete_or_reset_multiple_timers(&mut self, delete: bool, timer_identifiers: Vec<usize>) {
+        let timer_indexes: Vec<usize> = self.get_timer_indexes_based_by_uids(timer_identifiers);
+        for timer_index in timer_indexes {
+            if delete {
+                self.timers.remove(timer_index);
+            } else {
+                self.timers[timer_index].reset_timer();
+            }
+        }
+    }
+    
+    fn get_timer_indexes_based_by_uids(&self, uids: Vec<usize>) -> Vec<usize> {
+        let mut prepare: Vec<usize> = Vec::new();
+        let mut counter: usize = 0;
+        for timer in &self.timers {
+            if uids.contains(&timer.uid) {
+                prepare.push(counter);
+            }
+
+            counter += 1;
+        }
+
+        return prepare;
+    }
+
+    fn get_timer_indexes_based_excluding_by_uids(&self, uids: Vec<usize>) -> Vec<usize> {
+        let mut prepare: Vec<usize> = Vec::new();
+        let mut counter: usize = 0;
+        for timer in &self.timers {
+            if !uids.contains(&timer.uid) {
+                prepare.push(counter);
+            }
+
+            counter += 1;
+        }
+
+        return prepare;
+    }
+
+    fn get_timer_uids_based_on_exclusion(&self, uids: Vec<usize>) -> Vec<usize> {
+        let mut prepare: Vec<usize> = Vec::new();
+        let mut counter: usize = 0;
+        for timer in &self.timers {
+            if !uids.contains(&timer.uid) {
+                prepare.push(counter);
+            }
+
+            counter += 1;
+        }
+
+        return prepare;
+    }
+
+    pub fn delete_or_reset_all_timers_except_one(&mut self, delete: bool, ignored_timer: usize) {
+        let uids_of_timers_to_reset_or_delete = self.get_timer_uids_based_on_exclusion(vec![ignored_timer]);
+        self.delete_or_reset_multiple_timers(delete, uids_of_timers_to_reset_or_delete);
+    }
+
+    pub fn delete_or_reset_all_timers_except_many(&mut self, delete: bool, ignored_timers: Vec<usize>) {
+        let uids_of_timers_to_reset_or_delete = self.get_timer_uids_based_on_exclusion(ignored_timers);
+        self.delete_or_reset_multiple_timers(delete, uids_of_timers_to_reset_or_delete);
     }
 
     pub fn store_timing_by_uid(&mut self, uid: usize) {
@@ -74,7 +154,7 @@ impl Utility {
         return self.clone();
     }
 
-    //wipes timers on clone
+    //wipes timers of clone
     pub fn clone_and_add_location(&self, called_from: &str) -> Utility {
         let mut temp = self.clone();
         temp.timers = Vec::new();

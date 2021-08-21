@@ -12,7 +12,7 @@ fn main() {
     utility.enable_timing_print();
 
     //purges the database, should be used selectively
-    db_purge(utility.clone());
+    //db_purge(utility.clone());
 
     //The FileManager stores working files, hashsets and supporting functions related to updating those files
     let mut file_manager: FileManager = FileManager::new(utility.clone());
@@ -26,7 +26,8 @@ fn main() {
     file_manager.process_new_files(utility.clone());
 
     utility.disable_timing_print();
-
-    Content::print_contents(file_manager.working_content.clone(), utility.clone());
-    print::print_shows(file_manager.tv.working_shows.clone(), utility.clone());
+    println!("Number of contents loaded in memory: {}", file_manager.working_content.len());
+    println!("Number of shows loaded in memory: {}", file_manager.tv.working_shows.len());
+    //Content::print_contents(file_manager.working_content.clone(), utility.clone());
+    //print::print_shows(file_manager.tv.working_shows.clone(), utility.clone());
 }

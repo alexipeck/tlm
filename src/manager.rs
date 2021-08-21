@@ -38,6 +38,7 @@ impl TrackedDirectories {
         } else {
             self.root_directories.push_back(String::from(r"T:\"));
             self.root_directories.push_back(String::from(r"\\nas.local\tvshows\"));
+            self.root_directories.push_back(String::from(r"C:\Users\Alexi Peck\Downloads\TV Shows"));
             /*self.root_directories.push_back(String::from(
                 r"C:\Users\Alexi Peck\Desktop\tlm\test_files\generics\",
             ));
@@ -126,28 +127,30 @@ impl FileManager {
     pub fn process_new_files(&mut self, utility: Utility) {
         let mut utility = utility.clone_and_add_location("process_new_files");
         utility.add_timer(0, "startup: processing new files");
-        
+
         while self.new_files_queue.len() > 0 {
             let current = self.new_files_queue.pop();
             if current.is_some() {
                 let current = current.unwrap();
 
-                utility.add_timer(1, "startup: creating content from PathBuf");
+                utility.add_timer(1, "startup: dealing with content from PathBuf");
     
                 utility.add_timer(2, "startup: creating content from PathBuf");
                 let mut content = Content::new(&current, &mut self.tv.working_shows, utility.clone());
                 utility.store_timing_by_uid(2);
         
-                utility.add_timer(3, "startup: creating content from PathBuf");
+                utility.add_timer(3, "startup: inserting content to DB");
                 content.set_uid(insert_content(content.clone(), utility.clone()));
                 utility.store_timing_by_uid(3);
         
-                utility.add_timer(4, "startup: creating content from PathBuf");
+                utility.add_timer(4, "startup: inserting episode to DB if it is such");
                 insert_episode_if_episode(content.clone(), utility.clone());
                 utility.store_timing_by_uid(4);
         
                 self.working_content.push(content);
-                utility.print_all_timers_except_one(0, 2, utility.clone());
+                utility.print_specific_timer_by_uid(1, 2, utility.clone());
+                utility.print_all_timers_except_many(vec![0, 1], 3, utility.clone());
+                utility.delete_or_reset_multiple_timers(false, vec![1, 2, 3, 4]);
             }
         }
 

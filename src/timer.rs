@@ -9,7 +9,7 @@ pub struct Timer {
     pub uid: usize,
     pub stage_task_identifier: String,
     pub timer: Instant,
-    pub saved_time: Option<u128>,
+    pub stored_time: Option<u128>,
 }
 
 impl Timer {
@@ -18,12 +18,17 @@ impl Timer {
             uid: uid,
             stage_task_identifier: stage_task_identifier,
             timer: Instant::now(),
-            saved_time: None,
+            stored_time: None,
         }
     }
 
     pub fn store_timing(&mut self) {
-        self.saved_time = Some(self.timer.elapsed().as_millis());
+        self.stored_time = Some(self.timer.elapsed().as_millis());
+    }
+
+    pub fn reset_timer(&mut self) {
+        self.timer = Instant::now();
+        self.stored_time = None;
     }
 
     pub fn print_timer(
@@ -31,18 +36,18 @@ impl Timer {
         indent: usize,
         utility: Utility,
     ) {
-        let utility = utility.clone_and_add_location("print_timer_from_stage_and_task");
+        let utility = utility.clone_and_add_location("print_timer");
 
-        if self.saved_time.is_none() {
+        if self.stored_time.is_none() {
             self.store_timing();
         }
         
-        if self.saved_time.unwrap() > 0 {
+        if self.stored_time.unwrap() > 0 {
             print(
                 Verbosity::INFO,
                 From::Utility,
                 utility,
-                format!("{} took: {}ms", self.stage_task_identifier, self.saved_time.unwrap()),
+                format!("{} took: {}ms", self.stage_task_identifier, self.stored_time.unwrap()),
                 indent,
             );
         }
