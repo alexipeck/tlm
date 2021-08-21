@@ -200,17 +200,15 @@ impl Content {
         return Content::get_full_path_with_suffix_from_pathbuf(pathbuf, "_encodeH4U8".to_string());
     }
 
-    pub fn seperate_season_episode(&mut self, episode: &mut bool) -> Option<(usize, Vec<usize>)> {
+    pub fn seperate_season_episode(&mut self) -> Option<(usize, Vec<usize>)> {
         let episode_string: String;
 
         //Check if the regex caught a valid episode format
         match re_strip(&self.get_filename(), r"S[0-9]*E[0-9\-]*") {
             None => {
-                *episode = false;
                 return None;
             }
             Some(temp_string) => {
-                *episode = true;
                 episode_string = temp_string;
             }
         }
@@ -455,11 +453,10 @@ impl Content {
         let mut utility = utility.clone_and_add_location("designate_and_fill");
 
         utility.add_timer(0, "startup: separate out season and episode from filename", utility.clone());
-        let mut episode = false;
-        let show_season_episode_temp = self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
+        let show_season_episode_temp = self.seperate_season_episode();
         utility.print_specific_timer_by_uid(0, utility.clone());
-
-        if episode {
+        
+        if show_season_episode_temp.is_some() {
             utility.add_timer(1, "startup: get show title from filename", utility.clone());
             self.designation = Designation::Episode;
             for section in String::from(
@@ -506,10 +503,9 @@ impl Content {
     ) {
         let utility = utility.clone_and_add_location("regenerate_from_pathbuf");
 
-        let mut episode = false;
-        self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
+        let t = self.seperate_season_episode();
 
-        if episode {
+        if t.is_some() {
             self.designation = Designation::Episode;
         } else {
             self.designation = Designation::Generic;
