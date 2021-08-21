@@ -1,6 +1,6 @@
-use std::time::Instant;
-use crate::utility::Utility;
 use crate::print::{print, From, Verbosity};
+use crate::utility::Utility;
+use std::time::Instant;
 
 #[derive(Clone, Debug)]
 pub struct Timer {
@@ -19,7 +19,7 @@ impl Timer {
             stage_task_identifier: stage_task_identifier,
             timer: Instant::now(),
             stored_time: None,
-        }
+        };
     }
 
     pub fn store_timing(&mut self) {
@@ -31,26 +31,26 @@ impl Timer {
         self.stored_time = None;
     }
 
-    pub fn print_timer(
-        &mut self,
-        indent: usize,
-        utility: Utility,
-    ) {
+    pub fn print_timer(&mut self, indent: usize, utility: Utility) {
         let utility = utility.clone_and_add_location("print_timer");
         if !utility.print_timing {
-            return
+            return;
         }
 
         if self.stored_time.is_none() {
             self.store_timing();
         }
-        
+
         if self.stored_time.unwrap() > 0 {
             print(
                 Verbosity::INFO,
                 From::Utility,
                 utility,
-                format!("{} took: {}ms", self.stage_task_identifier, self.stored_time.unwrap()),
+                format!(
+                    "{} took: {}ms",
+                    self.stage_task_identifier,
+                    self.stored_time.unwrap()
+                ),
                 indent,
             );
         }

@@ -1,10 +1,8 @@
-use serde::{Deserialize, Serialize};
+use crate::manager::TrackedDirectories;
 use argparse::{ArgumentParser, Store, StoreFalse, StoreTrue};
-use crate::{
-    manager::TrackedDirectories,
-};
-use std::path::Path;
+use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::Path;
 
 #[derive(Deserialize, Serialize)]
 pub struct Config {
@@ -29,7 +27,7 @@ impl Config {
             ];
             let ignored_paths = vec![String::from(".recycle_bin")];
             let mut tracked_directories = TrackedDirectories::new();
-            tracked_directories.root_directories = vec![String::from(r"D:\Desktop\tlmfiles")];//these need to change
+            tracked_directories.root_directories = vec![String::from(r"D:\Desktop\tlmfiles")]; //these need to change
             config = Config {
                 allowed_extensions,
                 ignored_paths,

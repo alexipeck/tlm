@@ -1,7 +1,9 @@
 use crate::{
-    tv::TV,
-    content::Content, database::ensure::ensure_tables_exist, utility::Utility,
+    content::Content,
+    database::ensure::ensure_tables_exist,
     database::insert::{insert_content, insert_episode_if_episode},
+    tv::TV,
+    utility::Utility,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
@@ -55,7 +57,6 @@ impl FileManager {
         return file_manager;
     }
 
-
     pub fn process_new_files(&mut self, utility: Utility) {
         let mut utility = utility.clone_and_add_location("process_new_files");
         utility.add_timer(0, "startup: processing new files");
@@ -66,19 +67,20 @@ impl FileManager {
                 let current = current.unwrap();
 
                 utility.add_timer(1, "startup: dealing with content from PathBuf");
-    
+
                 utility.add_timer(2, "startup: creating content from PathBuf");
-                let mut content = Content::new(&current, &mut self.tv.working_shows, utility.clone());
+                let mut content =
+                    Content::new(&current, &mut self.tv.working_shows, utility.clone());
                 utility.store_timing_by_uid(2);
-        
+
                 utility.add_timer(3, "startup: inserting content to DB");
                 content.set_uid(insert_content(content.clone(), utility.clone()));
                 utility.store_timing_by_uid(3);
-        
+
                 utility.add_timer(4, "startup: inserting episode to DB if it is such");
                 insert_episode_if_episode(content.clone(), utility.clone());
                 utility.store_timing_by_uid(4);
-        
+
                 self.working_content.push(content);
                 utility.print_specific_timer_by_uid(1, 2, utility.clone());
                 utility.print_all_timers_except_many(vec![0, 1], 3, utility.clone());

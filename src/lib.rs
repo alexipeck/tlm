@@ -1,3 +1,4 @@
+pub mod config;
 pub mod content;
 pub mod database;
 pub mod designation;
@@ -8,19 +9,13 @@ pub mod print;
 pub mod queue;
 pub mod show;
 pub mod task;
-pub mod utility;
 pub mod timer;
 pub mod tv;
-pub mod config;
+pub mod utility;
 
-use tv::show::Show;
 use content::Content;
-use std::{
-    collections::HashSet,
-    fs,
-    path::PathBuf,
-    time::Instant,
-};
+use std::{collections::HashSet, fs, path::PathBuf, time::Instant};
+use tv::show::Show;
 use twox_hash::xxh3;
 use utility::Utility;
 

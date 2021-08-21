@@ -1,6 +1,4 @@
-use crate::{
-    timer::Timer,
-};
+use crate::timer::Timer;
 
 #[derive(Clone, Debug)]
 pub struct Utility {
@@ -23,7 +21,10 @@ impl Utility {
         if self.timer_exists(identifier) {
             self.delete_or_reset_single_timer(false, identifier);
         } else {
-            self.timers.push(Timer::create_timer(identifier, String::from(stage_task_identifier)));
+            self.timers.push(Timer::create_timer(
+                identifier,
+                String::from(stage_task_identifier),
+            ));
         }
     }
 
@@ -50,7 +51,7 @@ impl Utility {
             }
         }
     }
-    
+
     fn get_timer_indexes_based_by_uids(&self, uids: Vec<usize>) -> Vec<usize> {
         let mut prepare: Vec<usize> = Vec::new();
         let mut counter: usize = 0;
@@ -94,12 +95,18 @@ impl Utility {
     }
 
     pub fn delete_or_reset_all_timers_except_one(&mut self, delete: bool, ignored_timer: usize) {
-        let uids_of_timers_to_reset_or_delete = self.get_timer_uids_based_on_exclusion(vec![ignored_timer]);
+        let uids_of_timers_to_reset_or_delete =
+            self.get_timer_uids_based_on_exclusion(vec![ignored_timer]);
         self.delete_or_reset_multiple_timers(delete, uids_of_timers_to_reset_or_delete);
     }
 
-    pub fn delete_or_reset_all_timers_except_many(&mut self, delete: bool, ignored_timers: Vec<usize>) {
-        let uids_of_timers_to_reset_or_delete = self.get_timer_uids_based_on_exclusion(ignored_timers);
+    pub fn delete_or_reset_all_timers_except_many(
+        &mut self,
+        delete: bool,
+        ignored_timers: Vec<usize>,
+    ) {
+        let uids_of_timers_to_reset_or_delete =
+            self.get_timer_uids_based_on_exclusion(ignored_timers);
         self.delete_or_reset_multiple_timers(delete, uids_of_timers_to_reset_or_delete);
     }
 
@@ -127,7 +134,12 @@ impl Utility {
         }
     }
 
-    pub fn print_all_timers_except_many(&mut self, uid: Vec<usize>, indent: usize, utility: Utility) {
+    pub fn print_all_timers_except_many(
+        &mut self,
+        uid: Vec<usize>,
+        indent: usize,
+        utility: Utility,
+    ) {
         for timer in &mut self.timers {
             if !uid.contains(&timer.uid) {
                 timer.print_timer(indent, utility.clone());

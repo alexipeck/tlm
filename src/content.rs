@@ -112,7 +112,10 @@ impl Content {
         let mut content: Vec<Content> = Vec::new();
         let mut counter = 2;
         for row in raw_content {
-            utility.add_timer(counter, &format!("startup: creating content from row: {}", counter - 1));
+            utility.add_timer(
+                counter,
+                &format!("startup: creating content from row: {}", counter - 1),
+            );
             content.push(Content::from_row(row, working_shows, utility.clone()));
             utility.store_timing_by_uid(counter);
 
@@ -478,7 +481,10 @@ impl Content {
             }
             utility.print_specific_timer_by_uid(1, 3, utility.clone());
 
-            utility.add_timer(2, "startup: set show_season_episode from temp, ensure_show_exists");
+            utility.add_timer(
+                2,
+                "startup: set show_season_episode from temp, ensure_show_exists",
+            );
             self.show_season_episode = show_season_episode_temp;
             self.show_uid = Some(Show::ensure_show_exists(
                 self.show_title.clone().unwrap(),

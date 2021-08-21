@@ -3,12 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use tlm::{
-    database::{
-        miscellaneous::db_purge,
-    },
+    config::{Config, Preferences},
+    database::miscellaneous::db_purge,
     manager::{FileManager, TrackedDirectories},
     utility::Utility,
-    config::{Config, Preferences},
 };
 
 fn main() {
@@ -37,7 +35,12 @@ fn main() {
 
     utility.disable_timing_print();
 
-
-    println!("Number of contents loaded in memory: {}", file_manager.working_content.len());
-    println!("Number of shows loaded in memory: {}", file_manager.tv.working_shows.len());
+    println!(
+        "Number of contents loaded in memory: {}",
+        file_manager.working_content.len()
+    );
+    println!(
+        "Number of shows loaded in memory: {}",
+        file_manager.tv.working_shows.len()
+    );
 }

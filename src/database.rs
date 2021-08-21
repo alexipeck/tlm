@@ -366,7 +366,10 @@ pub mod retrieve {
 }
 
 pub mod miscellaneous {
-    use crate::{database::{execution::execute_query, ensure::ensure_tables_exist}, utility::Utility};
+    use crate::{
+        database::{ensure::ensure_tables_exist, execution::execute_query},
+        utility::Utility,
+    };
 
     pub fn db_purge(utility: Utility) {
         let utility = utility.clone_and_add_location("db_purge");
