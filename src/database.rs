@@ -366,7 +366,7 @@ pub mod retrieve {
 }
 
 pub mod miscellaneous {
-    use crate::{database::execution::execute_query, utility::Utility};
+    use crate::{database::{execution::execute_query, ensure::ensure_tables_exist}, utility::Utility};
 
     pub fn db_purge(utility: Utility) {
         let utility = utility.clone_and_add_location("db_purge");
@@ -386,52 +386,6 @@ pub mod miscellaneous {
                 utility.clone(),
             )
         }
-    }
-}
-
-pub mod print {
-    use crate::{
-        content::Content,
-        database::execution::get_by_query,
-        print::{print, From, Verbosity},
-        utility::Utility,
-    };
-
-    pub fn print_jobs(utility: Utility) {
-        let utility = utility.clone_and_add_location("print_jobs");
-
-        for row in get_by_query(r"SELECT job_uid FROM job_queue", utility.clone()) {
-            let uid: i32 = row.get(0);
-            print(
-                Verbosity::INFO,
-                From::DB,
-                utility.clone(),
-                format!("[job_uid:{}]", uid),
-                0,
-            );
-        }
-    }
-
-    pub fn print_shows(utility: Utility) {
-        let utility = utility.clone_and_add_location("print_shows");
-
-        for row in get_by_query(r"SELECT title FROM show", utility.clone()) {
-            let title: String = row.get(0);
-            print(
-                Verbosity::INFO,
-                From::DB,
-                utility.clone(),
-                format!("[title:{}]", title),
-                0,
-            );
-        }
-    }
-
-    pub fn print_contents(contents: Vec<Content>, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_contents");
-
-        for content in contents {
-            content.print(utility.clone());
-        }
+        ensure_tables_exist(utility.clone());
     }
 }
