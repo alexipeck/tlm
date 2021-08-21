@@ -8,110 +8,22 @@ use tlm::{
     },
     manager::{FileManager, TrackedDirectories},
     utility::Utility,
+    config::{Config, Preferences},
 };
-
-#[derive(Deserialize, Serialize)]
-struct Config {
-    allowed_extensions: Vec<String>,
-    ignored_paths: Vec<String>,
-    tracked_directories: TrackedDirectories,
-}
-
-struct Preferences {
-    default_print: bool,
-    print_contents: bool,
-    print_shows: bool,
-    print_general: bool,
-    db_purge: bool,
-    config_file_path: String,
-}
-
-impl Preferences {
-    pub fn new() -> Preferences {
-        Preferences {
-            default_print: true,
-            print_contents: false,
-            print_shows: false,
-            print_general: false,
-            db_purge: false,
-            config_file_path: String::from("./.tlm_config"),
-        }
-    }
-}
 
 fn main() {
     //traceback and timing utility
     let mut utility = Utility::new("main");
 
-    let mut options = Preferences::new();
+    let preferences = Preferences::new();
 
-    {
-        let mut parser = ArgumentParser::new();
-        parser.set_description("tlm: Transcoding Library Manager");
-        parser.refer(&mut options.default_print).add_option(
-            &["--disable-print"],
-            StoreFalse,
-            "Disables printing by default. Specific types of print can be enabled on top of this",
-        );
-        parser.refer(&mut options.db_purge).add_option(
-            &["--purge"],
-            StoreTrue,
-            "Purge database before starting",
-        );
-        parser.refer(&mut options.print_contents).add_option(
-            &["--print-content"],
-            StoreTrue,
-            "Enable printing content",
-        );
-        parser.refer(&mut options.print_shows).add_option(
-            &["--print-shows"],
-            StoreTrue,
-            "Enable printing shows",
-        );
-        parser.refer(&mut options.print_general).add_option(
-            &["--print-general"],
-            StoreTrue,
-            "Enable printing general debug information",
-        );
-        parser.refer(&mut options.config_file_path).add_option(
-            &["--config"],
-            Store,
-            "Set a custom config path",
-        );
+    let config: Config = Config::ensure_config_exists_then_get(&preferences);
 
-        parser.parse_args_or_exit();
-    }
-
-    let config: Config;
-
-    //Default config
-    if Path::new(&options.config_file_path).exists() {
-        let config_toml = fs::read_to_string(&options.config_file_path).unwrap();
-        config = toml::from_str(&config_toml).unwrap();
-    } else {
-        let allowed_extensions = vec![
-            String::from("mp4"),
-            String::from("mkv"),
-            String::from("webm"),
-        ];
-        let ignored_paths = vec![String::from(".recycle_bin")];
-        let mut tracked_directories = TrackedDirectories::new();
-        tracked_directories.root_directories = vec![String::from(r"D:\Desktop\tlmfiles")];
-        config = Config {
-            allowed_extensions,
-            ignored_paths,
-            tracked_directories,
-        };
-        let toml = toml::to_string(&config).unwrap();
-        fs::write(&options.config_file_path, toml).unwrap();
-    }
-
-    if options.default_print || options.print_general {
+    if preferences.default_print || preferences.print_general {
         utility.enable_timing_print();
     }
 
-    //purges the database, should be used selectively
-    if options.db_purge {
+    if preferences.db_purge {
         db_purge(utility.clone());
     }
 
