@@ -5,6 +5,7 @@ use crate::{
     },
     utility::Utility,
     print::{print, From, Verbosity},
+    content::Content,
 };
 use tokio_postgres::Row;
 
@@ -23,8 +24,6 @@ impl TV {
     }
 }
 
-use crate::content::Content;
-
 #[derive(Clone, Debug)]
 pub struct Season {
     pub number: usize,
@@ -41,7 +40,7 @@ impl Season {
     }
 
     pub fn insert_in_order(&mut self, content: Content) {
-        //not in order, but that's fine for now, just doing member stuff
+        //not in order, but that's fine for now
         self.episodes.push(content);
     }
 }
@@ -69,7 +68,6 @@ impl Show {
             From::Show,
             utility,
             format!("[uid: {}][title: {}]", self.show_uid, self.title),
-            0,
         );
     }
 
@@ -93,13 +91,13 @@ impl Show {
         if show_uid.is_some() {
             return show_uid.unwrap();
         } else {
-            println!("Adding a new show: {}", show_title);
-            utility.add_timer(0, "startup: inserting show UID");
+            print(Verbosity::INFO, From::TV, utility.clone(), format!("Adding a new show: {}", show_title));
+            utility.add_timer(0, "startup: inserting show UID", utility.clone());
             let result = get_client(utility.clone()).query(
                 r"INSERT INTO show (title) VALUES ($1) RETURNING show_uid;",
                 &[&show_title],
             );
-            utility.print_specific_timer_by_uid(0, 4, utility.clone());
+            utility.print_specific_timer_by_uid(0, utility.clone());
 
             let show_uid = get_uid_from_result(result, utility.clone());
             let new_show = Show {
@@ -118,7 +116,7 @@ impl Show {
     pub fn from_row(row: Row, utility: Utility) -> Show {
         let mut utility = utility.clone_and_add_location("from_row(Show)");
 
-        utility.add_timer(0, "startup: from_row: create show from row");
+        utility.add_timer(0, "startup: from_row: create show from row", utility.clone());
         let show_uid_temp: i32 = row.get(0);
         let title_temp: String = row.get(1);
 
@@ -128,14 +126,14 @@ impl Show {
             title: title_temp,
             seasons: Vec::new(),
         };
-        utility.print_specific_timer_by_uid(0, 1, utility.clone());
+        utility.print_specific_timer_by_uid(0, utility.clone());
 
         return show;
     }
 
     pub fn get_all_shows(utility: Utility) -> Vec<Show> {
         let mut utility = utility.clone_and_add_location("get_all_shows(Show)");
-        utility.add_timer(0, "startup: read in shows");
+        utility.add_timer(0, "startup: read in shows", utility.clone());
 
         let raw_shows = get_by_query(r"SELECT show_uid, title FROM show", utility.clone());
 
@@ -144,7 +142,7 @@ impl Show {
             shows.push(Show::from_row(row, utility.clone()));
         }
 
-        utility.print_specific_timer_by_uid(0, 0, utility.clone());
+        utility.print_specific_timer_by_uid(0, utility.clone());
 
         return shows;
     }
@@ -159,7 +157,6 @@ pub fn print_shows(shows: Vec<Show>, utility: Utility) {
             From::Show,
             utility.clone(),
             format!("[title:{}]", show.title),
-            0,
         );
     }
 }

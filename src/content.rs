@@ -32,6 +32,16 @@ fn get_os_slash() -> char {
     };
 }
 
+pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
+    let utility = utility.clone_and_add_location("get_all_filenames_as_hashset");
+
+    let mut hashset = HashSet::new();
+    for row in get_by_query(r"SELECT full_path FROM content", utility.clone()) {
+        hashset.insert(Content::filename_from_row_as_pathbuf(row));
+    }
+    return hashset;
+}
+
 //generic content container, focus on video
 #[derive(Clone, Debug)]
 pub struct Content {
@@ -53,7 +63,7 @@ pub struct Content {
 impl Content {
     //needs to be able to be created from a pathbuf or pulled from the database
     pub fn new(raw_filepath: &PathBuf, working_shows: &mut Vec<Show>, utility: Utility) -> Content {
-        let utility = utility.clone_and_add_location("new");
+        let utility = utility.clone_and_add_location("new(Content)");
 
         let mut content = Content {
             full_path: raw_filepath.clone(),
@@ -70,9 +80,9 @@ impl Content {
     }
 
     pub fn from_row(row: Row, working_shows: &mut Vec<Show>, utility: Utility) -> Content {
-        let mut utility = utility.clone_and_add_location("from_row");
+        let mut utility = utility.clone_and_add_location("from_row(Content)");
 
-        utility.add_timer(0, "startup: from_row: initial content fill");
+        utility.add_timer(0, "startup: from_row: initial content fill", utility.clone());
         let content_uid_temp: i32 = row.get(0);
         let full_path_temp: String = row.get(1);
         let designation_temp: i32 = row.get(2);
@@ -89,20 +99,20 @@ impl Content {
             show_season_episode: None,
             show_uid: None,
         };
-        utility.print_specific_timer_by_uid(1, 2, utility.clone());
+        utility.print_specific_timer_by_uid(1, utility.clone());
 
-        utility.add_timer(1, "startup, from_row: designate_and_fill");
+        utility.add_timer(1, "startup, from_row: designate_and_fill", utility.clone());
         content.designate_and_fill(working_shows, utility.clone());
-        utility.print_specific_timer_by_uid(1, 1, utility.clone());
+        utility.print_specific_timer_by_uid(1, utility.clone());
 
         return content;
     }
 
     pub fn get_all_contents(working_shows: &mut Vec<Show>, utility: Utility) -> Vec<Content> {
-        let mut utility = utility.clone_and_add_location("get_all_contents");
-        utility.add_timer(0, "startup: read in content");
+        let mut utility = utility.clone_and_add_location("get_all_contents(Content)");
+        utility.add_timer(0, "startup: read in content", utility.clone());
 
-        utility.add_timer(1, "startup: reading in content from database");
+        utility.add_timer_with_extra_indentation(1, "startup: reading in content from database", 1, utility.clone());
         let raw_content = get_by_query(
             r"SELECT content_uid, full_path, designation FROM content",
             utility.clone(),
@@ -112,9 +122,11 @@ impl Content {
         let mut content: Vec<Content> = Vec::new();
         let mut counter = 2;
         for row in raw_content {
-            utility.add_timer(
+            utility.add_timer_with_extra_indentation(
                 counter,
                 &format!("startup: creating content from row: {}", counter - 1),
+                1,
+                utility.clone(),
             );
             content.push(Content::from_row(row, working_shows, utility.clone()));
             utility.store_timing_by_uid(counter);
@@ -122,8 +134,8 @@ impl Content {
             counter += 1;
         }
 
-        utility.print_specific_timer_by_uid(0, 1, utility.clone());
-        utility.print_all_timers_except_one(0, 2, utility.clone());
+        utility.print_specific_timer_by_uid(0, utility.clone());
+        utility.print_all_timers_except_one(0, utility.clone());
 
         return content;
     }
@@ -133,31 +145,21 @@ impl Content {
         return PathBuf::from(temp);
     }
 
-    pub fn get_all_filenames_as_hashset_from_contents(
+    pub fn get_all_filenames_as_hashset_from_content(
         contents: Vec<Content>,
         utility: Utility,
     ) -> HashSet<PathBuf> {
         let mut utility =
-            utility.clone_and_add_location("get_all_filenames_as_hashset_from_contents");
-        utility.add_timer(0, "startup: read in 'existing files hashset'");
+            utility.clone_and_add_location("get_all_filenames_as_hashset_from_content(Content)");
+        utility.add_timer(0, "startup: read in 'existing files hashset'", utility.clone());
 
         let mut hashset = HashSet::new();
         for content in contents {
             hashset.insert(content.full_path);
         }
 
-        utility.print_specific_timer_by_uid(0, 1, utility.clone());
+        utility.print_specific_timer_by_uid(0, utility.clone());
 
-        return hashset;
-    }
-
-    pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
-        let utility = utility.clone_and_add_location("get_all_filenames_as_hashset");
-
-        let mut hashset = HashSet::new();
-        for row in get_by_query(r"SELECT full_path FROM content", utility.clone()) {
-            hashset.insert(Content::filename_from_row_as_pathbuf(row));
-        }
         return hashset;
     }
 
@@ -313,7 +315,7 @@ impl Content {
     }
 
     pub fn get_show_title(&self, utility: Utility) -> String {
-        let utility = utility.clone_and_add_location("get_show_title");
+        let utility = utility.clone_and_add_location("get_show_title(Show)");
 
         if self.show_title.is_some() {
             return self.show_title.clone().unwrap();
@@ -323,14 +325,13 @@ impl Content {
                 From::Content,
                 utility,
                 String::from("You called get_show_title on a content that didn't have an episode designation or was incorrectly created"),
-                0,
             );
             panic!();
         }
     }
 
     pub fn get_show_uid(&self, utility: Utility) -> usize {
-        let utility = utility.clone_and_add_location("get_show_uid");
+        let utility = utility.clone_and_add_location("get_show_uid(Show)");
 
         if self.show_uid.is_some() {
             return self.show_uid.unwrap();
@@ -340,7 +341,6 @@ impl Content {
                 From::Content,
                 utility,
                 String::from("You called get_show_uid on a content that didn't have an episode designation or was incorrectly created"),
-                0,
             );
             panic!();
         }
@@ -370,7 +370,7 @@ impl Content {
     }
 
     pub fn get_content_uid(&self, utility: Utility) -> usize {
-        let utility = utility.clone_and_add_location("get_content_uid");
+        let utility = utility.clone_and_add_location("get_content_uid(Show)");
 
         if self.content_uid.is_some() {
             return self.content_uid.unwrap();
@@ -380,14 +380,13 @@ impl Content {
                 From::Content,
                 utility,
                 String::from("You called get_content_uid on a content that hasn't been inserted into the db yet or hasn't been assigned a content_uid from the database correctly"),
-                0,
             );
             panic!();
         }
     }
 
     pub fn print(&self, utility: Utility) {
-        let utility = utility.clone_and_add_location("print");
+        let utility = utility.clone_and_add_location("print(Show)");
 
         if self.show_uid.is_some()
             && self.show_title.is_some()
@@ -407,7 +406,6 @@ impl Content {
                     self.get_full_path(),
                     self.get_show_title(utility.clone()),
                 ),
-            0,
             );
         } else {
             self.print_simple(utility);
@@ -427,7 +425,6 @@ impl Content {
                 self.designation as i32,
                 self.get_full_path(),
             ),
-            0,
         );
     }
 
@@ -457,13 +454,13 @@ impl Content {
     pub fn designate_and_fill(&mut self, working_shows: &mut Vec<Show>, utility: Utility) {
         let mut utility = utility.clone_and_add_location("designate_and_fill");
 
-        utility.add_timer(0, "startup: separate out season and episode from filename");
+        utility.add_timer(0, "startup: separate out season and episode from filename", utility.clone());
         let mut episode = false;
         let show_season_episode_temp = self.seperate_season_episode(&mut episode); //TODO: This is checking if it's an episode because main is too cluttered right now to unweave the content and show logic
-        utility.print_specific_timer_by_uid(0, 3, utility.clone());
+        utility.print_specific_timer_by_uid(0, utility.clone());
 
         if episode {
-            utility.add_timer(1, "startup: get show title from filename");
+            utility.add_timer(1, "startup: get show title from filename", utility.clone());
             self.designation = Designation::Episode;
             for section in String::from(
                 self.full_path
@@ -479,11 +476,13 @@ impl Content {
                 self.show_title = Some(String::from(section));
                 break;
             }
-            utility.print_specific_timer_by_uid(1, 3, utility.clone());
+            utility.print_specific_timer_by_uid(1, utility.clone());
 
-            utility.add_timer(
+            utility.add_timer_with_extra_indentation(
                 2,
                 "startup: set show_season_episode from temp, ensure_show_exists",
+                1,
+                utility.clone(),
             );
             self.show_season_episode = show_season_episode_temp;
             self.show_uid = Some(Show::ensure_show_exists(
@@ -491,7 +490,7 @@ impl Content {
                 working_shows,
                 utility.clone(),
             ));
-            utility.print_specific_timer_by_uid(2, 3, utility.clone());
+            utility.print_specific_timer_by_uid(2, utility.clone());
         } else {
             self.designation = Designation::Generic;
             self.show_title = None;

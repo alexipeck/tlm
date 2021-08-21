@@ -29,7 +29,6 @@ pub mod error_handling {
                 From::DB,
                 utility,
                 format!("{}", error.unwrap_err()),
-                0,
             );
         }
     }
@@ -47,7 +46,6 @@ pub mod error_handling {
                     "something is wrong with the returned result, or lack their of: {}",
                     error.unwrap_err()
                 ),
-                0,
             );
             panic!();
         }
@@ -70,7 +68,6 @@ pub mod error_handling {
                 From::DB,
                 utility,
                 format!("should have returned a boolean from the db, regardless"),
-                0,
             );
             panic!();
         }
@@ -115,7 +112,6 @@ pub mod execution {
                         "client couldn't establish a connection: {}",
                         err.to_string()
                     ),
-                    0,
                 );
                 panic!();
             }
@@ -138,7 +134,6 @@ pub mod execution {
                 From::DB,
                 utility.clone(),
                 format!("{}: {}", String::from(query), error.unwrap_err()),
-                0,
             );
         }
     }

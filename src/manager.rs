@@ -1,4 +1,10 @@
-use crate::{print::{print, From, Verbosity}, content::Content, database::ensure::ensure_tables_exist, database::insert::{insert_content, insert_episode_if_episode}, tv::TV, utility::Utility};
+use crate::{
+    print::{print, From, Verbosity},
+    content::Content,
+    database::ensure::ensure_tables_exist,
+    database::insert::{insert_content, insert_episode_if_episode},
+    tv::TV, utility::Utility,
+};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
@@ -19,7 +25,6 @@ impl TrackedDirectories {
 }
 
 pub struct FileManager {
-    //ordered by dependencies
     pub tracked_directories: TrackedDirectories,
     pub working_content: Vec<Content>,
     pub existing_files_hashset: HashSet<PathBuf>,
@@ -43,7 +48,7 @@ impl FileManager {
 
         file_manager.working_content =
             Content::get_all_contents(&mut file_manager.tv.working_shows.clone(), utility.clone());
-        file_manager.existing_files_hashset = Content::get_all_filenames_as_hashset_from_contents(
+        file_manager.existing_files_hashset = Content::get_all_filenames_as_hashset_from_content(
             file_manager.working_content.clone(),
             utility.clone(),
         );
@@ -55,11 +60,10 @@ impl FileManager {
         let utility = utility.clone_and_add_location("print_number_of_content(FileManager)");
 
         print(
-            crate::print::Verbosity::INFO,
+            Verbosity::INFO,
             From::Manager,
             utility,
             format!("Number of content loaded in memory: {}", self.working_content.len()),
-            0
         );
     }
 
@@ -67,46 +71,45 @@ impl FileManager {
         let utility = utility.clone_and_add_location("print_number_of_shows(FileManager)");
 
         print(
-            crate::print::Verbosity::INFO,
+            Verbosity::INFO,
             From::Manager,
             utility,
             format!("Number of shows loaded in memory: {}", self.tv.working_shows.len()),
-            0
         );
     }
 
     pub fn process_new_files(&mut self, utility: Utility) {
         let mut utility = utility.clone_and_add_location("process_new_files(FileManager)");
-        utility.add_timer(0, "startup: processing new files");
+        utility.add_timer(0, "startup: processing new files", utility.clone());
 
         while self.new_files_queue.len() > 0 {
             let current = self.new_files_queue.pop();
             if current.is_some() {
                 let current = current.unwrap();
 
-                utility.add_timer(1, "startup: dealing with content from PathBuf");
+                utility.add_timer_with_extra_indentation(1, "startup: dealing with content from PathBuf", 1, utility.clone());
 
-                utility.add_timer(2, "startup: creating content from PathBuf");
+                utility.add_timer_with_extra_indentation(2, "startup: creating content from PathBuf", 2, utility.clone());
                 let mut content =
                     Content::new(&current, &mut self.tv.working_shows, utility.clone());
                 utility.store_timing_by_uid(2);
 
-                utility.add_timer(3, "startup: inserting content to DB");
+                utility.add_timer_with_extra_indentation(3, "startup: inserting content to DB", 2, utility.clone());
                 content.set_uid(insert_content(content.clone(), utility.clone()));
                 utility.store_timing_by_uid(3);
 
-                utility.add_timer(4, "startup: inserting episode to DB if it is such");
+                utility.add_timer_with_extra_indentation(4, "startup: inserting episode to DB if it is such", 2, utility.clone());
                 insert_episode_if_episode(content.clone(), utility.clone());
                 utility.store_timing_by_uid(4);
 
                 self.working_content.push(content);
-                utility.print_specific_timer_by_uid(1, 2, utility.clone());
-                utility.print_all_timers_except_many(vec![0, 1], 3, utility.clone());
+                utility.print_specific_timer_by_uid(1, utility.clone());
+                utility.print_all_timers_except_many(vec![0, 1], utility.clone());
                 utility.delete_or_reset_multiple_timers(false, vec![1, 2, 3, 4]);
             }
         }
 
-        utility.print_specific_timer_by_uid(0, 1, utility.clone());
+        utility.print_specific_timer_by_uid(0, utility.clone());
     }
 
     //Hash set guarentees no duplicates in O(1) time

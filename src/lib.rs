@@ -25,7 +25,7 @@ pub fn load_from_database(utility: Utility) -> (Vec<Content>, Vec<Show>, HashSet
     let mut working_shows: Vec<Show> = Show::get_all_shows(utility.clone());
     let working_content = Content::get_all_contents(&mut working_shows, utility.clone());
     let existing_files_hashset: HashSet<PathBuf> =
-        Content::get_all_filenames_as_hashset_from_contents(
+        Content::get_all_filenames_as_hashset_from_content(
             working_content.clone(),
             utility.clone(),
         );

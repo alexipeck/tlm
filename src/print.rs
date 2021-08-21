@@ -22,6 +22,7 @@ pub enum From {
     DB = 7,
     Job = 8,
     Manager = 9,
+    TV = 10,
 }
 
 pub fn get_indentation_from_tab_count(tab_count: usize) -> String {
@@ -35,9 +36,8 @@ pub fn get_indentation_from_tab_count(tab_count: usize) -> String {
 pub fn print(
     verbosity: Verbosity,
     from_module: From,
-    utility_for_traceback: Utility,
+    utility: Utility,
     string: String,
-    indent: usize,
 ) {
     fn print(
         verbosity_string: &str,
@@ -52,7 +52,7 @@ pub fn print(
         );
     }
     //asdf;
-    let indentation = get_indentation_from_tab_count(indent);
+    let indentation = get_indentation_from_tab_count(utility.indentation);
 
     //print(Verbosity::DEBUG, r"", format!(""));
     let set_output_verbosity_level = Verbosity::DEBUG as usize; //would be set as a filter in any output view
@@ -90,9 +90,9 @@ pub fn print(
     if verbosity.clone() as usize == Verbosity::CRITICAL as usize
         || verbosity.clone() as usize == Verbosity::ERROR as usize
     {
-        call_functions_string = utility_for_traceback.to_string();
+        call_functions_string = utility.to_string();
     } else {
-        call_functions_string += &format!("{}", utility_for_traceback.traceback[utility_for_traceback.traceback.len() - 1]);
+        call_functions_string += &format!("{}", utility.traceback[utility.traceback.len() - 1]);
     }
 
     if verbosity == show_only {
