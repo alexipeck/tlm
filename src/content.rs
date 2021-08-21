@@ -1,5 +1,4 @@
 use crate::{
-    database::execution::get_by_query,
     designation::{convert_i32_to_designation, Designation},
     //job::Job,
     print::{print, From, Verbosity},
@@ -9,6 +8,10 @@ use crate::{
 use regex::Regex;
 use std::{collections::HashSet, path::PathBuf};
 use tokio_postgres::Row;
+use crate::model::*;
+use crate::diesel::prelude::*;
+use crate::schema::content::dsl::*;
+use crate::establish_connection;
 
 fn re_strip(input: &String, expression: &str) -> Option<String> {
     let output = Regex::new(expression).unwrap().find(input);
@@ -55,7 +58,7 @@ impl Content {
     pub fn new(raw_filepath: &PathBuf, working_shows: &mut Vec<Show>, utility: Utility) -> Content {
         let utility = utility.clone_and_add_location("new");
 
-        let mut content = Content {
+        let mut c = Content {
             full_path: raw_filepath.clone(),
             designation: Designation::Generic,
             content_uid: None,
@@ -65,20 +68,20 @@ impl Content {
             show_season_episode: None,
             show_uid: None,
         };
-        content.designate_and_fill(working_shows, utility.clone());
-        return content;
+        c.designate_and_fill(working_shows, utility.clone());
+        return c;
     }
 
-    pub fn from_row(row: Row, working_shows: &mut Vec<Show>, utility: Utility) -> Content {
+    pub fn from_content_model(content_model: ContentModel, working_shows: &mut Vec<Show>, utility: Utility) -> Content {
         let mut utility = utility.clone_and_add_location("from_row");
 
         utility.add_timer(0, "startup: from_row: initial content fill");
-        let content_uid_temp: i32 = row.get(0);
-        let full_path_temp: String = row.get(1);
-        let designation_temp: i32 = row.get(2);
+        let content_uid_temp: i32 = content_model.content_uid;
+        let full_path_temp: String = content_model.full_path;
+        let designation_temp: i32 = content_model.designation;
 
         //change to have it pull all info out of the db, it currently generates what it can from the filename
-        let mut content = Content {
+        let mut c = Content {
             full_path: PathBuf::from(&full_path_temp),
             designation: convert_i32_to_designation(designation_temp), //Designation::Generic
             content_uid: Some(content_uid_temp as usize),
@@ -92,31 +95,31 @@ impl Content {
         utility.print_specific_timer_by_uid(1, 2, utility.clone());
 
         utility.add_timer(1, "startup, from_row: designate_and_fill");
-        content.designate_and_fill(working_shows, utility.clone());
+        c.designate_and_fill(working_shows, utility.clone());
         utility.print_specific_timer_by_uid(1, 1, utility.clone());
 
-        return content;
+        return c;
     }
 
     pub fn get_all_contents(working_shows: &mut Vec<Show>, utility: Utility) -> Vec<Content> {
+        let connection = establish_connection();
         let mut utility = utility.clone_and_add_location("get_all_contents");
         utility.add_timer(0, "startup: read in content");
 
         utility.add_timer(1, "startup: reading in content from database");
-        let raw_content = get_by_query(
-            r"SELECT content_uid, full_path, designation FROM content",
-            utility.clone(),
-        );
+        let raw_content = content
+            .load::<ContentModel>(&connection)
+            .expect("Error loading content");
         utility.store_timing_by_uid(1);
 
-        let mut content: Vec<Content> = Vec::new();
+        let mut c: Vec<Content> = Vec::new();
         let mut counter = 2;
-        for row in raw_content {
+        for content_model in raw_content {
             utility.add_timer(
                 counter,
                 &format!("startup: creating content from row: {}", counter - 1),
             );
-            content.push(Content::from_row(row, working_shows, utility.clone()));
+            c.push(Content::from_content_model(content_model, working_shows, utility.clone()));
             utility.store_timing_by_uid(counter);
 
             counter += 1;
@@ -125,7 +128,7 @@ impl Content {
         utility.print_specific_timer_by_uid(0, 1, utility.clone());
         utility.print_all_timers_except_one(0, 2, utility.clone());
 
-        return content;
+        return c;
     }
 
     pub fn filename_from_row_as_pathbuf(row: Row) -> PathBuf {
@@ -142,8 +145,8 @@ impl Content {
         utility.add_timer(0, "startup: read in 'existing files hashset'");
 
         let mut hashset = HashSet::new();
-        for content in contents {
-            hashset.insert(content.full_path);
+        for c in contents {
+            hashset.insert(c.full_path);
         }
 
         utility.print_specific_timer_by_uid(0, 1, utility.clone());
@@ -153,10 +156,13 @@ impl Content {
 
     pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
         let utility = utility.clone_and_add_location("get_all_filenames_as_hashset");
-
+        let connection = establish_connection();
+        let raw_content = content
+            .load::<ContentModel>(&connection)
+            .expect("Error loading content");
         let mut hashset = HashSet::new();
-        for row in get_by_query(r"SELECT full_path FROM content", utility.clone()) {
-            hashset.insert(Content::filename_from_row_as_pathbuf(row));
+        for row in raw_content {
+            hashset.insert(PathBuf::from(row.full_path));
         }
         return hashset;
     }
@@ -435,10 +441,6 @@ impl Content {
         return pathbuf.parent().unwrap().to_string_lossy().to_string();
     }
 
-    pub fn set_uid(&mut self, content_uid: usize) {
-        self.content_uid = Some(content_uid);
-    }
-
     pub fn set_show_uid(&mut self, show_uid: usize) {
         self.show_uid = Some(show_uid);
     }
@@ -523,8 +525,8 @@ impl Content {
     pub fn print_contents(contents: Vec<Content>, utility: Utility) {
         let utility = utility.clone_and_add_location("print_contents");
 
-        for content in contents {
-            content.print(utility.clone());
+        for c in contents {
+            c.print(utility.clone());
         }
     }
 }

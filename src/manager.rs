@@ -9,6 +9,11 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
 
+use crate::model::*;
+use crate::diesel::prelude::*;
+use crate::schema::content::dsl::*;
+use crate::{establish_connection, create_content, create_episode};
+
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct TrackedDirectories {
     pub root_directories: Vec<String>,
@@ -59,8 +64,9 @@ impl FileManager {
 
     pub fn process_new_files(&mut self, utility: Utility) {
         let mut utility = utility.clone_and_add_location("process_new_files");
+        let connection = establish_connection();
         utility.add_timer(0, "startup: processing new files");
-
+        println!("WHATHTEFUCK{}", self.new_files_queue.len());
         while self.new_files_queue.len() > 0 {
             let current = self.new_files_queue.pop();
             if current.is_some() {
@@ -69,19 +75,29 @@ impl FileManager {
                 utility.add_timer(1, "startup: dealing with content from PathBuf");
 
                 utility.add_timer(2, "startup: creating content from PathBuf");
-                let mut content =
+                let mut c =
                     Content::new(&current, &mut self.tv.working_shows, utility.clone());
                 utility.store_timing_by_uid(2);
 
                 utility.add_timer(3, "startup: inserting content to DB");
-                content.set_uid(insert_content(content.clone(), utility.clone()));
+                let content_model = create_content(&connection, String::from(c.full_path.to_str().unwrap()), c.designation as i32);
+                c.content_uid = Some(content_model.content_uid as usize);
                 utility.store_timing_by_uid(3);
 
                 utility.add_timer(4, "startup: inserting episode to DB if it is such");
-                insert_episode_if_episode(content.clone(), utility.clone());
+                if c.content_is_episode() {
+                    let c_uid = c.content_uid.unwrap() as i32;
+                    let s_uid = c.show_uid.unwrap() as i32;
+                    let (season_number_temp, episode_number_temp) = c.show_season_episode.as_ref().unwrap();
+                    let season_number = *season_number_temp as i16;
+                    let episode_number = episode_number_temp[0] as i16;
+                    create_episode(&connection, c_uid, s_uid, c.show_title.as_ref().unwrap().to_string(), season_number as i32, episode_number as i32);
+                }
+                
+                //insert_episode_if_episode(c.clone(), utility.clone());
                 utility.store_timing_by_uid(4);
 
-                self.working_content.push(content);
+                self.working_content.push(c);
                 utility.print_specific_timer_by_uid(1, 2, utility.clone());
                 utility.print_all_timers_except_many(vec![0, 1], 3, utility.clone());
                 utility.delete_or_reset_multiple_timers(false, vec![1, 2, 3, 4]);

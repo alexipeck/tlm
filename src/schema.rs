@@ -11,8 +11,8 @@ table! {
         content_uid -> Int4,
         show_uid -> Int4,
         episode_title -> Text,
-        season_number -> Int2,
-        episode_number -> Int2,
+        season_number -> Int4,
+        episode_number -> Int4,
     }
 }
 

@@ -1,4 +1,4 @@
-use super::schema::content;
+use super::schema::{content, episode};
 
 #[derive(Insertable)]
 #[table_name="content"]
@@ -9,9 +9,19 @@ pub struct NewContent {
 
 #[derive(Queryable)]
 pub struct ContentModel {
-    content_uid: i32,
+    pub content_uid: i32,
     pub full_path: String,
-    designation: i32,
+    pub designation: i32,
+}
+
+#[derive(Insertable)]
+#[table_name="episode"]
+pub struct NewEpisode {
+    pub content_uid: i32,
+    pub show_uid: i32,
+    pub episode_title: String,
+    pub season_number: i32,
+    pub episode_number: i32,
 }
 
 #[derive(Queryable)]
@@ -19,8 +29,8 @@ pub struct EpisodeModel {
     content_uid: i32,
     show_uid: i32,
     episode_title: String,
-    season_number: i8,
-    episode_number: i8,
+    season_number: i32,
+    episode_number: i32,
 }
 
 #[derive(Queryable)]

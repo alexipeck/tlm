@@ -16,7 +16,6 @@ pub mod model;
 
 #[macro_use]
 extern crate diesel;
-extern crate dotenv;
 
 use content::Content;
 use std::{collections::HashSet, fs, path::PathBuf, time::Instant};
@@ -28,12 +27,10 @@ use utility::Utility;
 
 use diesel::prelude::*;
 use diesel::pg::PgConnection;
-use dotenv::dotenv;
 use std::env;
 use model::*;
 
 pub fn establish_connection() -> PgConnection {
-    dotenv().ok();
 
     let database_url = env::var("DATABASE_URL")
         .expect("DATABASE_URL must be set");
@@ -52,7 +49,24 @@ pub fn create_content<'a>(conn: &PgConnection, full_path: String, designation: i
     diesel::insert_into(content::table)
         .values(&new_content)
         .get_result(conn)
-        .expect("Error saving new post")
+        .expect("Error saving new content")
+}
+
+pub fn create_episode<'a>(conn: &PgConnection, content_uid: i32, show_uid: i32, episode_title: String, season_number: i32, episode_number: i32) -> EpisodeModel {
+    use schema::episode;
+    
+    let new_episode = NewEpisode {
+        content_uid: content_uid,
+        show_uid: show_uid,
+        episode_title: episode_title,
+        season_number: season_number,
+        episode_number: episode_number
+    };
+
+    diesel::insert_into(episode::table)
+        .values(&new_episode)
+        .get_result(conn)
+        .expect("Error saving new episode")
 }
 
 pub fn load_from_database(utility: Utility) -> (Vec<Content>, Vec<Show>, HashSet<PathBuf>) {
