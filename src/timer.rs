@@ -8,15 +8,17 @@ pub struct Timer {
     //The identifier is an arbitrary string of characters you can search the code directly for, I recommend a 4 character alpha-numeric combination
     pub uid: usize,
     pub stage_task_identifier: String,
+    pub indent_by: usize,
     pub timer: Instant,
     pub stored_time: Option<u128>,
 }
 
 impl Timer {
-    pub fn create_timer(uid: usize, stage_task_identifier: String) -> Timer {
+    pub fn create_timer(uid: usize, stage_task_identifier: String, extra_indentation: usize, utility: Utility) -> Timer {
         return Timer {
             uid: uid,
             stage_task_identifier: stage_task_identifier,
+            indent_by: utility.indentation + extra_indentation,
             timer: Instant::now(),
             stored_time: None,
         };
@@ -31,8 +33,9 @@ impl Timer {
         self.stored_time = None;
     }
 
-    pub fn print_timer(&mut self, indent: usize, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_timer");
+    pub fn print_timer(&mut self, utility: Utility) {
+        let utility = utility.clone_and_add_location("print_timer(Timer)");
+
         if !utility.print_timing {
             return;
         }
@@ -51,7 +54,6 @@ impl Timer {
                     self.stage_task_identifier,
                     self.stored_time.unwrap()
                 ),
-                indent,
             );
         }
     }

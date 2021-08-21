@@ -21,6 +21,8 @@ pub enum From {
     Queue = 6,
     DB = 7,
     Job = 8,
+    Manager = 9,
+    TV = 10,
 }
 
 pub fn get_indentation_from_tab_count(tab_count: usize) -> String {
@@ -34,9 +36,8 @@ pub fn get_indentation_from_tab_count(tab_count: usize) -> String {
 pub fn print(
     verbosity: Verbosity,
     from_module: From,
-    traceback: Utility,
+    utility: Utility,
     string: String,
-    indent: usize,
 ) {
     fn print(
         verbosity_string: &str,
@@ -51,7 +52,7 @@ pub fn print(
         );
     }
     //asdf;
-    let indentation = get_indentation_from_tab_count(indent);
+    let indentation = get_indentation_from_tab_count(utility.indentation);
 
     //print(Verbosity::DEBUG, r"", format!(""));
     let set_output_verbosity_level = Verbosity::DEBUG as usize; //would be set as a filter in any output view
@@ -59,15 +60,16 @@ pub fn print(
 
     //module called from
     let from_module_string: &str;
-    match from_module as usize {
-        1 => from_module_string = "main",
-        2 => from_module_string = "lib",
-        3 => from_module_string = "content",
-        4 => from_module_string = "utility",
-        5 => from_module_string = "shows",
-        6 => from_module_string = "queue",
-        7 => from_module_string = "db",
-        8 => from_module_string = "job",
+    match from_module {
+        From::Main => from_module_string = "main",
+        From::Lib => from_module_string = "lib",
+        From::Content => from_module_string = "content",
+        From::Utility => from_module_string = "utility",
+        From::Show => from_module_string = "shows",
+        From::Queue => from_module_string = "queue",
+        From::DB => from_module_string = "db",
+        From::Job => from_module_string = "job",
+        From::Manager => from_module_string = "manager",
         _ => from_module_string = "notset",
     }
 
@@ -88,9 +90,9 @@ pub fn print(
     if verbosity.clone() as usize == Verbosity::CRITICAL as usize
         || verbosity.clone() as usize == Verbosity::ERROR as usize
     {
-        call_functions_string = traceback.to_string();
+        call_functions_string = utility.to_string();
     } else {
-        call_functions_string += &format!("{}", traceback.traceback[traceback.traceback.len() - 1]);
+        call_functions_string += &format!("{}", utility.traceback[utility.traceback.len() - 1]);
     }
 
     if verbosity == show_only {
