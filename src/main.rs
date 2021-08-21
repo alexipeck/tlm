@@ -17,7 +17,7 @@ struct Config {
     tracked_directories: TrackedDirectories,
 }
 
-struct Options {
+struct Preferences {
     default_print: bool,
     print_contents: bool,
     print_shows: bool,
@@ -26,9 +26,9 @@ struct Options {
     config_file_path: String,
 }
 
-impl Options {
-    pub fn new() -> Options {
-        Options {
+impl Preferences {
+    pub fn new() -> Preferences {
+        Preferences {
             default_print: true,
             print_contents: false,
             print_shows: false,
@@ -43,7 +43,7 @@ fn main() {
     //traceback and timing utility
     let mut utility = Utility::new("main");
 
-    let mut options = Options::new();
+    let mut options = Preferences::new();
 
     {
         let mut parser = ArgumentParser::new();
@@ -93,7 +93,6 @@ fn main() {
             String::from("mp4"),
             String::from("mkv"),
             String::from("webm"),
-            String::from("MP4"),
         ];
         let ignored_paths = vec![String::from(".recycle_bin")];
         let mut tracked_directories = TrackedDirectories::new();
