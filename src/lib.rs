@@ -7,17 +7,53 @@ pub mod job;
 pub mod manager;
 pub mod print;
 pub mod queue;
-pub mod show;
 pub mod task;
 pub mod timer;
 pub mod tv;
 pub mod utility;
+pub mod schema;
+pub mod model;
+
+#[macro_use]
+extern crate diesel;
+extern crate dotenv;
 
 use content::Content;
 use std::{collections::HashSet, fs, path::PathBuf, time::Instant};
 use tv::show::Show;
 use twox_hash::xxh3;
 use utility::Utility;
+
+
+
+use diesel::prelude::*;
+use diesel::pg::PgConnection;
+use dotenv::dotenv;
+use std::env;
+use model::*;
+
+pub fn establish_connection() -> PgConnection {
+    dotenv().ok();
+
+    let database_url = env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set");
+    PgConnection::establish(&database_url)
+        .expect(&format!("Error connecting to {}", database_url))
+}
+
+pub fn create_content<'a>(conn: &PgConnection, full_path: String, designation: i32) -> ContentModel {
+    use schema::content;
+    
+    let new_content = NewContent {
+        full_path: full_path,
+        designation: designation
+    };
+
+    diesel::insert_into(content::table)
+        .values(&new_content)
+        .get_result(conn)
+        .expect("Error saving new post")
+}
 
 pub fn load_from_database(utility: Utility) -> (Vec<Content>, Vec<Show>, HashSet<PathBuf>) {
     let utility = utility.clone_and_add_location("load_from_database");

@@ -33,7 +33,7 @@ fn get_os_slash() -> char {
 }
 
 //generic content container, focus on video
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Queryable)]
 pub struct Content {
     //generic
     pub content_uid: Option<usize>,
