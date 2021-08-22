@@ -1,6 +1,5 @@
 pub mod config;
 pub mod content;
-pub mod database;
 pub mod designation;
 pub mod error_handling;
 pub mod job;
@@ -49,6 +48,22 @@ pub fn create_content<'a>(
         .values(&new_content)
         .get_result(conn)
         .expect("Error saving new content")
+}
+
+pub fn create_show<'a>(
+    conn: &PgConnection,
+    title: String,
+) -> ShowModel {
+    use schema::show;
+
+    let new_show = NewShow {
+        title: title,
+    };
+
+    diesel::insert_into(show::table)
+        .values(&new_show)
+        .get_result(conn)
+        .expect("Error saving new show")
 }
 
 pub fn create_episode<'a>(

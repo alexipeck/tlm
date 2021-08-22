@@ -1,4 +1,4 @@
-use super::schema::{content, episode};
+use super::schema::{content, episode, show};
 
 #[derive(Insertable)]
 #[table_name = "content"]
@@ -51,6 +51,12 @@ pub struct JobTaskQueueModel {
     pub id: i32,
     pub job_uid: i32,
     pub task_id: i32,
+}
+
+#[derive(Insertable)]
+#[table_name = "show"]
+pub struct NewShow {
+    pub title: String,
 }
 
 #[derive(Queryable)]

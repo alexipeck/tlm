@@ -1,4 +1,3 @@
-use crate::database::execution::*;
 use crate::diesel::prelude::*;
 use crate::establish_connection;
 use crate::model::*;
@@ -34,16 +33,6 @@ fn get_os_slash() -> char {
     } else {
         '\\'
     };
-}
-
-pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
-    let utility = utility.clone_and_add_location("get_all_filenames_as_hashset");
-
-    let mut hashset = HashSet::new();
-    for row in get_by_query(r"SELECT full_path FROM content", utility.clone()) {
-        hashset.insert(Content::filename_from_row_as_pathbuf(row));
-    }
-    return hashset;
 }
 
 //generic content container, focus on video
