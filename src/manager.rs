@@ -89,9 +89,11 @@ impl FileManager {
                 utility.store_timing_by_uid(4);
 
                 self.working_content.push(c);
-                utility.print_specific_timer_by_uid(1, 2, utility.clone());
-                utility.print_all_timers_except_many(vec![0, 1], 3, utility.clone());
-                utility.delete_or_reset_multiple_timers(false, vec![1, 2, 3, 4]);
+                if utility.print_timing {
+                    utility.print_specific_timer_by_uid(1, 2, utility.clone());
+                    utility.print_all_timers_except_many(vec![0, 1], 3, utility.clone());
+                    utility.delete_or_reset_multiple_timers(false, vec![1, 2, 3, 4]);
+                }
             }
         }
 

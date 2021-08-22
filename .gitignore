@@ -2,3 +2,4 @@
 /test_files
 *.7z
 .tlm_config
+workspace.code-workspace
