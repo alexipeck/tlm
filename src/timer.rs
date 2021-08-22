@@ -14,7 +14,12 @@ pub struct Timer {
 }
 
 impl Timer {
-    pub fn create_timer(uid: usize, stage_task_identifier: String, extra_indentation: usize, utility: Utility) -> Timer {
+    pub fn create_timer(
+        uid: usize,
+        stage_task_identifier: String,
+        extra_indentation: usize,
+        utility: Utility,
+    ) -> Timer {
         return Timer {
             uid: uid,
             stage_task_identifier: stage_task_identifier,

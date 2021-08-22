@@ -33,12 +33,7 @@ pub fn get_indentation_from_tab_count(tab_count: usize) -> String {
     return indentation;
 }
 
-pub fn print(
-    verbosity: Verbosity,
-    from_module: From,
-    utility: Utility,
-    string: String,
-) {
+pub fn print(verbosity: Verbosity, from_module: From, utility: Utility, string: String) {
     fn print(
         verbosity_string: &str,
         from_module_string: &str,

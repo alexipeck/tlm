@@ -1,8 +1,7 @@
-
 use super::schema::{content, episode};
 
 #[derive(Insertable)]
-#[table_name="content"]
+#[table_name = "content"]
 pub struct NewContent {
     pub full_path: String,
     pub designation: i32,
@@ -16,7 +15,7 @@ pub struct ContentModel {
 }
 
 #[derive(Insertable)]
-#[table_name="episode"]
+#[table_name = "episode"]
 pub struct NewEpisode {
     pub content_uid: i32,
     pub show_uid: i32,
@@ -35,16 +34,16 @@ pub struct EpisodeModel {
 }
 
 #[derive(Queryable)]
-pub struct JobQueueModel{
-        pub job_uid: i32,
-        pub source_path: String,
-        pub encode_path: String,
-        pub cache_directory: String,
-        pub encode_string: String,
-        pub status_underway: bool,
-        pub status_completed: bool,
-        pub worker_uid: i32,
-        pub worker_string_id: String,
+pub struct JobQueueModel {
+    pub job_uid: i32,
+    pub source_path: String,
+    pub encode_path: String,
+    pub cache_directory: String,
+    pub encode_string: String,
+    pub status_underway: bool,
+    pub status_completed: bool,
+    pub worker_uid: i32,
+    pub worker_string_id: String,
 }
 
 #[derive(Queryable)]

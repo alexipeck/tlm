@@ -1,3 +1,8 @@
+use crate::database::execution::*;
+use crate::diesel::prelude::*;
+use crate::establish_connection;
+use crate::model::*;
+use crate::schema::content::dsl::*;
 use crate::{
     designation::{convert_i32_to_designation, Designation},
     //job::Job,
@@ -8,11 +13,6 @@ use crate::{
 use regex::Regex;
 use std::{collections::HashSet, path::PathBuf};
 use tokio_postgres::Row;
-use crate::model::*;
-use crate::diesel::prelude::*;
-use crate::schema::content::dsl::*;
-use crate::establish_connection;
-use crate::database::execution::*;
 
 fn re_strip(input: &String, expression: &str) -> Option<String> {
     let output = Regex::new(expression).unwrap().find(input);
@@ -83,11 +83,18 @@ impl Content {
         return c;
     }
 
-
-    pub fn from_content_model(content_model: ContentModel, working_shows: &mut Vec<Show>, utility: Utility) -> Content {
+    pub fn from_content_model(
+        content_model: ContentModel,
+        working_shows: &mut Vec<Show>,
+        utility: Utility,
+    ) -> Content {
         let mut utility = utility.clone_and_add_location("from_row(Content)");
 
-        utility.add_timer(0, "startup: from_row: initial content fill", utility.clone());
+        utility.add_timer(
+            0,
+            "startup: from_row: initial content fill",
+            utility.clone(),
+        );
         let content_uid_temp: i32 = content_model.content_uid;
         let full_path_temp: String = content_model.full_path;
         let designation_temp: i32 = content_model.designation;
@@ -118,7 +125,12 @@ impl Content {
         let mut utility = utility.clone_and_add_location("get_all_contents(Content)");
         utility.add_timer(0, "startup: read in content", utility.clone());
 
-        utility.add_timer_with_extra_indentation(1, "startup: reading in content from database", 1, utility.clone());
+        utility.add_timer_with_extra_indentation(
+            1,
+            "startup: reading in content from database",
+            1,
+            utility.clone(),
+        );
         let raw_content = content
             .load::<ContentModel>(&connection)
             .expect("Error loading content");
@@ -134,7 +146,11 @@ impl Content {
                 1,
                 utility.clone(),
             );
-            c.push(Content::from_content_model(content_model, working_shows, utility.clone()));
+            c.push(Content::from_content_model(
+                content_model,
+                working_shows,
+                utility.clone(),
+            ));
             utility.store_timing_by_uid(counter);
 
             counter += 1;
@@ -157,7 +173,11 @@ impl Content {
     ) -> HashSet<PathBuf> {
         let mut utility =
             utility.clone_and_add_location("get_all_filenames_as_hashset_from_content(Content)");
-        utility.add_timer(0, "startup: read in 'existing files hashset'", utility.clone());
+        utility.add_timer(
+            0,
+            "startup: read in 'existing files hashset'",
+            utility.clone(),
+        );
 
         let mut hashset = HashSet::new();
         for c in contents {
@@ -467,10 +487,14 @@ impl Content {
     pub fn designate_and_fill(&mut self, working_shows: &mut Vec<Show>, utility: Utility) {
         let mut utility = utility.clone_and_add_location("designate_and_fill");
 
-        utility.add_timer(0, "startup: separate out season and episode from filename", utility.clone());
+        utility.add_timer(
+            0,
+            "startup: separate out season and episode from filename",
+            utility.clone(),
+        );
         let show_season_episode_temp = self.seperate_season_episode();
         utility.print_specific_timer_by_uid(0, utility.clone());
-        
+
         if show_season_episode_temp.is_some() {
             utility.add_timer(1, "startup: get show title from filename", utility.clone());
             self.designation = Designation::Episode;

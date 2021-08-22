@@ -5,14 +5,14 @@ pub mod designation;
 pub mod error_handling;
 pub mod job;
 pub mod manager;
+pub mod model;
 pub mod print;
 pub mod queue;
+pub mod schema;
 pub mod task;
 pub mod timer;
 pub mod tv;
 pub mod utility;
-pub mod schema;
-pub mod model;
 
 #[macro_use]
 extern crate diesel;
@@ -23,27 +23,26 @@ use tv::Show;
 use twox_hash::xxh3;
 use utility::Utility;
 
-
-
-use diesel::prelude::*;
 use diesel::pg::PgConnection;
-use std::env;
+use diesel::prelude::*;
 use model::*;
+use std::env;
 
 pub fn establish_connection() -> PgConnection {
-
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
-    PgConnection::establish(&database_url)
-        .expect(&format!("Error connecting to {}", database_url))
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    PgConnection::establish(&database_url).expect(&format!("Error connecting to {}", database_url))
 }
 
-pub fn create_content<'a>(conn: &PgConnection, full_path: String, designation: i32) -> ContentModel {
+pub fn create_content<'a>(
+    conn: &PgConnection,
+    full_path: String,
+    designation: i32,
+) -> ContentModel {
     use schema::content;
-    
+
     let new_content = NewContent {
         full_path: full_path,
-        designation: designation
+        designation: designation,
     };
 
     diesel::insert_into(content::table)
@@ -52,15 +51,22 @@ pub fn create_content<'a>(conn: &PgConnection, full_path: String, designation: i
         .expect("Error saving new content")
 }
 
-pub fn create_episode<'a>(conn: &PgConnection, content_uid: i32, show_uid: i32, episode_title: String, season_number: i32, episode_number: i32) -> EpisodeModel {
+pub fn create_episode<'a>(
+    conn: &PgConnection,
+    content_uid: i32,
+    show_uid: i32,
+    episode_title: String,
+    season_number: i32,
+    episode_number: i32,
+) -> EpisodeModel {
     use schema::episode;
-    
+
     let new_episode = NewEpisode {
         content_uid: content_uid,
         show_uid: show_uid,
         episode_title: episode_title,
         season_number: season_number,
-        episode_number: episode_number
+        episode_number: episode_number,
     };
 
     diesel::insert_into(episode::table)

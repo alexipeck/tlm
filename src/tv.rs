@@ -1,11 +1,11 @@
 use crate::{
+    content::Content,
     database::{
         execution::{get_by_query, get_client},
         retrieve::get_uid_from_result,
     },
-    utility::Utility,
     print::{print, From, Verbosity},
-    content::Content,
+    utility::Utility,
 };
 use tokio_postgres::Row;
 
@@ -91,7 +91,12 @@ impl Show {
         if show_uid.is_some() {
             return show_uid.unwrap();
         } else {
-            print(Verbosity::INFO, From::TV, utility.clone(), format!("Adding a new show: {}", show_title));
+            print(
+                Verbosity::INFO,
+                From::TV,
+                utility.clone(),
+                format!("Adding a new show: {}", show_title),
+            );
             utility.add_timer(0, "startup: inserting show UID", utility.clone());
             let result = get_client(utility.clone()).query(
                 r"INSERT INTO show (title) VALUES ($1) RETURNING show_uid;",
@@ -116,7 +121,11 @@ impl Show {
     pub fn from_row(row: Row, utility: Utility) -> Show {
         let mut utility = utility.clone_and_add_location("from_row(Show)");
 
-        utility.add_timer(0, "startup: from_row: create show from row", utility.clone());
+        utility.add_timer(
+            0,
+            "startup: from_row: create show from row",
+            utility.clone(),
+        );
         let show_uid_temp: i32 = row.get(0);
         let title_temp: String = row.get(1);
 
