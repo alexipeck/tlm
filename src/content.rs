@@ -463,14 +463,7 @@ impl Content {
     }
 
     pub fn content_is_episode(&self) -> bool {
-        if self.show_uid.is_some()
-            && self.show_title.is_some()
-            && self.show_season_episode.is_some()
-        {
-            return true;
-        }
-        //print(Verbosity::INFO, From::Main, traceback, format!("exists: [show_uid: {}][show_title: {}][show_season_episode: {}]", self.show_uid.is_some(), self.show_title.is_some(), self.show_season_episode.is_some()));
-        return false;
+        return self.show_uid.is_some() && self.show_title.is_some() && self.show_season_episode.is_some();
     }
 
     pub fn designate_and_fill(&mut self, working_shows: &mut Vec<Show>, utility: Utility) {
