@@ -46,7 +46,6 @@ pub struct Preferences {
     pub print_contents: bool,
     pub print_shows: bool,
     pub print_general: bool,
-    pub db_purge: bool,
     pub config_file_path: String,
 }
 
@@ -57,7 +56,6 @@ impl Preferences {
             print_contents: false,
             print_shows: false,
             print_general: false,
-            db_purge: false,
             config_file_path: String::from("./.tlm_config"),
         };
 
@@ -73,11 +71,6 @@ impl Preferences {
             &["--disable-print"],
             StoreFalse,
             "Disables printing by default. Specific types of print can be enabled on top of this",
-        );
-        parser.refer(&mut self.db_purge).add_option(
-            &["--purge"],
-            StoreTrue,
-            "Purge database before starting",
         );
         parser.refer(&mut self.print_contents).add_option(
             &["--print-content"],

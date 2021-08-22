@@ -1,13 +1,12 @@
 use crate::{
     print::{print, From, Verbosity},
     content::Content,
-    database::ensure::ensure_tables_exist,
-    database::insert::{insert_content, insert_episode_if_episode},
     tv::TV, utility::Utility,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
+use crate::{establish_connection, create_content, create_episode};
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct TrackedDirectories {
@@ -35,8 +34,6 @@ pub struct FileManager {
 impl FileManager {
     pub fn new(utility: Utility) -> FileManager {
         let utility = utility.clone_and_add_location("new(FileManager)");
-
-        ensure_tables_exist(utility.clone());
 
         let mut file_manager = FileManager {
             tracked_directories: TrackedDirectories::new(),
@@ -79,9 +76,10 @@ impl FileManager {
     }
 
     pub fn process_new_files(&mut self, utility: Utility) {
-        let mut utility = utility.clone_and_add_location("process_new_files(FileManager)");
-        utility.add_timer(0, "startup: processing new files", utility.clone());
 
+        let mut utility = utility.clone_and_add_location("process_new_files(FileManager)");
+        let connection = establish_connection();
+        utility.add_timer(0, "startup: processing new files", utility.clone());
         while self.new_files_queue.len() > 0 {
             let current = self.new_files_queue.pop();
             if current.is_some() {
@@ -89,23 +87,36 @@ impl FileManager {
 
                 utility.add_timer_with_extra_indentation(1, "startup: dealing with content from PathBuf", 1, utility.clone());
 
+
                 utility.add_timer_with_extra_indentation(2, "startup: creating content from PathBuf", 2, utility.clone());
-                let mut content =
+                let mut c =
                     Content::new(&current, &mut self.tv.working_shows, utility.clone());
                 utility.store_timing_by_uid(2);
 
                 utility.add_timer_with_extra_indentation(3, "startup: inserting content to DB", 2, utility.clone());
-                content.set_uid(insert_content(content.clone(), utility.clone()));
+                let content_model = create_content(&connection, String::from(c.full_path.to_str().unwrap()), c.designation as i32);
+                c.content_uid = Some(content_model.content_uid as usize);
                 utility.store_timing_by_uid(3);
 
                 utility.add_timer_with_extra_indentation(4, "startup: inserting episode to DB if it is such", 2, utility.clone());
-                insert_episode_if_episode(content.clone(), utility.clone());
+                if c.content_is_episode() {
+                    let c_uid = c.content_uid.unwrap() as i32;
+                    let s_uid = c.show_uid.unwrap() as i32;
+                    let (season_number_temp, episode_number_temp) = c.show_season_episode.as_ref().unwrap();
+                    let season_number = *season_number_temp as i16;
+                    let episode_number = episode_number_temp[0] as i16;
+                    create_episode(&connection, c_uid, s_uid, c.show_title.as_ref().unwrap().to_string(), season_number as i32, episode_number as i32);
+                }
+                
+                //insert_episode_if_episode(c.clone(), utility.clone());
                 utility.store_timing_by_uid(4);
 
-                self.working_content.push(content);
-                utility.print_specific_timer_by_uid(1, utility.clone());
-                utility.print_all_timers_except_many(vec![0, 1], utility.clone());
-                utility.delete_or_reset_multiple_timers(false, vec![1, 2, 3, 4]);
+                self.working_content.push(c);
+                if utility.print_timing {
+                    utility.print_specific_timer_by_uid(1, utility.clone());
+                    utility.print_all_timers_except_many(vec![0, 1], utility.clone());
+                    utility.delete_or_reset_multiple_timers(false, vec![1, 2, 3, 4]);
+                }
             }
         }
 

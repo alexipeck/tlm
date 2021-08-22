@@ -1,6 +1,5 @@
 use tlm::{
     config::{Config, Preferences},
-    database::miscellaneous::db_purge,
     manager::FileManager,
     utility::Utility,
 };
@@ -15,10 +14,6 @@ fn main() {
 
     if preferences.default_print || preferences.print_general {
         utility.enable_timing_print();
-    }
-
-    if preferences.db_purge {
-        db_purge(utility.clone());
     }
 
     //The FileManager stores working files, hashsets and supporting functions related to updating those files
