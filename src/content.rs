@@ -77,19 +77,11 @@ impl Content {
         working_shows: &mut Vec<Show>,
         utility: Utility,
     ) -> Content {
-        let mut utility = utility.clone_and_add_location("from_row(Content)", 0);
+        let mut utility = utility.clone_add_location_start_timing("from_row(Content)", 0);
 
-        utility.add_timer(
-            0,
-            "startup: from_row: initial content fill",
-            utility.clone(),
-        );
         let content_uid_temp: i32 = content_model.content_uid;
         let full_path_temp: String = content_model.full_path;
         let designation_temp: i32 = content_model.designation;
-
-
-        utility.print_function_timer();
 
         //change to have it pull all info out of the db, it currently generates what it can from the filename
         let mut c = Content {
@@ -103,11 +95,9 @@ impl Content {
             show_season_episode: None,
             show_uid: None,
         };
-        //utility.print_specific_timer_by_uid(1, utility.clone());
 
         utility.add_timer(0, "startup, from_row: designate_and_fill", utility.clone());
         c.designate_and_fill(working_shows, utility.clone(),);
-        utility.print_specific_timer_by_uid(0, utility.clone());
 
         return c;
     }
@@ -116,35 +106,18 @@ impl Content {
         let connection = establish_connection();
         let mut utility = utility.clone_add_location_start_timing("get_all_contents(Content)", 0);
 
-        utility.add_timer_with_extra_indentation(
-            1,
-            "startup: reading in content from database",
-            1,
-            utility.clone(),
-        );
         let raw_content = content
             .load::<ContentModel>(&connection)
             .expect("Error loading content");
-        utility.store_timing_by_uid(1);
 
         let mut c: Vec<Content> = Vec::new();
-        let mut counter = 2;
-        utility.print_function_timer();
 
         for content_model in raw_content {
-            /*utility.add_timer(
-                counter,
-                &format!("startup: creating content from row: {}", counter - 1),
-                utility.clone(),
-                            );*/
             c.push(Content::from_content_model(
                 content_model,
                 working_shows,
                 utility.clone(),
             ));
-            utility.store_timing_by_uid(counter);
-
-            counter += 1;
         }
         utility.print_function_timer();
         return c;
@@ -159,22 +132,18 @@ impl Content {
         contents: Vec<Content>,
         utility: Utility,
     ) -> HashSet<PathBuf> {
-        let mut utility =
-            utility.clone_add_location_start_timing("get_all_filenames_as_hashset_from_content(Content)", 0);
-        //utility.add_timer(0, "startup: read in 'existing files hashset'", utility.clone());
-
+        let mut utility = utility.clone_add_location_start_timing("get_all_filenames_as_hashset", 0);
         let mut hashset = HashSet::new();
         for c in contents {
             hashset.insert(c.full_path);
         }
 
-        //utility.print_specific_timer_by_uid(0, utility.clone());
         utility.print_function_timer();
         return hashset;
     }
 
     pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
-        let utility = utility.clone_and_add_location("get_all_filenames_as_hashset", 0);
+        let mut utility = utility.clone_and_add_location("get_all_filenames_as_hashset", 0);
         let connection = establish_connection();
         let raw_content = content
             .load::<ContentModel>(&connection)
@@ -183,6 +152,8 @@ impl Content {
         for row in raw_content {
             hashset.insert(PathBuf::from(row.full_path));
         }
+
+        utility.print_function_timer();
         return hashset;
     }
 

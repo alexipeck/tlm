@@ -28,7 +28,7 @@ pub enum From {
 pub fn get_indentation_from_tab_count(tab_count: usize) -> String {
     let mut indentation: String = String::new();
     for _ in 0..tab_count {
-        indentation += r"    ";
+        indentation += "\t";
     }
     return indentation;
 }
