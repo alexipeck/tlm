@@ -91,16 +91,13 @@ pub fn create_episode<'a>(
 }
 
 pub fn load_from_database(utility: Utility) -> (Vec<Content>, Vec<Show>, HashSet<PathBuf>) {
-    let utility = utility.clone_and_add_location("load_from_database");
+    let mut utility = utility.clone_add_location_start_timing("load_from_database", 0);
 
     let mut working_shows: Vec<Show> = Show::get_all_shows(utility.clone());
     let working_content = Content::get_all_contents(&mut working_shows, utility.clone());
-    let existing_files_hashset: HashSet<PathBuf> =
-        Content::get_all_filenames_as_hashset_from_content(
-            working_content.clone(),
-            utility.clone(),
-        );
+    let existing_files_hashset: HashSet<PathBuf> = Content::get_all_filenames_as_hashset_from_content(working_content.clone(), utility.clone());
 
+    utility.print_function_timer();
     return (working_content, working_shows, existing_files_hashset);
 }
 

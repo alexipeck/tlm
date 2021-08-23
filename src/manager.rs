@@ -34,7 +34,7 @@ pub struct FileManager {
 
 impl FileManager {
     pub fn new(utility: Utility) -> FileManager {
-        let utility = utility.clone_and_add_location("new(FileManager)");
+        let mut utility = utility.clone_add_location_start_timing("new(FileManager)", 0);
 
         let mut file_manager = FileManager {
             tracked_directories: TrackedDirectories::new(),
@@ -51,11 +51,12 @@ impl FileManager {
             utility.clone(),
         );
 
+        utility.print_function_timer();
         return file_manager;
     }
 
     pub fn print_number_of_content(&self, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_number_of_content(FileManager)");
+        let utility = utility.clone_add_location("print_number_of_content(FileManager)");
 
         print(
             Verbosity::INFO,
@@ -69,7 +70,7 @@ impl FileManager {
     }
 
     pub fn print_number_of_shows(&self, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_number_of_shows(FileManager)");
+        let utility = utility.clone_add_location("print_number_of_shows(FileManager)");
 
         print(
             Verbosity::INFO,
@@ -83,36 +84,22 @@ impl FileManager {
     }
 
     pub fn process_new_files(&mut self, utility: Utility) {
-        let mut utility = utility.clone_and_add_location("process_new_files(FileManager)");
+        let mut utility = utility.clone_add_location_start_timing("process_new_files(FileManager)", 0);
         let connection = establish_connection();
+
         utility.add_timer(0, "startup: processing new files", utility.clone());
         while self.new_files_queue.len() > 0 {
             let current = self.new_files_queue.pop();
             if current.is_some() {
                 let current = current.unwrap();
 
-                utility.add_timer_with_extra_indentation(
-                    1,
-                    "startup: dealing with content from PathBuf",
-                    1,
-                    utility.clone(),
-                );
+                utility.add_timer(1, "startup: dealing with content from PathBuf", utility.clone());
 
-                utility.add_timer_with_extra_indentation(
-                    2,
-                    "startup: creating content from PathBuf",
-                    2,
-                    utility.clone(),
-                );
+                utility.add_timer(2, "startup: creating content from PathBuf", utility.clone());
                 let mut c = Content::new(&current, &mut self.tv.working_shows, utility.clone());
                 utility.store_timing_by_uid(2);
 
-                utility.add_timer_with_extra_indentation(
-                    3,
-                    "startup: inserting content to DB",
-                    2,
-                    utility.clone(),
-                );
+                utility.add_timer(3, "startup: inserting content to DB", utility.clone());
                 let content_model = create_content(
                     &connection,
                     String::from(c.full_path.to_str().unwrap()),
@@ -121,12 +108,7 @@ impl FileManager {
                 c.content_uid = Some(content_model.content_uid as usize);
                 utility.store_timing_by_uid(3);
 
-                utility.add_timer_with_extra_indentation(
-                    4,
-                    "startup: inserting episode to DB if it is such",
-                    2,
-                    utility.clone(),
-                );
+                utility.add_timer(4, "startup: inserting episode to DB if it is such", utility.clone());
                 if c.content_is_episode() {
                     let c_uid = c.content_uid.unwrap() as i32;
                     let s_uid = c.show_uid.unwrap() as i32;
@@ -143,8 +125,6 @@ impl FileManager {
                         episode_number as i32,
                     );
                 }
-
-                //insert_episode_if_episode(c.clone(), utility.clone());
                 utility.store_timing_by_uid(4);
 
                 self.working_content.push(c);
@@ -157,10 +137,13 @@ impl FileManager {
         }
 
         utility.print_specific_timer_by_uid(0, utility.clone());
+        utility.print_function_timer();
     }
 
     //Hash set guarentees no duplicates in O(1) time
-    pub fn import_files(&mut self, allowed_extensions: &Vec<String>, ignored_paths: &Vec<String>) {
+    pub fn import_files(&mut self, allowed_extensions: &Vec<String>, ignored_paths: &Vec<String>, utility: Utility) {
+        let mut utility = utility.clone_add_location_start_timing("import_files(FileManager)", 0);
+
         //Return true if string contains any substring from Vector
         fn str_contains_strs(input_str: &str, substrings: &Vec<String>) -> bool {
             for substring in substrings {
@@ -192,5 +175,7 @@ impl FileManager {
                 }
             }
         }
+
+        utility.print_function_timer();
     }
 }
