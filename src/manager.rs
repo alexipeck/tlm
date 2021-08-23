@@ -84,7 +84,8 @@ impl FileManager {
     }
 
     pub fn process_new_files(&mut self, utility: Utility) {
-        let mut utility = utility.clone_add_location_start_timing("process_new_files(FileManager)", 0);
+        let mut utility =
+            utility.clone_add_location_start_timing("process_new_files(FileManager)", 0);
         let connection = establish_connection();
 
         utility.add_timer(0, "startup: processing new files", utility.clone());
@@ -127,7 +128,12 @@ impl FileManager {
     }
 
     //Hash set guarentees no duplicates in O(1) time
-    pub fn import_files(&mut self, allowed_extensions: &Vec<String>, ignored_paths: &Vec<String>, utility: Utility) {
+    pub fn import_files(
+        &mut self,
+        allowed_extensions: &Vec<String>,
+        ignored_paths: &Vec<String>,
+        utility: Utility,
+    ) {
         let mut utility = utility.clone_add_location_start_timing("import_files(FileManager)", 0);
 
         //Return true if string contains any substring from Vector

@@ -97,7 +97,7 @@ impl Content {
             show_uid: None,
         };
 
-        c.designate_and_fill(working_shows, utility.clone(),);
+        c.designate_and_fill(working_shows, utility.clone());
         utility.print_function_timer();
 
         return c;
@@ -134,7 +134,8 @@ impl Content {
         contents: Vec<Content>,
         utility: Utility,
     ) -> HashSet<PathBuf> {
-        let mut utility = utility.clone_add_location_start_timing("get_all_filenames_as_hashset", 0);
+        let mut utility =
+            utility.clone_add_location_start_timing("get_all_filenames_as_hashset", 0);
         let mut hashset = HashSet::new();
         for c in contents {
             hashset.insert(c.full_path);
@@ -145,7 +146,8 @@ impl Content {
     }
 
     pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
-        let mut utility = utility.clone_add_location_start_timing("get_all_filenames_as_hashset", 0);
+        let mut utility =
+            utility.clone_add_location_start_timing("get_all_filenames_as_hashset", 0);
         let connection = establish_connection();
         let raw_content = content
             .load::<ContentModel>(&connection)
@@ -322,7 +324,6 @@ impl Content {
             );
             panic!();
         }
-        
     }
 
     pub fn get_show_uid(&self, utility: Utility) -> usize {
@@ -432,7 +433,9 @@ impl Content {
     }
 
     pub fn content_is_episode(&self) -> bool {
-        return self.show_uid.is_some() && self.show_title.is_some() && self.show_season_episode.is_some();
+        return self.show_uid.is_some()
+            && self.show_title.is_some()
+            && self.show_season_episode.is_some();
     }
 
     pub fn designate_and_fill(&mut self, working_shows: &mut Vec<Show>, utility: Utility) {
@@ -466,7 +469,7 @@ impl Content {
             self.show_title = None;
             self.show_season_episode = None;
         }
-        
+
         utility.print_function_timer();
     }
 

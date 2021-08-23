@@ -47,7 +47,7 @@ pub fn print(verbosity: Verbosity, from_module: From, utility: Utility, string: 
         );
     }
     let mut utility = utility.clone_add_location_start_timing("print", 0);
-    
+
     let indentation = get_indentation_from_tab_count(utility.indentation);
 
     //print(Verbosity::DEBUG, r"", format!(""));

@@ -20,7 +20,11 @@ fn main() {
     let mut file_manager: FileManager = FileManager::new(utility.clone());
 
     file_manager.tracked_directories = config.tracked_directories;
-    file_manager.import_files(&config.allowed_extensions, &config.ignored_paths, utility.clone());
+    file_manager.import_files(
+        &config.allowed_extensions,
+        &config.ignored_paths,
+        utility.clone(),
+    );
 
     file_manager.process_new_files(utility.clone());
 

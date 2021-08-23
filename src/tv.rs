@@ -1,12 +1,12 @@
+use crate::diesel::prelude::*;
+use crate::model::*;
+use crate::schema::show::dsl::*;
 use crate::{
     content::Content,
     print::{print, From, Verbosity},
     utility::Utility,
 };
-use crate::diesel::prelude::*;
-use crate::{establish_connection, create_show};
-use crate::model::*;
-use crate::schema::show::dsl::*;
+use crate::{create_show, establish_connection};
 
 #[derive(Clone, Debug)]
 pub struct TV {
@@ -70,7 +70,11 @@ impl Show {
         );
     }
 
-    pub fn show_exists(show_title: String, working_shows: Vec<Show>, utility: Utility) -> Option<usize> {
+    pub fn show_exists(
+        show_title: String,
+        working_shows: Vec<Show>,
+        utility: Utility,
+    ) -> Option<usize> {
         let mut utility = utility.clone_add_location("show_exists(Show)");
         for s in working_shows {
             if s.title == show_title {
@@ -103,10 +107,7 @@ impl Show {
                 );
             }
             utility.add_timer(0, "startup: inserting show UID", utility.clone());
-            let show_model = create_show(
-                &connection,
-                show_title.clone(),
-            );
+            let show_model = create_show(&connection, show_title.clone());
             //utility.print_specific_timer_by_uid(0, utility.clone());
 
             let s_uid = show_model.show_uid as usize;
@@ -146,7 +147,7 @@ impl Show {
     pub fn get_all_shows(utility: Utility) -> Vec<Show> {
         let mut utility = utility.clone_add_location_start_timing("get_all_shows(Show)", 0);
         utility.add_timer(0, "startup: read in shows", utility.clone());
-        
+
         let connection = establish_connection();
         let raw_shows = show
             .load::<ShowModel>(&connection)

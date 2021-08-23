@@ -50,15 +50,10 @@ pub fn create_content<'a>(
         .expect("Error saving new content")
 }
 
-pub fn create_show<'a>(
-    conn: &PgConnection,
-    title: String,
-) -> ShowModel {
+pub fn create_show<'a>(conn: &PgConnection, title: String) -> ShowModel {
     use schema::show;
 
-    let new_show = NewShow {
-        title: title,
-    };
+    let new_show = NewShow { title: title };
 
     diesel::insert_into(show::table)
         .values(&new_show)
@@ -95,7 +90,11 @@ pub fn load_from_database(utility: Utility) -> (Vec<Content>, Vec<Show>, HashSet
 
     let mut working_shows: Vec<Show> = Show::get_all_shows(utility.clone());
     let working_content = Content::get_all_contents(&mut working_shows, utility.clone());
-    let existing_files_hashset: HashSet<PathBuf> = Content::get_all_filenames_as_hashset_from_content(working_content.clone(), utility.clone());
+    let existing_files_hashset: HashSet<PathBuf> =
+        Content::get_all_filenames_as_hashset_from_content(
+            working_content.clone(),
+            utility.clone(),
+        );
 
     utility.print_function_timer();
     return (working_content, working_shows, existing_files_hashset);
