@@ -4,7 +4,7 @@ use crate::{
     tv::TV,
     utility::Utility,
 };
-use crate::{create_content, create_episode, establish_connection};
+use crate::database::{create_content,establish_connection, create_episode};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;

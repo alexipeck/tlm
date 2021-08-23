@@ -1,7 +1,9 @@
 use crate::diesel::prelude::*;
-use crate::establish_connection;
+use crate::database::{establish_connection};
 use crate::model::*;
-use crate::schema::content::dsl::*;
+use crate::schema::content::dsl::{content as content_table};
+use std::{collections::HashSet, fs, path::PathBuf};
+
 use crate::{
     designation::{convert_i32_to_designation, Designation},
     print::{print, From, Verbosity},
@@ -9,32 +11,8 @@ use crate::{
     utility::Utility,
 };
 use regex::Regex;
-use std::{collections::HashSet, path::PathBuf};
-use tokio_postgres::Row;
 
-fn re_strip(input: &String, expression: &str) -> Option<String> {
-    let output = Regex::new(expression).unwrap().find(input);
-    match output {
-        None => return None,
-        Some(val) => return Some(String::from(rem_first_char(val.as_str()))),
-    }
-}
-
-fn rem_first_char(value: &str) -> &str {
-    let mut chars = value.chars();
-    chars.next();
-    chars.as_str()
-}
-
-fn get_os_slash() -> char {
-    return if !cfg!(target_os = "windows") {
-        '/'
-    } else {
-        '\\'
-    };
-}
-
-//generic content container, focus on video
+/// Container 
 #[derive(Clone, Debug, Queryable)]
 pub struct Content {
     //generic
@@ -52,13 +30,20 @@ pub struct Content {
     pub show_season_episode: Option<(usize, Vec<usize>)>,
 }
 
+pub struct Episode {
+    pub generic_information: Content,
+    pub show_uid: Option<usize>,
+    pub show_title: Option<String>,
+    pub show_season_episode: Option<(usize, Vec<usize>)>
+}
+
 impl Content {
     //needs to be able to be created from a pathbuf or pulled from the database
     pub fn new(raw_filepath: &PathBuf, working_shows: &mut Vec<Show>, utility: Utility) -> Content {
         let mut utility = utility.clone_add_location_start_timing("new(Content)", 0);
 
-        let mut c = Content {
-            full_path: raw_filepath.clone(),
+        let mut content = Content {
+            full_path: raw_filepath.to_path_buf(),
             designation: Designation::Generic,
             content_uid: None,
             hash: None,
@@ -67,10 +52,14 @@ impl Content {
             show_season_episode: None,
             show_uid: None,
         };
-
-        c.designate_and_fill(working_shows, utility.clone());
+        content.designate_and_fill(working_shows, utility.clone());
         utility.print_function_timer();
-        return c;
+        return content;
+    }
+
+    pub fn hash(&mut self) {
+        let hash = seahash::hash(&fs::read(self.full_path.to_str().unwrap()).unwrap());
+        self.hash = Some(hash);
     }
 
     pub fn from_content_model(
@@ -85,7 +74,7 @@ impl Content {
         let designation_temp: i32 = content_model.designation;
 
         //change to have it pull all info out of the db, it currently generates what it can from the filename
-        let mut c = Content {
+        let mut content = Content {
             full_path: PathBuf::from(&full_path_temp),
             designation: convert_i32_to_designation(designation_temp), //Designation::Generic
             content_uid: Some(content_uid_temp as usize),
@@ -97,37 +86,29 @@ impl Content {
             show_uid: None,
         };
 
-        c.designate_and_fill(working_shows, utility.clone());
+        content.designate_and_fill(working_shows, utility.clone());
         utility.print_function_timer();
 
-        return c;
+        return content;
     }
 
     pub fn get_all_contents(working_shows: &mut Vec<Show>, utility: Utility) -> Vec<Content> {
         let connection = establish_connection();
         let mut utility = utility.clone_add_location_start_timing("get_all_contents(Content)", 0);
 
-        let raw_content = content
+
+        let raw_content = content_table
             .load::<ContentModel>(&connection)
             .expect("Error loading content");
 
-        let mut c: Vec<Content> = Vec::new();
+        let mut content: Vec<Content> = Vec::new();
 
         for content_model in raw_content {
-            c.push(Content::from_content_model(
-                content_model,
-                working_shows,
-                utility.clone(),
-            ));
+            content.push(Content::from_content_model(content_model, working_shows, utility.clone()));
         }
 
         utility.print_function_timer();
-        return c;
-    }
-
-    pub fn filename_from_row_as_pathbuf(row: Row) -> PathBuf {
-        let temp: String = row.get(0);
-        return PathBuf::from(temp);
+        return content;
     }
 
     pub fn get_all_filenames_as_hashset_from_content(
@@ -137,8 +118,8 @@ impl Content {
         let mut utility =
             utility.clone_add_location_start_timing("get_all_filenames_as_hashset", 0);
         let mut hashset = HashSet::new();
-        for c in contents {
-            hashset.insert(c.full_path);
+        for content in contents {
+            hashset.insert(content.full_path);
         }
 
         utility.print_function_timer();
@@ -149,7 +130,7 @@ impl Content {
         let mut utility =
             utility.clone_add_location_start_timing("get_all_filenames_as_hashset", 0);
         let connection = establish_connection();
-        let raw_content = content
+        let raw_content = content_table
             .load::<ContentModel>(&connection)
             .expect("Error loading content");
         let mut hashset = HashSet::new();
@@ -229,10 +210,6 @@ impl Content {
         return self.full_path.as_os_str().to_str().unwrap().to_string();
     }
 
-    pub fn get_full_path_from_pathbuf(pathbuf: PathBuf) -> String {
-        return pathbuf.to_str().unwrap().to_string();
-    }
-
     pub fn get_filename_from_pathbuf(pathbuf: PathBuf) -> String {
         return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
@@ -244,31 +221,6 @@ impl Content {
             .unwrap()
             .to_str()
             .unwrap()
-            .to_string();
-    }
-
-    pub fn get_filename_woe(&self) -> String {
-        return self
-            .full_path
-            .file_stem()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
-    }
-
-    pub fn get_parent_directory_as_string(&self) -> String {
-        return self
-            .full_path
-            .parent()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
-    }
-
-    pub fn get_full_path_with_suffix_as_string(&self, suffix: String) -> String {
-        return self
-            .get_full_path_with_suffix(suffix)
-            .to_string_lossy()
             .to_string();
     }
 
@@ -404,32 +356,22 @@ impl Content {
                 ),
             );
         } else {
-            self.print_simple(utility.clone());
+            print(
+                Verbosity::DEBUG,
+                From::DB,
+                utility.clone(),
+                format!(
+                    "[content_uid:'{}'][designation:'{}'][full_path:'{}']",
+                    self.content_uid.unwrap(),
+                    self.designation as i32,
+                    self.get_full_path(),
+                ),
+            );
         }
-    }
-
-    fn print_simple(&self, utility: Utility) {
-        let utility = utility.clone_add_location("print_simple");
-
-        print(
-            Verbosity::DEBUG,
-            From::DB,
-            utility.clone(),
-            format!(
-                "[content_uid:'{}'][designation:'{}'][full_path:'{}']",
-                self.content_uid.unwrap(),
-                self.designation as i32,
-                self.get_full_path(),
-            ),
-        );
     }
 
     pub fn get_parent_directory_from_pathbuf_as_string(pathbuf: &PathBuf) -> String {
         return pathbuf.parent().unwrap().to_string_lossy().to_string();
-    }
-
-    pub fn set_show_uid(&mut self, show_uid: usize) {
-        self.show_uid = Some(show_uid);
     }
 
     pub fn content_is_episode(&self) -> bool {
@@ -476,10 +418,32 @@ impl Content {
     pub fn print_contents(contents: Vec<Content>, utility: Utility) {
         let mut utility = utility.clone_add_location_start_timing("print_contents", 0);
 
-        for c in contents {
-            c.print(utility.clone());
+        for content in contents {
+            content.print(utility.clone());
         }
 
         utility.print_function_timer();
     }
+}
+
+fn re_strip(input: &String, expression: &str) -> Option<String> {
+    let output = Regex::new(expression).unwrap().find(input);
+    match output {
+        None => return None,
+        Some(val) => return Some(String::from(rem_first_char(val.as_str()))),
+    }
+}
+
+fn rem_first_char(value: &str) -> &str {
+    let mut chars = value.chars();
+    chars.next();
+    chars.as_str()
+}
+
+fn get_os_slash() -> char {
+    return if !cfg!(target_os = "windows") {
+        '/'
+    } else {
+        '\\'
+    };
 }

@@ -47,6 +47,7 @@ pub struct Preferences {
     pub print_shows: bool,
     pub print_general: bool,
     pub config_file_path: String,
+    pub min_verbosity: String
 }
 
 impl Preferences {
@@ -57,6 +58,7 @@ impl Preferences {
             print_shows: false,
             print_general: false,
             config_file_path: String::from("./.tlm_config"),
+            min_verbosity: String::from("INFO")
         };
 
         prepare.parse_arguments();
@@ -64,7 +66,7 @@ impl Preferences {
         return prepare;
     }
 
-    pub fn parse_arguments(&mut self) {
+    fn parse_arguments(&mut self) {
         let mut parser = ArgumentParser::new();
         parser.set_description("tlm: Transcoding Library Manager");
         parser.refer(&mut self.default_print).add_option(
@@ -91,6 +93,11 @@ impl Preferences {
             &["--config"],
             Store,
             "Set a custom config path",
+        );
+        parser.refer(&mut self.min_verbosity).add_option(
+            &["--min-severity"],
+            Store,
+            "Set a minimum severity (debug, info, warning, error, critical)",
         );
 
         parser.parse_args_or_exit();

@@ -1,7 +1,5 @@
-use crate::{
-    print::{print, From, Verbosity},
-    timer::Timer,
-};
+use crate::timer::Timer;
+use crate::print::{print, Verbosity, From};
 
 #[derive(Clone, Debug)]
 pub struct Utility {
@@ -9,10 +7,10 @@ pub struct Utility {
     pub timers: Vec<Timer>,
     pub indentation: usize,
     pub print_timing: bool,
-
     pub current_location: String,
     pub function_timer: Option<Timer>,
     pub timing_minumum_threshold: usize,
+    pub min_verbosity: Verbosity
 }
 
 impl Utility {
@@ -22,7 +20,7 @@ impl Utility {
             timers: Vec::new(),
             indentation: 0,
             print_timing: false,
-
+            min_verbosity: Verbosity::DEBUG,
             current_location: String::from(created_from),
             function_timer: None,
             timing_minumum_threshold: timing_minimum_threshold,

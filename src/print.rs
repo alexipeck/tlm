@@ -1,7 +1,7 @@
 use crate::utility::Utility;
 
 //trickle up
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Verbosity {
     CRITICAL = 1,
     ERROR = 2,
@@ -25,6 +25,47 @@ pub enum From {
     TV = 10,
 }
 
+impl From {
+    pub fn to_string(self) -> String {
+        String::from(match self {
+            From::Main => "main",
+            From::Lib => "lib",
+            From::Content => "content",
+            From::Utility => "utility",
+            From::Show => "shows",
+            From::Queue => "queue",
+            From::DB => "db",
+            From::Job =>  "job",
+            From::Manager => "manager",
+            _ => "notset"
+        })
+    }
+}
+
+impl Verbosity {
+    pub fn to_string(self) -> String {
+        String::from(match self {
+            Verbosity::CRITICAL => "CRITICAL",
+            Verbosity::ERROR  => "ERROR",
+            Verbosity::WARNING => "WARNING",
+            Verbosity::INFO => "INFO",
+            Verbosity::DEBUG => "DEBUG",
+            _ => "NOTSET",
+        })
+    }
+
+    pub fn from_string(input: &str) -> Verbosity {
+        match input {
+            "CRITICAL" => Verbosity::CRITICAL,
+            "ERROR" => Verbosity::ERROR,
+            "WARNING" => Verbosity::WARNING,
+            "INFO" => Verbosity::INFO,
+            "DEBUG" => Verbosity::DEBUG,
+            _ => Verbosity::NOTSET,
+        }
+    }
+}
+
 pub fn get_indentation_from_tab_count(tab_count: usize) -> String {
     let mut indentation: String = String::new();
     for _ in 0..tab_count {
@@ -34,80 +75,26 @@ pub fn get_indentation_from_tab_count(tab_count: usize) -> String {
 }
 
 pub fn print(verbosity: Verbosity, from_module: From, utility: Utility, string: String) {
-    fn print(
-        verbosity_string: &str,
-        from_module_string: &str,
-        call_functions_string: String,
-        string: String,
-        indentation: String,
-    ) {
-        println!(
-            "{}[{}][{}][{}]::{}",
-            indentation, verbosity_string, from_module_string, call_functions_string, string
-        );
-    }
     let mut utility = utility.clone_add_location_start_timing("print", 0);
-
     let indentation = get_indentation_from_tab_count(utility.indentation);
 
-    //print(Verbosity::DEBUG, r"", format!(""));
-    let set_output_verbosity_level = Verbosity::DEBUG as usize; //would be set as a filter in any output view
-    let show_only = Verbosity::DEBUG;
-
-    //module called from
-    let from_module_string: &str;
-    match from_module {
-        From::Main => from_module_string = "main",
-        From::Lib => from_module_string = "lib",
-        From::Content => from_module_string = "content",
-        From::Utility => from_module_string = "utility",
-        From::Show => from_module_string = "shows",
-        From::Queue => from_module_string = "queue",
-        From::DB => from_module_string = "db",
-        From::Job => from_module_string = "job",
-        From::Manager => from_module_string = "manager",
-        From::TV => from_module_string = "tv",
-        _ => from_module_string = "notset",
-    }
-
-    //verbosity
-    let current_verbosity_level = verbosity.clone() as usize;
-    let verbosity_string: &str;
-    match current_verbosity_level {
-        1 => verbosity_string = "CRITICAL",
-        2 => verbosity_string = "ERROR",
-        3 => verbosity_string = "WARNING",
-        4 => verbosity_string = "INFO",
-        5 => verbosity_string = "DEBUG",
-        _ => verbosity_string = "NOTSET",
-    }
-
     //called from
-    let mut call_functions_string: String = String::new();
-    if verbosity.clone() as usize == Verbosity::CRITICAL as usize
-        || verbosity.clone() as usize == Verbosity::ERROR as usize
-    {
-        call_functions_string = utility.to_string();
-    } else {
-        call_functions_string += &format!("{}", utility.traceback[utility.traceback.len() - 1]);
-    }
+    let call_functions_string: String;
 
-    if verbosity == show_only {
-        print(
-            verbosity_string,
-            from_module_string,
-            call_functions_string,
-            string,
-            indentation,
-        );
-    } else if current_verbosity_level <= set_output_verbosity_level {
-        print(
-            verbosity_string,
-            from_module_string,
-            call_functions_string,
-            string,
-            indentation,
-        );
+    if verbosity as usize <= utility.min_verbosity as usize {
+        if verbosity == Verbosity::CRITICAL || verbosity == Verbosity::ERROR {
+            call_functions_string = utility.to_string();
+            eprintln!(
+                "{}[{}][{}][{}]::{}",
+                indentation, verbosity.to_string(), from_module.to_string(), call_functions_string, string
+            );
+        } else {
+            call_functions_string = format!("{}", utility.traceback[utility.traceback.len() - 1]);
+            println!(
+                "{}[{}][{}][{}]::{}",
+                indentation, verbosity.to_string(), from_module.to_string(), call_functions_string, string
+            );
+        }
     }
 
     utility.print_function_timer();
