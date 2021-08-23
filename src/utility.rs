@@ -14,7 +14,7 @@ pub struct Utility {
 
 impl Utility {
     pub fn new(created_from: &str, timing_minimum_threshold: usize) -> Utility {
-        let mut traceback = Utility {
+        let mut utility = Utility {
             traceback: Vec::new(),
             timers: Vec::new(),
             indentation: 0,
@@ -24,7 +24,7 @@ impl Utility {
             function_timer: None,
             timing_minumum_threshold: timing_minimum_threshold,
         };
-        return traceback.add_traceback_location(created_from);
+        return utility.add_traceback_location(created_from);
     }
 
     pub fn add_timer(&mut self, identifier: usize, stage_task_identifier: &str, utility: Utility) {

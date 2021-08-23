@@ -93,22 +93,15 @@ impl FileManager {
             if current.is_some() {
                 let current = current.unwrap();
 
-                utility.add_timer(1, "startup: dealing with content from PathBuf", utility.clone());
-
-                utility.add_timer(2, "startup: creating content from PathBuf", utility.clone());
                 let mut c = Content::new(&current, &mut self.tv.working_shows, utility.clone());
-                utility.store_timing_by_uid(2);
 
-                utility.add_timer(3, "startup: inserting content to DB", utility.clone());
                 let content_model = create_content(
                     &connection,
                     String::from(c.full_path.to_str().unwrap()),
                     c.designation as i32,
                 );
                 c.content_uid = Some(content_model.content_uid as usize);
-                utility.store_timing_by_uid(3);
 
-                utility.add_timer(4, "startup: inserting episode to DB if it is such", utility.clone());
                 if c.content_is_episode() {
                     let c_uid = c.content_uid.unwrap() as i32;
                     let s_uid = c.show_uid.unwrap() as i32;
@@ -125,18 +118,11 @@ impl FileManager {
                         episode_number as i32,
                     );
                 }
-                utility.store_timing_by_uid(4);
 
                 self.working_content.push(c);
-                if utility.print_timing {
-                    utility.print_specific_timer_by_uid(1, utility.clone());
-                    utility.print_all_timers_except_many(vec![0, 1], utility.clone());
-                    utility.delete_or_reset_multiple_timers(false, vec![1, 2, 3, 4]);
-                }
             }
         }
 
-        utility.print_specific_timer_by_uid(0, utility.clone());
         utility.print_function_timer();
     }
 
