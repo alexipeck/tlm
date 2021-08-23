@@ -29,7 +29,7 @@ impl Utility {
     }
 
     pub fn add_timer(&mut self, identifier: usize, stage_task_identifier: &str, utility: Utility) {
-        let utility = utility.clone_and_add_location("add_timer(Utility)", 0);
+        let mut utility = utility.clone_and_add_location("add_timer(Utility)", 0);
 
         if self.timer_exists(identifier) {
             self.delete_or_reset_single_timer(false, identifier);
@@ -40,6 +40,7 @@ impl Utility {
                 0,
             ));
         }
+        utility.print_function_timer();
     }
 
     pub fn start_function_timer(&mut self, additional_indentation: usize) {
@@ -57,7 +58,7 @@ impl Utility {
         extra_indentation: usize,
         utility: Utility,
     ) {
-        let utility = utility.clone_and_add_location("add_timer(Utility)", 0);
+        let mut utility = utility.clone_and_add_location("add_timer(Utility)", 0);
 
         if self.timer_exists(identifier) {
             self.delete_or_reset_single_timer(false, identifier);
@@ -68,6 +69,7 @@ impl Utility {
                 extra_indentation,
             ));
         }
+        utility.print_function_timer();
     }
 
     pub fn timer_exists(&self, uid: usize) -> bool {

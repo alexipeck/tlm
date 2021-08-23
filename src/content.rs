@@ -20,7 +20,7 @@ pub struct Content {
     pub full_path: PathBuf,
     pub designation: Designation,
     //pub job_queue: VecDeque<Job>,
-    pub hash: Option<u64>,
+    pub hash: Option<String>,
     //pub versions: Vec<FileVersion>,
     //pub metadata_dump
 
@@ -59,7 +59,7 @@ impl Content {
 
     pub fn hash(&mut self) {
         let hash = seahash::hash(&fs::read(self.full_path.to_str().unwrap()).unwrap());
-        self.hash = Some(hash);
+        self.hash = Some(hash.to_string());
     }
 
     pub fn from_content_model(
@@ -69,7 +69,7 @@ impl Content {
     ) -> Content {
         let mut utility = utility.clone_add_location_start_timing("from_row(Content)", 0);
 
-        let content_uid_temp: i32 = content_model.content_uid;
+        let content_uid_temp: i32 = content_model.id;
         let full_path_temp: String = content_model.full_path;
         let designation_temp: i32 = content_model.designation;
 
@@ -78,7 +78,7 @@ impl Content {
             full_path: PathBuf::from(&full_path_temp),
             designation: convert_i32_to_designation(designation_temp), //Designation::Generic
             content_uid: Some(content_uid_temp as usize),
-            hash: None,
+            hash: content_model.file_hash,
 
             //truly optional
             show_title: None,

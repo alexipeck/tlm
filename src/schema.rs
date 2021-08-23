@@ -1,8 +1,9 @@
 table! {
-    content (content_uid) {
-        content_uid -> Int4,
+    content (id) {
+        id -> Int4,
         full_path -> Text,
         designation -> Int4,
+        file_hash -> Nullable<Varchar>,
     }
 }
 
