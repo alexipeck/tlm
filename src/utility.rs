@@ -1,4 +1,4 @@
-use crate::timer::Timer;
+use crate::{timer::Timer, print::{print, From, Verbosity}};
 
 #[derive(Clone, Debug)]
 pub struct Utility {
@@ -6,36 +6,66 @@ pub struct Utility {
     pub timers: Vec<Timer>,
     pub indentation: usize,
     pub print_timing: bool,
+
+    pub current_location: String,
+    pub function_timer: Option<Timer>,
+    pub timing_minumum_threshold: usize,
 }
+
 impl Utility {
-    pub fn new(created_from: &str) -> Utility {
-        let mut traceback = Utility {
+    pub fn new(created_from: &str, timing_minimum_threshold: usize) -> Utility {
+        let mut utility = Utility {
             traceback: Vec::new(),
             timers: Vec::new(),
             indentation: 0,
             print_timing: false,
-        };
 
-        return traceback.add_traceback_location(created_from);
+            current_location: String::from(created_from),
+            function_timer: None,
+            timing_minumum_threshold: timing_minimum_threshold,
+        };
+        return utility.add_traceback_location(created_from);
     }
 
     pub fn add_timer(&mut self, identifier: usize, stage_task_identifier: &str, utility: Utility) {
-        let utility = utility.clone_and_add_location("add_timer(Utility)");
+        let utility = utility.clone_and_add_location("add_timer(Utility)", 0);
 
         if self.timer_exists(identifier) {
             self.delete_or_reset_single_timer(false, identifier);
         } else {
-            self.timers.push(Timer::create_timer(identifier, String::from(stage_task_identifier), 0, utility.clone()));
+            self.timers.push(Timer::create_timer(
+                identifier,
+                String::from(stage_task_identifier),
+                0
+            ));
         }
     }
 
-    pub fn add_timer_with_extra_indentation(&mut self, identifier: usize, stage_task_identifier: &str, extra_indentation: usize, utility: Utility) {
-        let utility = utility.clone_and_add_location("add_timer(Utility)");
+    pub fn start_function_timer(&mut self, additional_indentation: usize) {
+        self.function_timer = Some(Timer::create_timer(
+            0,
+            String::from(
+                self.current_location.clone()),
+                self.indentation + additional_indentation));
+    }
+
+    pub fn add_timer_with_extra_indentation(
+        &mut self,
+        identifier: usize,
+        stage_task_identifier: &str,
+        extra_indentation: usize,
+        utility: Utility,
+    ) {
+        let utility = utility.clone_and_add_location("add_timer(Utility)", 0);
 
         if self.timer_exists(identifier) {
             self.delete_or_reset_single_timer(false, identifier);
         } else {
-            self.timers.push(Timer::create_timer(identifier, String::from(stage_task_identifier), extra_indentation, utility.clone()));
+            self.timers.push(Timer::create_timer(
+                identifier,
+                String::from(stage_task_identifier),
+                extra_indentation,
+            ));
         }
     }
 
@@ -124,7 +154,7 @@ impl Utility {
     }
 
     pub fn print_specific_timer_by_uid(&mut self, uid: usize, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_specific_timer_by_uid(Utility)");
+        let utility = utility.clone_add_location("print_specific_timer_by_uid(Utility)");
 
         for timer in &mut self.timers {
             if timer.uid == uid {
@@ -134,7 +164,7 @@ impl Utility {
     }
 
     pub fn print_all_timers_except_one(&mut self, uid: usize, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_all_timers_except_one(Utility)");
+        let utility = utility.clone_add_location("print_all_timers_except_one(Utility)");
 
         for timer in &mut self.timers {
             if !(timer.uid == uid) {
@@ -143,12 +173,8 @@ impl Utility {
         }
     }
 
-    pub fn print_all_timers_except_many(
-        &mut self,
-        uid: Vec<usize>,
-        utility: Utility,
-    ) {
-        let utility = utility.clone_and_add_location("print_all_timers_except_many(Utility)");
+    pub fn print_all_timers_except_many(&mut self, uid: Vec<usize>, utility: Utility) {
+        let utility = utility.clone_and_add_location("print_all_timers_except_many(Utility)", 0);
 
         for timer in &mut self.timers {
             if !uid.contains(&timer.uid) {
@@ -158,10 +184,22 @@ impl Utility {
     }
 
     pub fn print_all_timers(&mut self, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_all_timers(Utility)");
+        let mut utility = utility.clone_add_location_start_timing("print_all_timers(Utility)", 0);
 
         for timer in &mut self.timers {
             timer.print_timer(utility.clone());
+        }
+
+        utility.print_function_timer();
+    }
+
+    pub fn print_function_timer(&mut self) {
+        if self.function_timer.is_some() {
+            //this doesn't take into save the timer that is saved in print_timer - non-persistent because of the clone
+            self.function_timer.clone().unwrap().print_timer(self.clone());
+        } else {
+            print(Verbosity::CRITICAL, From::Utility, self.clone(), format!("You tried to print a timer that doesn't exist."));
+            panic!()
         }
     }
 
@@ -184,15 +222,30 @@ impl Utility {
 
     //wipes timers of clone
     //increments indentation
-    pub fn clone_and_add_location(&self, called_from: &str) -> Utility {
+    pub fn clone_add_location_start_timing(&self, called_from: &str, additional_indentation: usize) -> Utility {
         let mut temp = self.clone();
         temp.timers = Vec::new();
         temp.add_traceback_location(called_from);
+        temp.current_location = String::from(called_from);
+        temp.increment_indendation();
+        temp.start_function_timer(additional_indentation);
+        return temp;
+    }
+
+    pub fn clone_add_location(&self, called_from: &str) -> Utility {
+        let mut temp = self.clone();
+        temp.timers = Vec::new();
+        temp.add_traceback_location(called_from);
+        temp.current_location = String::from(called_from);
         temp.increment_indendation();
         return temp;
     }
 
-    pub fn clone_and_add_location_with_extra_indentation(&self, called_from: &str, indentation: usize) -> Utility {
+    pub fn clone_and_add_location(
+        &self,
+        called_from: &str,
+        indentation: usize,
+    ) -> Utility {
         let mut temp = self.clone();
         temp.timers = Vec::new();
         temp.add_traceback_location(called_from);

@@ -28,17 +28,12 @@ pub enum From {
 pub fn get_indentation_from_tab_count(tab_count: usize) -> String {
     let mut indentation: String = String::new();
     for _ in 0..tab_count {
-        indentation += r"    ";
+        indentation += "\t";
     }
     return indentation;
 }
 
-pub fn print(
-    verbosity: Verbosity,
-    from_module: From,
-    utility: Utility,
-    string: String,
-) {
+pub fn print(verbosity: Verbosity, from_module: From, utility: Utility, string: String) {
     fn print(
         verbosity_string: &str,
         from_module_string: &str,
@@ -51,7 +46,8 @@ pub fn print(
             indentation, verbosity_string, from_module_string, call_functions_string, string
         );
     }
-    //asdf;
+    let mut utility = utility.clone_add_location_start_timing("print", 0);
+    
     let indentation = get_indentation_from_tab_count(utility.indentation);
 
     //print(Verbosity::DEBUG, r"", format!(""));
@@ -70,6 +66,7 @@ pub fn print(
         From::DB => from_module_string = "db",
         From::Job => from_module_string = "job",
         From::Manager => from_module_string = "manager",
+        From::TV => from_module_string = "tv",
         _ => from_module_string = "notset",
     }
 
@@ -112,4 +109,6 @@ pub fn print(
             indentation,
         );
     }
+
+    utility.print_function_timer();
 }

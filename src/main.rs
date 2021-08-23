@@ -1,13 +1,12 @@
 use tlm::{
     config::{Config, Preferences},
-    database::miscellaneous::db_purge,
     manager::FileManager,
     utility::Utility,
 };
 
 fn main() {
     //traceback and timing utility
-    let mut utility = Utility::new("main");
+    let mut utility = Utility::new("main", 0);
 
     let preferences = Preferences::new();
 
@@ -17,15 +16,11 @@ fn main() {
         utility.enable_timing_print();
     }
 
-    if preferences.db_purge {
-        db_purge(utility.clone());
-    }
-
     //The FileManager stores working files, hashsets and supporting functions related to updating those files
     let mut file_manager: FileManager = FileManager::new(utility.clone());
 
     file_manager.tracked_directories = config.tracked_directories;
-    file_manager.import_files(&config.allowed_extensions, &config.ignored_paths);
+    file_manager.import_files(&config.allowed_extensions, &config.ignored_paths, utility.clone());
 
     file_manager.process_new_files(utility.clone());
 

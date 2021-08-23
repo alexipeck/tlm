@@ -1,5 +1,7 @@
-use crate::print::{print, From, Verbosity};
-use crate::utility::Utility;
+use crate::{
+    print::{print, From, Verbosity},
+    utility::Utility,
+};
 use std::time::Instant;
 
 #[derive(Clone, Debug)]
@@ -7,18 +9,18 @@ pub struct Timer {
     //The stage and task are for instance: "startup: looping through contents to do 'x'"
     //The identifier is an arbitrary string of characters you can search the code directly for, I recommend a 4 character alpha-numeric combination
     pub uid: usize,
-    pub stage_task_identifier: String,
+    pub function_name: String,
     pub indent_by: usize,
     pub timer: Instant,
     pub stored_time: Option<u128>,
 }
 
 impl Timer {
-    pub fn create_timer(uid: usize, stage_task_identifier: String, extra_indentation: usize, utility: Utility) -> Timer {
+    pub fn create_timer(uid: usize, function_name: String, indentation: usize) -> Timer {
         return Timer {
             uid: uid,
-            stage_task_identifier: stage_task_identifier,
-            indent_by: utility.indentation + extra_indentation,
+            function_name: function_name,
+            indent_by: indentation,
             timer: Instant::now(),
             stored_time: None,
         };
@@ -34,7 +36,7 @@ impl Timer {
     }
 
     pub fn print_timer(&mut self, utility: Utility) {
-        let utility = utility.clone_and_add_location("print_timer(Timer)");
+        let utility = utility.clone_add_location("print_timer(Timer)");
 
         if !utility.print_timing {
             return;
@@ -51,7 +53,7 @@ impl Timer {
                 utility,
                 format!(
                     "{} took: {}ms",
-                    self.stage_task_identifier,
+                    self.function_name,
                     self.stored_time.unwrap()
                 ),
             );
