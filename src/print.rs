@@ -23,6 +23,7 @@ pub enum From {
     Job = 8,
     Manager = 9,
     TV = 10,
+    Config = 11,
 }
 
 impl From {

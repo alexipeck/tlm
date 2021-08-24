@@ -19,7 +19,7 @@ fn main() {
 
     let preferences = Preferences::new();
 
-    let config = Config::ensure_config_exists_then_get(&preferences);
+    let config = Config::new(&preferences);
 
     utility.min_verbosity = Verbosity::from_string(&preferences.min_verbosity.to_uppercase());
 
