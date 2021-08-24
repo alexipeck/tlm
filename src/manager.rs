@@ -4,7 +4,7 @@ use crate::{
     tv::TV,
     utility::Utility,
 };
-use crate::{create_content, create_episode, establish_connection};
+use crate::database::{create_content,establish_connection, create_episode};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
@@ -95,13 +95,12 @@ impl FileManager {
                 let current = current.unwrap();
 
                 let mut c = Content::new(&current, &mut self.tv.working_shows, utility.clone());
-
                 let content_model = create_content(
                     &connection,
                     String::from(c.full_path.to_str().unwrap()),
                     c.designation as i32,
                 );
-                c.content_uid = Some(content_model.content_uid as usize);
+                c.content_uid = Some(content_model.id as usize);
 
                 if c.content_is_episode() {
                     let c_uid = c.content_uid.unwrap() as i32;

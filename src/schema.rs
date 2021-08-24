@@ -1,8 +1,9 @@
 table! {
-    content (content_uid) {
-        content_uid -> Int4,
+    content (id) {
+        id -> Int4,
         full_path -> Text,
         designation -> Int4,
+        file_hash -> Nullable<Varchar>,
     }
 }
 
@@ -49,4 +50,10 @@ joinable!(episode -> content (content_uid));
 joinable!(episode -> show (show_uid));
 joinable!(job_task_queue -> job_queue (job_uid));
 
-allow_tables_to_appear_in_same_query!(content, episode, job_queue, job_task_queue, show,);
+allow_tables_to_appear_in_same_query!(
+    content,
+    episode,
+    job_queue,
+    job_task_queue,
+    show,
+);

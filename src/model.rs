@@ -1,4 +1,5 @@
 use super::schema::{content, episode, show};
+use super::content::Content;
 
 #[derive(Insertable)]
 #[table_name = "content"]
@@ -7,11 +8,24 @@ pub struct NewContent {
     pub designation: i32,
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, AsChangeset, Identifiable)]
+#[table_name = "content"]
 pub struct ContentModel {
-    pub content_uid: i32,
+    pub id: i32,
     pub full_path: String,
     pub designation: i32,
+    pub file_hash: Option<String>
+}
+
+impl ContentModel {
+    pub fn from_content(c: Content) -> ContentModel {
+        return ContentModel {
+            id: c.content_uid.unwrap() as i32,
+            full_path: c.get_full_path(),
+            designation: c.designation as i32,
+            file_hash: c.hash
+        }
+    }
 }
 
 #[derive(Insertable)]
