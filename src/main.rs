@@ -2,16 +2,16 @@ extern crate diesel;
 use diesel::query_dsl::SaveChangesDsl;
 use tlm::{
     config::{Config, Preferences},
-    manager::FileManager,
-    utility::Utility,
-    print::Verbosity,
     database::establish_connection,
-    model::ContentModel
+    manager::FileManager,
+    model::ContentModel,
+    print::Verbosity,
+    utility::Utility,
 };
 
-use std::thread;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::thread;
 
 fn main() {
     //traceback and timing utility
@@ -38,12 +38,15 @@ fn main() {
         for mut c in original_files {
             if c.hash.is_none() {
                 c.hash();
-                if ContentModel::from_content(c).save_changes::<ContentModel>(&connection).is_err() {
+                if ContentModel::from_content(c)
+                    .save_changes::<ContentModel>(&connection)
+                    .is_err()
+                {
                     eprintln!("Failed to update hash in database");
                 }
             }
             if stop_background_inner.load(Ordering::Relaxed) {
-                break
+                break;
             }
         }
     });

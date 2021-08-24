@@ -1,5 +1,5 @@
+use crate::print::{print, From, Verbosity};
 use crate::timer::Timer;
-use crate::print::{print, Verbosity, From};
 
 #[derive(Clone, Debug)]
 pub struct Utility {
@@ -10,7 +10,7 @@ pub struct Utility {
     pub current_location: String,
     pub function_timer: Option<Timer>,
     pub timing_minumum_threshold: usize,
-    pub min_verbosity: Verbosity
+    pub min_verbosity: Verbosity,
 }
 
 impl Utility {

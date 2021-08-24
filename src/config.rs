@@ -1,10 +1,10 @@
 use crate::manager::TrackedDirectories;
+use crate::print::{print, From, Verbosity};
+use crate::utility::Utility;
 use argparse::{ArgumentParser, Store, StoreFalse, StoreTrue};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use crate::print::{print, From, Verbosity};
-use crate::utility::Utility;
 
 ///This struct contains any system specific data (paths, extensions, etc)
 /// likely will be replaced later with database tables but as we clear data
@@ -27,14 +27,24 @@ impl Config {
             let config_toml = match fs::read_to_string(&preferences.config_file_path) {
                 Ok(x) => x,
                 Err(err) => {
-                    print(Verbosity::CRITICAL,From::Config,utility,format!("Failed to read config file: {}", err));
+                    print(
+                        Verbosity::CRITICAL,
+                        From::Config,
+                        utility,
+                        format!("Failed to read config file: {}", err),
+                    );
                     panic!();
                 }
             };
             config = match toml::from_str(&config_toml) {
                 Ok(x) => x,
                 Err(err) => {
-                    print(Verbosity::CRITICAL,From::Config,utility,format!("Failed to parse toml: {}", err));
+                    print(
+                        Verbosity::CRITICAL,
+                        From::Config,
+                        utility,
+                        format!("Failed to parse toml: {}", err),
+                    );
                     panic!();
                 }
             };
@@ -56,7 +66,12 @@ impl Config {
             };
             let toml = toml::to_string(&config).unwrap();
             if fs::write(&preferences.config_file_path, toml).is_err() {
-                print(Verbosity::CRITICAL,From::Config,utility,String::from("Failed to write config file"));
+                print(
+                    Verbosity::CRITICAL,
+                    From::Config,
+                    utility,
+                    String::from("Failed to write config file"),
+                );
                 panic!();
             }
         }
@@ -65,13 +80,14 @@ impl Config {
     }
 }
 
+///Helper struct to make passing data for command line arguments easier
 pub struct Preferences {
     pub default_print: bool,
     pub print_contents: bool,
     pub print_shows: bool,
     pub print_general: bool,
     pub config_file_path: String,
-    pub min_verbosity: String
+    pub min_verbosity: String,
 }
 
 impl Preferences {
@@ -82,7 +98,7 @@ impl Preferences {
             print_shows: false,
             print_general: false,
             config_file_path: String::from("./.tlm_config"),
-            min_verbosity: String::from("INFO")
+            min_verbosity: String::from("INFO"),
         };
 
         prepare.parse_arguments();
@@ -90,6 +106,7 @@ impl Preferences {
         return prepare;
     }
 
+    ///Parses command line arguments using arg parse
     fn parse_arguments(&mut self) {
         let mut parser = ArgumentParser::new();
         parser.set_description("tlm: Transcoding Library Manager");

@@ -1,12 +1,12 @@
+use crate::database::{create_show, establish_connection};
 use crate::diesel::prelude::*;
 use crate::model::*;
+use crate::schema::show::dsl::show as show_table;
 use crate::{
     content::Content,
     print::{print, From, Verbosity},
     utility::Utility,
 };
-use crate::database::{establish_connection, create_show};
-use crate::schema::show::dsl::show as show_table;
 
 #[derive(Clone, Debug)]
 pub struct TV {
@@ -70,7 +70,6 @@ impl Show {
         );
     }
 
-
     pub fn show_exists(
         show_title: String,
         working_shows: &Vec<Show>,
@@ -107,10 +106,7 @@ impl Show {
                         format!("Adding a new show: {}", show_title),
                     );
                 }
-                let show_model = create_show(
-                    &connection,
-                    show_title.clone(),
-                );
+                let show_model = create_show(&connection, show_title.clone());
                 utility.print_specific_timer_by_uid(0, utility.clone());
 
                 let show_uid = show_model.show_uid as usize;

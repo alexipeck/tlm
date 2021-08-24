@@ -36,9 +36,9 @@ impl From {
             From::Show => "shows",
             From::Queue => "queue",
             From::DB => "db",
-            From::Job =>  "job",
+            From::Job => "job",
             From::Manager => "manager",
-            _ => "notset"
+            _ => "notset",
         })
     }
 }
@@ -47,7 +47,7 @@ impl Verbosity {
     pub fn to_string(self) -> String {
         String::from(match self {
             Verbosity::CRITICAL => "CRITICAL",
-            Verbosity::ERROR  => "ERROR",
+            Verbosity::ERROR => "ERROR",
             Verbosity::WARNING => "WARNING",
             Verbosity::INFO => "INFO",
             Verbosity::DEBUG => "DEBUG",
@@ -87,13 +87,21 @@ pub fn print(verbosity: Verbosity, from_module: From, utility: Utility, string: 
             call_functions_string = utility.to_string();
             eprintln!(
                 "{}[{}][{}][{}]::{}",
-                indentation, verbosity.to_string(), from_module.to_string(), call_functions_string, string
+                indentation,
+                verbosity.to_string(),
+                from_module.to_string(),
+                call_functions_string,
+                string
             );
         } else {
             call_functions_string = format!("{}", utility.traceback[utility.traceback.len() - 1]);
             println!(
                 "{}[{}][{}][{}]::{}",
-                indentation, verbosity.to_string(), from_module.to_string(), call_functions_string, string
+                indentation,
+                verbosity.to_string(),
+                from_module.to_string(),
+                call_functions_string,
+                string
             );
         }
     }

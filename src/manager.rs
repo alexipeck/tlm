@@ -1,10 +1,10 @@
+use crate::database::{create_content, create_episode, establish_connection, get_all_content};
 use crate::{
     content::Content,
     print::{print, From, Verbosity},
     tv::TV,
     utility::Utility,
 };
-use crate::database::{create_content,establish_connection, create_episode, get_all_content};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
@@ -90,7 +90,11 @@ impl FileManager {
         let raw_content = get_all_content(utility.clone());
 
         for content_model in raw_content {
-            content.push(Content::from_content_model(content_model, &mut self.tv.working_shows, utility.clone()));
+            content.push(Content::from_content_model(
+                content_model,
+                &mut self.tv.working_shows,
+                utility.clone(),
+            ));
         }
 
         utility.print_function_timer();

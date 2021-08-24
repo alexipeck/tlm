@@ -1,13 +1,12 @@
+use crate::model::*;
 use crate::schema::content as content_table;
-use crate::schema::show as show_table;
+use crate::schema::content::dsl::content as content_data;
 use crate::schema::episode as episode_table;
-use crate::schema::content::dsl::{content as content_data};
+use crate::schema::show as show_table;
+use crate::utility::Utility;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use crate::model::*;
-use crate::utility::Utility;
 use std::env;
-
 
 ///Sets up a connection to the database via DATABASE_URL environment variable
 pub fn establish_connection() -> PgConnection {
@@ -21,8 +20,6 @@ pub fn create_content<'a>(
     full_path: String,
     designation: i32,
 ) -> ContentModel {
-
-
     let new_content = NewContent {
         full_path: full_path,
         designation: designation,
@@ -35,15 +32,8 @@ pub fn create_content<'a>(
 }
 
 ///Inserts show data into the database
-pub fn create_show<'a>(
-    conn: &PgConnection,
-    title: String,
-) -> ShowModel {
-
-
-    let new_show = NewShow {
-        title: title,
-    };
+pub fn create_show<'a>(conn: &PgConnection, title: String) -> ShowModel {
+    let new_show = NewShow { title: title };
 
     diesel::insert_into(show_table::table)
         .values(&new_show)
@@ -60,7 +50,6 @@ pub fn create_episode<'a>(
     season_number: i32,
     episode_number: i32,
 ) -> EpisodeModel {
-
     let new_episode = NewEpisode {
         content_uid: content_uid,
         show_uid: show_uid,
@@ -79,7 +68,7 @@ pub fn create_episode<'a>(
 pub fn get_all_content(utility: Utility) -> Vec<ContentModel> {
     let mut utility = utility.clone_add_location_start_timing("get_all_content (database)", 0);
     let connection = establish_connection();
-    
+
     utility.print_function_timer();
     let data = content_data
         .load::<ContentModel>(&connection)

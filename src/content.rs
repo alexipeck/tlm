@@ -1,4 +1,4 @@
-use crate::database::{get_all_content};
+use crate::database::get_all_content;
 use crate::model::*;
 use std::{collections::HashSet, fs, path::PathBuf};
 
@@ -11,9 +11,9 @@ use crate::{
 use regex::Regex;
 
 ///Content contains fields for generic, episode, and movie data
-/// this will obviously mean memory overhead. In future I think 
-/// we should split this into 3 types that would however mean 
-/// that the manager would require seperate vectors but I consider 
+/// this will obviously mean memory overhead. In future I think
+/// we should split this into 3 types that would however mean
+/// that the manager would require seperate vectors but I consider
 /// that a non issue
 #[derive(Clone, Debug, Queryable)]
 pub struct Content {
@@ -59,7 +59,7 @@ impl Content {
         self.hash = Some(hash.to_string());
     }
 
-    ///Create a new content from the database equivalent. This is neccesary because 
+    ///Create a new content from the database equivalent. This is neccesary because
     /// not all fields are stored in the database because they can be so easily recalculated
     pub fn from_content_model(
         content_model: ContentModel,
