@@ -265,7 +265,7 @@ pub fn start_scheduler(file_manager: &mut FileManager, utility: Utility) {
             let amount_to_add = rng.gen_range(0..5);
             for i in 0..amount_to_add {
                 if left > 0 {
-                    file_manager.task_queue.push_test_task(&format!("Task added: {} of {} in iteration {}, left: {}", i, amount_to_add, iteration_counter, left));
+                    file_manager.task_queue.push_test_task(&format!("Task added: {} of {} in iteration {}, left: {}", i + 1, amount_to_add, iteration_counter + 1, left - 1));
                 left -= 1;
                 iteration_counter += 1;
                 }
