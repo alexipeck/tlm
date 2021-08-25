@@ -9,6 +9,7 @@ pub mod schema;
 pub mod timer;
 pub mod tv;
 pub mod utility;
+pub mod scheduler;
 
 #[macro_use]
 extern crate diesel;

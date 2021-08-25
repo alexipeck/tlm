@@ -24,6 +24,7 @@ pub enum From {
     Manager = 9,
     TV = 10,
     Config = 11,
+    Scheduler = 12,
 }
 
 impl From {
@@ -38,6 +39,7 @@ impl From {
             From::DB => "db",
             From::Job => "job",
             From::Manager => "manager",
+            From::Scheduler => "scheduler",
             _ => "notset",
         })
     }

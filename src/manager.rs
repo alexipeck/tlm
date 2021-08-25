@@ -1,9 +1,15 @@
-use crate::database::{create_content, create_episode, establish_connection, get_all_content};
 use crate::{
+    database::{
+        create_content,
+        create_episode,
+        establish_connection,
+        get_all_content
+    },
     content::Content,
     print::{print, From, Verbosity},
     tv::TV,
     utility::Utility,
+    scheduler::TaskQueue,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
@@ -30,6 +36,9 @@ pub struct FileManager {
     pub existing_files_hashset: HashSet<PathBuf>,
     pub tv: TV,
     pub new_files_queue: Vec<PathBuf>,
+
+    //scheduler
+    task_queue: TaskQueue,
 }
 
 impl FileManager {
@@ -42,6 +51,7 @@ impl FileManager {
             working_content: Vec::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
+            task_queue: TaskQueue::new(),
         };
 
         file_manager.working_content = file_manager.get_all_content(utility.clone());
