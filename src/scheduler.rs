@@ -1,9 +1,12 @@
-use std::{collections::VecDeque, str::Utf8Error};
+use std::{collections::VecDeque, sync::atomic::{AtomicUsize, Ordering}};
 use crate::{
     manager::FileManager,
     print::{print, From, Verbosity},
     utility::Utility,
 };
+use rand::Rng;
+
+static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Clone, Debug)]
 pub struct Encode {
@@ -137,6 +140,7 @@ pub enum TaskID {
 #[derive(Clone, Debug)]
 //only one should ever be Some()
 pub struct Task {
+    task_uid: usize,
     encode: Option<Encode>,
     copy: Option<Copy>,
     move_file: Option<MoveFile>,
@@ -150,7 +154,8 @@ pub struct Task {
 
 impl Task {
     pub fn new() -> Self { 
-        let mut task = Task {
+        return Task {
+            task_uid: TASK_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
             encode: None,
             copy: None,
             move_file: None,
@@ -161,20 +166,6 @@ impl Task {
             duplicate: None,
             test: None,
         };
-
-        /* match task_id {
-            TaskID::Encode => task.encode = Some(Encode::new()),
-            TaskID::Copy => task.copy = Some(Copy::new()),
-            TaskID::MoveFile => task.move_file = Some(MoveFile::new()),
-            TaskID::Rename => task.rename = Some(Rename::new()),
-            TaskID::Reserve => task.reserve = Some(Reserve::new()),
-            TaskID::Delete => task.delete = Some(Delete::new()),
-            TaskID::Reencode => task.reencode = Some(Reencode::new()),
-            TaskID::Duplicate => task.duplicate = Some(Duplicate::new()),
-            TaskID::Test => task.test = Some(Test::new(test_string)),
-        } */
-
-        return task;
     }
 
     pub fn fill_encode(&mut self) {
@@ -256,13 +247,31 @@ impl TaskQueue {
         for task in &mut self.tasks {
             task.handle_print_of_task(utility.clone());
         }
+
+        self.tasks = VecDeque::new();//eh, I can't remember how to check an element and remove it from a Vec or VecDeque
     }
 }
 
 pub fn start_scheduler(file_manager: &mut FileManager, utility: Utility) {
     let utility = utility.clone_add_location("start_scheduler");
+
+    let mut rng = rand::thread_rng();
+    let mut left: usize = 20;
+    let mut iteration_counter: usize = 0;
+
     loop {
         file_manager.task_queue.handle_tasks(utility.clone());
-        break;
+        if left > 0 {
+            let amount_to_add = rng.gen_range(0..5);
+            for i in 0..amount_to_add {
+                if left > 0 {
+                    file_manager.task_queue.push_test_task(&format!("Task added: {} of {} in iteration {}, left: {}", i, amount_to_add, iteration_counter, left));
+                left -= 1;
+                iteration_counter += 1;
+                }
+            }
+        } else {
+            break;
+        }
     }
 }

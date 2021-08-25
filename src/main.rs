@@ -66,7 +66,7 @@ fn main() {
     file_manager.print_number_of_content(utility.clone());
     file_manager.print_number_of_shows(utility.clone());
 
-    file_manager.task_queue.push_test_task("Fucker");
+    file_manager.task_queue.push_test_task("Main");
     start_scheduler(&mut file_manager, utility.clone());
 
     //Tell worker thread to stop after it has finished hashing current file
