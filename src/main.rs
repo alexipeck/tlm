@@ -7,6 +7,7 @@ use tlm::{
     model::ContentModel,
     print::Verbosity,
     utility::Utility,
+    scheduler::start_scheduler,
 };
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -64,6 +65,9 @@ fn main() {
 
     file_manager.print_number_of_content(utility.clone());
     file_manager.print_number_of_shows(utility.clone());
+
+    file_manager.task_queue.push_test_task("Fucker");
+    start_scheduler(&mut file_manager, utility.clone());
 
     //Tell worker thread to stop after it has finished hashing current file
     stop_background.store(true, Ordering::Relaxed);

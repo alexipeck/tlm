@@ -259,9 +259,10 @@ impl TaskQueue {
     }
 }
 
-pub fn start_scheduler(file_manager: &mut FileManager, task_queue: TaskQueue) {
+pub fn start_scheduler(file_manager: &mut FileManager, utility: Utility) {
+    let utility = utility.clone_add_location("start_scheduler");
     loop {
-        println!("Test");
+        file_manager.task_queue.handle_tasks(utility.clone());
         break;
     }
 }

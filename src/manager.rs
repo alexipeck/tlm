@@ -38,7 +38,7 @@ pub struct FileManager {
     pub new_files_queue: Vec<PathBuf>,
 
     //scheduler
-    task_queue: TaskQueue,
+    pub task_queue: TaskQueue,
 }
 
 impl FileManager {
