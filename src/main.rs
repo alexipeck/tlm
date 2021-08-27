@@ -22,8 +22,6 @@ fn main() {
 
     utility.min_verbosity = Verbosity::from_string(&utility.preferences.min_verbosity.to_uppercase());
 
-    utility.enable_timing_print();
-
     //The FileManager stores working files, hashsets and supporting functions related to updating those files
     let mut file_manager: FileManager = FileManager::new(utility.clone());
     let original_files = file_manager.working_content.clone();
@@ -58,8 +56,6 @@ fn main() {
     );
 
     file_manager.process_new_files(utility.clone());
-
-    utility.disable_timing_print();
 
     file_manager.print_number_of_content(utility.clone());
     file_manager.print_number_of_shows(utility.clone());

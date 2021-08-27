@@ -34,14 +34,10 @@ impl Timer {
     }
 
     pub fn print_timer(&mut self, utility: Utility) {
-        if utility.preferences.timing_enabled {
-
-        }
-        let utility = utility.clone_add_location("print_timer(Timer)");
-
-        if !utility.print_timing {
+        if !utility.preferences.timing_enabled {
             return;
         }
+        let utility = utility.clone_add_location("print_timer(Timer)");
 
         if self.stored_time.is_none() {
             self.store_timing();

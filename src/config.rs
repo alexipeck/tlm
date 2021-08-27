@@ -157,6 +157,12 @@ impl Preferences {
             "Enable program self-timing",
         );
 
+        parser.refer(&mut self.timing_threshold).add_option(
+            &["--timing-threshold"],
+            Store,
+            "Threshold for how slow a timed event has to be in order to print",
+        );
+
         parser.parse_args_or_exit();
     }
 }

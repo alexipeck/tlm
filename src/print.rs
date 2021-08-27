@@ -71,34 +71,36 @@ impl Verbosity {
 }
 
 pub fn print(verbosity: Verbosity, from_module: From, utility: Utility, string: String, is_timer: bool) {
-    if utility.preferences.default_print || is_timer {
-        let mut utility = utility.clone_add_location("print");
-
-        //called from
-        let call_functions_string: String;
-    
-        if verbosity as usize <= utility.min_verbosity as usize {
-            if verbosity == Verbosity::CRITICAL || verbosity == Verbosity::ERROR {
-                call_functions_string = utility.to_string();
-                eprintln!(
-                    "[{}][{}][{}]::{}",
-                    verbosity.to_string(),
-                    from_module.to_string(),
-                    call_functions_string,
-                    string
-                );
-            } else {
-                call_functions_string = format!("{}", utility.traceback[utility.traceback.len() - 1]);
-                println!(
-                    "[{}][{}][{}]::{}",
-                    verbosity.to_string(),
-                    from_module.to_string(),
-                    call_functions_string,
-                    string
-                );
-            }
-        }
-    
-        utility.print_function_timer();
+    let mut utility = utility.clone_add_location("print");
+    if !utility.preferences.default_print && !is_timer {
+        return;
     }
+
+
+    //called from
+    let call_functions_string: String;
+
+    if verbosity as usize <= utility.min_verbosity as usize {
+        if verbosity == Verbosity::CRITICAL || verbosity == Verbosity::ERROR {
+            call_functions_string = utility.to_string();
+            eprintln!(
+                "[{}][{}][{}]::{}",
+                verbosity.to_string(),
+                from_module.to_string(),
+                call_functions_string,
+                string
+            );
+        } else {
+            call_functions_string = format!("{}", utility.traceback[utility.traceback.len() - 1]);
+            println!(
+                "[{}][{}][{}]::{}",
+                verbosity.to_string(),
+                from_module.to_string(),
+                call_functions_string,
+                string
+            );
+        }
+    }
+
+    utility.print_function_timer();
 }

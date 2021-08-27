@@ -92,7 +92,7 @@ impl Show {
         working_shows: &mut Vec<Show>,
         utility: Utility,
     ) -> usize {
-        let mut utility = utility.clone_add_location("ensure_show_exists(Show)");
+        let utility = utility.clone_add_location("ensure_show_exists(Show)");
 
         let show_uid = Show::show_exists(show_title.clone(), working_shows, utility.clone());
         match show_uid {

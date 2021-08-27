@@ -7,7 +7,6 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct Utility {
     pub traceback: Vec<String>,
-    pub print_timing: bool,
     pub current_location: String,
     pub function_timer: Option<Timer>,
     pub timing_minumum_threshold: usize,
@@ -20,7 +19,6 @@ impl Utility {
     pub fn new(created_from: &str, timing_minimum_threshold: usize) -> Self {
         let mut utility = Utility {
             traceback: Vec::new(),
-            print_timing: false,
             min_verbosity: Verbosity::DEBUG,
             current_location: String::from(created_from),
             function_timer: None,
@@ -57,14 +55,6 @@ impl Utility {
                 panic!()
             }
         }
-    }
-
-    pub fn enable_timing_print(&mut self) {
-        self.print_timing = true;
-    }
-
-    pub fn disable_timing_print(&mut self) {
-        self.print_timing = false;
     }
 
     fn add_traceback_location(&mut self, called_from: &str) -> Utility {
