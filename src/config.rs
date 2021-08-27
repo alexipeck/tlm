@@ -121,7 +121,7 @@ impl Preferences {
         let mut parser = ArgumentParser::new();
         parser.set_description("tlm: Transcoding Library Manager");
         parser.refer(&mut self.default_print).add_option(
-            &["--disable-print"],
+            &["--disable-print", "--no-print"],
             StoreFalse,
             "Disables printing by default. Specific types of print can be enabled on top of this",
         );
@@ -141,12 +141,12 @@ impl Preferences {
             "Enable printing general debug information",
         );
         parser.refer(&mut self.config_file_path).add_option(
-            &["--config"],
+            &["--config", "-c"],
             Store,
             "Set a custom config path",
         );
         parser.refer(&mut self.min_verbosity).add_option(
-            &["--min-severity"],
+            &["--min-severity", "--min-verbosity"],
             Store,
             "Set a minimum severity (debug, info, warning, error, critical)",
         );
@@ -158,7 +158,7 @@ impl Preferences {
         );
 
         parser.refer(&mut self.timing_threshold).add_option(
-            &["--timing-threshold"],
+            &["--timing-threshold", "--timing-cutoff"],
             Store,
             "Threshold for how slow a timed event has to be in order to print",
         );
