@@ -1,10 +1,11 @@
 use crate::{
     content::Content,
+    database::{create_content, create_episode, establish_connection, get_all_content},
     print::{print, From, Verbosity},
+    scheduler::TaskQueue,
     tv::TV,
     utility::Utility,
 };
-use crate::database::{create_content,establish_connection, create_episode};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
@@ -30,11 +31,14 @@ pub struct FileManager {
     pub existing_files_hashset: HashSet<PathBuf>,
     pub tv: TV,
     pub new_files_queue: Vec<PathBuf>,
+
+    //scheduler
+    pub task_queue: TaskQueue,
 }
 
 impl FileManager {
     pub fn new(utility: Utility) -> FileManager {
-        let mut utility = utility.clone_add_location_start_timing("new(FileManager)", 0);
+        let mut utility = utility.clone_add_location("new(FileManager)");
 
         let mut file_manager = FileManager {
             tracked_directories: TrackedDirectories::new(),
@@ -42,10 +46,10 @@ impl FileManager {
             working_content: Vec::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
+            task_queue: TaskQueue::new(),
         };
 
-        file_manager.working_content =
-            Content::get_all_contents(&mut file_manager.tv.working_shows.clone(), utility.clone());
+        file_manager.working_content = file_manager.get_all_content(utility.clone());
         file_manager.existing_files_hashset = Content::get_all_filenames_as_hashset_from_content(
             file_manager.working_content.clone(),
             utility.clone(),
@@ -66,6 +70,7 @@ impl FileManager {
                 "Number of content loaded in memory: {}",
                 self.working_content.len()
             ),
+            false,
         );
     }
 
@@ -80,15 +85,33 @@ impl FileManager {
                 "Number of shows loaded in memory: {}",
                 self.tv.working_shows.len()
             ),
+            false,
         );
     }
 
+    pub fn get_all_content(&mut self, utility: Utility) -> Vec<Content> {
+        let mut utility = utility.clone_add_location("get_all_contents(Content)");
+
+        let mut content: Vec<Content> = Vec::new();
+
+        let raw_content = get_all_content(utility.clone());
+
+        for content_model in raw_content {
+            content.push(Content::from_content_model(
+                content_model,
+                &mut self.tv.working_shows,
+                utility.clone(),
+            ));
+        }
+
+        utility.print_function_timer();
+        return content;
+    }
+
     pub fn process_new_files(&mut self, utility: Utility) {
-        let mut utility =
-            utility.clone_add_location_start_timing("process_new_files(FileManager)", 0);
+        let mut utility = utility.clone_add_location("process_new_files(FileManager)");
         let connection = establish_connection();
 
-        utility.add_timer(0, "startup: processing new files", utility.clone());
         while self.new_files_queue.len() > 0 {
             let current = self.new_files_queue.pop();
             if current.is_some() {
@@ -133,7 +156,7 @@ impl FileManager {
         ignored_paths: &Vec<String>,
         utility: Utility,
     ) {
-        let mut utility = utility.clone_add_location_start_timing("import_files(FileManager)", 0);
+        let mut utility = utility.clone_add_location("import_files(FileManager)");
 
         //Return true if string contains any substring from Vector
         fn str_contains_strs(input_str: &str, substrings: &Vec<String>) -> bool {

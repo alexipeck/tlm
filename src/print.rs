@@ -23,6 +23,8 @@ pub enum From {
     Job = 8,
     Manager = 9,
     TV = 10,
+    Config = 11,
+    Scheduler = 12,
 }
 
 impl From {
@@ -35,9 +37,11 @@ impl From {
             From::Show => "shows",
             From::Queue => "queue",
             From::DB => "db",
-            From::Job =>  "job",
+            From::Job => "job",
             From::Manager => "manager",
-            _ => "notset"
+            From::Scheduler => "scheduler",
+            From::TV => "tv",
+            _ => "notset",
         })
     }
 }
@@ -46,7 +50,7 @@ impl Verbosity {
     pub fn to_string(self) -> String {
         String::from(match self {
             Verbosity::CRITICAL => "CRITICAL",
-            Verbosity::ERROR  => "ERROR",
+            Verbosity::ERROR => "ERROR",
             Verbosity::WARNING => "WARNING",
             Verbosity::INFO => "INFO",
             Verbosity::DEBUG => "DEBUG",
@@ -66,17 +70,17 @@ impl Verbosity {
     }
 }
 
-pub fn get_indentation_from_tab_count(tab_count: usize) -> String {
-    let mut indentation: String = String::new();
-    for _ in 0..tab_count {
-        indentation += "\t";
+pub fn print(
+    verbosity: Verbosity,
+    from_module: From,
+    utility: Utility,
+    string: String,
+    is_timer: bool,
+) {
+    let mut utility = utility.clone_add_location("print");
+    if !utility.preferences.default_print && !is_timer {
+        return;
     }
-    return indentation;
-}
-
-pub fn print(verbosity: Verbosity, from_module: From, utility: Utility, string: String) {
-    let mut utility = utility.clone_add_location_start_timing("print", 0);
-    let indentation = get_indentation_from_tab_count(utility.indentation);
 
     //called from
     let call_functions_string: String;
@@ -85,14 +89,20 @@ pub fn print(verbosity: Verbosity, from_module: From, utility: Utility, string: 
         if verbosity == Verbosity::CRITICAL || verbosity == Verbosity::ERROR {
             call_functions_string = utility.to_string();
             eprintln!(
-                "{}[{}][{}][{}]::{}",
-                indentation, verbosity.to_string(), from_module.to_string(), call_functions_string, string
+                "[{}][{}][{}]::{}",
+                verbosity.to_string(),
+                from_module.to_string(),
+                call_functions_string,
+                string
             );
         } else {
             call_functions_string = format!("{}", utility.traceback[utility.traceback.len() - 1]);
             println!(
-                "{}[{}][{}][{}]::{}",
-                indentation, verbosity.to_string(), from_module.to_string(), call_functions_string, string
+                "[{}][{}][{}]::{}",
+                verbosity.to_string(),
+                from_module.to_string(),
+                call_functions_string,
+                string
             );
         }
     }

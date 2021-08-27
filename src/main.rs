@@ -2,28 +2,26 @@ extern crate diesel;
 use diesel::query_dsl::SaveChangesDsl;
 use tlm::{
     config::{Config, Preferences},
-    manager::FileManager,
-    utility::Utility,
-    print::Verbosity,
     database::establish_connection,
-    model::ContentModel
+    manager::FileManager,
+    model::ContentModel,
+    print::Verbosity,
+    scheduler::start_scheduler,
+    utility::Utility,
 };
 
-use std::thread;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::thread;
 
 fn main() {
     //traceback and timing utility
     let mut utility = Utility::new("main", 0);
 
-    let preferences = Preferences::new();
+    let config = Config::new(&utility.preferences);
 
-    let config = Config::ensure_config_exists_then_get(&preferences);
-
-    utility.min_verbosity = Verbosity::from_string(&preferences.min_verbosity.to_uppercase());
-
-    utility.enable_timing_print();
+    utility.min_verbosity =
+        Verbosity::from_string(&utility.preferences.min_verbosity.to_uppercase());
 
     //The FileManager stores working files, hashsets and supporting functions related to updating those files
     let mut file_manager: FileManager = FileManager::new(utility.clone());
@@ -38,12 +36,15 @@ fn main() {
         for mut c in original_files {
             if c.hash.is_none() {
                 c.hash();
-                if ContentModel::from_content(c).save_changes::<ContentModel>(&connection).is_err() {
+                if ContentModel::from_content(c)
+                    .save_changes::<ContentModel>(&connection)
+                    .is_err()
+                {
                     eprintln!("Failed to update hash in database");
                 }
             }
             if stop_background_inner.load(Ordering::Relaxed) {
-                break
+                break;
             }
         }
     });
@@ -57,10 +58,11 @@ fn main() {
 
     file_manager.process_new_files(utility.clone());
 
-    utility.disable_timing_print();
-
     file_manager.print_number_of_content(utility.clone());
     file_manager.print_number_of_shows(utility.clone());
+
+    file_manager.task_queue.push_test_task("Main");
+    start_scheduler(&mut file_manager, utility.clone());
 
     //Tell worker thread to stop after it has finished hashing current file
     stop_background.store(true, Ordering::Relaxed);

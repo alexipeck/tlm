@@ -1,12 +1,12 @@
+use crate::database::{create_show, establish_connection};
 use crate::diesel::prelude::*;
 use crate::model::*;
+use crate::schema::show::dsl::show as show_table;
 use crate::{
     content::Content,
     print::{print, From, Verbosity},
     utility::Utility,
 };
-use crate::database::{establish_connection, create_show};
-use crate::schema::show::dsl::show as show_table;
 
 #[derive(Clone, Debug)]
 pub struct TV {
@@ -67,9 +67,9 @@ impl Show {
             From::Show,
             utility,
             format!("[uid: {}][title: {}]", self.show_uid, self.title),
+            false,
         );
     }
-
 
     pub fn show_exists(
         show_title: String,
@@ -92,26 +92,21 @@ impl Show {
         working_shows: &mut Vec<Show>,
         utility: Utility,
     ) -> usize {
-        let mut utility = utility.clone_add_location_start_timing("ensure_show_exists(Show)", 0);
+        let utility = utility.clone_add_location("ensure_show_exists(Show)");
 
         let show_uid = Show::show_exists(show_title.clone(), working_shows, utility.clone());
         match show_uid {
             Some(uid) => return uid,
             None => {
                 let connection = establish_connection();
-                if utility.print_timing {
-                    print(
-                        Verbosity::INFO,
-                        From::TV,
-                        utility.clone(),
-                        format!("Adding a new show: {}", show_title),
-                    );
-                }
-                let show_model = create_show(
-                    &connection,
-                    show_title.clone(),
+                print(
+                    Verbosity::INFO,
+                    From::TV,
+                    utility.clone(),
+                    format!("Adding a new show: {}", show_title),
+                    false,
                 );
-                utility.print_specific_timer_by_uid(0, utility.clone());
+                let show_model = create_show(&connection, show_title.clone());
 
                 let show_uid = show_model.show_uid as usize;
                 let new_show = Show {
@@ -127,13 +122,8 @@ impl Show {
     }
 
     pub fn from_show_model(show_model: ShowModel, utility: Utility) -> Show {
-        let mut utility = utility.clone_add_location_start_timing("from_show_model(Show)", 0);
+        let mut utility = utility.clone_add_location("from_show_model(Show)");
 
-        utility.add_timer(
-            0,
-            "startup: from_row: create show from row",
-            utility.clone(),
-        );
         let show_uid_temp: i32 = show_model.show_uid;
         let title_temp: String = show_model.title;
 
@@ -148,8 +138,7 @@ impl Show {
     }
 
     pub fn get_all_shows(utility: Utility) -> Vec<Show> {
-        let mut utility = utility.clone_add_location_start_timing("get_all_shows(Show)", 0);
-        utility.add_timer(0, "startup: read in shows", utility.clone());
+        let mut utility = utility.clone_add_location("get_all_shows(Show)");
 
         let connection = establish_connection();
         let raw_shows = show_table

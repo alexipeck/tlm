@@ -1,5 +1,5 @@
-use super::schema::{content, episode, show};
 use super::content::Content;
+use super::schema::{content, episode, show};
 
 #[derive(Insertable)]
 #[table_name = "content"]
@@ -14,7 +14,7 @@ pub struct ContentModel {
     pub id: i32,
     pub full_path: String,
     pub designation: i32,
-    pub file_hash: Option<String>
+    pub file_hash: Option<String>,
 }
 
 impl ContentModel {
@@ -23,8 +23,8 @@ impl ContentModel {
             id: c.content_uid.unwrap() as i32,
             full_path: c.get_full_path(),
             designation: c.designation as i32,
-            file_hash: c.hash
-        }
+            file_hash: c.hash,
+        };
     }
 }
 

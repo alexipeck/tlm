@@ -1,18 +1,21 @@
-use crate::diesel::prelude::*;
-use crate::database::{establish_connection};
-use crate::model::*;
-use crate::schema::content::dsl::{content as content_table};
 use std::{collections::HashSet, fs, path::PathBuf};
 
 use crate::{
+    database::get_all_content,
     designation::{convert_i32_to_designation, Designation},
+    model::*,
     print::{print, From, Verbosity},
+    profile::Profile,
     tv::Show,
     utility::Utility,
 };
 use regex::Regex;
 
-/// Container 
+///Content contains fields for generic, episode, and movie data
+/// this will obviously mean memory overhead. In future I think
+/// we should split this into 3 types that would however mean
+/// that the manager would require seperate vectors but I consider
+/// that a non issue
 #[derive(Clone, Debug, Queryable)]
 pub struct Content {
     //generic
@@ -23,30 +26,24 @@ pub struct Content {
     pub hash: Option<String>,
     //pub versions: Vec<FileVersion>,
     //pub metadata_dump
-
+    pub profile: Option<Profile>,
     //episode
     pub show_uid: Option<usize>,
     pub show_title: Option<String>,
     pub show_season_episode: Option<(usize, Vec<usize>)>,
 }
 
-pub struct Episode {
-    pub generic_information: Content,
-    pub show_uid: Option<usize>,
-    pub show_title: Option<String>,
-    pub show_season_episode: Option<(usize, Vec<usize>)>
-}
-
 impl Content {
     //needs to be able to be created from a pathbuf or pulled from the database
-    pub fn new(raw_filepath: &PathBuf, working_shows: &mut Vec<Show>, utility: Utility) -> Content {
-        let mut utility = utility.clone_add_location_start_timing("new(Content)", 0);
+    pub fn new(raw_filepath: &PathBuf, working_shows: &mut Vec<Show>, utility: Utility) -> Self {
+        let mut utility = utility.clone_add_location("new(Content)");
 
         let mut content = Content {
             full_path: raw_filepath.to_path_buf(),
             designation: Designation::Generic,
             content_uid: None,
             hash: None,
+            profile: Some(Profile::new(0, 0, 0, 0)), //asdf;
 
             show_title: None,
             show_season_episode: None,
@@ -57,17 +54,21 @@ impl Content {
         return content;
     }
 
+    ///Hash the content file with seahash for data integrity purposes so we
+    /// know if a file has been replaced and may need to be reprocessed
     pub fn hash(&mut self) {
         let hash = seahash::hash(&fs::read(self.full_path.to_str().unwrap()).unwrap());
         self.hash = Some(hash.to_string());
     }
 
+    ///Create a new content from the database equivalent. This is neccesary because
+    /// not all fields are stored in the database because they can be so easily recalculated
     pub fn from_content_model(
         content_model: ContentModel,
         working_shows: &mut Vec<Show>,
         utility: Utility,
     ) -> Content {
-        let mut utility = utility.clone_add_location_start_timing("from_row(Content)", 0);
+        let mut utility = utility.clone_add_location("from_row(Content)");
 
         let content_uid_temp: i32 = content_model.id;
         let full_path_temp: String = content_model.full_path;
@@ -79,6 +80,8 @@ impl Content {
             designation: convert_i32_to_designation(designation_temp), //Designation::Generic
             content_uid: Some(content_uid_temp as usize),
             hash: content_model.file_hash,
+            //asdf;
+            profile: Some(Profile::new(0, 0, 0, 0)), //this is fine for now as profile isn't in the database
 
             //truly optional
             show_title: None,
@@ -92,31 +95,11 @@ impl Content {
         return content;
     }
 
-    pub fn get_all_contents(working_shows: &mut Vec<Show>, utility: Utility) -> Vec<Content> {
-        let connection = establish_connection();
-        let mut utility = utility.clone_add_location_start_timing("get_all_contents(Content)", 0);
-
-
-        let raw_content = content_table
-            .load::<ContentModel>(&connection)
-            .expect("Error loading content");
-
-        let mut content: Vec<Content> = Vec::new();
-
-        for content_model in raw_content {
-            content.push(Content::from_content_model(content_model, working_shows, utility.clone()));
-        }
-
-        utility.print_function_timer();
-        return content;
-    }
-
     pub fn get_all_filenames_as_hashset_from_content(
         contents: Vec<Content>,
         utility: Utility,
     ) -> HashSet<PathBuf> {
-        let mut utility =
-            utility.clone_add_location_start_timing("get_all_filenames_as_hashset", 0);
+        let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
         let mut hashset = HashSet::new();
         for content in contents {
             hashset.insert(content.full_path);
@@ -127,12 +110,8 @@ impl Content {
     }
 
     pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
-        let mut utility =
-            utility.clone_add_location_start_timing("get_all_filenames_as_hashset", 0);
-        let connection = establish_connection();
-        let raw_content = content_table
-            .load::<ContentModel>(&connection)
-            .expect("Error loading content");
+        let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
+        let raw_content = get_all_content(utility.clone());
         let mut hashset = HashSet::new();
         for row in raw_content {
             hashset.insert(PathBuf::from(row.full_path));
@@ -142,7 +121,8 @@ impl Content {
         return hashset;
     }
 
-    //no options currently
+    ///Returns a vector of ffmpeg arguments for later execution
+    /// This has no options currently
     pub fn generate_encode_string(&self) -> Vec<String> {
         return vec![
             "-i".to_string(),
@@ -164,6 +144,9 @@ impl Content {
         ];
     }
 
+    ///Appends a fixed string to differentiate rendered files from original before overwrite
+    /// I doubt this will stay as I think a temp directory would be more appropriate.
+    /// This function returns that as a string for the ffmpeg arguments
     pub fn generate_target_path(&self) -> String {
         return self
             .get_full_path_with_suffix("_encodeH4U8".to_string())
@@ -175,6 +158,9 @@ impl Content {
         return Job::new(self.full_path.clone(), self.generate_encode_string());
     } */
 
+    ///Appends a fixed string to differentiate rendered files from original before overwrite
+    /// I doubt this will stay as I think a temp directory would be more appropriate.
+    /// This function returns that as a PathBuf
     pub fn generate_encode_path_from_pathbuf(pathbuf: PathBuf) -> PathBuf {
         return Content::get_full_path_with_suffix_from_pathbuf(pathbuf, "_encodeH4U8".to_string());
     }
@@ -259,7 +245,7 @@ impl Content {
     }
 
     pub fn get_season_number(&self) -> usize {
-        return self.show_season_episode.clone().unwrap().0;
+        return self.show_season_episode.as_ref().unwrap().0;
     }
 
     pub fn get_show_title(&self, utility: Utility) -> String {
@@ -273,6 +259,7 @@ impl Content {
                 From::Content,
                 utility,
                 String::from("You called get_show_title on a content that didn't have an episode designation or was incorrectly created"),
+                false,
             );
             panic!();
         }
@@ -289,6 +276,7 @@ impl Content {
                 From::Content,
                 utility,
                 String::from("You called get_show_uid on a content that didn't have an episode designation or was incorrectly created"),
+                false,
             );
             panic!();
         }
@@ -328,13 +316,14 @@ impl Content {
                 From::Content,
                 utility,
                 String::from("You called get_content_uid on a content that hasn't been inserted into the db yet or hasn't been assigned a content_uid from the database correctly"),
+                false,
             );
             panic!();
         }
     }
 
     pub fn print(&self, utility: Utility) {
-        let utility = utility.clone_and_add_location("print(Show)", 0);
+        let utility = utility.clone_add_location("print(Show)");
 
         if self.show_uid.is_some()
             && self.show_title.is_some()
@@ -354,6 +343,7 @@ impl Content {
                     self.get_full_path(),
                     self.get_show_title(utility.clone()),
                 ),
+                false,
             );
         } else {
             print(
@@ -366,6 +356,7 @@ impl Content {
                     self.designation as i32,
                     self.get_full_path(),
                 ),
+                false,
             );
         }
     }
@@ -381,7 +372,7 @@ impl Content {
     }
 
     pub fn designate_and_fill(&mut self, working_shows: &mut Vec<Show>, utility: Utility) {
-        let mut utility = utility.clone_add_location_start_timing("designate_and_fill", 0);
+        let mut utility = utility.clone_add_location("designate_and_fill");
 
         let show_season_episode_temp = self.seperate_season_episode();
         if show_season_episode_temp.is_some() {
@@ -416,7 +407,7 @@ impl Content {
     }
 
     pub fn print_contents(contents: Vec<Content>, utility: Utility) {
-        let mut utility = utility.clone_add_location_start_timing("print_contents", 0);
+        let mut utility = utility.clone_add_location("print_contents");
 
         for content in contents {
             content.print(utility.clone());
