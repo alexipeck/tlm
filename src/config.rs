@@ -94,7 +94,7 @@ pub struct Preferences {
     pub min_verbosity: String,
 
     pub timing_enabled: bool,
-    pub timing_threshold: usize,
+    pub timing_threshold: u128,
 }
 
 impl Preferences {
