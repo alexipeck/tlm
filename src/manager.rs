@@ -43,7 +43,7 @@ pub struct FileManager {
 
 impl FileManager {
     pub fn new(utility: Utility) -> FileManager {
-        let mut utility = utility.clone_add_location_start_timing("new(FileManager)", 0);
+        let mut utility = utility.clone_add_location("new(FileManager)");
 
         let mut file_manager = FileManager {
             tracked_directories: TrackedDirectories::new(),
@@ -75,6 +75,7 @@ impl FileManager {
                 "Number of content loaded in memory: {}",
                 self.working_content.len()
             ),
+            false,
         );
     }
 
@@ -89,11 +90,12 @@ impl FileManager {
                 "Number of shows loaded in memory: {}",
                 self.tv.working_shows.len()
             ),
+            false,
         );
     }
 
     pub fn get_all_content(&mut self, utility: Utility) -> Vec<Content> {
-        let mut utility = utility.clone_add_location_start_timing("get_all_contents(Content)", 0);
+        let mut utility = utility.clone_add_location("get_all_contents(Content)");
 
         let mut content: Vec<Content> = Vec::new();
 
@@ -113,10 +115,9 @@ impl FileManager {
 
     pub fn process_new_files(&mut self, utility: Utility) {
         let mut utility =
-            utility.clone_add_location_start_timing("process_new_files(FileManager)", 0);
+            utility.clone_add_location("process_new_files(FileManager)");
         let connection = establish_connection();
 
-        utility.add_timer(0, "startup: processing new files", utility.clone());
         while self.new_files_queue.len() > 0 {
             let current = self.new_files_queue.pop();
             if current.is_some() {
@@ -161,7 +162,7 @@ impl FileManager {
         ignored_paths: &Vec<String>,
         utility: Utility,
     ) {
-        let mut utility = utility.clone_add_location_start_timing("import_files(FileManager)", 0);
+        let mut utility = utility.clone_add_location("import_files(FileManager)");
 
         //Return true if string contains any substring from Vector
         fn str_contains_strs(input_str: &str, substrings: &Vec<String>) -> bool {

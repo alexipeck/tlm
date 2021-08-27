@@ -10,6 +10,7 @@ pub mod timer;
 pub mod tv;
 pub mod utility;
 pub mod scheduler;
+pub mod profile;
 
 #[macro_use]
 extern crate diesel;

@@ -14,7 +14,7 @@ pub struct Encode {
 }
 
 impl Encode {
-    pub fn new() -> Encode {
+    pub fn new() -> Self {
         return Encode {
             placeholder: None,
         }
@@ -218,7 +218,7 @@ impl Task {
 
         } else if self.test.is_some() {
             let test = self.test.clone().unwrap();
-            print(Verbosity::INFO, From::Scheduler, utility.clone(), test.test_string);
+            print(Verbosity::INFO, From::Scheduler, utility.clone(), test.test_string, false);
         }
     }
 }
@@ -228,7 +228,7 @@ pub struct TaskQueue {
 }
 
 impl TaskQueue {
-    pub fn new() -> TaskQueue {
+    pub fn new() -> Self {
         return TaskQueue {
             tasks: VecDeque::new(),
         }

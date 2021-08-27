@@ -40,6 +40,7 @@ impl From {
             From::Job => "job",
             From::Manager => "manager",
             From::Scheduler => "scheduler",
+            From::TV => "tv",
             _ => "notset",
         })
     }
@@ -69,44 +70,35 @@ impl Verbosity {
     }
 }
 
-pub fn get_indentation_from_tab_count(tab_count: usize) -> String {
-    let mut indentation: String = String::new();
-    for _ in 0..tab_count {
-        indentation += "\t";
-    }
-    return indentation;
-}
+pub fn print(verbosity: Verbosity, from_module: From, utility: Utility, string: String, is_timer: bool) {
+    if utility.preferences.default_print || is_timer {
+        let mut utility = utility.clone_add_location("print");
 
-pub fn print(verbosity: Verbosity, from_module: From, utility: Utility, string: String) {
-    let mut utility = utility.clone_add_location_start_timing("print", 0);
-    let indentation = get_indentation_from_tab_count(utility.indentation);
-
-    //called from
-    let call_functions_string: String;
-
-    if verbosity as usize <= utility.min_verbosity as usize {
-        if verbosity == Verbosity::CRITICAL || verbosity == Verbosity::ERROR {
-            call_functions_string = utility.to_string();
-            eprintln!(
-                "{}[{}][{}][{}]::{}",
-                indentation,
-                verbosity.to_string(),
-                from_module.to_string(),
-                call_functions_string,
-                string
-            );
-        } else {
-            call_functions_string = format!("{}", utility.traceback[utility.traceback.len() - 1]);
-            println!(
-                "{}[{}][{}][{}]::{}",
-                indentation,
-                verbosity.to_string(),
-                from_module.to_string(),
-                call_functions_string,
-                string
-            );
+        //called from
+        let call_functions_string: String;
+    
+        if verbosity as usize <= utility.min_verbosity as usize {
+            if verbosity == Verbosity::CRITICAL || verbosity == Verbosity::ERROR {
+                call_functions_string = utility.to_string();
+                eprintln!(
+                    "[{}][{}][{}]::{}",
+                    verbosity.to_string(),
+                    from_module.to_string(),
+                    call_functions_string,
+                    string
+                );
+            } else {
+                call_functions_string = format!("{}", utility.traceback[utility.traceback.len() - 1]);
+                println!(
+                    "[{}][{}][{}]::{}",
+                    verbosity.to_string(),
+                    from_module.to_string(),
+                    call_functions_string,
+                    string
+                );
+            }
         }
+    
+        utility.print_function_timer();
     }
-
-    utility.print_function_timer();
 }

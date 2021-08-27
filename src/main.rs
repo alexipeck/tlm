@@ -18,11 +18,9 @@ fn main() {
     //traceback and timing utility
     let mut utility = Utility::new("main", 0);
 
-    let preferences = Preferences::new();
+    let config = Config::new(&utility.preferences);
 
-    let config = Config::new(&preferences);
-
-    utility.min_verbosity = Verbosity::from_string(&preferences.min_verbosity.to_uppercase());
+    utility.min_verbosity = Verbosity::from_string(&utility.preferences.min_verbosity.to_uppercase());
 
     utility.enable_timing_print();
 

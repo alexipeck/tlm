@@ -32,6 +32,7 @@ impl Config {
                         From::Config,
                         utility,
                         format!("Failed to read config file: {}", err),
+                        false,
                     );
                     panic!();
                 }
@@ -44,6 +45,7 @@ impl Config {
                         From::Config,
                         utility,
                         format!("Failed to parse toml: {}", err),
+                        false,
                     );
                     panic!();
                 }
@@ -71,6 +73,7 @@ impl Config {
                     From::Config,
                     utility,
                     String::from("Failed to write config file"),
+                    false,
                 );
                 panic!();
             }
@@ -81,6 +84,7 @@ impl Config {
 }
 
 ///Helper struct to make passing data for command line arguments easier
+#[derive(Clone, Debug)]
 pub struct Preferences {
     pub default_print: bool,
     pub print_contents: bool,
@@ -88,6 +92,9 @@ pub struct Preferences {
     pub print_general: bool,
     pub config_file_path: String,
     pub min_verbosity: String,
+
+    pub timing_enabled: bool,
+    pub timing_threshold: usize,
 }
 
 impl Preferences {
@@ -99,6 +106,9 @@ impl Preferences {
             print_general: false,
             config_file_path: String::from("./.tlm_config"),
             min_verbosity: String::from("INFO"),
+
+            timing_enabled: false,
+            timing_threshold: 0,
         };
 
         prepare.parse_arguments();
@@ -139,6 +149,12 @@ impl Preferences {
             &["--min-severity"],
             Store,
             "Set a minimum severity (debug, info, warning, error, critical)",
+        );
+
+        parser.refer(&mut self.timing_enabled).add_option(
+            &["--enable-timing"],
+            StoreTrue,
+            "Enable program self-timing",
         );
 
         parser.parse_args_or_exit();
