@@ -1,13 +1,13 @@
 use std::{collections::HashSet, fs, path::PathBuf};
 
 use crate::{
+    database::get_all_content,
     designation::{convert_i32_to_designation, Designation},
+    model::*,
     print::{print, From, Verbosity},
+    profile::Profile,
     tv::Show,
     utility::Utility,
-    model::*,
-    database::get_all_content,
-    profile::Profile,
 };
 use regex::Regex;
 
@@ -43,7 +43,7 @@ impl Content {
             designation: Designation::Generic,
             content_uid: None,
             hash: None,
-            profile: Some(Profile::new(0, 0, 0, 0)),//asdf;
+            profile: Some(Profile::new(0, 0, 0, 0)), //asdf;
 
             show_title: None,
             show_season_episode: None,
@@ -81,7 +81,7 @@ impl Content {
             content_uid: Some(content_uid_temp as usize),
             hash: content_model.file_hash,
             //asdf;
-            profile: Some(Profile::new(0, 0, 0, 0)),//this is fine for now as profile isn't in the database
+            profile: Some(Profile::new(0, 0, 0, 0)), //this is fine for now as profile isn't in the database
 
             //truly optional
             show_title: None,
@@ -99,8 +99,7 @@ impl Content {
         contents: Vec<Content>,
         utility: Utility,
     ) -> HashSet<PathBuf> {
-        let mut utility =
-            utility.clone_add_location("get_all_filenames_as_hashset");
+        let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
         let mut hashset = HashSet::new();
         for content in contents {
             hashset.insert(content.full_path);
@@ -111,8 +110,7 @@ impl Content {
     }
 
     pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
-        let mut utility =
-            utility.clone_add_location("get_all_filenames_as_hashset");
+        let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
         let raw_content = get_all_content(utility.clone());
         let mut hashset = HashSet::new();
         for row in raw_content {

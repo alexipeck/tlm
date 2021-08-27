@@ -1,7 +1,7 @@
 use crate::{
+    config::Preferences,
     print::{print, From, Verbosity},
     timer::Timer,
-    config::Preferences,
 };
 
 #[derive(Clone, Debug)]
@@ -62,10 +62,7 @@ impl Utility {
         return self.clone();
     }
 
-    pub fn clone_add_location(
-        &self,
-        called_from: &str,
-    ) -> Utility {
+    pub fn clone_add_location(&self, called_from: &str) -> Utility {
         let mut temp = self.clone();
         temp.add_traceback_location(called_from);
         temp.current_location = String::from(called_from);

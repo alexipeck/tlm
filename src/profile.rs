@@ -1,4 +1,3 @@
-
 pub enum ResolutionStandard {
     UHD,
     WQHD,
@@ -10,7 +9,6 @@ pub enum ResolutionStandard {
 
 pub struct EncodingProfile {
     resolution_standard: ResolutionStandard,
-
 }
 
 #[derive(Clone, Debug)]
@@ -28,6 +26,6 @@ impl Profile {
             height: height,
             framerate: framerate,
             length_time: length_time,
-        }
+        };
     }
 }

@@ -6,8 +6,8 @@ use tlm::{
     manager::FileManager,
     model::ContentModel,
     print::Verbosity,
-    utility::Utility,
     scheduler::start_scheduler,
+    utility::Utility,
 };
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -20,7 +20,8 @@ fn main() {
 
     let config = Config::new(&utility.preferences);
 
-    utility.min_verbosity = Verbosity::from_string(&utility.preferences.min_verbosity.to_uppercase());
+    utility.min_verbosity =
+        Verbosity::from_string(&utility.preferences.min_verbosity.to_uppercase());
 
     //The FileManager stores working files, hashsets and supporting functions related to updating those files
     let mut file_manager: FileManager = FileManager::new(utility.clone());

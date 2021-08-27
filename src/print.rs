@@ -70,12 +70,17 @@ impl Verbosity {
     }
 }
 
-pub fn print(verbosity: Verbosity, from_module: From, utility: Utility, string: String, is_timer: bool) {
+pub fn print(
+    verbosity: Verbosity,
+    from_module: From,
+    utility: Utility,
+    string: String,
+    is_timer: bool,
+) {
     let mut utility = utility.clone_add_location("print");
     if !utility.preferences.default_print && !is_timer {
         return;
     }
-
 
     //called from
     let call_functions_string: String;

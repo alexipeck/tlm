@@ -1,15 +1,10 @@
 use crate::{
-    database::{
-        create_content,
-        create_episode,
-        establish_connection,
-        get_all_content
-    },
     content::Content,
+    database::{create_content, create_episode, establish_connection, get_all_content},
     print::{print, From, Verbosity},
+    scheduler::TaskQueue,
     tv::TV,
     utility::Utility,
-    scheduler::TaskQueue,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
@@ -114,8 +109,7 @@ impl FileManager {
     }
 
     pub fn process_new_files(&mut self, utility: Utility) {
-        let mut utility =
-            utility.clone_add_location("process_new_files(FileManager)");
+        let mut utility = utility.clone_add_location("process_new_files(FileManager)");
         let connection = establish_connection();
 
         while self.new_files_queue.len() > 0 {

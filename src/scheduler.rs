@@ -1,10 +1,13 @@
-use std::{collections::VecDeque, sync::atomic::{AtomicUsize, Ordering}};
 use crate::{
     manager::FileManager,
     print::{print, From, Verbosity},
     utility::Utility,
 };
 use rand::Rng;
+use std::{
+    collections::VecDeque,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -15,9 +18,7 @@ pub struct Encode {
 
 impl Encode {
     pub fn new() -> Self {
-        return Encode {
-            placeholder: None,
-        }
+        return Encode { placeholder: None };
     }
 }
 
@@ -28,9 +29,7 @@ pub struct Copy {
 
 impl Copy {
     pub fn new() -> Self {
-        return Copy {
-            placeholder: None,
-        }
+        return Copy { placeholder: None };
     }
 }
 
@@ -41,9 +40,7 @@ pub struct MoveFile {
 
 impl MoveFile {
     pub fn new() -> Self {
-        return MoveFile {
-            placeholder: None,
-        }
+        return MoveFile { placeholder: None };
     }
 }
 
@@ -54,9 +51,7 @@ pub struct Rename {
 
 impl Rename {
     pub fn new() -> Self {
-        return Rename {
-            placeholder: None,
-        }
+        return Rename { placeholder: None };
     }
 }
 
@@ -67,9 +62,7 @@ pub struct Reserve {
 
 impl Reserve {
     pub fn new() -> Self {
-        return Reserve {
-            placeholder: None,
-        }
+        return Reserve { placeholder: None };
     }
 }
 
@@ -80,9 +73,7 @@ pub struct Delete {
 
 impl Delete {
     pub fn new() -> Self {
-        return Delete {
-            placeholder: None,
-        }
+        return Delete { placeholder: None };
     }
 }
 
@@ -93,9 +84,7 @@ pub struct Reencode {
 
 impl Reencode {
     pub fn new() -> Self {
-        return Reencode {
-            placeholder: None,
-        }
+        return Reencode { placeholder: None };
     }
 }
 
@@ -106,9 +95,7 @@ pub struct Duplicate {
 
 impl Duplicate {
     pub fn new() -> Self {
-        return Duplicate {
-            placeholder: None,
-        }
+        return Duplicate { placeholder: None };
     }
 }
 
@@ -121,7 +108,7 @@ impl Test {
     pub fn new(test_string: &str) -> Self {
         return Test {
             test_string: String::from(test_string),
-        }
+        };
     }
 }
 
@@ -153,7 +140,7 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn new() -> Self { 
+    pub fn new() -> Self {
         return Task {
             task_uid: TASK_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
             encode: None,
@@ -168,30 +155,14 @@ impl Task {
         };
     }
 
-    pub fn fill_encode(&mut self) {
-
-    }
-    pub fn fill_copy(&mut self) {
-        
-    }
-    pub fn fill_move_file(&mut self) {
-        
-    }
-    pub fn fill_rename(&mut self) {
-        
-    }
-    pub fn fill_reserve(&mut self) {
-        
-    }
-    pub fn fill_delete(&mut self) {
-        
-    }
-    pub fn fill_reencode(&mut self) {
-        
-    }
-    pub fn fill_duplicate(&mut self) {
-        
-    }
+    pub fn fill_encode(&mut self) {}
+    pub fn fill_copy(&mut self) {}
+    pub fn fill_move_file(&mut self) {}
+    pub fn fill_rename(&mut self) {}
+    pub fn fill_reserve(&mut self) {}
+    pub fn fill_delete(&mut self) {}
+    pub fn fill_reencode(&mut self) {}
+    pub fn fill_duplicate(&mut self) {}
 
     pub fn fill_test(&mut self, test_string: &str) {
         self.test = Some(Test::new(test_string));
@@ -201,24 +172,22 @@ impl Task {
         let utility = utility.clone_add_location("handle_print_of_task(Task)");
 
         if self.encode.is_some() {
-
         } else if self.copy.is_some() {
-
         } else if self.move_file.is_some() {
-
         } else if self.rename.is_some() {
-
         } else if self.reserve.is_some() {
-
         } else if self.delete.is_some() {
-
         } else if self.reencode.is_some() {
-
         } else if self.duplicate.is_some() {
-
         } else if self.test.is_some() {
             let test = self.test.clone().unwrap();
-            print(Verbosity::INFO, From::Scheduler, utility.clone(), test.test_string, false);
+            print(
+                Verbosity::INFO,
+                From::Scheduler,
+                utility.clone(),
+                test.test_string,
+                false,
+            );
         }
     }
 }
@@ -231,7 +200,7 @@ impl TaskQueue {
     pub fn new() -> Self {
         return TaskQueue {
             tasks: VecDeque::new(),
-        }
+        };
     }
 
     pub fn push_test_task(&mut self, test_string: &str) {
@@ -248,7 +217,7 @@ impl TaskQueue {
             task.handle_print_of_task(utility.clone());
         }
 
-        self.tasks = VecDeque::new();//eh, I can't remember how to check an element and remove it from a Vec or VecDeque
+        self.tasks = VecDeque::new(); //eh, I can't remember how to check an element and remove it from a Vec or VecDeque
     }
 }
 
@@ -265,9 +234,15 @@ pub fn start_scheduler(file_manager: &mut FileManager, utility: Utility) {
             let amount_to_add = rng.gen_range(0..5);
             for i in 0..amount_to_add {
                 if left > 0 {
-                    file_manager.task_queue.push_test_task(&format!("Task added: {} of {} in iteration {}, left: {}", i + 1, amount_to_add, iteration_counter + 1, left - 1));
-                left -= 1;
-                iteration_counter += 1;
+                    file_manager.task_queue.push_test_task(&format!(
+                        "Task added: {} of {} in iteration {}, left: {}",
+                        i + 1,
+                        amount_to_add,
+                        iteration_counter + 1,
+                        left - 1
+                    ));
+                    left -= 1;
+                    iteration_counter += 1;
                 }
             }
         } else {
