@@ -49,7 +49,7 @@ fn main() {
 
     file_manager.scheduler.push_import_files_task(config.allowed_extensions, config.ignored_paths);
     file_manager.scheduler.push_process_new_files_task();
-    file_manager.scheduler.start_scheduler(utility.clone());
+    file_manager.scheduler.start_scheduler(&mut file_manager, utility.clone());
 
     file_manager.print_shows(utility.clone());
     file_manager.print_content(utility.clone());

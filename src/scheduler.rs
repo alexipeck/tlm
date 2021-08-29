@@ -1,9 +1,4 @@
-use crate::{
-    content::Content,
-    print::{print, From, Verbosity},
-    utility::Utility,
-};
-use rand::Rng;
+use crate::{content::Content, manager::FileManager, print::{print, From, Verbosity}, utility::Utility};
 use std::{collections::VecDeque, path::PathBuf, process::Command, sync::atomic::{AtomicUsize, Ordering}};
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -12,6 +7,9 @@ static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 pub struct ImportFiles {
     allowed_extensions: Vec<String>,
     ignored_paths: Vec<String>,
+
+    pub status_underway: bool,
+    pub status_completed: bool,
 }
 
 impl ImportFiles {
@@ -19,18 +17,33 @@ impl ImportFiles {
         return ImportFiles {
             allowed_extensions: allowed_extensions,
             ignored_paths: ignored_paths,
+            status_underway: false,
+            status_completed: false,
         }
+    }
+
+    pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
+        file_manager.import_files(
+            &self.allowed_extensions,
+            &self.ignored_paths,
+            utility,
+        );
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct ProcessNewFiles {
 
+    pub status_underway: bool,
+    pub status_completed: bool,
 }
 
 impl ProcessNewFiles {
     pub fn new() -> Self {
-        return ProcessNewFiles {}
+        return ProcessNewFiles {
+            status_underway: false,
+            status_completed: false,
+        }
     }
 }
 
@@ -61,7 +74,7 @@ impl Encode {
         return true;
     }
 
-    pub fn run(&self, utility: Utility) -> bool {
+    pub fn run(&mut self, utility: Utility) {
         let utility = utility.clone_add_location("run(Encode)");
         if !self.is_ready_to_encode() {
             print(
@@ -71,8 +84,10 @@ impl Encode {
                 false,
                 utility.clone(),
             );
-            return false;
+            return;
         }
+
+        self.status_underway = true;
 
         print(
             Verbosity::INFO,
@@ -102,7 +117,7 @@ impl Encode {
         //only uncomment if you want disgusting output
         //should be error, but from ffmpeg, stderr mostly consists of stdout information
         //print(Verbosity::DEBUG, "content", "encode", format!("{}", String::from_utf8_lossy(&buffer.stderr).to_string()));
-        return true;
+        self.status_completed = true;
     }
 }
 
@@ -214,7 +229,7 @@ pub struct Task {
     task_uid: usize,
     encode: Option<Encode>,
     import_files: Option<ImportFiles>,
-    process_files: Option<ProcessNewFiles>,
+    process_new_files: Option<ProcessNewFiles>,
     test: Option<Test>,
 }
 
@@ -224,7 +239,7 @@ impl Task {
             task_uid: TASK_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
             encode: None,
             import_files: None,
-            process_files: None,
+            process_new_files: None,
             test: None,
         };
     }
@@ -238,20 +253,23 @@ impl Task {
     }
 
     pub fn fill_process_files(&mut self) {
-        self.process_files = Some(ProcessNewFiles::new());
+        self.process_new_files = Some(ProcessNewFiles::new());
     }
 
     pub fn fill_test(&mut self, test_string: &str) {
         self.test = Some(Test::new(test_string));
     }
 
-    pub fn handle_print_of_task(&mut self, utility: Utility) {
-        let utility = utility.clone_add_location("handle_print_of_task(Task)");
+    pub fn handle_task(&mut self, file_manager: &mut FileManager, utility: Utility) {
+        let utility = utility.clone_add_location("handle_task(Task)");
 
         if self.encode.is_some() {
 
-        } else if {
-            
+        } else if self.import_files.is_some() {
+            let mut import_file_task = self.import_files.clone().unwrap();
+            import_file_task.run(file_manager, utility.clone());
+        } else if self.process_new_files.is_some() {
+
         } else if self.test.is_some() {
             let test = self.test.clone().unwrap();
             print(
@@ -294,22 +312,22 @@ impl Scheduler {
         self.tasks.push_back(task);
     }
 
-    pub fn handle_tasks(&mut self, utility: Utility) {
+    pub fn handle_tasks(&mut self, file_manager: &mut FileManager, utility: Utility) {
         let utility = utility.clone_add_location("handle_tasks(TaskQueue)");
 
         //needs to be safer, but for now it's fine
         for task in &mut self.tasks {
-            task.handle_print_of_task(utility.clone());
+            task.handle_task(file_manager, utility.clone());
         }
 
         self.tasks = VecDeque::new(); //eh, I can't remember how to check an element and remove it from a Vec or VecDeque
     }
 
-    pub fn start_scheduler(&mut self, utility: Utility) {
+    pub fn start_scheduler(&mut self, file_manager: &mut FileManager, utility: Utility) {
         let utility = utility.clone_add_location("start_scheduler");
     
         loop {
-            self.handle_tasks(utility.clone());
+            self.handle_tasks(file_manager, utility.clone());
             break;
         }
     }
