@@ -1,13 +1,8 @@
 extern crate diesel;
 use diesel::query_dsl::SaveChangesDsl;
 use tlm::{
-    config::{Config, Preferences},
-    database::establish_connection,
-    manager::FileManager,
-    model::ContentModel,
-    print::Verbosity,
-    scheduler::start_scheduler,
-    utility::Utility,
+    config::Config, database::establish_connection, manager::FileManager, model::ContentModel,
+    print::Verbosity, scheduler::start_scheduler, utility::Utility,
 };
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -63,6 +58,9 @@ fn main() {
 
     file_manager.task_queue.push_test_task("Main");
     start_scheduler(&mut file_manager, utility.clone());
+
+    file_manager.print_shows(utility.clone());
+    file_manager.print_content(utility.clone());
 
     //Tell worker thread to stop after it has finished hashing current file
     stop_background.store(true, Ordering::Relaxed);

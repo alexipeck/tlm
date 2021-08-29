@@ -286,7 +286,7 @@ impl Content {
         if self.show_season_episode.is_some() {
             let episode = self.show_season_episode.clone().unwrap().1;
             if episode.len() < 1 {
-                panic!("Bad boy, you fucked up. There was less than 1 episode in the thingo");
+                panic!("There was less than 1 episode in the thingo");
             } else {
                 let mut prepare = String::new();
                 let mut first: bool = true;
@@ -301,7 +301,7 @@ impl Content {
                 return prepare;
             }
         } else {
-            panic!("Bad boy, you fucked up. show_season_episode is_none");
+            panic!("show_season_episode is_none");
         }
     }
 
@@ -315,7 +315,7 @@ impl Content {
                 Verbosity::CRITICAL,
                 From::Content,
                 utility,
-                String::from("You called get_content_uid on a content that hasn't been inserted into the db yet or hasn't been assigned a content_uid from the database correctly"),
+                String::from("get_content_uid was called on a content that hasn't been inserted into the db yet or hasn't been assigned a content_uid from the database correctly"),
                 false,
             );
             panic!();
@@ -325,6 +325,8 @@ impl Content {
     pub fn print(&self, utility: Utility) {
         let utility = utility.clone_add_location("print(Show)");
 
+        //could realistically just check if it has an episode designation,
+        //this just means that the content designation needs to be a guarantee rather than a designation
         if self.show_uid.is_some()
             && self.show_title.is_some()
             && self.show_season_episode.is_some()
@@ -343,7 +345,7 @@ impl Content {
                     self.get_full_path(),
                     self.get_show_title(utility.clone()),
                 ),
-                false,
+                utility.preferences.content_output_whitelisted,
             );
         } else {
             print(
@@ -356,7 +358,7 @@ impl Content {
                     self.designation as i32,
                     self.get_full_path(),
                 ),
-                false,
+                utility.preferences.content_output_whitelisted,
             );
         }
     }
@@ -406,10 +408,14 @@ impl Content {
         utility.print_function_timer();
     }
 
-    pub fn print_contents(contents: Vec<Content>, utility: Utility) {
-        let mut utility = utility.clone_add_location("print_contents");
+    pub fn print_content(content: &Vec<Content>, utility: Utility) {
+        let mut utility = utility.clone_add_location("print_content(FileManager)");
 
-        for content in contents {
+        if !utility.preferences.print_content && !utility.preferences.content_output_whitelisted {
+            return;
+        }
+        
+        for content in content {
             content.print(utility.clone());
         }
 

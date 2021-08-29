@@ -104,7 +104,7 @@ impl Show {
                     From::TV,
                     utility.clone(),
                     format!("Adding a new show: {}", show_title),
-                    false,
+                    utility.preferences.show_output_whitelisted,
                 );
                 let show_model = create_show(&connection, show_title.clone());
 
@@ -153,12 +153,18 @@ impl Show {
         utility.print_function_timer();
         return shows;
     }
-}
 
-pub fn print_shows(shows: Vec<Show>, utility: Utility) {
-    let utility = utility.clone_add_location("print_shows(Show)");
+    pub fn print_shows(shows: &Vec<Show>, utility: Utility) {
+        let mut utility = utility.clone_add_location("print_shows(FileManager)");
 
-    for show in shows {
-        show.print_show(utility.clone());
+        if !utility.preferences.print_shows {
+            return;
+        }
+
+        for show in shows {
+            show.print_show(utility.clone());
+        }
+
+        utility.print_function_timer();
     }
 }
