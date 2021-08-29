@@ -170,13 +170,13 @@ impl Preferences {
         );
 
         parser.refer(&mut self.content_output_whitelisted).add_option(
-            &["--whitelist_content_output"],
+            &["--whitelist-content-output"],
             StoreTrue,
             "Whitelist all output from content, whitelisting a type will cause it to print regardless of other limiting flags",
         );
 
         parser.refer(&mut self.show_output_whitelisted).add_option(
-            &["--whitelist_show_output"],
+            &["--whitelist-show-output"],
             StoreTrue,
             "Whitelist all output from shows, whitelisting a type will cause it to print regardless of other limiting flags",
         );
