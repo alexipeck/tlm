@@ -2,7 +2,7 @@ extern crate diesel;
 use diesel::query_dsl::SaveChangesDsl;
 use tlm::{
     config::Config, database::establish_connection, manager::FileManager, model::ContentModel,
-    print::Verbosity, scheduler::start_scheduler, utility::Utility,
+    print::Verbosity, scheduler::Scheduler, utility::Utility,
 };
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -19,7 +19,7 @@ fn main() {
         Verbosity::from_string(&utility.preferences.min_verbosity.to_uppercase());
 
     //The FileManager stores working files, hashsets and supporting functions related to updating those files
-    let mut file_manager: FileManager = FileManager::new(utility.clone());
+    let mut file_manager: FileManager = FileManager::new(&config, utility.clone());
     let original_files = file_manager.working_content.clone();
 
     let stop_background = Arc::new(AtomicBool::new(false));
@@ -44,20 +44,12 @@ fn main() {
         }
     });
 
-    file_manager.tracked_directories = config.tracked_directories;
-    file_manager.import_files(
-        &config.allowed_extensions,
-        &config.ignored_paths,
-        utility.clone(),
-    );
-
-    file_manager.process_new_files(utility.clone());
-
     file_manager.print_number_of_content(utility.clone());
     file_manager.print_number_of_shows(utility.clone());
 
-    file_manager.task_queue.push_test_task("Main");
-    start_scheduler(&mut file_manager, utility.clone());
+    file_manager.scheduler.push_import_files_task(config.allowed_extensions, config.ignored_paths);
+    file_manager.scheduler.push_process_new_files_task();
+    file_manager.scheduler.start_scheduler(utility.clone());
 
     file_manager.print_shows(utility.clone());
     file_manager.print_content(utility.clone());

@@ -1,16 +1,9 @@
-use crate::{
-    content::Content,
-    database::{create_content, create_episode, establish_connection, get_all_content},
-    print::{print, From, Verbosity},
-    scheduler::TaskQueue,
-    tv::{Show, TV},
-    utility::Utility,
-};
+use crate::{config::Config, content::Content, database::{create_content, create_episode, establish_connection, get_all_content}, print::{print, From, Verbosity}, scheduler::Scheduler, tv::{Show, TV}, utility::Utility};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
 
-#[derive(Default, Debug, Deserialize, Serialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct TrackedDirectories {
     pub root_directories: Vec<String>,
     pub cache_directories: Vec<String>,
@@ -31,13 +24,11 @@ pub struct FileManager {
     pub existing_files_hashset: HashSet<PathBuf>,
     pub tv: TV,
     pub new_files_queue: Vec<PathBuf>,
-
-    //scheduler
-    pub task_queue: TaskQueue,
+    pub scheduler: Scheduler,
 }
 
 impl FileManager {
-    pub fn new(utility: Utility) -> FileManager {
+    pub fn new(config: &Config, utility: Utility) -> FileManager {
         let mut utility = utility.clone_add_location("new(FileManager)");
 
         let mut file_manager = FileManager {
@@ -46,7 +37,7 @@ impl FileManager {
             working_content: Vec::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
-            task_queue: TaskQueue::new(),
+            scheduler: Scheduler::new(),
         };
 
         file_manager.working_content = file_manager.get_all_content(utility.clone());
@@ -54,6 +45,7 @@ impl FileManager {
             file_manager.working_content.clone(),
             utility.clone(),
         );
+        file_manager.tracked_directories = config.tracked_directories.clone();
 
         utility.print_function_timer();
         return file_manager;

@@ -1,6 +1,5 @@
 use crate::{
     content::Content,
-    manager::FileManager,
     print::{print, From, Verbosity},
     utility::Utility,
 };
@@ -8,6 +7,32 @@ use rand::Rng;
 use std::{collections::VecDeque, path::PathBuf, process::Command, sync::atomic::{AtomicUsize, Ordering}};
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+#[derive(Clone, Debug)]
+pub struct ImportFiles {
+    allowed_extensions: Vec<String>,
+    ignored_paths: Vec<String>,
+}
+
+impl ImportFiles {
+    pub fn new(allowed_extensions: Vec<String>, ignored_paths: Vec<String>) -> Self {
+        return ImportFiles {
+            allowed_extensions: allowed_extensions,
+            ignored_paths: ignored_paths,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ProcessNewFiles {
+
+}
+
+impl ProcessNewFiles {
+    pub fn new() -> Self {
+        return ProcessNewFiles {}
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Encode {
@@ -188,13 +213,8 @@ pub enum TaskID {
 pub struct Task {
     task_uid: usize,
     encode: Option<Encode>,
-    copy: Option<Copy>,
-    move_file: Option<MoveFile>,
-    rename: Option<Rename>,
-    reserve: Option<Reserve>,
-    delete: Option<Delete>,
-    reencode: Option<Reencode>,
-    duplicate: Option<Duplicate>,
+    import_files: Option<ImportFiles>,
+    process_files: Option<ProcessNewFiles>,
     test: Option<Test>,
 }
 
@@ -203,25 +223,23 @@ impl Task {
         return Task {
             task_uid: TASK_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
             encode: None,
-            copy: None,
-            move_file: None,
-            rename: None,
-            reserve: None,
-            delete: None,
-            reencode: None,
-            duplicate: None,
+            import_files: None,
+            process_files: None,
             test: None,
         };
     }
 
-    pub fn fill_encode(&mut self) {}
-    pub fn fill_copy(&mut self) {}
-    pub fn fill_move_file(&mut self) {}
-    pub fn fill_rename(&mut self) {}
-    pub fn fill_reserve(&mut self) {}
-    pub fn fill_delete(&mut self) {}
-    pub fn fill_reencode(&mut self) {}
-    pub fn fill_duplicate(&mut self) {}
+    pub fn fill_encode(&mut self, source_path: PathBuf, encode_path: PathBuf, encode_string: Vec<String>) {
+        self.encode = Some(Encode::new(source_path, encode_path, encode_string));
+    }
+
+    pub fn fill_import_files(&mut self, allowed_extensions: Vec<String>, ignored_paths: Vec<String>) {
+        self.import_files = Some(ImportFiles::new(allowed_extensions, ignored_paths));
+    }
+
+    pub fn fill_process_files(&mut self) {
+        self.process_files = Some(ProcessNewFiles::new());
+    }
 
     pub fn fill_test(&mut self, test_string: &str) {
         self.test = Some(Test::new(test_string));
@@ -231,13 +249,9 @@ impl Task {
         let utility = utility.clone_add_location("handle_print_of_task(Task)");
 
         if self.encode.is_some() {
-        } else if self.copy.is_some() {
-        } else if self.move_file.is_some() {
-        } else if self.rename.is_some() {
-        } else if self.reserve.is_some() {
-        } else if self.delete.is_some() {
-        } else if self.reencode.is_some() {
-        } else if self.duplicate.is_some() {
+
+        } else if {
+            
         } else if self.test.is_some() {
             let test = self.test.clone().unwrap();
             print(
@@ -251,15 +265,27 @@ impl Task {
     }
 }
 
-pub struct TaskQueue {
+pub struct Scheduler {
     tasks: VecDeque<Task>,
 }
 
-impl TaskQueue {
+impl Scheduler {
     pub fn new() -> Self {
-        return TaskQueue {
+        return Scheduler {
             tasks: VecDeque::new(),
         };
+    }
+
+    pub fn push_process_new_files_task(&mut self) {
+        let mut task = Task::new();
+        task.fill_process_files();
+        self.tasks.push_back(task);
+    }
+
+    pub fn push_import_files_task(&mut self, allowed_extensions: Vec<String>, ignored_paths: Vec<String>) {
+        let mut task = Task::new();
+        task.fill_import_files(allowed_extensions, ignored_paths);
+        self.tasks.push_back(task);
     }
 
     pub fn push_test_task(&mut self, test_string: &str) {
@@ -278,33 +304,12 @@ impl TaskQueue {
 
         self.tasks = VecDeque::new(); //eh, I can't remember how to check an element and remove it from a Vec or VecDeque
     }
-}
 
-pub fn start_scheduler(file_manager: &mut FileManager, utility: Utility) {
-    let utility = utility.clone_add_location("start_scheduler");
-
-    let mut rng = rand::thread_rng();
-    let mut left: usize = 20;
-    let mut iteration_counter: usize = 0;
-
-    loop {
-        file_manager.task_queue.handle_tasks(utility.clone());
-        if left > 0 {
-            let amount_to_add = rng.gen_range(0..5);
-            for i in 0..amount_to_add {
-                if left > 0 {
-                    file_manager.task_queue.push_test_task(&format!(
-                        "Task added: {} of {} in iteration {}, left: {}",
-                        i + 1,
-                        amount_to_add,
-                        iteration_counter + 1,
-                        left - 1
-                    ));
-                    left -= 1;
-                    iteration_counter += 1;
-                }
-            }
-        } else {
+    pub fn start_scheduler(&mut self, utility: Utility) {
+        let utility = utility.clone_add_location("start_scheduler");
+    
+        loop {
+            self.handle_tasks(utility.clone());
             break;
         }
     }
