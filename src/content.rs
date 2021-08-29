@@ -9,6 +9,7 @@ use crate::{
     tv::Show,
     utility::Utility,
 };
+use lazy_static::lazy_static;
 use regex::Regex;
 
 ///Content contains fields for generic, episode, and movie data
@@ -96,13 +97,13 @@ impl Content {
     }
 
     pub fn get_all_filenames_as_hashset_from_content(
-        contents: Vec<Content>,
+        contents: &Vec<Content>,
         utility: Utility,
     ) -> HashSet<PathBuf> {
         let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
         let mut hashset = HashSet::new();
         for content in contents {
-            hashset.insert(content.full_path);
+            hashset.insert(content.full_path.clone());
         }
 
         utility.print_function_timer();
@@ -167,8 +168,11 @@ impl Content {
 
     pub fn seperate_season_episode(&mut self, utility: Utility) -> Option<(usize, Vec<usize>)> {
         let episode_string: String;
+        lazy_static! {
+            static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
+        }
 
-        match utility.regex.find(&self.get_filename()) {
+        match REGEX.find(&self.get_filename()) {
             None => return None,
             Some(val) => episode_string = String::from(rem_first_char(val.as_str())),
         }

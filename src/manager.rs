@@ -51,7 +51,7 @@ impl FileManager {
 
         file_manager.working_content = file_manager.get_all_content(utility.clone());
         file_manager.existing_files_hashset = Content::get_all_filenames_as_hashset_from_content(
-            file_manager.working_content.clone(),
+            &file_manager.working_content,
             utility.clone(),
         );
 
@@ -180,10 +180,10 @@ impl FileManager {
                 if entry.path().is_file() {
                     let temp_string = entry.path().extension().unwrap().to_str().unwrap();
                     if allowed_extensions.contains(&temp_string.to_lowercase()) {
-                        let entry_string = entry.clone().into_path();
+                        let entry_string = entry.into_path();
                         if !self.existing_files_hashset.contains(&entry_string) {
                             self.existing_files_hashset.insert(entry_string.clone());
-                            self.new_files_queue.push(entry.clone().into_path());
+                            self.new_files_queue.push(entry_string.clone());
                         };
                     }
                 }
