@@ -25,10 +25,10 @@ pub struct ImportFiles {
 }
 
 impl ImportFiles {
-    pub fn new(allowed_extensions: Vec<String>, ignored_paths: Vec<String>) -> Self {
+    pub fn new(allowed_extensions: &Vec<String>, ignored_paths: &Vec<String>) -> Self {
         return ImportFiles {
-            allowed_extensions: allowed_extensions,
-            ignored_paths: ignored_paths,
+            allowed_extensions: allowed_extensions.clone(),
+            ignored_paths: ignored_paths.clone(),
             status_underway: false,
             status_completed: false,
         };
@@ -203,14 +203,24 @@ impl Task {
 pub struct Scheduler {
     pub file_manager: FileManager,
     pub tasks: VecDeque<Task>,
+    pub config: Config,
 }
 
 impl Scheduler {
-    pub fn new(config: &Config, utility: Utility) -> Self {
+    pub fn new(config: Config, utility: Utility) -> Self {
         return Scheduler {
             tasks: VecDeque::new(),
             file_manager: FileManager::new(&config, utility),
+            config: config,
         };
+    }
+
+    pub fn push_import_files_task(&mut self) {
+        self.tasks.push_back(Task::new(TaskType::ImportFiles(ImportFiles::new(&self.config.allowed_extensions, &self.config.ignored_paths))));
+    }
+
+    pub fn push_process_new_files_task(&mut self) {
+        self.tasks.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new())));
     }
 
     pub fn start_scheduler(&mut self, utility: Utility) {

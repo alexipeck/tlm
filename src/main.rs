@@ -15,7 +15,7 @@ fn main() {
 
     let config: Config = Config::new(&utility.preferences);
 
-    let mut scheduler: Scheduler = Scheduler::new(&config, utility.clone());
+    let mut scheduler: Scheduler = Scheduler::new(config, utility.clone());
 
     utility.min_verbosity =
         Verbosity::from_string(&utility.preferences.min_verbosity.to_uppercase());
@@ -45,7 +45,11 @@ fn main() {
         }
     });
 
+    scheduler.push_import_files_task();
+    scheduler.push_process_new_files_task();
+
     scheduler.start_scheduler(utility.clone());
+
 
     scheduler
         .file_manager
