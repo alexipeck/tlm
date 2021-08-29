@@ -224,85 +224,55 @@ impl Test {
             test_string: String::from(test_string),
         };
     }
+
+    pub fn run(&self, utility: Utility) {
+        let utility = utility.clone_add_location("run(Test)");
+        print(
+            Verbosity::INFO,
+            From::Scheduler,
+            format!("Test was {}", self.test_string),
+            false,
+            utility.clone(),
+        );
+    }
 }
 
-pub enum TaskID {
-    Encode,
-    Copy,
-    MoveFile,
-    Rename,
-    Reserve,
-    Delete,
-    Reencode,
-    Duplicate,
-    Test,
+pub enum TaskType {
+    Encode(Encode),
+    ImportFiles(ImportFiles),
+    ProcessNewFiles(ProcessNewFiles),
+    Test(Test),
 }
 
-#[derive(Clone, Debug)]
-//only one should ever be Some()
 pub struct Task {
     task_uid: usize,
-    encode: Option<Encode>,
-    import_files: Option<ImportFiles>,
-    process_new_files: Option<ProcessNewFiles>,
-    test: Option<Test>,
+    task_type: TaskType,
 }
 
 impl Task {
-    pub fn new() -> Self {
+    pub fn new(task_type: TaskType) -> Self {
         return Task {
             task_uid: TASK_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
-            encode: None,
-            import_files: None,
-            process_new_files: None,
-            test: None,
+            task_type: task_type,
         };
-    }
-
-    pub fn fill_encode(
-        &mut self,
-        source_path: PathBuf,
-        encode_path: PathBuf,
-        encode_string: Vec<String>,
-    ) {
-        self.encode = Some(Encode::new(source_path, encode_path, encode_string));
-    }
-
-    pub fn fill_import_files(
-        &mut self,
-        allowed_extensions: Vec<String>,
-        ignored_paths: Vec<String>,
-    ) {
-        self.import_files = Some(ImportFiles::new(allowed_extensions, ignored_paths));
-    }
-
-    pub fn fill_process_files(&mut self) {
-        self.process_new_files = Some(ProcessNewFiles::new());
-    }
-
-    pub fn fill_test(&mut self, test_string: &str) {
-        self.test = Some(Test::new(test_string));
     }
 
     pub fn handle_task(&mut self, file_manager: &mut FileManager, utility: Utility) {
         let utility = utility.clone_add_location("handle_task(Task)");
 
-        if self.encode.is_some() {
-        } else if self.import_files.is_some() {
-            let mut import_file_task = self.import_files.clone().unwrap();
-            import_file_task.run(file_manager, utility.clone());
-        } else if self.process_new_files.is_some() {
-            let mut process_new_files_task = self.process_new_files.clone().unwrap();
-            process_new_files_task.run(file_manager, utility.clone());
-        } else if self.test.is_some() {
-            let test = self.test.clone().unwrap();
-            print(
-                Verbosity::INFO,
-                From::Scheduler,
-                test.test_string,
-                false,
-                utility.clone(),
-            );
+        match &mut self.task_type {
+            TaskType::Encode(encode) => {
+                encode.run(utility.clone());
+            }
+            TaskType::ImportFiles(import_files) => {
+                import_files.run(file_manager, utility.clone());
+            }
+            TaskType::ProcessNewFiles(process_new_files) => {
+                process_new_files.run(file_manager, utility.clone());
+            }
+            TaskType::Test(test) => {
+                test.run(utility.clone());
+            }
         }
     }
 }
@@ -320,45 +290,24 @@ impl Scheduler {
         };
     }
 
-    pub fn push_process_new_files_task(&mut self) {
-        let mut task = Task::new();
-        task.fill_process_files();
-        self.tasks.push_back(task);
-    }
-
-    pub fn push_import_files_task(
-        &mut self,
-        allowed_extensions: Vec<String>,
-        ignored_paths: Vec<String>,
-    ) {
-        let mut task = Task::new();
-        task.fill_import_files(allowed_extensions, ignored_paths);
-        self.tasks.push_back(task);
-    }
-
-    pub fn push_test_task(&mut self, test_string: &str) {
-        let mut task = Task::new();
-        task.fill_test(test_string);
-        self.tasks.push_back(task);
-    }
-
-    pub fn handle_tasks(&mut self, utility: Utility) {
-        let utility = utility.clone_add_location("handle_tasks(TaskQueue)");
-
-        //needs to be safer, but for now it's fine
-        for task in &mut self.tasks {
-            task.handle_task(&mut self.file_manager, utility.clone());
-        }
-
-        self.tasks = VecDeque::new(); //eh, I can't remember how to check an element and remove it from a Vec or VecDeque
-    }
-
     pub fn start_scheduler(&mut self, utility: Utility) {
         let utility = utility.clone_add_location("start_scheduler");
 
+        self.tasks
+            .push_back(Task::new(TaskType::Test(Test::new("first"))));
+
+        self.tasks
+            .push_back(Task::new(TaskType::Test(Test::new("second"))));
+
+        self.tasks
+            .push_back(Task::new(TaskType::Test(Test::new("thirds"))));
+
         loop {
-            self.handle_tasks(utility.clone());
-            break;
+            if self.tasks.len() == 0 {
+                break;
+            }
+            let mut task = self.tasks.pop_front().unwrap();
+            task.handle_task(&mut self.file_manager, utility.clone());
         }
     }
 }

@@ -45,8 +45,6 @@ fn main() {
         }
     });
 
-    scheduler.push_import_files_task(config.allowed_extensions, config.ignored_paths);
-    scheduler.push_process_new_files_task();
     scheduler.start_scheduler(utility.clone());
 
     scheduler
