@@ -1,24 +1,83 @@
 use crate::{
+    content::Content,
     manager::FileManager,
     print::{print, From, Verbosity},
     utility::Utility,
 };
 use rand::Rng;
-use std::{
-    collections::VecDeque,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use std::{collections::VecDeque, path::PathBuf, process::Command, sync::atomic::{AtomicUsize, Ordering}};
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Clone, Debug)]
 pub struct Encode {
-    placeholder: Option<String>,
+    pub source_path: PathBuf,
+    pub encode_path: PathBuf,
+    pub encode_string: Vec<String>,
+
+    pub status_underway: bool,
+    pub status_completed: bool,
 }
 
 impl Encode {
-    pub fn new() -> Self {
-        return Encode { placeholder: None };
+    pub fn new(source_path: PathBuf, encode_path: PathBuf, encode_string: Vec<String>) -> Self {
+        return Encode {
+            source_path: source_path,
+            encode_path: encode_path,
+            encode_string: encode_string,
+
+            status_underway: false,
+            status_completed: false,
+        };
+    }
+
+    pub fn is_ready_to_encode(&self) -> bool {
+        //TODO: Add check for whether the file is ready to go for encode
+        return true;
+    }
+
+    pub fn run(&self, utility: Utility) -> bool {
+        let utility = utility.clone_add_location("run(Encode)");
+        if !self.is_ready_to_encode() {
+            print(
+                Verbosity::ERROR,
+                From::Scheduler,
+                format!("Encode didn't have the required fields for being sent to the encoder"),
+                false,
+                utility.clone(),
+            );
+            return false;
+        }
+
+        print(
+            Verbosity::INFO,
+            From::Job,
+            format!(
+                "Encoding file \'{}\'",
+                Content::get_filename_from_pathbuf(self.source_path.clone().clone())
+            ),
+            false,
+            utility,
+        );
+
+        let buffer;
+        if !cfg!(target_os = "windows") {
+            //linux & friends
+            buffer = Command::new("ffmpeg")
+                .args(&self.encode_string.clone())
+                .output()
+                .expect("failed to execute process");
+        } else {
+            //windows
+            buffer = Command::new("ffmpeg")
+                .args(&self.encode_string.clone())
+                .output()
+                .expect("failed to execute process");
+        }
+        //only uncomment if you want disgusting output
+        //should be error, but from ffmpeg, stderr mostly consists of stdout information
+        //print(Verbosity::DEBUG, "content", "encode", format!("{}", String::from_utf8_lossy(&buffer.stderr).to_string()));
+        return true;
     }
 }
 
@@ -184,9 +243,9 @@ impl Task {
             print(
                 Verbosity::INFO,
                 From::Scheduler,
-                utility.clone(),
                 test.test_string,
                 false,
+                utility.clone(),
             );
         }
     }

@@ -65,9 +65,9 @@ impl Show {
         print(
             Verbosity::DEBUG,
             From::Show,
-            utility,
             format!("[uid: {}][title: {}]", self.show_uid, self.title),
             false,
+            utility,
         );
     }
 
@@ -102,9 +102,9 @@ impl Show {
                 print(
                     Verbosity::INFO,
                     From::TV,
-                    utility.clone(),
                     format!("Adding a new show: {}", show_title),
                     utility.preferences.show_output_whitelisted,
+                    utility.clone(),
                 );
                 let show_model = create_show(&connection, show_title.clone());
 

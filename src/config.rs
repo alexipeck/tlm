@@ -30,9 +30,9 @@ impl Config {
                     print(
                         Verbosity::CRITICAL,
                         From::Config,
-                        utility,
                         format!("Failed to read config file: {}", err),
                         false,
+                        utility,
                     );
                     panic!();
                 }
@@ -43,9 +43,9 @@ impl Config {
                     print(
                         Verbosity::CRITICAL,
                         From::Config,
-                        utility,
                         format!("Failed to parse toml: {}", err),
                         false,
+                        utility,
                     );
                     panic!();
                 }
@@ -71,9 +71,9 @@ impl Config {
                 print(
                     Verbosity::CRITICAL,
                     From::Config,
-                    utility,
                     String::from("Failed to write config file"),
                     false,
+                    utility,
                 );
                 panic!();
             }

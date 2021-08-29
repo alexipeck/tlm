@@ -48,9 +48,9 @@ impl Utility {
                 print(
                     Verbosity::CRITICAL,
                     From::Utility,
-                    self.clone(),
                     format!("You tried to print a timer that doesn't exist."),
                     false,
+                    self.clone(),
                 );
                 panic!()
             }

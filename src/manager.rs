@@ -3,7 +3,7 @@ use crate::{
     database::{create_content, create_episode, establish_connection, get_all_content},
     print::{print, From, Verbosity},
     scheduler::TaskQueue,
-    tv::{TV, Show},
+    tv::{Show, TV},
     utility::Utility,
 };
 use serde::{Deserialize, Serialize};
@@ -65,12 +65,12 @@ impl FileManager {
         print(
             Verbosity::INFO,
             From::Manager,
-            utility,
             format!(
                 "Number of content loaded in memory: {}",
                 self.working_content.len()
             ),
             false,
+            utility,
         );
     }
 
@@ -80,12 +80,12 @@ impl FileManager {
         print(
             Verbosity::INFO,
             From::Manager,
-            utility,
             format!(
                 "Number of shows loaded in memory: {}",
                 self.tv.working_shows.len()
             ),
             false,
+            utility,
         );
     }
 

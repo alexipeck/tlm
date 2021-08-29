@@ -257,9 +257,9 @@ impl Content {
             print(
                 Verbosity::CRITICAL,
                 From::Content,
-                utility,
                 String::from("You called get_show_title on a content that didn't have an episode designation or was incorrectly created"),
                 false,
+                utility,
             );
             panic!();
         }
@@ -274,9 +274,9 @@ impl Content {
             print(
                 Verbosity::CRITICAL,
                 From::Content,
-                utility,
                 String::from("You called get_show_uid on a content that didn't have an episode designation or was incorrectly created"),
                 false,
+                utility,
             );
             panic!();
         }
@@ -314,9 +314,9 @@ impl Content {
             print(
                 Verbosity::CRITICAL,
                 From::Content,
-                utility,
                 String::from("get_content_uid was called on a content that hasn't been inserted into the db yet or hasn't been assigned a content_uid from the database correctly"),
                 false,
+                utility,
             );
             panic!();
         }
@@ -334,7 +334,6 @@ impl Content {
             print(
                 Verbosity::DEBUG,
                 From::Content,
-                utility.clone(),
                 format!(
                     "[content_uid:'{:4}'][designation:'{}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
                     self.get_content_uid(utility.clone()),
@@ -346,12 +345,12 @@ impl Content {
                     self.get_show_title(utility.clone()),
                 ),
                 utility.preferences.content_output_whitelisted,
+                utility.clone(),
             );
         } else {
             print(
                 Verbosity::DEBUG,
                 From::DB,
-                utility.clone(),
                 format!(
                     "[content_uid:'{}'][designation:'{}'][full_path:'{}']",
                     self.content_uid.unwrap(),
@@ -359,6 +358,7 @@ impl Content {
                     self.get_full_path(),
                 ),
                 utility.preferences.content_output_whitelisted,
+                utility.clone(),
             );
         }
     }
@@ -414,7 +414,7 @@ impl Content {
         if !utility.preferences.print_content && !utility.preferences.content_output_whitelisted {
             return;
         }
-        
+
         for content in content {
             content.print(utility.clone());
         }

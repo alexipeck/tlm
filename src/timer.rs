@@ -47,13 +47,13 @@ impl Timer {
             print(
                 Verbosity::INFO,
                 From::Utility,
-                utility,
                 format!(
                     "{} took: {}ms",
                     self.function_name,
                     self.stored_time.unwrap()
                 ),
                 true,
+                utility,
             );
         }
     }
