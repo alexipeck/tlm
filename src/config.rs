@@ -20,7 +20,7 @@ impl Config {
     ///Config constructor loads the config from the path defined at the cli
     /// or if it doesn't exist creates a default config file
     pub fn new(preferences: &Preferences) -> Config {
-        let utility = Utility::new("new (Config)", 30);
+        let utility = Utility::new("new (Config)");
         let config: Config;
 
         if Path::new(&preferences.config_file_path).exists() {
@@ -91,10 +91,9 @@ pub struct Preferences {
     pub print_shows: bool,
     pub print_general: bool,
     pub config_file_path: String,
-    pub min_verbosity: String,
-
     pub timing_enabled: bool,
     pub timing_threshold: u128,
+    pub min_verbosity: Verbosity,
 }
 
 impl Preferences {
@@ -105,8 +104,7 @@ impl Preferences {
             print_shows: false,
             print_general: false,
             config_file_path: String::from("./.tlm_config"),
-            min_verbosity: String::from("INFO"),
-
+            min_verbosity: Verbosity::INFO,
             timing_enabled: false,
             timing_threshold: 0,
         };
@@ -150,13 +148,11 @@ impl Preferences {
             Store,
             "Set a minimum severity (debug, info, warning, error, critical)",
         );
-
         parser.refer(&mut self.timing_enabled).add_option(
             &["--enable-timing"],
             StoreTrue,
             "Enable program self-timing",
         );
-
         parser.refer(&mut self.timing_threshold).add_option(
             &["--timing-threshold"],
             Store,

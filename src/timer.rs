@@ -45,7 +45,7 @@ impl Timer {
 
         if self.stored_time.unwrap() > utility.preferences.timing_threshold {
             print(
-                Verbosity::INFO,
+                Verbosity::DEBUG,
                 From::Utility,
                 utility,
                 format!(
