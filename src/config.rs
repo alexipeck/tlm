@@ -170,15 +170,15 @@ impl Preferences {
         );
 
         parser.refer(&mut self.content_output_whitelisted).add_option(
-            &["--whitelist_output"],
+            &["--whitelist_content_output"],
             StoreTrue,
-            "Enable program self-timing",
+            "Whitelist all output from content, whitelisting a type will cause it to print regardless of other limiting flags",
         );
 
         parser.refer(&mut self.show_output_whitelisted).add_option(
             &["--whitelist_show_output"],
             StoreTrue,
-            "Enable program self-timing",
+            "Whitelist all output from shows, whitelisting a type will cause it to print regardless of other limiting flags",
         );
 
         parser.parse_args_or_exit();
