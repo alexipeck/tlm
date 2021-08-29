@@ -1,5 +1,17 @@
-use crate::{content::Content, manager::FileManager, print::{print, From, Verbosity}, utility::Utility};
-use std::{collections::VecDeque, path::PathBuf, process::Command, sync::atomic::{AtomicUsize, Ordering}};
+use crate::{
+    config::Config,
+    content::Content,
+    manager::FileManager,
+    print::{print, From, Verbosity},
+    utility::Utility,
+};
+use std::{
+    collections::VecDeque,
+    fs::File,
+    path::PathBuf,
+    process::Command,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -19,21 +31,18 @@ impl ImportFiles {
             ignored_paths: ignored_paths,
             status_underway: false,
             status_completed: false,
-        }
+        };
     }
 
     pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
-        file_manager.import_files(
-            &self.allowed_extensions,
-            &self.ignored_paths,
-            utility,
-        );
+        self.status_underway = true;
+        file_manager.import_files(&self.allowed_extensions, &self.ignored_paths, utility);
+        self.status_completed = true;
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct ProcessNewFiles {
-
     pub status_underway: bool,
     pub status_completed: bool,
 }
@@ -43,7 +52,13 @@ impl ProcessNewFiles {
         return ProcessNewFiles {
             status_underway: false,
             status_completed: false,
-        }
+        };
+    }
+
+    pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
+        self.status_underway = true;
+        file_manager.process_new_files(utility);
+        self.status_completed = true;
     }
 }
 
@@ -244,11 +259,20 @@ impl Task {
         };
     }
 
-    pub fn fill_encode(&mut self, source_path: PathBuf, encode_path: PathBuf, encode_string: Vec<String>) {
+    pub fn fill_encode(
+        &mut self,
+        source_path: PathBuf,
+        encode_path: PathBuf,
+        encode_string: Vec<String>,
+    ) {
         self.encode = Some(Encode::new(source_path, encode_path, encode_string));
     }
 
-    pub fn fill_import_files(&mut self, allowed_extensions: Vec<String>, ignored_paths: Vec<String>) {
+    pub fn fill_import_files(
+        &mut self,
+        allowed_extensions: Vec<String>,
+        ignored_paths: Vec<String>,
+    ) {
         self.import_files = Some(ImportFiles::new(allowed_extensions, ignored_paths));
     }
 
@@ -264,12 +288,12 @@ impl Task {
         let utility = utility.clone_add_location("handle_task(Task)");
 
         if self.encode.is_some() {
-
         } else if self.import_files.is_some() {
             let mut import_file_task = self.import_files.clone().unwrap();
             import_file_task.run(file_manager, utility.clone());
         } else if self.process_new_files.is_some() {
-
+            let mut process_new_files_task = self.process_new_files.clone().unwrap();
+            process_new_files_task.run(file_manager, utility.clone());
         } else if self.test.is_some() {
             let test = self.test.clone().unwrap();
             print(
@@ -284,13 +308,15 @@ impl Task {
 }
 
 pub struct Scheduler {
-    tasks: VecDeque<Task>,
+    pub file_manager: FileManager,
+    pub tasks: VecDeque<Task>,
 }
 
 impl Scheduler {
-    pub fn new() -> Self {
+    pub fn new(config: &Config, utility: Utility) -> Self {
         return Scheduler {
             tasks: VecDeque::new(),
+            file_manager: FileManager::new(&config, utility),
         };
     }
 
@@ -300,7 +326,11 @@ impl Scheduler {
         self.tasks.push_back(task);
     }
 
-    pub fn push_import_files_task(&mut self, allowed_extensions: Vec<String>, ignored_paths: Vec<String>) {
+    pub fn push_import_files_task(
+        &mut self,
+        allowed_extensions: Vec<String>,
+        ignored_paths: Vec<String>,
+    ) {
         let mut task = Task::new();
         task.fill_import_files(allowed_extensions, ignored_paths);
         self.tasks.push_back(task);
@@ -312,22 +342,22 @@ impl Scheduler {
         self.tasks.push_back(task);
     }
 
-    pub fn handle_tasks(&mut self, file_manager: &mut FileManager, utility: Utility) {
+    pub fn handle_tasks(&mut self, utility: Utility) {
         let utility = utility.clone_add_location("handle_tasks(TaskQueue)");
 
         //needs to be safer, but for now it's fine
         for task in &mut self.tasks {
-            task.handle_task(file_manager, utility.clone());
+            task.handle_task(&mut self.file_manager, utility.clone());
         }
 
         self.tasks = VecDeque::new(); //eh, I can't remember how to check an element and remove it from a Vec or VecDeque
     }
 
-    pub fn start_scheduler(&mut self, file_manager: &mut FileManager, utility: Utility) {
+    pub fn start_scheduler(&mut self, utility: Utility) {
         let utility = utility.clone_add_location("start_scheduler");
-    
+
         loop {
-            self.handle_tasks(file_manager, utility.clone());
+            self.handle_tasks(utility.clone());
             break;
         }
     }

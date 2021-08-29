@@ -120,7 +120,7 @@ impl Show {
             }
         }
     }
-    
+
     pub fn from_show_model(show_model: ShowModel, utility: Utility) -> Show {
         let mut utility = utility.clone_add_location("from_show_model(Show)");
 

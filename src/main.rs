@@ -11,16 +11,17 @@ use std::thread;
 
 fn main() {
     //traceback and timing utility
-    let mut utility = Utility::new("main", 0);
+    let mut utility: Utility = Utility::new("main", 0);
 
-    let config = Config::new(&utility.preferences);
+    let config: Config = Config::new(&utility.preferences);
+
+    let mut scheduler: Scheduler = Scheduler::new(&config, utility.clone());
 
     utility.min_verbosity =
         Verbosity::from_string(&utility.preferences.min_verbosity.to_uppercase());
 
     //The FileManager stores working files, hashsets and supporting functions related to updating those files
-    let mut file_manager: FileManager = FileManager::new(&config, utility.clone());
-    let original_files = file_manager.working_content.clone();
+    let original_files = scheduler.file_manager.working_content.clone();
 
     let stop_background = Arc::new(AtomicBool::new(false));
     let stop_background_inner = stop_background.clone();
@@ -44,15 +45,19 @@ fn main() {
         }
     });
 
-    file_manager.print_number_of_content(utility.clone());
-    file_manager.print_number_of_shows(utility.clone());
+    scheduler.push_import_files_task(config.allowed_extensions, config.ignored_paths);
+    scheduler.push_process_new_files_task();
+    scheduler.start_scheduler(utility.clone());
 
-    file_manager.scheduler.push_import_files_task(config.allowed_extensions, config.ignored_paths);
-    file_manager.scheduler.push_process_new_files_task();
-    file_manager.scheduler.start_scheduler(&mut file_manager, utility.clone());
+    scheduler
+        .file_manager
+        .print_number_of_content(utility.clone());
+    scheduler
+        .file_manager
+        .print_number_of_shows(utility.clone());
 
-    file_manager.print_shows(utility.clone());
-    file_manager.print_content(utility.clone());
+    scheduler.file_manager.print_shows(utility.clone());
+    scheduler.file_manager.print_content(utility.clone());
 
     //Tell worker thread to stop after it has finished hashing current file
     stop_background.store(true, Ordering::Relaxed);

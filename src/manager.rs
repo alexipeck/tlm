@@ -1,4 +1,12 @@
-use crate::{config::Config, content::Content, database::{create_content, create_episode, establish_connection, get_all_content}, print::{print, From, Verbosity}, scheduler::Scheduler, tv::{Show, TV}, utility::Utility};
+use crate::{
+    config::Config,
+    content::Content,
+    database::{create_content, create_episode, establish_connection, get_all_content},
+    print::{print, From, Verbosity},
+    scheduler::Scheduler,
+    tv::{Show, TV},
+    utility::Utility,
+};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
@@ -24,7 +32,6 @@ pub struct FileManager {
     pub existing_files_hashset: HashSet<PathBuf>,
     pub tv: TV,
     pub new_files_queue: Vec<PathBuf>,
-    pub scheduler: Scheduler,
 }
 
 impl FileManager {
@@ -37,7 +44,6 @@ impl FileManager {
             working_content: Vec::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
-            scheduler: Scheduler::new(),
         };
 
         file_manager.working_content = file_manager.get_all_content(utility.clone());
