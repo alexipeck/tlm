@@ -165,17 +165,12 @@ impl Content {
         return Content::get_full_path_with_suffix_from_pathbuf(pathbuf, "_encodeH4U8".to_string());
     }
 
-    pub fn seperate_season_episode(&mut self) -> Option<(usize, Vec<usize>)> {
+    pub fn seperate_season_episode(&mut self, utility: Utility) -> Option<(usize, Vec<usize>)> {
         let episode_string: String;
 
-        //Check if the regex caught a valid episode format
-        match re_strip(&self.get_filename(), r"S[0-9]*E[0-9\-]*") {
-            None => {
-                return None;
-            }
-            Some(temp_string) => {
-                episode_string = temp_string;
-            }
+        match utility.regex.find(&self.get_filename()) {
+            None => return None,
+            Some(val) => episode_string = String::from(rem_first_char(val.as_str())),
         }
 
         let mut season_episode_iter = episode_string.split('E');
@@ -374,7 +369,7 @@ impl Content {
     pub fn designate_and_fill(&mut self, working_shows: &mut Vec<Show>, utility: Utility) {
         let mut utility = utility.clone_add_location("designate_and_fill");
 
-        let show_season_episode_temp = self.seperate_season_episode();
+        let show_season_episode_temp = self.seperate_season_episode(utility.clone());
         if show_season_episode_temp.is_some() {
             self.designation = Designation::Episode;
             for section in String::from(
@@ -414,14 +409,6 @@ impl Content {
         }
 
         utility.print_function_timer();
-    }
-}
-
-fn re_strip(input: &String, expression: &str) -> Option<String> {
-    let output = Regex::new(expression).unwrap().find(input);
-    match output {
-        None => return None,
-        Some(val) => return Some(String::from(rem_first_char(val.as_str()))),
     }
 }
 

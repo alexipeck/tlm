@@ -3,6 +3,7 @@ use crate::{
     print::{print, From, Verbosity},
     timer::Timer,
 };
+use regex::Regex;
 
 #[derive(Clone, Debug)]
 pub struct Utility {
@@ -10,6 +11,7 @@ pub struct Utility {
     pub current_location: String,
     pub function_timer: Option<Timer>,
     pub preferences: Preferences,
+    pub regex: Regex,
 }
 
 impl Utility {
@@ -18,7 +20,7 @@ impl Utility {
             traceback: Vec::new(),
             current_location: String::from(created_from),
             function_timer: None,
-
+            regex: Regex::new(r"S[0-9]*E[0-9\-]*").unwrap(),
             preferences: Preferences::new(),
         };
         return utility.add_traceback_location(created_from);
