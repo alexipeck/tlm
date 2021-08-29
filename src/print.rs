@@ -1,4 +1,6 @@
 use crate::utility::Utility;
+use std::num::ParseIntError;
+use std::str::FromStr;
 
 //trickle up
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -57,15 +59,19 @@ impl Verbosity {
             _ => "NOTSET",
         })
     }
+}
 
-    pub fn from_string(input: &str) -> Verbosity {
-        match input {
-            "CRITICAL" => Verbosity::CRITICAL,
-            "ERROR" => Verbosity::ERROR,
-            "WARNING" => Verbosity::WARNING,
-            "INFO" => Verbosity::INFO,
-            "DEBUG" => Verbosity::DEBUG,
-            _ => Verbosity::NOTSET,
+impl FromStr for Verbosity {
+    type Err = ParseIntError;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input.to_uppercase().as_str() {
+            "CRITICAL" => Ok(Verbosity::CRITICAL),
+            "ERROR" => Ok(Verbosity::ERROR),
+            "WARNING" => Ok(Verbosity::WARNING),
+            "INFO" => Ok(Verbosity::INFO),
+            "DEBUG" => Ok(Verbosity::DEBUG),
+            _ => Ok(Verbosity::NOTSET),
         }
     }
 }
@@ -86,7 +92,7 @@ pub fn print(
     //called from
     let call_functions_string: String;
     //whitelisted ignores min_verbosity, I'm personally not a fan of this, another print control method needs to be talked about
-    if verbosity as usize <= utility.min_verbosity as usize || whitelisted {
+    if verbosity as usize <= utility.preferences.min_verbosity as usize || whitelisted {
         if verbosity == Verbosity::CRITICAL || verbosity == Verbosity::ERROR {
             call_functions_string = utility.to_string();
             eprintln!(

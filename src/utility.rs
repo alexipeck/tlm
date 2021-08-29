@@ -9,21 +9,15 @@ pub struct Utility {
     pub traceback: Vec<String>,
     pub current_location: String,
     pub function_timer: Option<Timer>,
-    pub timing_minumum_threshold: usize,
-    pub min_verbosity: Verbosity,
-
     pub preferences: Preferences,
 }
 
 impl Utility {
-    pub fn new(created_from: &str, timing_minimum_threshold: usize) -> Self {
+    pub fn new(created_from: &str) -> Self {
         let mut utility = Utility {
             traceback: Vec::new(),
-            min_verbosity: Verbosity::DEBUG,
             current_location: String::from(created_from),
             function_timer: None,
-            timing_minumum_threshold: timing_minimum_threshold,
-
             preferences: Preferences::new(),
         };
         return utility.add_traceback_location(created_from);
@@ -37,23 +31,24 @@ impl Utility {
     }
 
     pub fn print_function_timer(&mut self) {
-        if self.preferences.timing_enabled {
-            if self.function_timer.is_some() {
-                //the function interally saves inside, but because of the clone, it isn't persistent
-                self.function_timer
-                    .clone()
-                    .unwrap()
-                    .print_timer(self.clone());
-            } else {
-                print(
-                    Verbosity::CRITICAL,
-                    From::Utility,
-                    format!("You tried to print a timer that doesn't exist."),
-                    false,
-                    self.clone(),
-                );
-                panic!()
-            }
+        if !self.preferences.timing_enabled {
+            return;
+        }
+        if self.function_timer.is_some() {
+            //the function interally saves inside, but because of the clone, it isn't persistent
+            self.function_timer
+                .clone()
+                .unwrap()
+                .print_timer(self.clone());
+        } else {
+            print(
+                Verbosity::CRITICAL,
+                From::Utility,
+                format!("You tried to print a timer that doesn't exist."),
+                false,
+                self.clone(),
+            );
+            panic!()
         }
     }
 

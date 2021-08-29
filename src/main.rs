@@ -1,8 +1,8 @@
 extern crate diesel;
 use diesel::query_dsl::SaveChangesDsl;
 use tlm::{
-    config::Config, database::establish_connection, manager::FileManager, model::ContentModel,
-    print::Verbosity, scheduler::Scheduler, utility::Utility,
+    config::Config, database::establish_connection, model::ContentModel, scheduler::Scheduler,
+    utility::Utility,
 };
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -11,14 +11,11 @@ use std::thread;
 
 fn main() {
     //traceback and timing utility
-    let mut utility: Utility = Utility::new("main", 0);
+    let utility = Utility::new("main");
 
     let config: Config = Config::new(&utility.preferences);
 
     let mut scheduler: Scheduler = Scheduler::new(config, utility.clone());
-
-    utility.min_verbosity =
-        Verbosity::from_string(&utility.preferences.min_verbosity.to_uppercase());
 
     //The FileManager stores working files, hashsets and supporting functions related to updating those files
     let original_files = scheduler.file_manager.working_content.clone();
@@ -49,7 +46,6 @@ fn main() {
     scheduler.push_process_new_files_task();
 
     scheduler.start_scheduler(utility.clone());
-
 
     scheduler
         .file_manager

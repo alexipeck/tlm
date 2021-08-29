@@ -7,7 +7,6 @@ use crate::{
 };
 use std::{
     collections::VecDeque,
-    fs::File,
     path::PathBuf,
     process::Command,
     sync::atomic::{AtomicUsize, Ordering},
@@ -216,11 +215,16 @@ impl Scheduler {
     }
 
     pub fn push_import_files_task(&mut self) {
-        self.tasks.push_back(Task::new(TaskType::ImportFiles(ImportFiles::new(&self.config.allowed_extensions, &self.config.ignored_paths))));
+        self.tasks
+            .push_back(Task::new(TaskType::ImportFiles(ImportFiles::new(
+                &self.config.allowed_extensions,
+                &self.config.ignored_paths,
+            ))));
     }
 
     pub fn push_process_new_files_task(&mut self) {
-        self.tasks.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new())));
+        self.tasks
+            .push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new())));
     }
 
     pub fn start_scheduler(&mut self, utility: Utility) {
