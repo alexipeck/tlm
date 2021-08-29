@@ -3,7 +3,7 @@ use crate::{
     database::{create_content, create_episode, establish_connection, get_all_content},
     print::{print, From, Verbosity},
     scheduler::TaskQueue,
-    tv::TV,
+    tv::{TV, Show},
     utility::Utility,
 };
 use serde::{Deserialize, Serialize};
@@ -194,30 +194,10 @@ impl FileManager {
     }
 
     pub fn print_shows(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location("print_shows(FileManager)");
-
-        if !utility.preferences.print_shows {
-            return;
-        }
-        
-        for show in &self.tv.working_shows {
-            show.print_show(utility.clone());
-        }
-
-        utility.print_function_timer();
+        Show::print_shows(&self.tv.working_shows, utility.clone());
     }
 
     pub fn print_content(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location("print_content(FileManager)");
-
-        if !utility.preferences.print_contents {
-            return;
-        }
-
-        for content in &self.working_content {
-            content.print(utility.clone());
-        }
-
-        utility.print_function_timer();
+        Content::print_content(&self.working_content, utility.clone());
     }
 }

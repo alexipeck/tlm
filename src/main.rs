@@ -60,7 +60,6 @@ fn main() {
     start_scheduler(&mut file_manager, utility.clone());
 
     file_manager.print_shows(utility.clone());
-
     file_manager.print_content(utility.clone());
 
     //Tell worker thread to stop after it has finished hashing current file
