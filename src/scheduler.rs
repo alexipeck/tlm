@@ -115,16 +115,16 @@ impl Encode {
             utility,
         );
 
-        let buffer;
+        let _buffer;
         if !cfg!(target_os = "windows") {
             //linux & friends
-            buffer = Command::new("ffmpeg")
+            _buffer = Command::new("ffmpeg")
                 .args(&self.encode_string.clone())
                 .output()
                 .expect("failed to execute process");
         } else {
             //windows
-            buffer = Command::new("ffmpeg")
+            _buffer = Command::new("ffmpeg")
                 .args(&self.encode_string.clone())
                 .output()
                 .expect("failed to execute process");
@@ -133,83 +133,6 @@ impl Encode {
         //should be error, but from ffmpeg, stderr mostly consists of stdout information
         //print(Verbosity::DEBUG, "content", "encode", format!("{}", String::from_utf8_lossy(&buffer.stderr).to_string()));
         self.status_completed = true;
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Copy {
-    placeholder: Option<String>,
-}
-
-impl Copy {
-    pub fn new() -> Self {
-        return Copy { placeholder: None };
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct MoveFile {
-    placeholder: Option<String>,
-}
-
-impl MoveFile {
-    pub fn new() -> Self {
-        return MoveFile { placeholder: None };
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Rename {
-    placeholder: Option<String>,
-}
-
-impl Rename {
-    pub fn new() -> Self {
-        return Rename { placeholder: None };
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Reserve {
-    placeholder: Option<String>,
-}
-
-impl Reserve {
-    pub fn new() -> Self {
-        return Reserve { placeholder: None };
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Delete {
-    placeholder: Option<String>,
-}
-
-impl Delete {
-    pub fn new() -> Self {
-        return Delete { placeholder: None };
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Reencode {
-    placeholder: Option<String>,
-}
-
-impl Reencode {
-    pub fn new() -> Self {
-        return Reencode { placeholder: None };
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Duplicate {
-    placeholder: Option<String>,
-}
-
-impl Duplicate {
-    pub fn new() -> Self {
-        return Duplicate { placeholder: None };
     }
 }
 
