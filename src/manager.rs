@@ -192,4 +192,32 @@ impl FileManager {
 
         utility.print_function_timer();
     }
+
+    pub fn print_shows(&self, utility: Utility) {
+        let mut utility = utility.clone_add_location("print_shows(FileManager)");
+
+        if !utility.preferences.print_shows {
+            return;
+        }
+        
+        for show in &self.tv.working_shows {
+            show.print_show(utility.clone());
+        }
+
+        utility.print_function_timer();
+    }
+
+    pub fn print_content(&self, utility: Utility) {
+        let mut utility = utility.clone_add_location("print_content(FileManager)");
+
+        if !utility.preferences.print_contents {
+            return;
+        }
+
+        for content in &self.working_content {
+            content.print(utility.clone());
+        }
+
+        utility.print_function_timer();
+    }
 }

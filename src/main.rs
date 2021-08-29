@@ -59,17 +59,9 @@ fn main() {
     file_manager.task_queue.push_test_task("Main");
     start_scheduler(&mut file_manager, utility.clone());
 
-    if utility.preferences.print_shows {
-        for show in file_manager.tv.working_shows {
-            show.print_show(utility.clone());
-        }
-    }
+    file_manager.print_shows(utility.clone());
 
-    if utility.preferences.print_contents {
-        for content in file_manager.working_content {
-            content.print(utility.clone());
-        }
-    }
+    file_manager.print_content(utility.clone());
 
     //Tell worker thread to stop after it has finished hashing current file
     stop_background.store(true, Ordering::Relaxed);
