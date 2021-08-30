@@ -1,7 +1,6 @@
 use std::{collections::HashSet, fs, path::PathBuf};
 
 use crate::{
-    database::get_all_content,
     designation::{convert_i32_to_designation, Designation},
     model::*,
     print::{print, From, Verbosity},
@@ -9,6 +8,7 @@ use crate::{
     tv::Show,
     utility::Utility,
 };
+use diesel::pg::PgConnection;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -36,7 +36,12 @@ pub struct Content {
 
 impl Content {
     //needs to be able to be created from a pathbuf or pulled from the database
-    pub fn new(raw_filepath: &PathBuf, working_shows: &mut Vec<Show>, utility: Utility) -> Self {
+    pub fn new(
+        raw_filepath: &PathBuf,
+        working_shows: &mut Vec<Show>,
+        utility: Utility,
+        connection: &PgConnection,
+    ) -> Self {
         let mut utility = utility.clone_add_location("new(Content)");
 
         let mut content = Content {
@@ -50,7 +55,7 @@ impl Content {
             show_season_episode: None,
             show_uid: None,
         };
-        content.designate_and_fill(working_shows, utility.clone());
+        content.designate_and_fill(working_shows, utility.clone(), connection);
         utility.print_function_timer();
         return content;
     }
@@ -68,6 +73,7 @@ impl Content {
         content_model: ContentModel,
         working_shows: &mut Vec<Show>,
         utility: Utility,
+        connection: &PgConnection,
     ) -> Content {
         let mut utility = utility.clone_add_location("from_row(Content)");
 
@@ -90,7 +96,7 @@ impl Content {
             show_uid: None,
         };
 
-        content.designate_and_fill(working_shows, utility.clone());
+        content.designate_and_fill(working_shows, utility.clone(), connection);
         utility.print_function_timer();
 
         return content;
@@ -360,7 +366,12 @@ impl Content {
             && self.show_season_episode.is_some();
     }
 
-    pub fn designate_and_fill(&mut self, working_shows: &mut Vec<Show>, utility: Utility) {
+    pub fn designate_and_fill(
+        &mut self,
+        working_shows: &mut Vec<Show>,
+        utility: Utility,
+        connection: &PgConnection,
+    ) {
         let mut utility = utility.clone_add_location("designate_and_fill");
 
         let show_season_episode_temp = self.seperate_season_episode();
@@ -385,6 +396,7 @@ impl Content {
                 self.show_title.clone().unwrap(),
                 working_shows,
                 utility.clone(),
+                connection,
             ));
         } else {
             self.designation = Designation::Generic;

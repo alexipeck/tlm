@@ -1,6 +1,9 @@
+use diesel::PgConnection;
+
 use crate::{
     config::Config,
     content::Content,
+    database::establish_connection,
     manager::FileManager,
     print::{print, From, Verbosity},
     utility::Utility,

@@ -7,6 +7,7 @@ use crate::{
     tv::{Show, TV},
     utility::Utility,
 };
+use diesel::pg::PgConnection;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
@@ -91,7 +92,7 @@ impl FileManager {
         let mut utility = utility.clone_add_location("get_all_contents(Content)");
 
         let mut content: Vec<Content> = Vec::new();
-
+        let connection = establish_connection();
         let raw_content = get_all_content(utility.clone());
 
         for content_model in raw_content {
@@ -99,6 +100,7 @@ impl FileManager {
                 content_model,
                 &mut self.tv.working_shows,
                 utility.clone(),
+                &connection,
             ));
         }
 
@@ -118,32 +120,37 @@ impl FileManager {
             if current.is_some() {
                 let current = current.unwrap();
 
-                let mut c = Content::new(&current, &mut self.tv.working_shows, utility.clone());
+                let content = Content::new(
+                    &current,
+                    &mut self.tv.working_shows,
+                    utility.clone(),
+                    &connection,
+                );
                 new_contents.push(NewContent {
-                    full_path: String::from(c.full_path.to_str().unwrap()),
-                    designation: c.designation as i32,
+                    full_path: String::from(content.full_path.to_str().unwrap()),
+                    designation: content.designation as i32,
                 });
 
-                temp_content.push(c);
+                temp_content.push(content);
             }
         }
         let contents = create_content(&connection, new_contents);
         for i in 0..contents.len() {
             temp_content[i].content_uid = Some(contents[i].id as usize);
         }
-        for c in &temp_content {
-            if c.content_is_episode() {
-                let c_uid = c.content_uid.unwrap() as i32;
-                let s_uid = c.show_uid.unwrap() as i32;
+        for content in &temp_content {
+            if content.content_is_episode() {
+                let c_uid = content.content_uid.unwrap() as i32;
+                let s_uid = content.show_uid.unwrap() as i32;
                 let (season_number_temp, episode_number_temp) =
-                    c.show_season_episode.as_ref().unwrap();
+                    content.show_season_episode.as_ref().unwrap();
                 let season_number = *season_number_temp as i16;
                 let episode_number = episode_number_temp[0] as i16;
 
                 let new_episode = NewEpisode {
                     content_uid: c_uid,
                     show_uid: s_uid,
-                    episode_title: c.show_title.as_ref().unwrap().to_string(),
+                    episode_title: content.show_title.as_ref().unwrap().to_string(),
                     season_number: season_number as i32,
                     episode_number: episode_number as i32,
                 };
@@ -151,7 +158,8 @@ impl FileManager {
             }
         }
 
-        let episodes = create_episode(&connection, new_episodes);
+        //Not needed yet
+        let _episodes = create_episode(&connection, new_episodes);
         self.working_content.append(&mut temp_content);
         utility.print_function_timer();
     }

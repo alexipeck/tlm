@@ -94,14 +94,14 @@ impl Show {
         show_title: String,
         working_shows: &mut Vec<Show>,
         utility: Utility,
+        connection: &PgConnection,
     ) -> usize {
         let utility = utility.clone_add_location("ensure_show_exists(Show)");
-        
+
         let show_uid = Show::show_exists(show_title.clone(), working_shows, utility.clone());
         match show_uid {
             Some(uid) => return uid,
             None => {
-                let connection = establish_connection();
                 if utility.preferences.print_shows || utility.preferences.show_output_whitelisted {
                     print(
                         Verbosity::INFO,
@@ -111,8 +111,8 @@ impl Show {
                         utility.clone(),
                     );
                 }
-                
-                let show_model = create_show(&connection, show_title.clone());
+
+                let show_model = create_show(connection, show_title.clone());
 
                 let show_uid = show_model.show_uid as usize;
                 let new_show = Show {
