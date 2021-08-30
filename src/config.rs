@@ -9,7 +9,7 @@ use std::path::Path;
 ///This struct contains any system specific data (paths, extensions, etc)
 /// likely will be replaced later with database tables but as we clear data
 /// so often I would prefer this config file for now.
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Config {
     pub allowed_extensions: Vec<String>,
     pub ignored_paths: Vec<String>,

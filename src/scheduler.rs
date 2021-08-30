@@ -5,11 +5,13 @@ use crate::{
     print::{print, From, Verbosity},
     utility::Utility,
 };
+use std::sync::{atomic::AtomicBool, Arc, Mutex};
 use std::{
     collections::VecDeque,
     path::PathBuf,
     process::Command,
     sync::atomic::{AtomicUsize, Ordering},
+    thread, time,
 };
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -149,10 +151,12 @@ impl Test {
 
     pub fn run(&self, utility: Utility) {
         let utility = utility.clone_add_location("run(Test)");
+        let wait_time = time::Duration::from_secs(2); //Just to illustrate threadedness
+        thread::sleep(wait_time);
         print(
             Verbosity::INFO,
             From::Scheduler,
-            format!("Test was {}", self.test_string),
+            format!("{}", self.test_string),
             false,
             utility.clone(),
         );
@@ -201,40 +205,46 @@ impl Task {
 
 pub struct Scheduler {
     pub file_manager: FileManager,
-    pub tasks: VecDeque<Task>,
+    pub tasks: Arc<Mutex<VecDeque<Task>>>,
     pub config: Config,
+    pub input_completed: Arc<AtomicBool>,
 }
 
 impl Scheduler {
-    pub fn new(config: Config, utility: Utility) -> Self {
+    pub fn new(
+        config: Config,
+        utility: Utility,
+        tasks: Arc<Mutex<VecDeque<Task>>>,
+        completed_marker: Arc<AtomicBool>,
+    ) -> Self {
         return Scheduler {
-            tasks: VecDeque::new(),
+            tasks: tasks,
             file_manager: FileManager::new(&config, utility),
             config: config,
+            input_completed: completed_marker,
         };
-    }
-
-    pub fn push_import_files_task(&mut self) {
-        self.tasks
-            .push_back(Task::new(TaskType::ImportFiles(ImportFiles::new(
-                &self.config.allowed_extensions,
-                &self.config.ignored_paths,
-            ))));
-    }
-
-    pub fn push_process_new_files_task(&mut self) {
-        self.tasks
-            .push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new())));
     }
 
     pub fn start_scheduler(&mut self, utility: Utility) {
         let utility = utility.clone_add_location("start_scheduler");
-
+        let wait_time = time::Duration::from_secs(1);
         loop {
-            if self.tasks.len() == 0 {
-                break;
+            let mut task: Task;
+            {
+                let mut tasks = self.tasks.lock().unwrap();
+
+                //When the queue is empty we wait until another item is added or user input is marked as completed
+                if tasks.len() == 0 {
+                    if self.input_completed.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    std::mem::drop(tasks); //Unlock the mutex so we don't block while sleeping
+                    thread::sleep(wait_time);
+                    continue;
+                }
+                task = tasks.pop_front().unwrap();
             }
-            let mut task = self.tasks.pop_front().unwrap();
+
             task.handle_task(&mut self.file_manager, utility.clone());
         }
     }
