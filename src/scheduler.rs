@@ -163,6 +163,31 @@ impl Test {
     }
 }
 
+//TODO Needs to be properly implemented here
+/*fn hash_files(contents: Vec<Content>, stop_marker: Arc<AtomicBool>) -> JoinHandle<()> {
+    let stop_background = Arc::new(AtomicBool::new(false));
+    let stop_background_inner = stop_background.clone();
+
+    //Hash files until all other functions are complete
+    thread::spawn(move || {
+        let connection = establish_connection();
+        for mut content in contents {
+            if content.hash.is_none() {
+                content.hash();
+                if ContentModel::from_content(content)
+                    .save_changes::<ContentModel>(&connection)
+                    .is_err()
+                {
+                    eprintln!("Failed to update hash in database");
+                }
+            }
+            if stop_marker.load(Ordering::Relaxed) {
+                break;
+            }
+        }
+    })
+}*/
+
 pub enum TaskType {
     Encode(Encode),
     ImportFiles(ImportFiles),

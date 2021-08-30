@@ -96,6 +96,7 @@ pub struct Preferences {
     pub content_output_whitelisted: bool,
     pub show_output_whitelisted: bool,
     pub min_verbosity: Verbosity,
+    pub disable_input: bool,
 }
 
 impl Preferences {
@@ -112,6 +113,7 @@ impl Preferences {
 
             content_output_whitelisted: false,
             show_output_whitelisted: false,
+            disable_input: false,
         };
 
         prepare.parse_arguments();
@@ -174,6 +176,11 @@ impl Preferences {
             &["--whitelist-show-output"],
             StoreTrue,
             "Whitelist all output from shows, whitelisting a type will cause it to print regardless of other limiting flags",
+        );
+        parser.refer(&mut self.disable_input).add_option(
+            &["--disable-input", "--no-input"],
+            StoreTrue,
+            "Don't accept any inputs from the user (Testing only will be removed later)",
         );
 
         parser.parse_args_or_exit();
