@@ -62,6 +62,9 @@ impl Show {
 
     pub fn print_show(&self, utility: Utility) {
         let utility = utility.clone_add_location("print_show(Show)");
+        if !utility.preferences.print_shows && !utility.preferences.show_output_whitelisted {
+            return;
+        }
         print(
             Verbosity::DEBUG,
             From::Show,
@@ -93,19 +96,22 @@ impl Show {
         utility: Utility,
     ) -> usize {
         let utility = utility.clone_add_location("ensure_show_exists(Show)");
-
+        
         let show_uid = Show::show_exists(show_title.clone(), working_shows, utility.clone());
         match show_uid {
             Some(uid) => return uid,
             None => {
                 let connection = establish_connection();
-                print(
-                    Verbosity::INFO,
-                    From::TV,
-                    format!("Adding a new show: {}", show_title),
-                    utility.preferences.show_output_whitelisted,
-                    utility.clone(),
-                );
+                if utility.preferences.print_shows || utility.preferences.show_output_whitelisted {
+                    print(
+                        Verbosity::INFO,
+                        From::TV,
+                        format!("Adding a new show: {}", show_title),
+                        utility.preferences.show_output_whitelisted,
+                        utility.clone(),
+                    );
+                }
+                
                 let show_model = create_show(&connection, show_title.clone());
 
                 let show_uid = show_model.show_uid as usize;

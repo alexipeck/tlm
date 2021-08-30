@@ -230,15 +230,6 @@ impl Scheduler {
     pub fn start_scheduler(&mut self, utility: Utility) {
         let utility = utility.clone_add_location("start_scheduler");
 
-        self.tasks
-            .push_back(Task::new(TaskType::Test(Test::new("first"))));
-
-        self.tasks
-            .push_back(Task::new(TaskType::Test(Test::new("second"))));
-
-        self.tasks
-            .push_back(Task::new(TaskType::Test(Test::new("thirds"))));
-
         loop {
             if self.tasks.len() == 0 {
                 break;
