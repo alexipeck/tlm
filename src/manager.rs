@@ -7,7 +7,6 @@ use crate::{
     tv::{Show, TV},
     utility::Utility,
 };
-use diesel::pg::PgConnection;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
