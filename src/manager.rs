@@ -2,7 +2,7 @@ use crate::model::{NewContent, NewEpisode};
 use crate::{
     config::Config,
     content::Content,
-    database::{create_content, create_episode, establish_connection, get_all_content},
+    database::{create_contents, create_episodes, establish_connection, get_all_content},
     print::{print, From, Verbosity},
     tv::{Show, TV},
     utility::Utility,
@@ -112,8 +112,12 @@ impl FileManager {
         let connection = establish_connection();
         let mut new_episodes = Vec::new();
         let mut new_contents = Vec::new();
+
+        //Temporary because we need to get the id's that the database returns
+        //Will just be appended to working content at the end
         let mut temp_content = Vec::new();
 
+        //Create Content and NewContent that will be added to the database in a batch
         while self.new_files_queue.len() > 0 {
             let current = self.new_files_queue.pop();
             if current.is_some() {
@@ -133,10 +137,15 @@ impl FileManager {
                 temp_content.push(content);
             }
         }
-        let contents = create_content(&connection, new_contents);
+
+        //Insert the content and then update the uid's for the full Content structure
+        let contents = create_contents(&connection, new_contents);
         for i in 0..contents.len() {
             temp_content[i].content_uid = Some(contents[i].id as usize);
         }
+        self.working_content.append(&mut temp_content);
+
+        //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for content in &temp_content {
             if content.content_is_episode() {
                 let c_uid = content.content_uid.unwrap() as i32;
@@ -157,9 +166,8 @@ impl FileManager {
             }
         }
 
-        //Not needed yet
-        let _episodes = create_episode(&connection, new_episodes);
-        self.working_content.append(&mut temp_content);
+        //episodes isn't being used yet but this does insert into the database
+        let _episodes = create_episodes(&connection, new_episodes);
         utility.print_function_timer();
     }
 

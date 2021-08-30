@@ -15,7 +15,10 @@ pub fn establish_connection() -> PgConnection {
 }
 
 ///Inserts content data into the database
-pub fn create_content<'a>(conn: &PgConnection, new_contents: Vec<NewContent>) -> Vec<ContentModel> {
+pub fn create_contents<'a>(
+    conn: &PgConnection,
+    new_contents: Vec<NewContent>,
+) -> Vec<ContentModel> {
     diesel::insert_into(content_table::table)
         .values(&new_contents)
         .get_results(conn)
@@ -33,7 +36,7 @@ pub fn create_show<'a>(conn: &PgConnection, title: String) -> ShowModel {
 }
 
 ///Inserts episode data into the database
-pub fn create_episode<'a>(conn: &PgConnection, new_episode: Vec<NewEpisode>) -> Vec<EpisodeModel> {
+pub fn create_episodes<'a>(conn: &PgConnection, new_episode: Vec<NewEpisode>) -> Vec<EpisodeModel> {
     diesel::insert_into(episode_table::table)
         .values(&new_episode)
         .get_results(conn)
