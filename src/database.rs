@@ -15,19 +15,10 @@ pub fn establish_connection() -> PgConnection {
 }
 
 ///Inserts content data into the database
-pub fn create_content<'a>(
-    conn: &PgConnection,
-    full_path: String,
-    designation: i32,
-) -> ContentModel {
-    let new_content = NewContent {
-        full_path: full_path,
-        designation: designation,
-    };
-
+pub fn create_content<'a>(conn: &PgConnection, new_contents: Vec<NewContent>) -> Vec<ContentModel> {
     diesel::insert_into(content_table::table)
-        .values(&new_content)
-        .get_result(conn)
+        .values(&new_contents)
+        .get_results(conn)
         .expect("Error saving new content")
 }
 
@@ -42,25 +33,10 @@ pub fn create_show<'a>(conn: &PgConnection, title: String) -> ShowModel {
 }
 
 ///Inserts episode data into the database
-pub fn create_episode<'a>(
-    conn: &PgConnection,
-    content_uid: i32,
-    show_uid: i32,
-    episode_title: String,
-    season_number: i32,
-    episode_number: i32,
-) -> EpisodeModel {
-    let new_episode = NewEpisode {
-        content_uid: content_uid,
-        show_uid: show_uid,
-        episode_title: episode_title,
-        season_number: season_number,
-        episode_number: episode_number,
-    };
-
+pub fn create_episode<'a>(conn: &PgConnection, new_episode: Vec<NewEpisode>) -> Vec<EpisodeModel> {
     diesel::insert_into(episode_table::table)
         .values(&new_episode)
-        .get_result(conn)
+        .get_results(conn)
         .expect("Error saving new episode")
 }
 

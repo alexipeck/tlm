@@ -67,10 +67,7 @@ impl Generic {
 
     ///Create a new content from the database equivalent. This is neccesary because
     /// not all fields are stored in the database because they can be so easily recalculated
-    pub fn from_content_model(
-        content_model: ContentModel,
-        utility: Utility,
-    ) -> Generic {
+    pub fn from_content_model(content_model: ContentModel, utility: Utility) -> Generic {
         let mut utility = utility.clone_add_location("from_content_model(Generic)");
 
         let content_uid_temp: i32 = content_model.id;
@@ -99,18 +96,6 @@ impl Generic {
         let mut hashset = HashSet::new();
         for content in contents {
             hashset.insert(content.full_path);
-        }
-
-        utility.print_function_timer();
-        return hashset;
-    }
-
-    pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
-        let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
-        let raw_content = get_all_content(utility.clone());
-        let mut hashset = HashSet::new();
-        for row in raw_content {
-            hashset.insert(PathBuf::from(row.full_path));
         }
 
         utility.print_function_timer();

@@ -110,18 +110,6 @@ impl Content {
         return hashset;
     }
 
-    pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
-        let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
-        let raw_content = get_all_content(utility.clone());
-        let mut hashset = HashSet::new();
-        for row in raw_content {
-            hashset.insert(PathBuf::from(row.full_path));
-        }
-
-        utility.print_function_timer();
-        return hashset;
-    }
-
     ///Returns a vector of ffmpeg arguments for later execution
     /// This has no options currently
     pub fn generate_encode_string(&self) -> Vec<String> {

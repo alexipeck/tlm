@@ -1,3 +1,4 @@
+use crate::model::{NewContent, NewEpisode};
 use crate::{
     config::Config,
     content::Content,
@@ -108,6 +109,9 @@ impl FileManager {
     pub fn process_new_files(&mut self, utility: Utility) {
         let mut utility = utility.clone_add_location("process_new_files(FileManager)");
         let connection = establish_connection();
+        let mut new_episodes = Vec::new();
+        let mut new_contents = Vec::new();
+        let mut temp_content = Vec::new();
 
         while self.new_files_queue.len() > 0 {
             let current = self.new_files_queue.pop();
@@ -115,34 +119,40 @@ impl FileManager {
                 let current = current.unwrap();
 
                 let mut c = Content::new(&current, &mut self.tv.working_shows, utility.clone());
-                let content_model = create_content(
-                    &connection,
-                    String::from(c.full_path.to_str().unwrap()),
-                    c.designation as i32,
-                );
-                c.content_uid = Some(content_model.id as usize);
+                new_contents.push(NewContent {
+                    full_path: String::from(c.full_path.to_str().unwrap()),
+                    designation: c.designation as i32,
+                });
 
-                if c.content_is_episode() {
-                    let c_uid = c.content_uid.unwrap() as i32;
-                    let s_uid = c.show_uid.unwrap() as i32;
-                    let (season_number_temp, episode_number_temp) =
-                        c.show_season_episode.as_ref().unwrap();
-                    let season_number = *season_number_temp as i16;
-                    let episode_number = episode_number_temp[0] as i16;
-                    create_episode(
-                        &connection,
-                        c_uid,
-                        s_uid,
-                        c.show_title.as_ref().unwrap().to_string(),
-                        season_number as i32,
-                        episode_number as i32,
-                    );
-                }
+                temp_content.push(c);
+            }
+        }
+        let contents = create_content(&connection, new_contents);
+        for i in 0..contents.len() {
+            temp_content[i].content_uid = Some(contents[i].id as usize);
+        }
+        for c in &temp_content {
+            if c.content_is_episode() {
+                let c_uid = c.content_uid.unwrap() as i32;
+                let s_uid = c.show_uid.unwrap() as i32;
+                let (season_number_temp, episode_number_temp) =
+                    c.show_season_episode.as_ref().unwrap();
+                let season_number = *season_number_temp as i16;
+                let episode_number = episode_number_temp[0] as i16;
 
-                self.working_content.push(c);
+                let new_episode = NewEpisode {
+                    content_uid: c_uid,
+                    show_uid: s_uid,
+                    episode_title: c.show_title.as_ref().unwrap().to_string(),
+                    season_number: season_number as i32,
+                    episode_number: episode_number as i32,
+                };
+                new_episodes.push(new_episode);
             }
         }
 
+        let episodes = create_episode(&connection, new_episodes);
+        self.working_content.append(&mut temp_content);
         utility.print_function_timer();
     }
 
