@@ -43,8 +43,10 @@ fn main() {
             &config.ignored_paths,
         ))));
 
-        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new())));
-        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::new())))
+        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(
+            ProcessNewFiles::default(),
+        )));
+        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::default())))
     }
 
     //Placeholder user input
@@ -77,5 +79,5 @@ fn main() {
         .print_number_of_shows(utility.clone());
 
     scheduler.file_manager.print_shows(utility.clone());
-    scheduler.file_manager.print_content(utility.clone());
+    scheduler.file_manager.print_content(utility);
 }

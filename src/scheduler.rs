@@ -34,12 +34,12 @@ pub struct ImportFiles {
 
 impl ImportFiles {
     pub fn new(allowed_extensions: &Vec<String>, ignored_paths: &Vec<String>) -> Self {
-        return ImportFiles {
+        ImportFiles {
             allowed_extensions: allowed_extensions.clone(),
             ignored_paths: ignored_paths.clone(),
             status_underway: false,
             status_completed: false,
-        };
+        }
     }
 
     pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
@@ -56,17 +56,19 @@ pub struct ProcessNewFiles {
 }
 
 impl ProcessNewFiles {
-    pub fn new() -> Self {
-        return ProcessNewFiles {
-            status_underway: false,
-            status_completed: false,
-        };
-    }
-
     pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
         self.status_underway = true;
         file_manager.process_new_files(utility);
         self.status_completed = true;
+    }
+}
+
+impl Default for ProcessNewFiles {
+    fn default() -> Self {
+        ProcessNewFiles {
+            status_underway: false,
+            status_completed: false,
+        }
     }
 }
 
@@ -82,19 +84,19 @@ pub struct Encode {
 
 impl Encode {
     pub fn new(source_path: PathBuf, encode_path: PathBuf, encode_string: Vec<String>) -> Self {
-        return Encode {
-            source_path: source_path,
-            encode_path: encode_path,
-            encode_string: encode_string,
+        Encode {
+            source_path,
+            encode_path,
+            encode_string,
 
             status_underway: false,
             status_completed: false,
-        };
+        }
     }
 
     pub fn is_ready_to_encode(&self) -> bool {
         //TODO: Add check for whether the file is ready to go for encode
-        return true;
+        true
     }
 
     pub fn run(&mut self, utility: Utility) {
@@ -103,9 +105,9 @@ impl Encode {
             print(
                 Verbosity::ERROR,
                 From::Scheduler,
-                format!("Encode didn't have the required fields for being sent to the encoder"),
+                "Encode didn't have the required fields for being sent to the encoder".to_string(),
                 false,
-                utility.clone(),
+                utility,
             );
             return;
         }
@@ -117,26 +119,19 @@ impl Encode {
             From::Job,
             format!(
                 "Encoding file \'{}\'",
-                Content::get_filename_from_pathbuf(self.source_path.clone().clone())
+                Content::get_filename_from_pathbuf(self.source_path.clone())
             ),
             false,
             utility,
         );
 
         let _buffer;
-        if !cfg!(target_os = "windows") {
-            //linux & friends
-            _buffer = Command::new("ffmpeg")
-                .args(&self.encode_string.clone())
-                .output()
-                .expect("failed to execute process");
-        } else {
-            //windows
-            _buffer = Command::new("ffmpeg")
-                .args(&self.encode_string.clone())
-                .output()
-                .expect("failed to execute process");
-        }
+        //linux & friends
+        _buffer = Command::new("ffmpeg")
+            .args(&self.encode_string.clone())
+            .output()
+            .expect("failed to execute process");
+
         //only uncomment if you want disgusting output
         //should be error, but from ffmpeg, stderr mostly consists of stdout information
         //print(Verbosity::DEBUG, "content", "encode", format!("{}", String::from_utf8_lossy(&buffer.stderr).to_string()));
@@ -151,9 +146,9 @@ pub struct Test {
 
 impl Test {
     pub fn new(test_string: &str) -> Self {
-        return Test {
+        Test {
             test_string: String::from(test_string),
-        };
+        }
     }
 
     pub fn run(&self, utility: Utility) {
@@ -163,9 +158,9 @@ impl Test {
         print(
             Verbosity::INFO,
             From::Scheduler,
-            format!("{}", self.test_string),
+            self.test_string.to_string(),
             false,
-            utility.clone(),
+            utility,
         );
     }
 }
@@ -173,10 +168,6 @@ impl Test {
 pub struct Hash {}
 
 impl Hash {
-    pub fn new() -> Self {
-        return Hash {};
-    }
-
     pub fn run(&mut self, current_content: Vec<Content>) -> TaskReturnAsync {
         let stop_hash = Arc::new(AtomicBool::new(false));
         let is_finished = Arc::new(AtomicBool::new(false));
@@ -203,7 +194,13 @@ impl Hash {
             is_finished_inner.store(true, Ordering::Relaxed);
         }))
         .unwrap();
-        return TaskReturnAsync::new(Some(handle), stop_hash, is_finished);
+        TaskReturnAsync::new(Some(handle), stop_hash, is_finished)
+    }
+}
+
+impl Default for Hash {
+    fn default() -> Self {
+        Hash {}
     }
 }
 
@@ -222,10 +219,10 @@ pub struct Task {
 
 impl Task {
     pub fn new(task_type: TaskType) -> Self {
-        return Task {
+        Task {
             task_uid: TASK_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
-            task_type: task_type,
-        };
+            task_type,
+        }
     }
 
     pub fn handle_task(
@@ -237,16 +234,16 @@ impl Task {
 
         match &mut self.task_type {
             TaskType::Encode(encode) => {
-                encode.run(utility.clone());
+                encode.run(utility);
             }
             TaskType::ImportFiles(import_files) => {
-                import_files.run(file_manager, utility.clone());
+                import_files.run(file_manager, utility);
             }
             TaskType::ProcessNewFiles(process_new_files) => {
-                process_new_files.run(file_manager, utility.clone());
+                process_new_files.run(file_manager, utility);
             }
             TaskType::Test(test) => {
-                test.run(utility.clone());
+                test.run(utility);
             }
             TaskType::Hash(hash) => {
                 return Some(hash.run(file_manager.working_content.clone()));
@@ -269,9 +266,9 @@ impl TaskReturnAsync {
         is_done: Arc<AtomicBool>,
     ) -> Self {
         Self {
-            handle: handle,
-            send_wrapup: send_wrapup,
-            is_done: is_done,
+            handle,
+            send_wrapup,
+            is_done,
         }
     }
 }
@@ -288,14 +285,14 @@ impl Scheduler {
         config: Config,
         utility: Utility,
         tasks: Arc<Mutex<VecDeque<Task>>>,
-        completed_marker: Arc<AtomicBool>,
+        input_completed: Arc<AtomicBool>,
     ) -> Self {
-        return Scheduler {
-            tasks: tasks,
+        Scheduler {
+            tasks,
             file_manager: FileManager::new(&config, utility),
-            config: config,
-            input_completed: completed_marker,
-        };
+            config,
+            input_completed,
+        }
     }
 
     pub fn start_scheduler(&mut self, utility: Utility) {
@@ -351,8 +348,8 @@ impl Scheduler {
             }
 
             let result = task.handle_task(&mut self.file_manager, utility.clone());
-            if result.is_some() {
-                handles.push(result.unwrap())
+            if let Some(handle) = result {
+                handles.push(handle)
             }
         }
     }

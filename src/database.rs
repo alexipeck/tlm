@@ -11,14 +11,12 @@ use std::env;
 ///Sets up a connection to the database via DATABASE_URL environment variable
 pub fn establish_connection() -> PgConnection {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    PgConnection::establish(&database_url).expect(&format!("Error connecting to {}", database_url))
+    PgConnection::establish(&database_url)
+        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
 }
 
 ///Inserts content data into the database
-pub fn create_contents<'a>(
-    conn: &PgConnection,
-    new_contents: Vec<NewContent>,
-) -> Vec<ContentModel> {
+pub fn create_contents(conn: &PgConnection, new_contents: Vec<NewContent>) -> Vec<ContentModel> {
     diesel::insert_into(content_table::table)
         .values(&new_contents)
         .get_results(conn)
@@ -26,8 +24,8 @@ pub fn create_contents<'a>(
 }
 
 ///Inserts show data into the database
-pub fn create_show<'a>(conn: &PgConnection, title: String) -> ShowModel {
-    let new_show = NewShow { title: title };
+pub fn create_show(conn: &PgConnection, title: String) -> ShowModel {
+    let new_show = NewShow { title };
 
     diesel::insert_into(show_table::table)
         .values(&new_show)
@@ -36,7 +34,7 @@ pub fn create_show<'a>(conn: &PgConnection, title: String) -> ShowModel {
 }
 
 ///Inserts episode data into the database
-pub fn create_episodes<'a>(conn: &PgConnection, new_episode: Vec<NewEpisode>) -> Vec<EpisodeModel> {
+pub fn create_episodes(conn: &PgConnection, new_episode: Vec<NewEpisode>) -> Vec<EpisodeModel> {
     diesel::insert_into(episode_table::table)
         .values(&new_episode)
         .get_results(conn)
@@ -49,8 +47,7 @@ pub fn get_all_content(utility: Utility) -> Vec<ContentModel> {
     let connection = establish_connection();
 
     utility.print_function_timer();
-    let data = content_data
+    content_data
         .load::<ContentModel>(&connection)
-        .expect("Error loading content");
-    return data;
+        .expect("Error loading content")
 }

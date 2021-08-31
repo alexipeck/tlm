@@ -21,11 +21,11 @@ pub struct Profile {
 
 impl Profile {
     pub fn new(width: usize, height: usize, framerate: usize, length_time: usize) -> Self {
-        return Profile {
-            width: width,
-            height: height,
-            framerate: framerate,
-            length_time: length_time,
-        };
+        Profile {
+            width,
+            height,
+            framerate,
+            length_time,
+        }
     }
 }

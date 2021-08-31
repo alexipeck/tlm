@@ -19,12 +19,12 @@ pub struct ContentModel {
 
 impl ContentModel {
     pub fn from_content(c: Content) -> ContentModel {
-        return ContentModel {
+        ContentModel {
             id: c.content_uid.unwrap() as i32,
             full_path: c.get_full_path(),
             designation: c.designation as i32,
             file_hash: c.hash,
-        };
+        }
     }
 }
 

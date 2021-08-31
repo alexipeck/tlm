@@ -3,6 +3,7 @@ use crate::{
     print::{print, From, Verbosity},
     timer::Timer,
 };
+use std::fmt;
 
 #[derive(Clone, Debug)]
 pub struct Utility {
@@ -18,16 +19,13 @@ impl Utility {
             traceback: Vec::new(),
             current_location: String::from(created_from),
             function_timer: None,
-            preferences: Preferences::new(),
+            preferences: Preferences::default(),
         };
-        return utility.add_traceback_location(created_from);
+        utility.add_traceback_location(created_from)
     }
 
     pub fn start_function_timer(&mut self) {
-        self.function_timer = Some(Timer::create_timer(
-            0,
-            String::from(self.current_location.clone()),
-        ));
+        self.function_timer = Some(Timer::create_timer(0, self.current_location.clone()));
     }
 
     pub fn print_function_timer(&mut self) {
@@ -44,7 +42,7 @@ impl Utility {
             print(
                 Verbosity::CRITICAL,
                 From::Utility,
-                format!("You tried to print a timer that doesn't exist."),
+                "You tried to print a timer that doesn't exist.".to_string(),
                 false,
                 self.clone(),
             );
@@ -54,7 +52,7 @@ impl Utility {
 
     fn add_traceback_location(&mut self, called_from: &str) -> Utility {
         self.traceback.push(String::from(called_from));
-        return self.clone();
+        self.clone()
     }
 
     pub fn clone_add_location(&self, called_from: &str) -> Utility {
@@ -64,10 +62,12 @@ impl Utility {
         if self.preferences.timing_enabled {
             temp.start_function_timer();
         }
-        return temp;
+        temp
     }
+}
 
-    pub fn to_string(&self) -> String {
+impl fmt::Display for Utility {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut call_functions_string: String = String::new();
         let mut single_execute_done = false;
         for function in &self.traceback {
@@ -78,6 +78,6 @@ impl Utility {
                 call_functions_string += &format!(">'{}'", function);
             }
         }
-        return call_functions_string;
+        write!(f, "{}", call_functions_string)
     }
 }

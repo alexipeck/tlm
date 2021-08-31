@@ -7,17 +7,9 @@ pub enum Designation {
 
 pub fn convert_i32_to_designation(input: i32) -> Designation {
     match input {
-        1 => {
-            return Designation::Generic;
-        }
-        2 => {
-            return Designation::Episode;
-        }
-        3 => {
-            return Designation::Movie;
-        }
-        _ => {
-            return Designation::Generic;
-        }
+        1 => Designation::Generic,
+        2 => Designation::Episode,
+        3 => Designation::Movie,
+        _ => Designation::Generic,
     }
 }

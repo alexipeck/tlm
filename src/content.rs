@@ -1,4 +1,8 @@
-use std::{collections::HashSet, fs, path::PathBuf};
+use std::{
+    collections::HashSet,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     designation::{convert_i32_to_designation, Designation},
@@ -37,7 +41,7 @@ pub struct Content {
 impl Content {
     //needs to be able to be created from a pathbuf or pulled from the database
     pub fn new(
-        raw_filepath: &PathBuf,
+        raw_filepath: &Path,
         working_shows: &mut Vec<Show>,
         utility: Utility,
         connection: &PgConnection,
@@ -57,7 +61,7 @@ impl Content {
         };
         content.designate_and_fill(working_shows, utility.clone(), connection);
         utility.print_function_timer();
-        return content;
+        content
     }
 
     ///Hash the content file with seahash for data integrity purposes so we
@@ -99,11 +103,11 @@ impl Content {
         content.designate_and_fill(working_shows, utility.clone(), connection);
         utility.print_function_timer();
 
-        return content;
+        content
     }
 
     pub fn get_all_filenames_as_hashset_from_content(
-        contents: &Vec<Content>,
+        contents: &[Content],
         utility: Utility,
     ) -> HashSet<PathBuf> {
         let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
@@ -113,7 +117,7 @@ impl Content {
         }
 
         utility.print_function_timer();
-        return hashset;
+        hashset
     }
 
     ///Returns a vector of ffmpeg arguments for later execution
@@ -157,7 +161,7 @@ impl Content {
     /// I doubt this will stay as I think a temp directory would be more appropriate.
     /// This function returns that as a PathBuf
     pub fn generate_encode_path_from_pathbuf(pathbuf: PathBuf) -> PathBuf {
-        return Content::get_full_path_with_suffix_from_pathbuf(pathbuf, "_encodeH4U8".to_string());
+        Content::get_full_path_with_suffix_from_pathbuf(pathbuf, "_encodeH4U8".to_string())
     }
 
     pub fn seperate_season_episode(&mut self) -> Option<(usize, Vec<usize>)> {
@@ -182,7 +186,7 @@ impl Content {
             episodes.push(episode.parse::<usize>().unwrap());
         }
 
-        return Some((season_temp, episodes));
+        Some((season_temp, episodes))
     }
 
     pub fn get_full_path(&self) -> String {
@@ -245,7 +249,7 @@ impl Content {
         let utility = utility.clone_add_location("get_show_title(Show)");
 
         if self.show_title.is_some() {
-            return self.show_title.clone().unwrap();
+            self.show_title.clone().unwrap()
         } else {
             print(
                 Verbosity::CRITICAL,
@@ -262,7 +266,7 @@ impl Content {
         let utility = utility.clone_add_location("get_show_uid(Show)");
 
         if self.show_uid.is_some() {
-            return self.show_uid.unwrap();
+            self.show_uid.unwrap()
         } else {
             print(
                 Verbosity::CRITICAL,
@@ -278,7 +282,7 @@ impl Content {
     pub fn get_episode_string(&self) -> String {
         if self.show_season_episode.is_some() {
             let episode = self.show_season_episode.clone().unwrap().1;
-            if episode.len() < 1 {
+            if episode.is_empty() {
                 panic!("There was less than 1 episode in the thingo");
             } else {
                 let mut prepare = String::new();
@@ -291,7 +295,7 @@ impl Content {
                         prepare += &format!("_{}", episode);
                     }
                 }
-                return prepare;
+                prepare
             }
         } else {
             panic!("show_season_episode is_none");
@@ -302,7 +306,7 @@ impl Content {
         let utility = utility.clone_add_location("get_content_uid(Show)");
 
         if self.content_uid.is_some() {
-            return self.content_uid.unwrap();
+            self.content_uid.unwrap()
         } else {
             print(
                 Verbosity::CRITICAL,
@@ -338,7 +342,7 @@ impl Content {
                     self.get_show_title(utility.clone()),
                 ),
                 utility.preferences.content_output_whitelisted,
-                utility.clone(),
+                utility,
             );
         } else {
             print(
@@ -351,19 +355,17 @@ impl Content {
                     self.get_full_path(),
                 ),
                 utility.preferences.content_output_whitelisted,
-                utility.clone(),
+                utility,
             );
         }
     }
 
-    pub fn get_parent_directory_from_pathbuf_as_string(pathbuf: &PathBuf) -> String {
+    pub fn get_parent_directory_from_pathbuf_as_string(pathbuf: &Path) -> String {
         return pathbuf.parent().unwrap().to_string_lossy().to_string();
     }
 
     pub fn content_is_episode(&self) -> bool {
-        return self.show_uid.is_some()
-            && self.show_title.is_some()
-            && self.show_season_episode.is_some();
+        self.show_uid.is_some() && self.show_title.is_some() && self.show_season_episode.is_some()
     }
 
     pub fn designate_and_fill(
@@ -377,20 +379,17 @@ impl Content {
         let show_season_episode_temp = self.seperate_season_episode();
         if show_season_episode_temp.is_some() {
             self.designation = Designation::Episode;
-            for section in String::from(
+            self.show_title = Some(
                 self.full_path
                     .parent()
                     .unwrap()
                     .parent()
                     .unwrap()
-                    .to_string_lossy(),
-            )
-            .split(get_os_slash())
-            .rev()
-            {
-                self.show_title = Some(String::from(section));
-                break;
-            }
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string(),
+            );
             self.show_season_episode = show_season_episode_temp;
             self.show_uid = Some(Show::ensure_show_exists(
                 self.show_title.clone().unwrap(),
@@ -407,7 +406,7 @@ impl Content {
         utility.print_function_timer();
     }
 
-    pub fn print_content(content: &Vec<Content>, utility: Utility) {
+    pub fn print_content(content: &[Content], utility: Utility) {
         let mut utility = utility.clone_add_location("print_content(FileManager)");
 
         if !utility.preferences.print_content && !utility.preferences.content_output_whitelisted {
@@ -426,12 +425,4 @@ fn rem_first_char(value: &str) -> &str {
     let mut chars = value.chars();
     chars.next();
     chars.as_str()
-}
-
-fn get_os_slash() -> char {
-    return if !cfg!(target_os = "windows") {
-        '/'
-    } else {
-        '\\'
-    };
 }

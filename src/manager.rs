@@ -54,7 +54,7 @@ impl FileManager {
         file_manager.tracked_directories = config.tracked_directories.clone();
 
         utility.print_function_timer();
-        return file_manager;
+        file_manager
     }
 
     pub fn print_number_of_content(&self, utility: Utility) {
@@ -104,7 +104,7 @@ impl FileManager {
         }
 
         utility.print_function_timer();
-        return content;
+        content
     }
 
     pub fn process_new_files(&mut self, utility: Utility) {
@@ -118,11 +118,9 @@ impl FileManager {
         let mut temp_content = Vec::new();
 
         //Create Content and NewContent that will be added to the database in a batch
-        while self.new_files_queue.len() > 0 {
+        while !self.new_files_queue.is_empty() {
             let current = self.new_files_queue.pop();
-            if current.is_some() {
-                let current = current.unwrap();
-
+            if let Some(current) = current {
                 let content = Content::new(
                     &current,
                     &mut self.tv.working_shows,
@@ -174,20 +172,20 @@ impl FileManager {
     //Hash set guarentees no duplicates in O(1) time
     pub fn import_files(
         &mut self,
-        allowed_extensions: &Vec<String>,
-        ignored_paths: &Vec<String>,
+        allowed_extensions: &[String],
+        ignored_paths: &[String],
         utility: Utility,
     ) {
         let mut utility = utility.clone_add_location("import_files(FileManager)");
 
         //Return true if string contains any substring from Vector
-        fn str_contains_strs(input_str: &str, substrings: &Vec<String>) -> bool {
+        fn str_contains_strs(input_str: &str, substrings: &[String]) -> bool {
             for substring in substrings {
                 if String::from(input_str).contains(&substring.to_lowercase()) {
                     return true;
                 }
             }
-            return false;
+            false
         }
 
         //import all files in tracked root directories
@@ -216,10 +214,10 @@ impl FileManager {
     }
 
     pub fn print_shows(&self, utility: Utility) {
-        Show::print_shows(&self.tv.working_shows, utility.clone());
+        Show::print_shows(&self.tv.working_shows, utility);
     }
 
     pub fn print_content(&self, utility: Utility) {
-        Content::print_content(&self.working_content, utility.clone());
+        Content::print_content(&self.working_content, utility);
     }
 }
