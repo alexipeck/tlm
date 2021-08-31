@@ -177,10 +177,7 @@ impl Hash {
         return Hash {};
     }
 
-    pub fn run(
-        &mut self,
-        current_content: Vec<Content>,
-    ) -> (Option<JoinHandle<()>>, Arc<AtomicBool>, Arc<AtomicBool>) {
+    pub fn run(&mut self, current_content: Vec<Content>) -> TaskReturnAsync {
         let stop_hash = Arc::new(AtomicBool::new(false));
         let is_finished = Arc::new(AtomicBool::new(false));
 
@@ -203,9 +200,10 @@ impl Hash {
                     break;
                 }
             }
+            is_finished_inner.store(true, Ordering::Relaxed);
         }))
         .unwrap();
-        return (Some(handle), stop_hash, is_finished);
+        return TaskReturnAsync::new(Some(handle), stop_hash, is_finished);
     }
 }
 
@@ -234,7 +232,7 @@ impl Task {
         &mut self,
         file_manager: &mut FileManager,
         utility: Utility,
-    ) -> Option<(Option<JoinHandle<()>>, Arc<AtomicBool>, Arc<AtomicBool>)> {
+    ) -> Option<TaskReturnAsync> {
         let utility = utility.clone_add_location("handle_task(Task)");
 
         match &mut self.task_type {
@@ -255,6 +253,26 @@ impl Task {
             }
         }
         None
+    }
+}
+
+pub struct TaskReturnAsync {
+    handle: Option<JoinHandle<()>>,
+    send_wrapup: Arc<AtomicBool>,
+    is_done: Arc<AtomicBool>,
+}
+
+impl TaskReturnAsync {
+    pub fn new(
+        handle: Option<JoinHandle<()>>,
+        send_wrapup: Arc<AtomicBool>,
+        is_done: Arc<AtomicBool>,
+    ) -> Self {
+        Self {
+            handle: handle,
+            send_wrapup: send_wrapup,
+            is_done: is_done,
+        }
     }
 }
 
@@ -289,16 +307,15 @@ impl Scheduler {
         //that is neccesary because otherwise it is owned by the vector and joining would destroy it
         //The first bool tells the thread to stop.
         //The second bool tells us that the thread is complete
-        let mut handles: Vec<(Option<JoinHandle<()>>, Arc<AtomicBool>, Arc<AtomicBool>)> =
-            Vec::new();
+        let mut handles: Vec<TaskReturnAsync> = Vec::new();
 
         loop {
             let mut task: Task;
 
             //Mark the completed threads
             let mut completed_threads: Vec<usize> = Vec::new();
-            for (i, opts) in handles.iter().enumerate() {
-                if opts.2.load(Ordering::Relaxed) {
+            for (i, handle) in handles.iter().enumerate() {
+                if handle.is_done.load(Ordering::Relaxed) {
                     //opts.0.join();
                     completed_threads.push(i);
                 }
@@ -309,7 +326,7 @@ impl Scheduler {
 
             //Take each completed thread and join it
             for i in completed_threads {
-                let handle = handles[i].0.take();
+                let handle = handles[i].handle.take();
                 let _res = handle.unwrap().join();
                 handles.remove(i);
             }
@@ -320,9 +337,9 @@ impl Scheduler {
                 if tasks.len() == 0 {
                     if self.input_completed.load(Ordering::Relaxed) {
                         //Tell all async tasks to stop early if they can
-                        for opts in handles {
-                            opts.1.store(true, Ordering::Relaxed);
-                            let _res = opts.0.unwrap().join();
+                        for handle in handles {
+                            handle.send_wrapup.store(true, Ordering::Relaxed);
+                            let _res = handle.handle.unwrap().join();
                         }
                         break;
                     }
