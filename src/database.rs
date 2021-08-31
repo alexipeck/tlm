@@ -1,6 +1,6 @@
 use crate::model::*;
-use crate::schema::content as content_table;
-use crate::schema::content::dsl::content as content_data;
+use crate::schema::generic as generic_table;
+use crate::schema::generic::dsl::generic as generic_data;
 use crate::schema::episode as episode_table;
 use crate::schema::show as show_table;
 use crate::utility::Utility;
@@ -18,8 +18,8 @@ pub fn establish_connection() -> PgConnection {
 pub fn create_contents<'a>(
     conn: &PgConnection,
     new_contents: Vec<NewContent>,
-) -> Vec<ContentModel> {
-    diesel::insert_into(content_table::table)
+) -> Vec<GenericModel> {
+    diesel::insert_into(generic_table::table)
         .values(&new_contents)
         .get_results(conn)
         .expect("Error saving new content")
@@ -44,13 +44,13 @@ pub fn create_episodes<'a>(conn: &PgConnection, new_episode: Vec<NewEpisode>) ->
 }
 
 ///Get all content from the database
-pub fn get_all_content(utility: Utility) -> Vec<ContentModel> {
+pub fn get_all_content(utility: Utility) -> Vec<GenericModel> {
     let mut utility = utility.clone_add_location("get_all_content (database)");
     let connection = establish_connection();
 
     utility.print_function_timer();
-    let data = content_data
-        .load::<ContentModel>(&connection)
+    let data = generic_data
+        .load::<GenericModel>(&connection)
         .expect("Error loading content");
     return data;
 }

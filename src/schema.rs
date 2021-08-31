@@ -1,5 +1,5 @@
 table! {
-    content (id) {
+    generic (id) {
         id -> Int4,
         full_path -> Text,
         designation -> Int4,
@@ -8,8 +8,8 @@ table! {
 }
 
 table! {
-    episode (content_uid, show_uid, season_number, episode_number) {
-        content_uid -> Int4,
+    episode (generic_uid, show_uid, season_number, episode_number) {
+        generic_uid -> Int4,
         show_uid -> Int4,
         episode_title -> Text,
         season_number -> Int4,

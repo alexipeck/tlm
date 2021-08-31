@@ -1,7 +1,7 @@
-use crate::model::{NewContent, NewEpisode};
+use crate::model::{NewGeneric, NewEpisode};
 use crate::{
     config::Config,
-    content::Content,
+    generic::Generic,
     database::{create_contents, create_episodes, establish_connection, get_all_content},
     print::{print, From, Verbosity},
     tv::{Show, TV},
@@ -28,7 +28,7 @@ impl TrackedDirectories {
 
 pub struct FileManager {
     pub tracked_directories: TrackedDirectories,
-    pub working_content: Vec<Content>,
+    pub working_content: Vec<Generic>,
     pub existing_files_hashset: HashSet<PathBuf>,
     pub tv: TV,
     pub new_files_queue: Vec<PathBuf>,
@@ -47,7 +47,7 @@ impl FileManager {
         };
 
         file_manager.working_content = file_manager.get_all_content(utility.clone());
-        file_manager.existing_files_hashset = Content::get_all_filenames_as_hashset_from_content(
+        file_manager.existing_files_hashset = Generic::get_all_filenames_as_hashset_from_content(
             &file_manager.working_content,
             utility.clone(),
         );
@@ -87,15 +87,15 @@ impl FileManager {
         );
     }
 
-    pub fn get_all_content(&mut self, utility: Utility) -> Vec<Content> {
-        let mut utility = utility.clone_add_location("get_all_contents(Content)");
+    pub fn get_all_content(&mut self, utility: Utility) -> Vec<Generic> {
+        let mut utility = utility.clone_add_location("get_all_contents(Generic)");
 
-        let mut content: Vec<Content> = Vec::new();
+        let mut content: Vec<Generic> = Vec::new();
         let connection = establish_connection();
         let raw_content = get_all_content(utility.clone());
 
         for content_model in raw_content {
-            content.push(Content::from_content_model(
+            content.push(Generic::from_content_model(
                 content_model,
                 &mut self.tv.working_shows,
                 utility.clone(),
@@ -105,6 +105,55 @@ impl FileManager {
 
         utility.print_function_timer();
         return content;
+    }
+
+    pub fn designate_and_fill(
+        &mut self,
+        working_shows: &mut Vec<Show>,
+        utility: Utility,
+        connection: &PgConnection,
+    ) {
+        fn get_os_slash() -> char {
+            return if !cfg!(target_os = "windows") {
+                '/'
+            } else {
+                '\\'
+            };
+        }
+
+        let mut utility = utility.clone_add_location("designate_and_fill");
+
+        let show_season_episode_temp = self.seperate_season_episode();
+        if show_season_episode_temp.is_some() {
+            self.designation = Designation::Episode;
+            for section in String::from(
+                self.full_path
+                    .parent()
+                    .unwrap()
+                    .parent()
+                    .unwrap()
+                    .to_string_lossy(),
+            )
+            .split(get_os_slash())
+            .rev()
+            {
+                self.show_title = Some(String::from(section));
+                break;
+            }
+            self.show_season_episode = show_season_episode_temp;
+            self.show_uid = Some(Show::ensure_show_exists(
+                self.show_title.clone().unwrap(),
+                working_shows,
+                utility.clone(),
+                connection,
+            ));
+        } else {
+            self.designation = Designation::Generic;
+            self.show_title = None;
+            self.show_season_episode = None;
+        }
+
+        utility.print_function_timer();
     }
 
     pub fn process_new_files(&mut self, utility: Utility) {
@@ -117,19 +166,19 @@ impl FileManager {
         //Will just be appended to working content at the end
         let mut temp_content = Vec::new();
 
-        //Create Content and NewContent that will be added to the database in a batch
+        //Create Generic and NewGeneric that will be added to the database in a batch
         while self.new_files_queue.len() > 0 {
             let current = self.new_files_queue.pop();
             if current.is_some() {
                 let current = current.unwrap();
 
-                let content = Content::new(
+                let content = Generic::new(
                     &current,
                     &mut self.tv.working_shows,
                     utility.clone(),
                     &connection,
                 );
-                new_contents.push(NewContent {
+                new_contents.push(NewGeneric {
                     full_path: String::from(content.full_path.to_str().unwrap()),
                     designation: content.designation as i32,
                 });
@@ -138,7 +187,7 @@ impl FileManager {
             }
         }
 
-        //Insert the content and then update the uid's for the full Content structure
+        //Insert the content and then update the uid's for the full Generic structure
         let contents = create_contents(&connection, new_contents);
         for i in 0..contents.len() {
             temp_content[i].content_uid = Some(contents[i].id as usize);
@@ -220,6 +269,6 @@ impl FileManager {
     }
 
     pub fn print_content(&self, utility: Utility) {
-        Content::print_content(&self.working_content, utility.clone());
+        Generic::print_content(&self.working_content, utility.clone());
     }
 }

@@ -1,5 +1,5 @@
 pub mod config;
-pub mod content;
+pub mod generic;
 pub mod database;
 pub mod designation;
 pub mod manager;

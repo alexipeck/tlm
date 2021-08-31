@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    content::Content,
+    generic::Generic,
     manager::FileManager,
     print::{print, From, Verbosity},
     utility::Utility,
@@ -110,7 +110,7 @@ impl Encode {
             From::Job,
             format!(
                 "Encoding file \'{}\'",
-                Content::get_filename_from_pathbuf(self.source_path.clone().clone())
+                Generic::get_filename_from_pathbuf(self.source_path.clone().clone())
             ),
             false,
             utility,

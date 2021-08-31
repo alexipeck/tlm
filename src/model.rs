@@ -1,4 +1,4 @@
-use super::content::Content;
+use super::generic::Content;
 use super::schema::{content, episode, show};
 
 #[derive(Insertable)]
