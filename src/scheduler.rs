@@ -1,17 +1,24 @@
+use crate::diesel::SaveChangesDsl;
 use crate::{
     config::Config,
     content::Content,
+    database::establish_connection,
     manager::FileManager,
+    model::ContentModel,
     print::{print, From, Verbosity},
     utility::Utility,
 };
-use std::sync::{atomic::AtomicBool, Arc, Mutex};
+
 use std::{
     collections::VecDeque,
     path::PathBuf,
     process::Command,
     sync::atomic::{AtomicUsize, Ordering},
     thread, time,
+};
+use std::{
+    sync::{atomic::AtomicBool, Arc, Mutex},
+    thread::JoinHandle,
 };
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -163,36 +170,51 @@ impl Test {
     }
 }
 
-//TODO Needs to be properly implemented here
-/*fn hash_files(contents: Vec<Content>, stop_marker: Arc<AtomicBool>) -> JoinHandle<()> {
-    let stop_background = Arc::new(AtomicBool::new(false));
-    let stop_background_inner = stop_background.clone();
+pub struct Hash {}
 
-    //Hash files until all other functions are complete
-    thread::spawn(move || {
-        let connection = establish_connection();
-        for mut content in contents {
-            if content.hash.is_none() {
-                content.hash();
-                if ContentModel::from_content(content)
-                    .save_changes::<ContentModel>(&connection)
-                    .is_err()
-                {
-                    eprintln!("Failed to update hash in database");
+impl Hash {
+    pub fn new() -> Self {
+        return Hash {};
+    }
+
+    pub fn run(
+        &mut self,
+        current_content: Vec<Content>,
+    ) -> (Option<JoinHandle<()>>, Arc<AtomicBool>, Arc<AtomicBool>) {
+        let stop_hash = Arc::new(AtomicBool::new(false));
+        let is_finished = Arc::new(AtomicBool::new(false));
+
+        let stop_hash_inner = stop_hash.clone();
+        let is_finished_inner = is_finished.clone();
+        //Hash files until all other functions are complete
+        let handle = Some(thread::spawn(move || {
+            let connection = establish_connection();
+            for mut content in current_content {
+                if content.hash.is_none() {
+                    content.hash();
+                    if ContentModel::from_content(content)
+                        .save_changes::<ContentModel>(&connection)
+                        .is_err()
+                    {
+                        eprintln!("Failed to update hash in database");
+                    }
+                }
+                if stop_hash_inner.load(Ordering::Relaxed) {
+                    break;
                 }
             }
-            if stop_marker.load(Ordering::Relaxed) {
-                break;
-            }
-        }
-    })
-}*/
+        }))
+        .unwrap();
+        return (Some(handle), stop_hash, is_finished);
+    }
+}
 
 pub enum TaskType {
     Encode(Encode),
     ImportFiles(ImportFiles),
     ProcessNewFiles(ProcessNewFiles),
     Test(Test),
+    Hash(Hash),
 }
 
 pub struct Task {
@@ -208,7 +230,11 @@ impl Task {
         };
     }
 
-    pub fn handle_task(&mut self, file_manager: &mut FileManager, utility: Utility) {
+    pub fn handle_task(
+        &mut self,
+        file_manager: &mut FileManager,
+        utility: Utility,
+    ) -> Option<(Option<JoinHandle<()>>, Arc<AtomicBool>, Arc<AtomicBool>)> {
         let utility = utility.clone_add_location("handle_task(Task)");
 
         match &mut self.task_type {
@@ -224,7 +250,11 @@ impl Task {
             TaskType::Test(test) => {
                 test.run(utility.clone());
             }
+            TaskType::Hash(hash) => {
+                return Some(hash.run(file_manager.working_content.clone()));
+            }
         }
+        None
     }
 }
 
@@ -253,14 +283,47 @@ impl Scheduler {
     pub fn start_scheduler(&mut self, utility: Utility) {
         let utility = utility.clone_add_location("start_scheduler");
         let wait_time = time::Duration::from_secs(1);
+
+        //Take a handle from any async function and 2 Bools
+        //The Handle is in an option so we can take the Handle in order to join it,
+        //that is neccesary because otherwise it is owned by the vector and joining would destroy it
+        //The first bool tells the thread to stop.
+        //The second bool tells us that the thread is complete
+        let mut handles: Vec<(Option<JoinHandle<()>>, Arc<AtomicBool>, Arc<AtomicBool>)> =
+            Vec::new();
+
         loop {
             let mut task: Task;
+
+            //Mark the completed threads
+            let mut completed_threads: Vec<usize> = Vec::new();
+            for (i, opts) in handles.iter().enumerate() {
+                if opts.2.load(Ordering::Relaxed) {
+                    //opts.0.join();
+                    completed_threads.push(i);
+                }
+            }
+
+            //Reverse so we can remove items right to left avoiding the index shifting
+            completed_threads.reverse();
+
+            //Take each completed thread and join it
+            for i in completed_threads {
+                let handle = handles[i].0.take();
+                let _res = handle.unwrap().join();
+                handles.remove(i);
+            }
             {
                 let mut tasks = self.tasks.lock().unwrap();
 
                 //When the queue is empty we wait until another item is added or user input is marked as completed
                 if tasks.len() == 0 {
                     if self.input_completed.load(Ordering::Relaxed) {
+                        //Tell all async tasks to stop early if they can
+                        for opts in handles {
+                            opts.1.store(true, Ordering::Relaxed);
+                            let _res = opts.0.unwrap().join();
+                        }
                         break;
                     }
                     std::mem::drop(tasks); //Unlock the mutex so we don't block while sleeping
@@ -270,7 +333,10 @@ impl Scheduler {
                 task = tasks.pop_front().unwrap();
             }
 
-            task.handle_task(&mut self.file_manager, utility.clone());
+            let result = task.handle_task(&mut self.file_manager, utility.clone());
+            if result.is_some() {
+                handles.push(result.unwrap())
+            }
         }
     }
 }

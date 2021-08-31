@@ -1,7 +1,7 @@
 extern crate diesel;
 use tlm::{
     config::Config,
-    scheduler::{ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType, Test},
+    scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType, Test},
     utility::Utility,
 };
 
@@ -44,6 +44,7 @@ fn main() {
         ))));
 
         tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new())));
+        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::new())))
     }
 
     //Placeholder user input
