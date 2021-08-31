@@ -9,8 +9,6 @@ use crate::{
     utility::Utility,
 };
 use diesel::pg::PgConnection;
-use lazy_static::lazy_static;
-use regex::Regex;
 
 /// this will obviously mean memory overhead. In future I think
 /// we should split this into 3 types that would however mean
@@ -42,7 +40,7 @@ impl Generic {
             hash: None,
             profile: Some(Profile::new(0, 0, 0, 0)), //asdf;
         };
-        generic.designate_and_fill(working_shows, utility.clone(), connection);
+        
         utility.print_function_timer();
         return generic;
     }
@@ -77,13 +75,12 @@ impl Generic {
             profile: Some(Profile::new(0, 0, 0, 0)), //this is fine for now as profile isn't in the database//asdf;
         };
 
-        generic.designate_and_fill(working_shows, utility.clone(), connection);
         utility.print_function_timer();
 
         return generic;
     }
 
-    pub fn get_all_filenames_as_hashset_from_generic(
+    pub fn get_all_filenames_as_hashset_from_generics(
         generics: &Vec<Generic>,
         utility: Utility,
     ) -> HashSet<PathBuf> {
@@ -130,6 +127,50 @@ impl Generic {
             .to_string();
     }
 
+    pub fn get_filename(&self) -> String {
+        return self
+            .full_path
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+    }
+
+    pub fn get_full_path_with_suffix_from_pathbuf(pathbuf: PathBuf, suffix: String) -> PathBuf {
+        //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
+        //.push(self.full_path.extension().unwrap())
+        //bad way of doing it
+        let new_filename = format!(
+            "{}{}.{}",
+            pathbuf.file_stem().unwrap().to_string_lossy().to_string(),
+            &suffix,
+            pathbuf.extension().unwrap().to_string_lossy().to_string(),
+        );
+        return pathbuf.parent().unwrap().join(new_filename);
+    }
+
+    pub fn get_full_path_with_suffix(&self, suffix: String) -> PathBuf {
+        //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
+        //.push(self.full_path.extension().unwrap())
+        //bad way of doing it
+        let new_filename = format!(
+            "{}{}.{}",
+            self.full_path
+                .file_stem()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            &suffix,
+            self.full_path
+                .extension()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+        );
+        return self.full_path.parent().unwrap().join(new_filename);
+    }
+
     /* pub fn create_job(&mut self) -> Job {
         return Job::new(self.full_path.clone(), self.generate_encode_string());
     } */
@@ -160,6 +201,10 @@ impl Generic {
             );
             panic!();
         }
+    }
+
+    pub fn get_filename_from_pathbuf(pathbuf: PathBuf) -> String {
+        return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
 
     pub fn print_generic(content: &Vec<Generic>, utility: Utility) {

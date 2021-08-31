@@ -2,11 +2,13 @@ use crate::model::{NewGeneric, NewEpisode};
 use crate::{
     config::Config,
     generic::Generic,
-    database::{create_contents, create_episodes, establish_connection, get_all_content},
+    designation::Designation,
+    database::{create_generics, create_episodes, establish_connection, get_all_generics},
     print::{print, From, Verbosity},
     tv::{Show, TV},
     utility::Utility,
 };
+use diesel::PgConnection;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
@@ -47,7 +49,7 @@ impl FileManager {
         };
 
         file_manager.working_content = file_manager.get_all_content(utility.clone());
-        file_manager.existing_files_hashset = Generic::get_all_filenames_as_hashset_from_content(
+        file_manager.existing_files_hashset = Generic::get_all_filenames_as_hashset_from_generics(
             &file_manager.working_content,
             utility.clone(),
         );
@@ -92,10 +94,10 @@ impl FileManager {
 
         let mut content: Vec<Generic> = Vec::new();
         let connection = establish_connection();
-        let raw_content = get_all_content(utility.clone());
+        let raw_content = get_all_generics(utility.clone());
 
         for content_model in raw_content {
-            content.push(Generic::from_content_model(
+            content.push(Generic::from_generic_model(
                 content_model,
                 &mut self.tv.working_shows,
                 utility.clone(),
@@ -107,7 +109,7 @@ impl FileManager {
         return content;
     }
 
-    pub fn designate_and_fill(
+    /* pub fn designate_and_fill(
         &mut self,
         working_shows: &mut Vec<Show>,
         utility: Utility,
@@ -154,17 +156,17 @@ impl FileManager {
         }
 
         utility.print_function_timer();
-    }
+    } */
 
     pub fn process_new_files(&mut self, utility: Utility) {
         let mut utility = utility.clone_add_location("process_new_files(FileManager)");
         let connection = establish_connection();
         let mut new_episodes = Vec::new();
-        let mut new_contents = Vec::new();
+        let mut new_generics = Vec::new();
 
         //Temporary because we need to get the id's that the database returns
         //Will just be appended to working content at the end
-        let mut temp_content = Vec::new();
+        let mut temp_generics = Vec::new();
 
         //Create Generic and NewGeneric that will be added to the database in a batch
         while self.new_files_queue.len() > 0 {
@@ -172,42 +174,42 @@ impl FileManager {
             if current.is_some() {
                 let current = current.unwrap();
 
-                let content = Generic::new(
+                let generic = Generic::new(
                     &current,
                     &mut self.tv.working_shows,
                     utility.clone(),
                     &connection,
                 );
-                new_contents.push(NewGeneric {
-                    full_path: String::from(content.full_path.to_str().unwrap()),
-                    designation: content.designation as i32,
+                new_generics.push(NewGeneric {
+                    full_path: String::from(generic.full_path.to_str().unwrap()),
+                    designation: generic.designation as i32,
                 });
 
-                temp_content.push(content);
+                temp_generics.push(generic);
             }
         }
 
         //Insert the content and then update the uid's for the full Generic structure
-        let contents = create_contents(&connection, new_contents);
+        let contents = create_generics(&connection, new_generics);
         for i in 0..contents.len() {
-            temp_content[i].content_uid = Some(contents[i].id as usize);
+            temp_generics[i].content_uid = Some(contents[i].id as usize);
         }
-        self.working_content.append(&mut temp_content);
+        self.working_content.append(&mut temp_generics);
 
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
-        for content in &temp_content {
-            if content.content_is_episode() {
-                let c_uid = content.content_uid.unwrap() as i32;
-                let s_uid = content.show_uid.unwrap() as i32;
+        for generic in &temp_generics {
+            if generic.content_is_episode() {
+                let c_uid = generic.content_uid.unwrap() as i32;
+                let s_uid = generic.show_uid.unwrap() as i32;
                 let (season_number_temp, episode_number_temp) =
-                    content.show_season_episode.as_ref().unwrap();
+                    generic.show_season_episode.as_ref().unwrap();
                 let season_number = *season_number_temp as i16;
                 let episode_number = episode_number_temp[0] as i16;
 
                 let new_episode = NewEpisode {
-                    content_uid: c_uid,
+                    generic_uid: c_uid,
                     show_uid: s_uid,
-                    episode_title: content.show_title.as_ref().unwrap().to_string(),
+                    episode_title: generic.show_title.as_ref().unwrap().to_string(),
                     season_number: season_number as i32,
                     episode_number: episode_number as i32,
                 };

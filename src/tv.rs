@@ -1,12 +1,15 @@
-use crate::database::{create_show, establish_connection};
-use crate::diesel::prelude::*;
-use crate::model::*;
-use crate::schema::show::dsl::show as show_table;
 use crate::{
+    database::{create_show, establish_connection},
+    diesel::prelude::*,
+    model::*,
+    schema::show::dsl::show as show_table,
     generic::Generic,
     print::{print, From, Verbosity},
     utility::Utility,
 };
+use lazy_static::lazy_static;
+use regex::Regex;
+use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
 pub struct TV {
@@ -23,19 +26,24 @@ impl TV {
     }
 }
 
+pub struct SeasonEpisode {
+    
+}
+
 #[derive(Clone, Debug)]
 pub struct Episode {
-    pub show_uid: usize,
+    pub show_uid: Option<usize>,
     pub show_title: String,
     pub show_season_episode: (usize, Vec<usize>),
 }
 
 impl Episode {
-    pub fn new() -> Self {
+    pub fn new(show_title: String, ) -> Self {
         return Episode {
+            show_uid: None,
             show_title: None,
             show_season_episode: None,
-            show_uid: None,
+            
         }
     }
 
@@ -74,59 +82,15 @@ impl Episode {
         return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
 
-    pub fn get_filename(&self) -> String {
-        return self
-            .full_path
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string();
-    }
-
-    pub fn get_full_path_with_suffix_from_pathbuf(pathbuf: PathBuf, suffix: String) -> PathBuf {
-        //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
-        //.push(self.full_path.extension().unwrap())
-        //bad way of doing it
-        let new_filename = format!(
-            "{}{}.{}",
-            pathbuf.file_stem().unwrap().to_string_lossy().to_string(),
-            &suffix,
-            pathbuf.extension().unwrap().to_string_lossy().to_string(),
-        );
-        return pathbuf.parent().unwrap().join(new_filename);
-    }
-
-    pub fn get_full_path_with_suffix(&self, suffix: String) -> PathBuf {
-        //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
-        //.push(self.full_path.extension().unwrap())
-        //bad way of doing it
-        let new_filename = format!(
-            "{}{}.{}",
-            self.full_path
-                .file_stem()
-                .unwrap()
-                .to_string_lossy()
-                .to_string(),
-            &suffix,
-            self.full_path
-                .extension()
-                .unwrap()
-                .to_string_lossy()
-                .to_string(),
-        );
-        return self.full_path.parent().unwrap().join(new_filename);
-    }
-
     pub fn get_season_number(&self) -> usize {
-        return self.show_season_episode.as_ref().unwrap().0;
+        return self.show_season_episode.0;
     }
 
     pub fn get_show_title(&self, utility: Utility) -> String {
         let utility = utility.clone_add_location("get_show_title(Show)");
 
-        if self.show_title.is_some() {
-            return self.show_title.clone().unwrap();
+        if self.show_title {
+            return self.show_title.clone();
         } else {
             print(
                 Verbosity::CRITICAL,

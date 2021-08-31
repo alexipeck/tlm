@@ -17,7 +17,7 @@ pub enum From {
     NOTSET = 0,
     Main = 1,
     Lib = 2,
-    Content = 3,
+    Generic = 3,
     Utility = 4,
     Show = 5,
     Queue = 6,
@@ -34,7 +34,7 @@ impl From {
         String::from(match self {
             From::Main => "main",
             From::Lib => "lib",
-            From::Content => "content",
+            From::Generic => "generic",
             From::Utility => "utility",
             From::Show => "shows",
             From::Queue => "queue",

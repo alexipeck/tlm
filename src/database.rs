@@ -1,11 +1,15 @@
-use crate::model::*;
-use crate::schema::generic as generic_table;
-use crate::schema::generic::dsl::generic as generic_data;
-use crate::schema::episode as episode_table;
-use crate::schema::show as show_table;
-use crate::utility::Utility;
-use diesel::pg::PgConnection;
-use diesel::prelude::*;
+use crate::{
+    model::*,
+    schema::generic as generic_table,
+    schema::generic::dsl::generic as generic_data,
+    schema::episode as episode_table,
+    schema::show as show_table,
+    utility::Utility,
+};
+use diesel::{
+    pg::PgConnection,
+    prelude::*,
+};
 use std::env;
 
 ///Sets up a connection to the database via DATABASE_URL environment variable
@@ -15,14 +19,14 @@ pub fn establish_connection() -> PgConnection {
 }
 
 ///Inserts content data into the database
-pub fn create_contents<'a>(
+pub fn create_generics<'a>(
     conn: &PgConnection,
-    new_contents: Vec<NewContent>,
+    new_generics: Vec<NewGeneric>,
 ) -> Vec<GenericModel> {
     diesel::insert_into(generic_table::table)
-        .values(&new_contents)
+        .values(&new_generics)
         .get_results(conn)
-        .expect("Error saving new content")
+        .expect("Error saving new generic")
 }
 
 ///Inserts show data into the database
@@ -43,9 +47,9 @@ pub fn create_episodes<'a>(conn: &PgConnection, new_episode: Vec<NewEpisode>) ->
         .expect("Error saving new episode")
 }
 
-///Get all content from the database
-pub fn get_all_content(utility: Utility) -> Vec<GenericModel> {
-    let mut utility = utility.clone_add_location("get_all_content (database)");
+///Get all generic from the database
+pub fn get_all_generics(utility: Utility) -> Vec<GenericModel> {
+    let mut utility = utility.clone_add_location("get_all_generic (database)");
     let connection = establish_connection();
 
     utility.print_function_timer();

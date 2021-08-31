@@ -1,25 +1,25 @@
-use super::generic::Content;
-use super::schema::{content, episode, show};
+use super::generic::Generic;
+use super::schema::{generic, episode, show};
 
 #[derive(Insertable)]
-#[table_name = "content"]
-pub struct NewContent {
+#[table_name = "generic"]
+pub struct NewGeneric {
     pub full_path: String,
     pub designation: i32,
 }
 
 #[derive(Queryable, AsChangeset, Identifiable)]
-#[table_name = "content"]
-pub struct ContentModel {
+#[table_name = "generic"]
+pub struct GenericModel {
     pub id: i32,
     pub full_path: String,
     pub designation: i32,
     pub file_hash: Option<String>,
 }
 
-impl ContentModel {
-    pub fn from_content(c: Content) -> ContentModel {
-        return ContentModel {
+impl GenericModel {
+    pub fn from_content(c: Generic) -> GenericModel {
+        return GenericModel {
             id: c.content_uid.unwrap() as i32,
             full_path: c.get_full_path(),
             designation: c.designation as i32,
@@ -31,7 +31,7 @@ impl ContentModel {
 #[derive(Insertable)]
 #[table_name = "episode"]
 pub struct NewEpisode {
-    pub content_uid: i32,
+    pub generic_uid: i32,
     pub show_uid: i32,
     pub episode_title: String,
     pub season_number: i32,
