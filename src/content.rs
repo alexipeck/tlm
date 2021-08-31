@@ -1,7 +1,6 @@
 use std::{collections::HashSet, fs, path::PathBuf};
 
 use crate::{
-    database::get_all_content,
     designation::{convert_i32_to_designation, Designation},
     model::*,
     print::{print, From, Verbosity},
@@ -9,6 +8,8 @@ use crate::{
     tv::Show,
     utility::Utility,
 };
+use diesel::pg::PgConnection;
+use lazy_static::lazy_static;
 use regex::Regex;
 
 ///Content contains fields for generic, episode, and movie data
@@ -35,7 +36,12 @@ pub struct Content {
 
 impl Content {
     //needs to be able to be created from a pathbuf or pulled from the database
-    pub fn new(raw_filepath: &PathBuf, working_shows: &mut Vec<Show>, utility: Utility) -> Self {
+    pub fn new(
+        raw_filepath: &PathBuf,
+        working_shows: &mut Vec<Show>,
+        utility: Utility,
+        connection: &PgConnection,
+    ) -> Self {
         let mut utility = utility.clone_add_location("new(Content)");
 
         let mut content = Content {
@@ -49,7 +55,7 @@ impl Content {
             show_season_episode: None,
             show_uid: None,
         };
-        content.designate_and_fill(working_shows, utility.clone());
+        content.designate_and_fill(working_shows, utility.clone(), connection);
         utility.print_function_timer();
         return content;
     }
@@ -67,6 +73,7 @@ impl Content {
         content_model: ContentModel,
         working_shows: &mut Vec<Show>,
         utility: Utility,
+        connection: &PgConnection,
     ) -> Content {
         let mut utility = utility.clone_add_location("from_row(Content)");
 
@@ -89,32 +96,20 @@ impl Content {
             show_uid: None,
         };
 
-        content.designate_and_fill(working_shows, utility.clone());
+        content.designate_and_fill(working_shows, utility.clone(), connection);
         utility.print_function_timer();
 
         return content;
     }
 
     pub fn get_all_filenames_as_hashset_from_content(
-        contents: Vec<Content>,
+        contents: &Vec<Content>,
         utility: Utility,
     ) -> HashSet<PathBuf> {
         let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
         let mut hashset = HashSet::new();
         for content in contents {
-            hashset.insert(content.full_path);
-        }
-
-        utility.print_function_timer();
-        return hashset;
-    }
-
-    pub fn get_all_filenames_as_hashset(utility: Utility) -> HashSet<PathBuf> {
-        let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
-        let raw_content = get_all_content(utility.clone());
-        let mut hashset = HashSet::new();
-        for row in raw_content {
-            hashset.insert(PathBuf::from(row.full_path));
+            hashset.insert(content.full_path.clone());
         }
 
         utility.print_function_timer();
@@ -167,15 +162,13 @@ impl Content {
 
     pub fn seperate_season_episode(&mut self) -> Option<(usize, Vec<usize>)> {
         let episode_string: String;
+        lazy_static! {
+            static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
+        }
 
-        //Check if the regex caught a valid episode format
-        match re_strip(&self.get_filename(), r"S[0-9]*E[0-9\-]*") {
-            None => {
-                return None;
-            }
-            Some(temp_string) => {
-                episode_string = temp_string;
-            }
+        match REGEX.find(&self.get_filename()) {
+            None => return None,
+            Some(val) => episode_string = String::from(rem_first_char(val.as_str())),
         }
 
         let mut season_episode_iter = episode_string.split('E');
@@ -257,9 +250,9 @@ impl Content {
             print(
                 Verbosity::CRITICAL,
                 From::Content,
-                utility,
                 String::from("You called get_show_title on a content that didn't have an episode designation or was incorrectly created"),
                 false,
+                utility,
             );
             panic!();
         }
@@ -274,9 +267,9 @@ impl Content {
             print(
                 Verbosity::CRITICAL,
                 From::Content,
-                utility,
                 String::from("You called get_show_uid on a content that didn't have an episode designation or was incorrectly created"),
                 false,
+                utility,
             );
             panic!();
         }
@@ -286,7 +279,7 @@ impl Content {
         if self.show_season_episode.is_some() {
             let episode = self.show_season_episode.clone().unwrap().1;
             if episode.len() < 1 {
-                panic!("Bad boy, you fucked up. There was less than 1 episode in the thingo");
+                panic!("There was less than 1 episode in the thingo");
             } else {
                 let mut prepare = String::new();
                 let mut first: bool = true;
@@ -301,7 +294,7 @@ impl Content {
                 return prepare;
             }
         } else {
-            panic!("Bad boy, you fucked up. show_season_episode is_none");
+            panic!("show_season_episode is_none");
         }
     }
 
@@ -314,9 +307,9 @@ impl Content {
             print(
                 Verbosity::CRITICAL,
                 From::Content,
-                utility,
-                String::from("You called get_content_uid on a content that hasn't been inserted into the db yet or hasn't been assigned a content_uid from the database correctly"),
+                String::from("get_content_uid was called on a content that hasn't been inserted into the db yet or hasn't been assigned a content_uid from the database correctly"),
                 false,
+                utility,
             );
             panic!();
         }
@@ -325,6 +318,8 @@ impl Content {
     pub fn print(&self, utility: Utility) {
         let utility = utility.clone_add_location("print(Show)");
 
+        //could realistically just check if it has an episode designation,
+        //this just means that the content designation needs to be a guarantee rather than a designation
         if self.show_uid.is_some()
             && self.show_title.is_some()
             && self.show_season_episode.is_some()
@@ -332,7 +327,6 @@ impl Content {
             print(
                 Verbosity::DEBUG,
                 From::Content,
-                utility.clone(),
                 format!(
                     "[content_uid:'{:4}'][designation:'{}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
                     self.get_content_uid(utility.clone()),
@@ -343,20 +337,21 @@ impl Content {
                     self.get_full_path(),
                     self.get_show_title(utility.clone()),
                 ),
-                false,
+                utility.preferences.content_output_whitelisted,
+                utility.clone(),
             );
         } else {
             print(
                 Verbosity::DEBUG,
                 From::DB,
-                utility.clone(),
                 format!(
                     "[content_uid:'{}'][designation:'{}'][full_path:'{}']",
                     self.content_uid.unwrap(),
                     self.designation as i32,
                     self.get_full_path(),
                 ),
-                false,
+                utility.preferences.content_output_whitelisted,
+                utility.clone(),
             );
         }
     }
@@ -371,7 +366,12 @@ impl Content {
             && self.show_season_episode.is_some();
     }
 
-    pub fn designate_and_fill(&mut self, working_shows: &mut Vec<Show>, utility: Utility) {
+    pub fn designate_and_fill(
+        &mut self,
+        working_shows: &mut Vec<Show>,
+        utility: Utility,
+        connection: &PgConnection,
+    ) {
         let mut utility = utility.clone_add_location("designate_and_fill");
 
         let show_season_episode_temp = self.seperate_season_episode();
@@ -396,6 +396,7 @@ impl Content {
                 self.show_title.clone().unwrap(),
                 working_shows,
                 utility.clone(),
+                connection,
             ));
         } else {
             self.designation = Designation::Generic;
@@ -406,22 +407,18 @@ impl Content {
         utility.print_function_timer();
     }
 
-    pub fn print_contents(contents: Vec<Content>, utility: Utility) {
-        let mut utility = utility.clone_add_location("print_contents");
+    pub fn print_content(content: &Vec<Content>, utility: Utility) {
+        let mut utility = utility.clone_add_location("print_content(FileManager)");
 
-        for content in contents {
+        if !utility.preferences.print_content && !utility.preferences.content_output_whitelisted {
+            return;
+        }
+
+        for content in content {
             content.print(utility.clone());
         }
 
         utility.print_function_timer();
-    }
-}
-
-fn re_strip(input: &String, expression: &str) -> Option<String> {
-    let output = Regex::new(expression).unwrap().find(input);
-    match output {
-        None => return None,
-        Some(val) => return Some(String::from(rem_first_char(val.as_str()))),
     }
 }
 

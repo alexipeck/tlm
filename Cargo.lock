@@ -70,6 +70,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "lazy_static"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+
+[[package]]
 name = "libc"
 version = "0.2.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -218,15 +224,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "text_io"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee74b5019b48991b09803402aaf9e65a053b3993fe9d9c475ab67a395358ba76"
+
+[[package]]
 name = "tlm"
 version = "0.1.0"
 dependencies = [
  "argparse",
  "diesel",
+ "lazy_static",
  "rand",
  "regex",
  "seahash",
  "serde",
+ "text_io",
  "toml",
  "walkdir",
 ]

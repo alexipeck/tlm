@@ -62,12 +62,15 @@ impl Show {
 
     pub fn print_show(&self, utility: Utility) {
         let utility = utility.clone_add_location("print_show(Show)");
+        if !utility.preferences.print_shows && !utility.preferences.show_output_whitelisted {
+            return;
+        }
         print(
             Verbosity::DEBUG,
             From::Show,
-            utility,
             format!("[uid: {}][title: {}]", self.show_uid, self.title),
             false,
+            utility,
         );
     }
 
@@ -91,6 +94,7 @@ impl Show {
         show_title: String,
         working_shows: &mut Vec<Show>,
         utility: Utility,
+        connection: &PgConnection,
     ) -> usize {
         let utility = utility.clone_add_location("ensure_show_exists(Show)");
 
@@ -98,15 +102,17 @@ impl Show {
         match show_uid {
             Some(uid) => return uid,
             None => {
-                let connection = establish_connection();
-                print(
-                    Verbosity::INFO,
-                    From::TV,
-                    utility.clone(),
-                    format!("Adding a new show: {}", show_title),
-                    false,
-                );
-                let show_model = create_show(&connection, show_title.clone());
+                if utility.preferences.print_shows || utility.preferences.show_output_whitelisted {
+                    print(
+                        Verbosity::INFO,
+                        From::TV,
+                        format!("Adding a new show: {}", show_title),
+                        utility.preferences.show_output_whitelisted,
+                        utility.clone(),
+                    );
+                }
+
+                let show_model = create_show(connection, show_title.clone());
 
                 let show_uid = show_model.show_uid as usize;
                 let new_show = Show {
@@ -153,12 +159,18 @@ impl Show {
         utility.print_function_timer();
         return shows;
     }
-}
 
-pub fn print_shows(shows: Vec<Show>, utility: Utility) {
-    let utility = utility.clone_add_location("print_shows(Show)");
+    pub fn print_shows(shows: &Vec<Show>, utility: Utility) {
+        let mut utility = utility.clone_add_location("print_shows(FileManager)");
 
-    for show in shows {
-        show.print_show(utility.clone());
+        if !utility.preferences.print_shows {
+            return;
+        }
+
+        for show in shows {
+            show.print_show(utility.clone());
+        }
+
+        utility.print_function_timer();
     }
 }

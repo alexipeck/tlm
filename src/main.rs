@@ -1,62 +1,80 @@
 extern crate diesel;
-use diesel::query_dsl::SaveChangesDsl;
 use tlm::{
-    config::Config, database::establish_connection, manager::FileManager, model::ContentModel,
-    scheduler::start_scheduler, utility::Utility,
+    config::Config,
+    scheduler::{ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType, Test},
+    utility::Utility,
 };
 
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
+use text_io::read;
 
 fn main() {
     //traceback and timing utility
     let utility = Utility::new("main");
 
-    let config = Config::new(&utility.preferences);
+    let config: Config = Config::new(&utility.preferences);
 
-    //The FileManager stores working files, hashsets and supporting functions related to updating those files
-    let mut file_manager: FileManager = FileManager::new(utility.clone());
-    let original_files = file_manager.working_content.clone();
+    let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 
-    let stop_background = Arc::new(AtomicBool::new(false));
-    let stop_background_inner = stop_background.clone();
-    let connection = establish_connection();
+    let stop_scheduler = Arc::new(AtomicBool::new(false));
+    let mut scheduler: Scheduler = Scheduler::new(
+        config.clone(),
+        utility.clone(),
+        tasks.clone(),
+        stop_scheduler.clone(),
+    );
+    let utility_inner = utility.clone();
 
-    //Hash files until all other functions are complete
-    let handle = thread::spawn(move || {
-        for mut c in original_files {
-            if c.hash.is_none() {
-                c.hash();
-                if ContentModel::from_content(c)
-                    .save_changes::<ContentModel>(&connection)
-                    .is_err()
-                {
-                    eprintln!("Failed to update hash in database");
-                }
-            }
-            if stop_background_inner.load(Ordering::Relaxed) {
-                break;
-            }
-        }
+    //Start the scheduler in it's own thread and return the scheduler at the end
+    //so that we can print information before exiting
+    let scheduler_handle = thread::spawn(move || {
+        scheduler.start_scheduler(utility_inner.clone());
+        scheduler
     });
 
-    file_manager.tracked_directories = config.tracked_directories;
-    file_manager.import_files(
-        &config.allowed_extensions,
-        &config.ignored_paths,
-        utility.clone(),
-    );
+    //Initial setup in own scope so lock drops
+    {
+        let mut tasks_guard = tasks.lock().unwrap();
+        tasks_guard.push_back(Task::new(TaskType::ImportFiles(ImportFiles::new(
+            &config.allowed_extensions,
+            &config.ignored_paths,
+        ))));
 
-    file_manager.process_new_files(utility.clone());
+        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new())));
+    }
 
-    file_manager.print_number_of_content(utility.clone());
-    file_manager.print_number_of_shows(utility.clone());
+    //Placeholder user input
+    if !utility.preferences.disable_input {
+        println!("Pick a number to print or -1 to stop");
+        loop {
+            let input: i32 = read!();
+            if input == -1 {
+                break;
+            }
 
-    file_manager.task_queue.push_test_task("Main");
-    start_scheduler(&mut file_manager, utility.clone());
+            {
+                let mut tasks_guard = tasks.lock().unwrap();
+                tasks_guard.push_back(Task::new(TaskType::Test(Test::new(&format!(
+                    "Entered: {}",
+                    input
+                )))));
+            }
+        }
+    }
 
-    //Tell worker thread to stop after it has finished hashing current file
-    stop_background.store(true, Ordering::Relaxed);
-    let _res = handle.join();
+    stop_scheduler.store(true, Ordering::Relaxed);
+    let scheduler = scheduler_handle.join().unwrap();
+
+    scheduler
+        .file_manager
+        .print_number_of_content(utility.clone());
+    scheduler
+        .file_manager
+        .print_number_of_shows(utility.clone());
+
+    scheduler.file_manager.print_shows(utility.clone());
+    scheduler.file_manager.print_content(utility.clone());
 }

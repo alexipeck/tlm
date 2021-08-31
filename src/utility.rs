@@ -18,7 +18,6 @@ impl Utility {
             traceback: Vec::new(),
             current_location: String::from(created_from),
             function_timer: None,
-
             preferences: Preferences::new(),
         };
         return utility.add_traceback_location(created_from);
@@ -35,7 +34,6 @@ impl Utility {
         if !self.preferences.timing_enabled {
             return;
         }
-
         if self.function_timer.is_some() {
             //the function interally saves inside, but because of the clone, it isn't persistent
             self.function_timer
@@ -46,9 +44,9 @@ impl Utility {
             print(
                 Verbosity::CRITICAL,
                 From::Utility,
-                self.clone(),
                 format!("You tried to print a timer that doesn't exist."),
                 false,
+                self.clone(),
             );
             panic!()
         }

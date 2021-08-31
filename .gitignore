@@ -3,3 +3,6 @@
 *.7z
 .tlm_config
 workspace.code-workspace
+*.svg
+*.data
+*.data.old

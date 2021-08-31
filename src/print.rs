@@ -79,18 +79,20 @@ impl FromStr for Verbosity {
 pub fn print(
     verbosity: Verbosity,
     from_module: From,
-    utility: Utility,
     string: String,
-    is_timer: bool,
+    whitelisted: bool,
+    utility: Utility,
 ) {
     let mut utility = utility.clone_add_location("print");
-    if !utility.preferences.default_print && !is_timer {
+
+    if !utility.preferences.default_print && !whitelisted {
         return;
     }
 
     //called from
     let call_functions_string: String;
-    if verbosity as usize <= utility.preferences.min_verbosity as usize {
+    //whitelisted ignores min_verbosity, I'm personally not a fan of this, another print control method needs to be talked about
+    if verbosity as usize <= utility.preferences.min_verbosity as usize || whitelisted {
         if verbosity == Verbosity::CRITICAL || verbosity == Verbosity::ERROR {
             call_functions_string = utility.to_string();
             eprintln!(
