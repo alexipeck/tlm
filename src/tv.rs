@@ -9,41 +9,42 @@ use crate::{
 };
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::path::PathBuf;
+use std::{ops::Generator, path::PathBuf};
 
 #[derive(Clone, Debug)]
-pub struct TV {
-    pub working_shows: Vec<Show>,
+pub struct Shows {
+    pub shows: Vec<Show>,
 }
 
-impl TV {
-    pub fn new(utility: Utility) -> TV {
+impl Shows {
+    pub fn new(utility: Utility) -> Shows {
         let utility = utility.clone_add_location("new(TV)");
 
-        return TV {
-            working_shows: Show::get_all_shows(utility.clone()),
+        return Shows {
+            shows: Show::get_all_shows(utility.clone()),
         };
     }
 }
 
-pub struct SeasonEpisode {
-    
-}
-
 #[derive(Clone, Debug)]
 pub struct Episode {
-    pub show_uid: Option<usize>,
+    pub episode_uid: Option<usize>,
+    pub generic: Generic,
+    pub show_uid: usize,
     pub show_title: String,
-    pub show_season_episode: (usize, Vec<usize>),
+    pub show_season: usize,
+    pub show_episode: Vec<usize>,
 }
 
 impl Episode {
-    pub fn new(show_title: String, ) -> Self {
+    pub fn new(generic: Generic, show_uid: usize, show_title: String, show_season: usize, show_episode: Vec<usize>) -> Self {
         return Episode {
-            show_uid: None,
-            show_title: None,
-            show_season_episode: None,
-            
+            episode_uid: None,
+            generic: generic,
+            show_uid: show_uid,
+            show_title: show_title,
+            show_season: show_season,
+            show_episode: show_episode,
         }
     }
 
@@ -59,7 +60,7 @@ impl Episode {
             static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
         }
 
-        match REGEX.find(&self.get_filename()) {
+        match REGEX.find(&self.generic.get_filename()) {
             None => return None,
             Some(val) => episode_string = String::from(rem_first_char(val.as_str())),
         }
@@ -82,64 +83,22 @@ impl Episode {
         return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
 
-    pub fn get_season_number(&self) -> usize {
-        return self.show_season_episode.0;
-    }
-
-    pub fn get_show_title(&self, utility: Utility) -> String {
-        let utility = utility.clone_add_location("get_show_title(Show)");
-
-        if self.show_title {
-            return self.show_title.clone();
-        } else {
-            print(
-                Verbosity::CRITICAL,
-                From::Generic,
-                String::from("You called get_show_title on a content that didn't have an episode designation or was incorrectly created"),
-                false,
-                utility,
-            );
-            panic!();
-        }
-    }
-
-    pub fn get_show_uid(&self, utility: Utility) -> usize {
-        let utility = utility.clone_add_location("get_show_uid(Show)");
-
-        if self.show_uid.is_some() {
-            return self.show_uid.unwrap();
-        } else {
-            print(
-                Verbosity::CRITICAL,
-                From::Generic,
-                String::from("You called get_show_uid on a content that didn't have an episode designation or was incorrectly created"),
-                false,
-                utility,
-            );
-            panic!();
-        }
-    }
-
     pub fn get_episode_string(&self) -> String {
-        if self.show_season_episode.is_some() {
-            let episode = self.show_season_episode.clone().unwrap().1;
-            if episode.len() < 1 {
-                panic!("There was less than 1 episode in the thingo");
-            } else {
-                let mut prepare = String::new();
-                let mut first: bool = true;
-                for episode in episode {
-                    if first {
-                        prepare.push_str(&format!("{}", episode));
-                        first = false;
-                    } else {
-                        prepare += &format!("_{}", episode);
-                    }
-                }
-                return prepare;
-            }
+        let episode = self.show_episode;
+        if episode.len() < 1 {
+            panic!("There was less than 1 episode in the thingo");
         } else {
-            panic!("show_season_episode is_none");
+            let mut episode_string = String::new();
+            let mut first: bool = true;
+            for episode in episode {
+                if first {
+                    episode_string.push_str(&format!("{}", episode));
+                    first = false;
+                } else {
+                    episode_string += &format!("_{}", episode);
+                }
+            }
+            return episode_string;
         }
     }
 
@@ -147,61 +106,42 @@ impl Episode {
         let utility = utility.clone_add_location("print_episode(Episode)");
 
         //could realistically just check if it has an episode designation,
-        if self.show_uid.is_some()
-            && self.show_title.is_some()
-            && self.show_season_episode.is_some()
-        {
-            print(
-                Verbosity::DEBUG,
-                From::Generic,
-                format!(
-                    "[generic_uid:'{:4}'][designation:'{}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
-                    self.get_generic_uid(utility.clone()),
-                    self.designation as i32,
-                    self.get_show_uid(utility.clone()),
-                    self.get_season_number(),
-                    self.get_episode_string(),
-                    self.get_full_path(),
-                    self.get_show_title(utility.clone()),
-                ),
-                utility.preferences.content_output_whitelisted,
-                utility.clone(),
-            );
-        } else {
-            print(
-                Verbosity::DEBUG,
-                From::DB,
-                format!(
-                    "[generic_uid:'{}'][designation:'{}'][full_path:'{}']",
-                    self.get_generic_uid(utility.clone()),
-                    self.designation as i32,
-                    self.get_full_path(),
-                ),
-                utility.preferences.content_output_whitelisted,
-                utility.clone(),
-            );
-        }
+        print(
+            Verbosity::DEBUG,
+            From::Generic,
+            format!(
+                "[generic_uid:'{:4}'][designation:'{}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
+                self.generic.get_generic_uid(utility.clone()),
+                self.generic.designation as i32,
+                self.show_uid,
+                self.show_season,
+                self.get_episode_string(),
+                self.generic.get_full_path(),
+                self.show_title,
+            ),
+            utility.preferences.generic_output_whitelisted,
+            utility.clone(),
+        );
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct Season {
     pub number: usize,
-    pub episodes: Vec<Generic>,
+    pub episodes: Vec<Episode>,
 }
 
 impl Season {
     pub fn new(number: usize) -> Season {
-        let episodes = Vec::new();
         Season {
             number: number,
-            episodes: episodes,
+            episodes: Vec::new(),
         }
     }
 
-    pub fn insert_in_order(&mut self, c: Generic) {
+    pub fn insert_in_order(&mut self, generic: Episode) {
         //not in order, but that's fine for now
-        self.episodes.push(c);
+        self.episodes.push(generic);
     }
 }
 
@@ -213,10 +153,10 @@ pub struct Show {
 }
 
 impl Show {
-    pub fn new(uid: usize, t: String) -> Show {
+    pub fn new(uid: usize, show_title: String) -> Show {
         Show {
             show_uid: uid,
-            title: t,
+            title: show_title,
             seasons: Vec::new(),
         }
     }

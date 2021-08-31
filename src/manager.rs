@@ -32,7 +32,7 @@ pub struct FileManager {
     pub tracked_directories: TrackedDirectories,
     pub working_content: Vec<Generic>,
     pub existing_files_hashset: HashSet<PathBuf>,
-    pub tv: TV,
+    pub shows: TV,
     pub new_files_queue: Vec<PathBuf>,
 }
 
@@ -42,7 +42,7 @@ impl FileManager {
 
         let mut file_manager = FileManager {
             tracked_directories: TrackedDirectories::new(),
-            tv: TV::new(utility.clone()),
+            shows: TV::new(utility.clone()),
             working_content: Vec::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
@@ -82,7 +82,7 @@ impl FileManager {
             From::Manager,
             format!(
                 "Number of shows loaded in memory: {}",
-                self.tv.working_shows.len()
+                self.shows.working_shows.len()
             ),
             false,
             utility,

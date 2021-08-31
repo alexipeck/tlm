@@ -40,7 +40,7 @@ impl Generic {
             hash: None,
             profile: Some(Profile::new(0, 0, 0, 0)), //asdf;
         };
-        
+
         utility.print_function_timer();
         return generic;
     }
@@ -207,15 +207,15 @@ impl Generic {
         return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
 
-    pub fn print_generic(content: &Vec<Generic>, utility: Utility) {
+    pub fn print_generic(generic: &Vec<Generic>, utility: Utility) {
         let mut utility = utility.clone_add_location("print_content(FileManager)");
 
-        if !utility.preferences.print_content && !utility.preferences.content_output_whitelisted {
+        if !utility.preferences.print_generic && !utility.preferences.generic_output_whitelisted {
             return;
         }
 
-        for content in content {
-            content.print(utility.clone());
+        for generic in generic {
+            generic.print(utility.clone());
         }
 
         utility.print_function_timer();
