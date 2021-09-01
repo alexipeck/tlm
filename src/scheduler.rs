@@ -1,8 +1,8 @@
-use crate::diesel::SaveChangesDsl;
 use crate::{
     config::Config,
     content::Content,
     database::establish_connection,
+    diesel::SaveChangesDsl,
     manager::FileManager,
     model::ContentModel,
     print::{print, From, Verbosity},
@@ -13,12 +13,11 @@ use std::{
     collections::VecDeque,
     path::PathBuf,
     process::Command,
-    sync::atomic::{AtomicUsize, Ordering},
-    thread, time,
-};
-use std::{
-    sync::{atomic::AtomicBool, Arc, Mutex},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    sync::{Arc, Mutex},
+    thread,
     thread::JoinHandle,
+    time,
 };
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -33,10 +32,10 @@ pub struct ImportFiles {
 }
 
 impl ImportFiles {
-    pub fn new(allowed_extensions: &Vec<String>, ignored_paths: &Vec<String>) -> Self {
+    pub fn new(allowed_extensions: &[String], ignored_paths: &[String]) -> Self {
         ImportFiles {
-            allowed_extensions: allowed_extensions.clone(),
-            ignored_paths: ignored_paths.clone(),
+            allowed_extensions: allowed_extensions.to_owned(),
+            ignored_paths: ignored_paths.to_owned(),
             status_underway: false,
             status_completed: false,
         }
@@ -169,10 +168,8 @@ pub struct Hash {}
 
 impl Hash {
     pub fn run(&mut self, current_content: Vec<Content>) -> TaskReturnAsync {
-        let stop_hash = Arc::new(AtomicBool::new(false));
         let is_finished = Arc::new(AtomicBool::new(false));
 
-        let stop_hash_inner = stop_hash.clone();
         let is_finished_inner = is_finished.clone();
         //Hash files until all other functions are complete
         let handle = Some(thread::spawn(move || {
@@ -187,14 +184,14 @@ impl Hash {
                         eprintln!("Failed to update hash in database");
                     }
                 }
-                if stop_hash_inner.load(Ordering::Relaxed) {
+                if is_finished_inner.load(Ordering::Relaxed) {
                     break;
                 }
             }
             is_finished_inner.store(true, Ordering::Relaxed);
         }))
         .unwrap();
-        TaskReturnAsync::new(Some(handle), stop_hash, is_finished)
+        TaskReturnAsync::new(Some(handle), is_finished)
     }
 }
 
@@ -255,21 +252,12 @@ impl Task {
 
 pub struct TaskReturnAsync {
     handle: Option<JoinHandle<()>>,
-    send_wrapup: Arc<AtomicBool>,
     is_done: Arc<AtomicBool>,
 }
 
 impl TaskReturnAsync {
-    pub fn new(
-        handle: Option<JoinHandle<()>>,
-        send_wrapup: Arc<AtomicBool>,
-        is_done: Arc<AtomicBool>,
-    ) -> Self {
-        Self {
-            handle,
-            send_wrapup,
-            is_done,
-        }
+    pub fn new(handle: Option<JoinHandle<()>>, is_done: Arc<AtomicBool>) -> Self {
+        Self { handle, is_done }
     }
 }
 
@@ -335,7 +323,7 @@ impl Scheduler {
                     if self.input_completed.load(Ordering::Relaxed) {
                         //Tell all async tasks to stop early if they can
                         for handle in handles {
-                            handle.send_wrapup.store(true, Ordering::Relaxed);
+                            handle.is_done.store(true, Ordering::Relaxed);
                             let _res = handle.handle.unwrap().join();
                         }
                         break;
