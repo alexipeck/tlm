@@ -1,7 +1,7 @@
 extern crate diesel;
 use tlm::{
     config::Config,
-    scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType, Test},
+    scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType},
     utility::Utility,
 };
 
@@ -10,7 +10,6 @@ use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use text_io::read;
 
 fn main() {
     //traceback and timing utility
@@ -57,25 +56,6 @@ fn main() {
         tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new(
             process_bar,
         ))));
-    }
-
-    //Placeholder user input
-    if !utility.preferences.disable_input {
-        println!("Enter -1 to stop");
-        loop {
-            let input: i32 = read!();
-            if input == -1 {
-                break;
-            }
-
-            {
-                let mut tasks_guard = tasks.lock().unwrap();
-                tasks_guard.push_back(Task::new(TaskType::Test(Test::new(&format!(
-                    "Entered: {}",
-                    input
-                )))));
-            }
-        }
     }
 
     stop_scheduler.store(true, Ordering::Relaxed);

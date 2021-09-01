@@ -150,32 +150,6 @@ impl Encode {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Test {
-    test_string: String,
-}
-
-impl Test {
-    pub fn new(test_string: &str) -> Self {
-        Test {
-            test_string: String::from(test_string),
-        }
-    }
-
-    pub fn run(&self, utility: Utility) {
-        let utility = utility.clone_add_location("run(Test)");
-        let wait_time = time::Duration::from_secs(2); //Just to illustrate threadedness
-        thread::sleep(wait_time);
-        print(
-            Verbosity::INFO,
-            From::Scheduler,
-            self.test_string.to_string(),
-            false,
-            utility,
-        );
-    }
-}
-
 pub struct Hash {
     pub progress_bar: ProgressBar,
 }
@@ -228,7 +202,6 @@ pub enum TaskType {
     Encode(Encode),
     ImportFiles(ImportFiles),
     ProcessNewFiles(ProcessNewFiles),
-    Test(Test),
     Hash(Hash),
 }
 
@@ -261,9 +234,6 @@ impl Task {
             }
             TaskType::ProcessNewFiles(process_new_files) => {
                 process_new_files.run(file_manager, utility);
-            }
-            TaskType::Test(test) => {
-                test.run(utility);
             }
             TaskType::Hash(hash) => {
                 return Some(hash.run(file_manager.working_content.clone()));
