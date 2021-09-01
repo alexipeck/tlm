@@ -7,6 +7,7 @@ use crate::{
     tv::{Show, TV},
     utility::Utility,
 };
+use indicatif::ProgressBar;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
@@ -107,7 +108,7 @@ impl FileManager {
         content
     }
 
-    pub fn process_new_files(&mut self, utility: Utility) {
+    pub fn process_new_files(&mut self, progress_bar: &ProgressBar, utility: Utility) {
         let mut utility = utility.clone_add_location("process_new_files(FileManager)");
         let connection = establish_connection();
         let mut new_episodes = Vec::new();
@@ -121,6 +122,10 @@ impl FileManager {
         while !self.new_files_queue.is_empty() {
             let current = self.new_files_queue.pop();
             if let Some(current) = current {
+                progress_bar.set_message(format!(
+                    "processing file: {}",
+                    current.file_name().unwrap().to_str().unwrap()
+                ));
                 let content = Content::new(
                     &current,
                     &mut self.tv.working_shows,
@@ -145,6 +150,10 @@ impl FileManager {
 
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for content in &temp_content {
+            progress_bar.set_message(format!(
+                "creating episode: {}",
+                content.full_path.file_name().unwrap().to_str().unwrap()
+            ));
             if content.content_is_episode() {
                 let c_uid = content.content_uid.unwrap() as i32;
                 let s_uid = content.show_uid.unwrap() as i32;
@@ -167,6 +176,7 @@ impl FileManager {
         //episodes isn't being used yet but this does insert into the database
         let _episodes = create_episodes(&connection, new_episodes);
         utility.print_function_timer();
+        progress_bar.finish_with_message("Finished processing");
     }
 
     //Hash set guarentees no duplicates in O(1) time
@@ -174,6 +184,7 @@ impl FileManager {
         &mut self,
         allowed_extensions: &[String],
         ignored_paths: &[String],
+        progress_bar: &ProgressBar,
         utility: Utility,
     ) {
         let mut utility = utility.clone_add_location("import_files(FileManager)");
@@ -201,6 +212,10 @@ impl FileManager {
                     let temp_string = entry.path().extension().unwrap().to_str().unwrap();
                     if allowed_extensions.contains(&temp_string.to_lowercase()) {
                         let entry_string = entry.into_path();
+                        progress_bar.set_message(format!(
+                            "importing files: {}",
+                            entry_string.file_name().unwrap().to_str().unwrap()
+                        ));
                         if !self.existing_files_hashset.contains(&entry_string) {
                             self.existing_files_hashset.insert(entry_string.clone());
                             self.new_files_queue.push(entry_string.clone());
@@ -209,7 +224,7 @@ impl FileManager {
                 }
             }
         }
-
+        progress_bar.finish_with_message("Finished importing files");
         utility.print_function_timer();
     }
 

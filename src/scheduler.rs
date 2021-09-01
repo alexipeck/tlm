@@ -20,6 +20,8 @@ use std::{
     time,
 };
 
+use indicatif::ProgressBar;
+
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Clone, Debug)]
@@ -29,21 +31,32 @@ pub struct ImportFiles {
 
     pub status_underway: bool,
     pub status_completed: bool,
+    pub progress_bar: ProgressBar,
 }
 
 impl ImportFiles {
-    pub fn new(allowed_extensions: &[String], ignored_paths: &[String]) -> Self {
+    pub fn new(
+        allowed_extensions: &[String],
+        ignored_paths: &[String],
+        progress_bar: ProgressBar,
+    ) -> Self {
         ImportFiles {
             allowed_extensions: allowed_extensions.to_owned(),
             ignored_paths: ignored_paths.to_owned(),
             status_underway: false,
             status_completed: false,
+            progress_bar,
         }
     }
 
     pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
         self.status_underway = true;
-        file_manager.import_files(&self.allowed_extensions, &self.ignored_paths, utility);
+        file_manager.import_files(
+            &self.allowed_extensions,
+            &self.ignored_paths,
+            &self.progress_bar,
+            utility,
+        );
         self.status_completed = true;
     }
 }
@@ -52,21 +65,20 @@ impl ImportFiles {
 pub struct ProcessNewFiles {
     pub status_underway: bool,
     pub status_completed: bool,
+    pub progress_bar: ProgressBar,
 }
 
 impl ProcessNewFiles {
     pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
         self.status_underway = true;
-        file_manager.process_new_files(utility);
+        file_manager.process_new_files(&self.progress_bar, utility);
         self.status_completed = true;
     }
-}
-
-impl Default for ProcessNewFiles {
-    fn default() -> Self {
+    pub fn new(progress_bar: ProgressBar) -> Self {
         ProcessNewFiles {
             status_underway: false,
             status_completed: false,
+            progress_bar,
         }
     }
 }
@@ -164,17 +176,25 @@ impl Test {
     }
 }
 
-pub struct Hash {}
+pub struct Hash {
+    pub progress_bar: ProgressBar,
+}
 
 impl Hash {
-    pub fn run(&mut self, current_content: Vec<Content>) -> TaskReturnAsync {
+    pub fn run(&self, current_content: Vec<Content>) -> TaskReturnAsync {
         let is_finished = Arc::new(AtomicBool::new(false));
 
         let is_finished_inner = is_finished.clone();
+        let progress_bar = self.progress_bar.to_owned();
         //Hash files until all other functions are complete
         let handle = Some(thread::spawn(move || {
             let connection = establish_connection();
+            //progress_bar.set_length(current_content.len() as u64);
             for mut content in current_content {
+                progress_bar.set_message(format!(
+                    "hashing: {}",
+                    content.full_path.file_name().unwrap().to_str().unwrap()
+                ));
                 if content.hash.is_none() {
                     content.hash();
                     if ContentModel::from_content(content)
@@ -187,17 +207,20 @@ impl Hash {
                 if is_finished_inner.load(Ordering::Relaxed) {
                     break;
                 }
+                progress_bar.inc(1);
             }
             is_finished_inner.store(true, Ordering::Relaxed);
+            progress_bar.finish_with_message("Finished hashing");
         }))
         .unwrap();
+
         TaskReturnAsync::new(Some(handle), is_finished)
     }
 }
 
-impl Default for Hash {
-    fn default() -> Self {
-        Hash {}
+impl Hash {
+    pub fn new(progress_bar: ProgressBar) -> Self {
+        Hash { progress_bar }
     }
 }
 

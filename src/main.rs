@@ -5,6 +5,7 @@ use tlm::{
     utility::Utility,
 };
 
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -14,6 +15,13 @@ use text_io::read;
 fn main() {
     //traceback and timing utility
     let utility = Utility::new("main");
+    let progress_bars = MultiProgress::new();
+    let import_bar =
+        progress_bars.add(ProgressBar::new(0).with_style(ProgressStyle::default_spinner()));
+    let process_bar =
+        progress_bars.add(ProgressBar::new(0).with_style(ProgressStyle::default_spinner()));
+    let hash_bar =
+        progress_bars.add(ProgressBar::new(0).with_style(ProgressStyle::default_spinner()));
 
     let config: Config = Config::new(&utility.preferences);
 
@@ -38,20 +46,22 @@ fn main() {
     //Initial setup in own scope so lock drops
     {
         let mut tasks_guard = tasks.lock().unwrap();
+        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::new(hash_bar))));
+
         tasks_guard.push_back(Task::new(TaskType::ImportFiles(ImportFiles::new(
             &config.allowed_extensions,
             &config.ignored_paths,
+            import_bar,
         ))));
 
-        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(
-            ProcessNewFiles::default(),
-        )));
-        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::default())))
+        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new(
+            process_bar,
+        ))));
     }
 
     //Placeholder user input
     if !utility.preferences.disable_input {
-        println!("Pick a number to print or -1 to stop");
+        println!("Enter -1 to stop");
         loop {
             let input: i32 = read!();
             if input == -1 {
@@ -69,6 +79,7 @@ fn main() {
     }
 
     stop_scheduler.store(true, Ordering::Relaxed);
+
     let scheduler = scheduler_handle.join().unwrap();
 
     scheduler
