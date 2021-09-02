@@ -163,7 +163,7 @@ impl Hash {
         //Hash files until all other functions are complete
         let handle = Some(thread::spawn(move || {
             let connection = establish_connection();
-            //progress_bar.set_length(current_content.len() as u64);
+            let mut did_finish = true;
             for mut content in current_content {
                 progress_bar.set_message(format!(
                     "hashing: {}",
@@ -179,12 +179,17 @@ impl Hash {
                     }
                 }
                 if is_finished_inner.load(Ordering::Relaxed) {
+                    did_finish = false;
                     break;
                 }
                 progress_bar.inc(1);
             }
             is_finished_inner.store(true, Ordering::Relaxed);
-            progress_bar.finish_with_message("Finished hashing");
+            if did_finish {
+                progress_bar.finish_with_message("Finished hashing");
+            } else {
+                progress_bar.finish_with_message("Hashing canceled");
+            }
         }))
         .unwrap();
 
@@ -205,6 +210,7 @@ pub enum TaskType {
     Hash(Hash),
 }
 
+#[allow(dead_code)]
 pub struct Task {
     task_uid: usize,
     task_type: TaskType,

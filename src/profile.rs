@@ -6,7 +6,7 @@ pub enum ResolutionStandard {
     ED,
     SD,
 }
-
+#[allow(dead_code)]
 pub struct EncodingProfile {
     resolution_standard: ResolutionStandard,
 }
