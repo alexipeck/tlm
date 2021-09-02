@@ -1,15 +1,8 @@
 use crate::{
-    model::*,
-    schema::generic as generic_table,
-    schema::generic::dsl::generic as generic_data,
-    schema::episode as episode_table,
-    schema::show as show_table,
-    utility::Utility,
+    model::*, schema::episode as episode_table, schema::generic as generic_table,
+    schema::generic::dsl::generic as generic_data, schema::show as show_table, utility::Utility,
 };
-use diesel::{
-    pg::PgConnection,
-    prelude::*,
-};
+use diesel::{pg::PgConnection, prelude::*};
 use std::env;
 
 ///Sets up a connection to the database via DATABASE_URL environment variable

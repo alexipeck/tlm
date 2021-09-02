@@ -1,9 +1,9 @@
-use crate::model::{NewGeneric, NewEpisode};
+use crate::model::{NewEpisode, NewGeneric};
 use crate::{
     config::Config,
-    generic::Generic,
+    database::{create_episodes, create_generics, establish_connection, get_all_generics},
     designation::Designation,
-    database::{create_generics, create_episodes, establish_connection, get_all_generics},
+    generic::Generic,
     print::{print, From, Verbosity},
     tv::{Show, TV},
     utility::Utility,
@@ -32,7 +32,7 @@ pub struct FileManager {
     pub tracked_directories: TrackedDirectories,
     pub working_content: Vec<Generic>,
     pub existing_files_hashset: HashSet<PathBuf>,
-    pub shows: TV,
+    pub tv: TV,
     pub new_files_queue: Vec<PathBuf>,
 }
 
@@ -42,7 +42,7 @@ impl FileManager {
 
         let mut file_manager = FileManager {
             tracked_directories: TrackedDirectories::new(),
-            shows: TV::new(utility.clone()),
+            tv: TV::new(utility.clone()),
             working_content: Vec::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
@@ -80,10 +80,7 @@ impl FileManager {
         print(
             Verbosity::INFO,
             From::Manager,
-            format!(
-                "Number of shows loaded in memory: {}",
-                self.shows.working_shows.len()
-            ),
+            format!("Number of shows loaded in memory: {}", self.tv.shows.len()),
             false,
             utility,
         );
@@ -99,7 +96,7 @@ impl FileManager {
         for content_model in raw_content {
             content.push(Generic::from_generic_model(
                 content_model,
-                &mut self.tv.working_shows,
+                &mut self.tv.shows,
                 utility.clone(),
                 &connection,
             ));
@@ -108,55 +105,6 @@ impl FileManager {
         utility.print_function_timer();
         return content;
     }
-
-    /* pub fn designate_and_fill(
-        &mut self,
-        working_shows: &mut Vec<Show>,
-        utility: Utility,
-        connection: &PgConnection,
-    ) {
-        fn get_os_slash() -> char {
-            return if !cfg!(target_os = "windows") {
-                '/'
-            } else {
-                '\\'
-            };
-        }
-
-        let mut utility = utility.clone_add_location("designate_and_fill");
-
-        let show_season_episode_temp = self.seperate_season_episode();
-        if show_season_episode_temp.is_some() {
-            self.designation = Designation::Episode;
-            for section in String::from(
-                self.full_path
-                    .parent()
-                    .unwrap()
-                    .parent()
-                    .unwrap()
-                    .to_string_lossy(),
-            )
-            .split(get_os_slash())
-            .rev()
-            {
-                self.show_title = Some(String::from(section));
-                break;
-            }
-            self.show_season_episode = show_season_episode_temp;
-            self.show_uid = Some(Show::ensure_show_exists(
-                self.show_title.clone().unwrap(),
-                working_shows,
-                utility.clone(),
-                connection,
-            ));
-        } else {
-            self.designation = Designation::Generic;
-            self.show_title = None;
-            self.show_season_episode = None;
-        }
-
-        utility.print_function_timer();
-    } */
 
     pub fn process_new_files(&mut self, utility: Utility) {
         let mut utility = utility.clone_add_location("process_new_files(FileManager)");
@@ -174,12 +122,7 @@ impl FileManager {
             if current.is_some() {
                 let current = current.unwrap();
 
-                let generic = Generic::new(
-                    &current,
-                    &mut self.tv.working_shows,
-                    utility.clone(),
-                    &connection,
-                );
+                let generic = Generic::new(&current, utility.clone());
                 new_generics.push(NewGeneric {
                     full_path: String::from(generic.full_path.to_str().unwrap()),
                     designation: generic.designation as i32,
@@ -192,29 +135,27 @@ impl FileManager {
         //Insert the content and then update the uid's for the full Generic structure
         let contents = create_generics(&connection, new_generics);
         for i in 0..contents.len() {
-            temp_generics[i].content_uid = Some(contents[i].id as usize);
+            temp_generics[i].generic_uid = Some(contents[i].id as usize);
         }
         self.working_content.append(&mut temp_generics);
 
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for generic in &temp_generics {
-            if generic.content_is_episode() {
-                let c_uid = generic.content_uid.unwrap() as i32;
-                let s_uid = generic.show_uid.unwrap() as i32;
-                let (season_number_temp, episode_number_temp) =
-                    generic.show_season_episode.as_ref().unwrap();
-                let season_number = *season_number_temp as i16;
-                let episode_number = episode_number_temp[0] as i16;
+            let show_uid = generic.show_uid.unwrap() as i32;
+            let (season_number_temp, episode_number_temp) =
+                generic.show_season_episode.as_ref().unwrap();
+            let season_number = *season_number_temp as i16;
+            let episode_number = episode_number_temp[0] as i16;
 
-                let new_episode = NewEpisode {
-                    generic_uid: c_uid,
-                    show_uid: s_uid,
-                    episode_title: generic.show_title.as_ref().unwrap().to_string(),
-                    season_number: season_number as i32,
-                    episode_number: episode_number as i32,
-                };
-                new_episodes.push(new_episode);
-            }
+            let new_episode = NewEpisode::new(
+                generic.get_generic_uid(utility.clone()),
+                0,              //show_uid
+                "".to_string(), //show_title
+                "".to_string(), //episode_title
+                season_number,
+                episode_number,
+            );
+            new_episodes.push(new_episode);
         }
 
         //episodes isn't being used yet but this does insert into the database

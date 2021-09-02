@@ -20,17 +20,12 @@ pub struct Generic {
     pub full_path: PathBuf,
     pub designation: Designation,
     pub hash: Option<String>,
-    pub profile: Option<Profile>,    
+    pub profile: Option<Profile>,
 }
 
 impl Generic {
     //needs to be able to be created from a pathbuf or pulled from the database
-    pub fn new(
-        raw_filepath: &PathBuf,
-        working_shows: &mut Vec<Show>,
-        utility: Utility,
-        connection: &PgConnection,
-    ) -> Self {
+    pub fn new(raw_filepath: &PathBuf, utility: Utility) -> Self {
         let mut utility = utility.clone_add_location("new(Generic)");
 
         let mut generic = Generic {
@@ -38,7 +33,7 @@ impl Generic {
             designation: Designation::Generic,
             generic_uid: None,
             hash: None,
-            profile: Some(Profile::new(0, 0, 0, 0)), //asdf;
+            profile: None,
         };
 
         utility.print_function_timer();
