@@ -4,6 +4,10 @@ table! {
         full_path -> Text,
         designation -> Int4,
         file_hash -> Nullable<Varchar>,
+        width -> Nullable<Int4>,
+        height -> Nullable<Int4>,
+        framerate -> Nullable<Float8>,
+        length_time -> Nullable<Float8>,
     }
 }
 

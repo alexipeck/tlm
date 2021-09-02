@@ -53,7 +53,7 @@ impl Content {
             designation: Designation::Generic,
             content_uid: None,
             hash: None,
-            profile: Some(Profile::new(0, 0, 0, 0)), //asdf;
+            profile: Profile::from_file(raw_filepath.to_path_buf()),
 
             show_title: None,
             show_season_episode: None,
@@ -74,7 +74,7 @@ impl Content {
     ///Create a new content from the database equivalent. This is neccesary because
     /// not all fields are stored in the database because they can be so easily recalculated
     pub fn from_content_model(
-        content_model: ContentModel,
+        content_model: &ContentModel,
         working_shows: &mut Vec<Show>,
         utility: Utility,
         connection: &PgConnection,
@@ -82,7 +82,7 @@ impl Content {
         let mut utility = utility.clone_add_location("from_row(Content)");
 
         let content_uid_temp: i32 = content_model.id;
-        let full_path_temp: String = content_model.full_path;
+        let full_path_temp: String = content_model.full_path.to_owned();
         let designation_temp: i32 = content_model.designation;
 
         //change to have it pull all info out of the db, it currently generates what it can from the filename
@@ -90,10 +90,8 @@ impl Content {
             full_path: PathBuf::from(&full_path_temp),
             designation: convert_i32_to_designation(designation_temp), //Designation::Generic
             content_uid: Some(content_uid_temp as usize),
-            hash: content_model.file_hash,
-            //asdf;
-            profile: Some(Profile::new(0, 0, 0, 0)), //this is fine for now as profile isn't in the database
-
+            hash: content_model.file_hash.to_owned(),
+            profile: content_model.get_profile(),
             //truly optional
             show_title: None,
             show_season_episode: None,

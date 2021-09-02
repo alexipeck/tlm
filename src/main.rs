@@ -15,12 +15,21 @@ fn main() {
     //traceback and timing utility
     let utility = Utility::new("main");
     let progress_bars = MultiProgress::new();
-    let import_bar =
-        progress_bars.add(ProgressBar::new(0).with_style(ProgressStyle::default_spinner()));
-    let process_bar =
-        progress_bars.add(ProgressBar::new(0).with_style(ProgressStyle::default_spinner()));
-    let hash_bar =
-        progress_bars.add(ProgressBar::new(0).with_style(ProgressStyle::default_spinner()));
+
+    let style = ProgressStyle::default_bar()
+        .template(
+            "{spinner:.green} [{prefix}] [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}} ({eta})",
+        )
+        .with_key("eta", |state| format!("{:.1}s", state.eta().as_secs_f64()))
+        .progress_chars("#>-");
+
+    let import_bar = progress_bars.add(ProgressBar::new(0).with_style(style.clone()));
+    let process_bar = progress_bars.add(ProgressBar::new(0).with_style(style.clone()));
+    let hash_bar = progress_bars.add(ProgressBar::new(0).with_style(style));
+
+    hash_bar.set_prefix("Hashing");
+    process_bar.set_prefix("Processing");
+    import_bar.set_prefix("Importing");
 
     let config: Config = Config::new(&utility.preferences);
 

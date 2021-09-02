@@ -165,10 +165,6 @@ impl Hash {
             let connection = establish_connection();
             let mut did_finish = true;
             for mut content in current_content {
-                progress_bar.set_message(format!(
-                    "hashing: {}",
-                    content.full_path.file_name().unwrap().to_str().unwrap()
-                ));
                 if content.hash.is_none() {
                     content.hash();
                     if ContentModel::from_content(content)
@@ -186,10 +182,11 @@ impl Hash {
             }
             is_finished_inner.store(true, Ordering::Relaxed);
             if did_finish {
-                progress_bar.finish_with_message("Finished hashing");
+                progress_bar.set_prefix("Hashing (finished)");
             } else {
-                progress_bar.finish_with_message("Hashing canceled");
+                progress_bar.set_prefix("Hashing (incomplete)");
             }
+            progress_bar.finish();
         }))
         .unwrap();
 

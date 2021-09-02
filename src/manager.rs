@@ -94,16 +94,14 @@ impl FileManager {
         let mut content: Vec<Content> = Vec::new();
         let connection = establish_connection();
         let raw_content = get_all_content(utility.clone());
-
         for content_model in raw_content {
             content.push(Content::from_content_model(
-                content_model,
+                &content_model,
                 &mut self.tv.working_shows,
                 utility.clone(),
                 &connection,
             ));
         }
-
         utility.print_function_timer();
         content
     }
@@ -117,25 +115,45 @@ impl FileManager {
         //Temporary because we need to get the id's that the database returns
         //Will just be appended to working content at the end
         let mut temp_content = Vec::new();
+        progress_bar.set_length(self.new_files_queue.len() as u64);
 
         //Create Content and NewContent that will be added to the database in a batch
         while !self.new_files_queue.is_empty() {
             let current = self.new_files_queue.pop();
             if let Some(current) = current {
-                progress_bar.set_message(format!(
+                /*progress_bar.set_message(format!(
                     "processing file: {}",
                     current.file_name().unwrap().to_str().unwrap()
-                ));
+                ));*/
+                progress_bar.inc(1);
                 let content = Content::new(
                     &current,
                     &mut self.tv.working_shows,
                     utility.clone(),
                     &connection,
                 );
-                new_contents.push(NewContent {
-                    full_path: String::from(content.full_path.to_str().unwrap()),
-                    designation: content.designation as i32,
-                });
+
+                if content.profile.is_some() {
+                    let profile = content.profile.unwrap();
+
+                    new_contents.push(NewContent {
+                        full_path: String::from(content.full_path.to_str().unwrap()),
+                        designation: content.designation as i32,
+                        width: Some(profile.width as i32),
+                        height: Some(profile.height as i32),
+                        framerate: Some(profile.framerate),
+                        length_time: Some(profile.length_time),
+                    });
+                } else {
+                    new_contents.push(NewContent {
+                        full_path: String::from(content.full_path.to_str().unwrap()),
+                        designation: content.designation as i32,
+                        width: None,
+                        height: None,
+                        framerate: None,
+                        length_time: None,
+                    });
+                }
 
                 temp_content.push(content);
             }
@@ -176,7 +194,7 @@ impl FileManager {
         //episodes isn't being used yet but this does insert into the database
         let _episodes = create_episodes(&connection, new_episodes);
         utility.print_function_timer();
-        progress_bar.finish_with_message("Finished processing");
+        progress_bar.finish();
     }
 
     //Hash set guarentees no duplicates in O(1) time
