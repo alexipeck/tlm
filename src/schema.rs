@@ -1,5 +1,5 @@
 table! {
-    episode (generic_uid, show_uid, show_title, episode_title, season_number, episode_number) {
+    episode (generic_uid, show_uid, season_number, episode_number) {
         generic_uid -> Int4,
         show_uid -> Int4,
         show_title -> Text,
@@ -10,8 +10,8 @@ table! {
 }
 
 table! {
-    generic (id) {
-        id -> Int4,
+    generic (generic_uid) {
+        generic_uid -> Int4,
         full_path -> Text,
         designation -> Int4,
         file_hash -> Nullable<Varchar>,

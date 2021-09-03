@@ -205,7 +205,7 @@ impl Show {
         let mut utility = utility.clone_add_location("from_show_model(Show)");
 
         let show_uid_temp: i32 = show_model.show_uid;
-        let title_temp: String = show_model.title;
+        let title_temp: String = show_model.show_title;
 
         let show = Show {
             show_uid: show_uid_temp as usize,

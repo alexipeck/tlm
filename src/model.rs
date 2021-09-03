@@ -98,5 +98,5 @@ pub struct NewShow {
 #[derive(Queryable)]
 pub struct ShowModel {
     pub show_uid: i32,
-    pub title: String,
+    pub show_title: String,
 }
