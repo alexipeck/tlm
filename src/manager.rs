@@ -8,7 +8,6 @@ use crate::{
     tv::{Show, TV},
     utility::Utility,
 };
-use diesel::PgConnection;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -32,7 +31,7 @@ impl TrackedDirectories {
 
 pub struct FileManager {
     pub tracked_directories: TrackedDirectories,
-    pub working_content: Vec<Generic>,
+    pub working_generic: Vec<Generic>,
     pub existing_files_hashset: HashSet<PathBuf>,
     pub tv: TV,
     pub new_files_queue: Vec<PathBuf>,
@@ -45,14 +44,14 @@ impl FileManager {
         let mut file_manager = FileManager {
             tracked_directories: TrackedDirectories::new(),
             tv: TV::new(utility.clone()),
-            working_content: Vec::new(),
+            working_generic: Vec::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
         };
 
-        file_manager.working_content = file_manager.get_all_content(utility.clone());
+        file_manager.working_generic = file_manager.get_all_content(utility.clone());
         file_manager.existing_files_hashset = Generic::get_all_filenames_as_hashset_from_generics(
-            &file_manager.working_content,
+            &file_manager.working_generic,
             utility.clone(),
         );
         file_manager.tracked_directories = config.tracked_directories.clone();
@@ -69,7 +68,7 @@ impl FileManager {
             From::Manager,
             format!(
                 "Number of content loaded in memory: {}",
-                self.working_content.len()
+                self.working_generic.len()
             ),
             false,
             utility,
@@ -91,35 +90,15 @@ impl FileManager {
     pub fn get_all_content(&mut self, utility: Utility) -> Vec<Generic> {
         let mut utility = utility.clone_add_location("get_all_contents(Generic)");
 
-        let mut content: Vec<Generic> = Vec::new();
-        let connection = establish_connection();
+        let mut generic: Vec<Generic> = Vec::new();
         let raw_content = get_all_generics(utility.clone());
 
-        for content_model in raw_content {
-            content.push(Generic::from_generic_model(
-                content_model,
-                &mut self.tv.shows,
-                utility.clone(),
-                &connection,
-            ));
+        for generic_model in raw_content {
+            generic.push(Generic::from_generic_model(generic_model, utility.clone()));
         }
 
         utility.print_function_timer();
-        return content;
-    }
-
-    pub fn fill_episode(
-        &mut self,
-        working_shows: &mut Vec<Show>,
-        utility: Utility,
-        connection: &PgConnection,
-    ) {
-        let mut utility = utility.clone_add_location("designate_and_fill");
-
-        pub fn seperate_season_episode(episode: &Episode) -> Option<(usize, Vec<usize>)> {}
-
-        self.show_season_episode = show_season_episode_temp;
-        self.show_uid = utility.print_function_timer();
+        return generic;
     }
 
     pub fn process_new_files(&mut self, utility: Utility) {
@@ -153,10 +132,10 @@ impl FileManager {
         for i in 0..contents.len() {
             temp_generics[i].generic_uid = Some(contents[i].id as usize);
         }
-        self.working_content.append(&mut temp_generics);
+        self.working_generic.append(&mut temp_generics);
 
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
-        for generic in &temp_generics {
+        for generic in &mut temp_generics {
             lazy_static! {
                 static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
             }
@@ -178,19 +157,10 @@ impl FileManager {
                 episodes.push(episode.parse::<usize>().unwrap());
             }
 
-            let show_season_episode_temp = seperate_season_episode(&self);
-
-            //short-circuit
-            if show_season_episode_temp.is_none() {
-                self.generic.designation = Designation::Generic;
-                self.show_title = None;
-                self.show_season_episode = None;
-            }
-
-            let show_season_episode_temp = show_season_episode_temp.unwrap();
-            self.generic.designation = Designation::Episode;
+            generic.designation = Designation::Episode;
+            let mut show_title: String = String::new();
             for section in String::from(
-                self.generic
+                generic
                     .full_path
                     .parent()
                     .unwrap()
@@ -201,30 +171,25 @@ impl FileManager {
             .split(get_os_slash())
             .rev()
             {
-                self.show_title = String::from(section);
+                show_title = String::from(section);
                 break;
             }
 
-            Show::ensure_show_exists(
-                self.show_title.clone().unwrap(),
-                working_shows,
-                utility.clone(),
-                connection,
-            );
+            let connection = establish_connection();
 
             let show_uid = Show::ensure_show_exists(
-                self.show_title.clone().unwrap(),
-                working_shows,
+                show_title.clone(),
+                &mut self.tv.shows,
                 utility.clone(),
-                connection,
+                &connection,
             );
             let season_number = season_temp;
             let episode_number = episodes[0];
 
             let new_episode = NewEpisode::new(
                 generic.get_generic_uid(utility.clone()),
-                0,              //show_uid
-                "".to_string(), //show_title
+                show_uid,
+                show_title.clone(),
                 "".to_string(), //episode_title
                 season_number,
                 episode_number,
@@ -296,10 +261,10 @@ impl FileManager {
     }
 
     pub fn print_shows(&self, utility: Utility) {
-        Show::print_shows(&self.tv.working_shows, utility.clone());
+        Show::print_shows(&self.tv.shows, utility.clone());
     }
 
-    pub fn print_content(&self, utility: Utility) {
-        Generic::print_content(&self.working_content, utility.clone());
+    pub fn print_generics(&self, utility: Utility) {
+        Generic::print_generics(&self.working_generic, utility.clone());
     }
 }

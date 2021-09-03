@@ -8,10 +8,9 @@ table! {
 }
 
 table! {
-    episode (generic_uid, show_uid, show_title, episode_title, season_number, episode_number) {
+    episode (generic_uid, show_uid, season_number, episode_number) {
         generic_uid -> Int4,
         show_uid -> Int4,
-        show_title -> Text,
         episode_title -> Text,
         season_number -> Int4,
         episode_number -> Int4,
@@ -51,4 +50,10 @@ joinable!(episode -> generic (generic_uid));
 joinable!(episode -> show (show_uid));
 joinable!(job_task_queue -> job_queue (job_uid));
 
-allow_tables_to_appear_in_same_query!(generic, episode, job_queue, job_task_queue, show,);
+allow_tables_to_appear_in_same_query!(
+    generic,
+    episode,
+    job_queue,
+    job_task_queue,
+    show,
+);

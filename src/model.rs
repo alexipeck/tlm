@@ -61,8 +61,9 @@ impl NewEpisode {
 
 #[derive(Queryable)]
 pub struct EpisodeModel {
-    pub content_uid: i32,
+    pub generic_uid: i32,
     pub show_uid: i32,
+    pub show_title: String,
     pub episode_title: String,
     pub season_number: i32,
     pub episode_number: i32,

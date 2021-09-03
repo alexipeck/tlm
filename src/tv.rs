@@ -1,6 +1,5 @@
 use crate::{
     database::{create_show, establish_connection},
-    designation::Designation,
     diesel::prelude::*,
     generic::Generic,
     model::*,
@@ -59,7 +58,7 @@ impl Episode {
     }
 
     pub fn get_episode_string(&self) -> String {
-        let episode = self.show_episode;
+        let episode = self.show_episode.clone();
         if episode.len() < 1 {
             panic!("There was less than 1 episode in the thingo");
         } else {
@@ -83,11 +82,10 @@ impl Episode {
         //could realistically just check if it has an episode designation,
         print(
             Verbosity::DEBUG,
-            From::Generic,
+            From::TV,
             format!(
-                "[generic_uid:'{:4}'][designation:'{}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
+                "[generic_uid:'{:4}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
                 self.generic.get_generic_uid(utility.clone()),
-                self.generic.designation as i32,
                 self.show_uid,
                 self.show_season,
                 self.get_episode_string(),

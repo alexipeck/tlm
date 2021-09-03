@@ -48,6 +48,6 @@ pub fn get_all_generics(utility: Utility) -> Vec<GenericModel> {
     utility.print_function_timer();
     let data = generic_data
         .load::<GenericModel>(&connection)
-        .expect("Error loading content");
+        .expect("Error loading generic");
     return data;
 }

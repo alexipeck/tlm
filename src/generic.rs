@@ -5,10 +5,8 @@ use crate::{
     model::*,
     print::{print, From, Verbosity},
     profile::Profile,
-    tv::Show,
     utility::Utility,
 };
-use diesel::pg::PgConnection;
 
 /// this will obviously mean memory overhead. In future I think
 /// we should split this into 3 types that would however mean
@@ -28,7 +26,7 @@ impl Generic {
     pub fn new(raw_filepath: &PathBuf, utility: Utility) -> Self {
         let mut utility = utility.clone_add_location("new(Generic)");
 
-        let mut generic = Generic {
+        let generic = Generic {
             full_path: raw_filepath.to_path_buf(),
             designation: Designation::Generic,
             generic_uid: None,
@@ -49,12 +47,7 @@ impl Generic {
 
     ///Create a new content from the database equivalent. This is neccesary because
     /// not all fields are stored in the database because they can be so easily recalculated
-    pub fn from_generic_model(
-        generic_model: GenericModel,
-        working_shows: &mut Vec<Show>,
-        utility: Utility,
-        connection: &PgConnection,
-    ) -> Generic {
+    pub fn from_generic_model(generic_model: GenericModel, utility: Utility) -> Generic {
         let mut utility = utility.clone_add_location("from_row(Generic)");
 
         let generic_uid_temp: i32 = generic_model.id;
@@ -62,7 +55,7 @@ impl Generic {
         let designation_temp: i32 = generic_model.designation;
 
         //change to have it pull all info out of the db, it currently generates what it can from the filename
-        let mut generic = Generic {
+        let generic = Generic {
             full_path: PathBuf::from(&full_path_temp),
             designation: convert_i32_to_designation(designation_temp), //Designation::Generic
             generic_uid: Some(generic_uid_temp as usize),
@@ -202,15 +195,31 @@ impl Generic {
         return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
 
-    pub fn print_generic(generic: &Vec<Generic>, utility: Utility) {
-        let mut utility = utility.clone_add_location("print_content(FileManager)");
+    pub fn print_generic(&self, utility: Utility) {
+        let utility = utility.clone_add_location("print_generic(Generic)");
+        print(
+            Verbosity::DEBUG,
+            From::Generic,
+            format!(
+                "[generic_uid:'{:4}'][designation:'{}'][full_path:'{}']",
+                self.get_generic_uid(utility.clone()),
+                self.designation as i32,
+                self.get_full_path(),
+            ),
+            utility.preferences.generic_output_whitelisted,
+            utility.clone(),
+        );
+    }
+
+    pub fn print_generics(generic: &Vec<Generic>, utility: Utility) {
+        let mut utility = utility.clone_add_location("print_generics(Generic)");
 
         if !utility.preferences.print_generic && !utility.preferences.generic_output_whitelisted {
             return;
         }
 
         for generic in generic {
-            generic.print(utility.clone());
+            generic.print_generic(utility.clone());
         }
 
         utility.print_function_timer();
