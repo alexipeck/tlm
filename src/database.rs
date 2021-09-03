@@ -24,7 +24,7 @@ pub fn create_generics<'a>(
 
 ///Inserts show data into the database
 pub fn create_show<'a>(conn: &PgConnection, title: String) -> ShowModel {
-    let new_show = NewShow { title: title };
+    let new_show = NewShow { show_title: title };
 
     diesel::insert_into(show_table::table)
         .values(&new_show)

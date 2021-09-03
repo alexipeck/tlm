@@ -1,7 +1,8 @@
 table! {
-    episode (generic_uid, show_uid, season_number, episode_number) {
+    episode (generic_uid, show_uid, show_title, episode_title, season_number, episode_number) {
         generic_uid -> Int4,
         show_uid -> Int4,
+        show_title -> Text,
         episode_title -> Text,
         season_number -> Int4,
         episode_number -> Int4,
@@ -42,7 +43,7 @@ table! {
 table! {
     show (show_uid) {
         show_uid -> Int4,
-        title -> Text,
+        show_title -> Text,
     }
 }
 

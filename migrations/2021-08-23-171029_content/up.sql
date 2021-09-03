@@ -1,2 +1,0 @@
-ALTER TABLE generic
-ADD COLUMN file_hash VARCHAR(20)

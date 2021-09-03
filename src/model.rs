@@ -92,7 +92,7 @@ pub struct JobTaskQueueModel {
 #[derive(Insertable)]
 #[table_name = "show"]
 pub struct NewShow {
-    pub title: String,
+    pub show_title: String,
 }
 
 #[derive(Queryable)]
