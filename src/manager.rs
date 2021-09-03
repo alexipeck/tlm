@@ -9,6 +9,8 @@ use crate::{
     utility::Utility,
 };
 use diesel::PgConnection;
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 use walkdir::WalkDir;
@@ -106,6 +108,20 @@ impl FileManager {
         return content;
     }
 
+    pub fn fill_episode(
+        &mut self,
+        working_shows: &mut Vec<Show>,
+        utility: Utility,
+        connection: &PgConnection,
+    ) {
+        let mut utility = utility.clone_add_location("designate_and_fill");
+
+        pub fn seperate_season_episode(episode: &Episode) -> Option<(usize, Vec<usize>)> {}
+
+        self.show_season_episode = show_season_episode_temp;
+        self.show_uid = utility.print_function_timer();
+    }
+
     pub fn process_new_files(&mut self, utility: Utility) {
         let mut utility = utility.clone_add_location("process_new_files(FileManager)");
         let connection = establish_connection();
@@ -141,11 +157,69 @@ impl FileManager {
 
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for generic in &temp_generics {
-            let show_uid = generic.show_uid.unwrap() as i32;
-            let (season_number_temp, episode_number_temp) =
-                generic.show_season_episode.as_ref().unwrap();
-            let season_number = *season_number_temp as i16;
-            let episode_number = episode_number_temp[0] as i16;
+            lazy_static! {
+                static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
+            }
+
+            let episode_string: String;
+            match REGEX.find(&generic.get_filename()) {
+                None => continue,
+                Some(val) => episode_string = String::from(rem_first_char(val.as_str())),
+            }
+
+            let mut season_episode_iter = episode_string.split('E');
+            let season_temp = season_episode_iter
+                .next()
+                .unwrap()
+                .parse::<usize>()
+                .unwrap();
+            let mut episodes: Vec<usize> = Vec::new();
+            for episode in season_episode_iter.next().unwrap().split('-') {
+                episodes.push(episode.parse::<usize>().unwrap());
+            }
+
+            let show_season_episode_temp = seperate_season_episode(&self);
+
+            //short-circuit
+            if show_season_episode_temp.is_none() {
+                self.generic.designation = Designation::Generic;
+                self.show_title = None;
+                self.show_season_episode = None;
+            }
+
+            let show_season_episode_temp = show_season_episode_temp.unwrap();
+            self.generic.designation = Designation::Episode;
+            for section in String::from(
+                self.generic
+                    .full_path
+                    .parent()
+                    .unwrap()
+                    .parent()
+                    .unwrap()
+                    .to_string_lossy(),
+            )
+            .split(get_os_slash())
+            .rev()
+            {
+                self.show_title = String::from(section);
+                break;
+            }
+
+            Show::ensure_show_exists(
+                self.show_title.clone().unwrap(),
+                working_shows,
+                utility.clone(),
+                connection,
+            );
+
+            let show_uid = Show::ensure_show_exists(
+                self.show_title.clone().unwrap(),
+                working_shows,
+                utility.clone(),
+                connection,
+            );
+            let season_number = season_temp;
+            let episode_number = episodes[0];
 
             let new_episode = NewEpisode::new(
                 generic.get_generic_uid(utility.clone()),
@@ -161,6 +235,20 @@ impl FileManager {
         //episodes isn't being used yet but this does insert into the database
         let _episodes = create_episodes(&connection, new_episodes);
         utility.print_function_timer();
+
+        fn get_os_slash() -> char {
+            return if !cfg!(target_os = "windows") {
+                '/'
+            } else {
+                '\\'
+            };
+        }
+
+        fn rem_first_char(value: &str) -> &str {
+            let mut chars = value.chars();
+            chars.next();
+            return chars.as_str();
+        }
     }
 
     //Hash set guarentees no duplicates in O(1) time

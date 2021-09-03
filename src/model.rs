@@ -35,8 +35,8 @@ pub struct NewEpisode {
     pub show_uid: i32,
     pub show_title: String,
     pub episode_title: String,
-    pub season_number: i16,
-    pub episode_number: i16,
+    pub season_number: i32,
+    pub episode_number: i32,
 }
 
 impl NewEpisode {
@@ -53,8 +53,8 @@ impl NewEpisode {
             show_uid: show_uid as i32,
             show_title: show_title,
             episode_title: episode_title,
-            season_number: season_number as i16,
-            episode_number: episode_number as i16,
+            season_number: season_number as i32,
+            episode_number: episode_number as i32,
         };
     }
 }

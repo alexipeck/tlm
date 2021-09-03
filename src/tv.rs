@@ -1,5 +1,6 @@
 use crate::{
     database::{create_show, establish_connection},
+    designation::Designation,
     diesel::prelude::*,
     generic::Generic,
     model::*,
@@ -7,9 +8,8 @@ use crate::{
     schema::show::dsl::show as show_table,
     utility::Utility,
 };
-use lazy_static::lazy_static;
-use regex::Regex;
-use std::{ops::Generator, path::PathBuf};
+
+use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
 pub struct TV {
@@ -52,86 +52,6 @@ impl Episode {
             show_season: show_season,
             show_episode: show_episode,
         };
-    }
-
-    pub fn fill_episode(
-        &mut self,
-        working_shows: &mut Vec<Show>,
-        utility: Utility,
-        connection: &PgConnection,
-    ) {
-        fn get_os_slash() -> char {
-            return if !cfg!(target_os = "windows") {
-                '/'
-            } else {
-                '\\'
-            };
-        }
-
-        let mut utility = utility.clone_add_location("designate_and_fill");
-
-        let show_season_episode_temp = self.seperate_season_episode();
-        if show_season_episode_temp.is_some() {
-            self.designation = Designation::Episode;
-            for section in String::from(
-                self.full_path
-                    .parent()
-                    .unwrap()
-                    .parent()
-                    .unwrap()
-                    .to_string_lossy(),
-            )
-            .split(get_os_slash())
-            .rev()
-            {
-                self.show_title = Some(String::from(section));
-                break;
-            }
-            self.show_season_episode = show_season_episode_temp;
-            self.show_uid = Some(Show::ensure_show_exists(
-                self.show_title.clone().unwrap(),
-                working_shows,
-                utility.clone(),
-                connection,
-            ));
-        } else {
-            self.designation = Designation::Generic;
-            self.show_title = None;
-            self.show_season_episode = None;
-        }
-
-        utility.print_function_timer();
-    }
-
-    pub fn seperate_season_episode(&mut self) -> Option<(usize, Vec<usize>)> {
-        fn rem_first_char(value: &str) -> &str {
-            let mut chars = value.chars();
-            chars.next();
-            return chars.as_str();
-        }
-
-        let episode_string: String;
-        lazy_static! {
-            static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
-        }
-
-        match REGEX.find(&self.generic.get_filename()) {
-            None => return None,
-            Some(val) => episode_string = String::from(rem_first_char(val.as_str())),
-        }
-
-        let mut season_episode_iter = episode_string.split('E');
-        let season_temp = season_episode_iter
-            .next()
-            .unwrap()
-            .parse::<usize>()
-            .unwrap();
-        let mut episodes: Vec<usize> = Vec::new();
-        for episode in season_episode_iter.next().unwrap().split('-') {
-            episodes.push(episode.parse::<usize>().unwrap());
-        }
-
-        return Some((season_temp, episodes));
     }
 
     pub fn get_filename_from_pathbuf(pathbuf: PathBuf) -> String {
