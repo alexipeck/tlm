@@ -6,7 +6,7 @@ use std::time::Instant;
 
 #[derive(Clone, Debug)]
 pub struct Timer {
-    //The stage and task are for instance: "startup: looping through contents to do 'x'"
+    //The stage and task are for instance: "startup: looping through generics to do 'x'"
     //The identifier is an arbitrary string of characters you can search the code directly for, I recommend a 4 character alpha-numeric combination
     pub uid: usize,
     pub function_name: String,

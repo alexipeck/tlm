@@ -49,7 +49,7 @@ impl FileManager {
             new_files_queue: Vec::new(),
         };
 
-        file_manager.working_generic = file_manager.get_all_content(utility.clone());
+        file_manager.working_generic = file_manager.get_all_generic(utility.clone());
         file_manager.existing_files_hashset = Generic::get_all_filenames_as_hashset_from_generics(
             &file_manager.working_generic,
             utility.clone(),
@@ -60,14 +60,14 @@ impl FileManager {
         return file_manager;
     }
 
-    pub fn print_number_of_content(&self, utility: Utility) {
-        let utility = utility.clone_add_location("print_number_of_content(FileManager)");
+    pub fn print_number_of_generic(&self, utility: Utility) {
+        let utility = utility.clone_add_location("print_number_of_generic(FileManager)");
 
         print(
             Verbosity::INFO,
             From::Manager,
             format!(
-                "Number of content loaded in memory: {}",
+                "Number of generic loaded in memory: {}",
                 self.working_generic.len()
             ),
             false,
@@ -87,13 +87,13 @@ impl FileManager {
         );
     }
 
-    pub fn get_all_content(&mut self, utility: Utility) -> Vec<Generic> {
-        let mut utility = utility.clone_add_location("get_all_contents(Generic)");
+    pub fn get_all_generic(&mut self, utility: Utility) -> Vec<Generic> {
+        let mut utility = utility.clone_add_location("get_all_generics(Generic)");
 
         let mut generic: Vec<Generic> = Vec::new();
-        let raw_content = get_all_generics(utility.clone());
+        let raw_generic = get_all_generics(utility.clone());
 
-        for generic_model in raw_content {
+        for generic_model in raw_generic {
             generic.push(Generic::from_generic_model(generic_model, utility.clone()));
         }
 
@@ -108,7 +108,7 @@ impl FileManager {
         let mut new_generics = Vec::new();
 
         //Temporary because we need to get the id's that the database returns
-        //Will just be appended to working content at the end
+        //Will just be appended to working generic at the end
         let mut temp_generics = Vec::new();
 
         //Create Generic and NewGeneric that will be added to the database in a batch
@@ -127,10 +127,10 @@ impl FileManager {
             }
         }
 
-        //Insert the content and then update the uid's for the full Generic structure
-        let contents = create_generics(&connection, new_generics);
-        for i in 0..contents.len() {
-            temp_generics[i].generic_uid = Some(contents[i].id as usize);
+        //Insert the generic and then update the uid's for the full Generic structure
+        let generics = create_generics(&connection, new_generics);
+        for i in 0..generics.len() {
+            temp_generics[i].generic_uid = Some(generics[i].id as usize);
         }
         self.working_generic.append(&mut temp_generics);
 

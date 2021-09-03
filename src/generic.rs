@@ -45,7 +45,7 @@ impl Generic {
         self.hash = Some(hash.to_string());
     }
 
-    ///Create a new content from the database equivalent. This is neccesary because
+    ///Create a new generic from the database equivalent. This is neccesary because
     /// not all fields are stored in the database because they can be so easily recalculated
     pub fn from_generic_model(generic_model: GenericModel, utility: Utility) -> Generic {
         let mut utility = utility.clone_add_location("from_row(Generic)");
@@ -175,7 +175,7 @@ impl Generic {
     }
 
     pub fn get_generic_uid(&self, utility: Utility) -> usize {
-        let utility = utility.clone_add_location("get_content_uid(Show)");
+        let utility = utility.clone_add_location("get_generic_uid(Show)");
 
         if self.generic_uid.is_some() {
             return self.generic_uid.unwrap();

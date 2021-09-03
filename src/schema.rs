@@ -1,20 +1,19 @@
 table! {
+    episode (generic_uid, show_uid, season_number, episode_number) {
+        generic_uid -> Int4,
+        show_uid -> Int4,
+        episode_title -> Text,
+        season_number -> Int4,
+        episode_number -> Int4,
+    }
+}
+
+table! {
     generic (id) {
         id -> Int4,
         full_path -> Text,
         designation -> Int4,
         file_hash -> Nullable<Varchar>,
-    }
-}
-
-table! {
-    episode (generic_uid, show_uid, show_title, episode_title, season_number, episode_number) {
-        generic_uid -> Int4,
-        show_uid -> Int4,
-        show_title -> Text,
-        episode_title -> Text,
-        season_number -> Int4,
-        episode_number -> Int4,
     }
 }
 
@@ -52,8 +51,8 @@ joinable!(episode -> show (show_uid));
 joinable!(job_task_queue -> job_queue (job_uid));
 
 allow_tables_to_appear_in_same_query!(
-    generic,
     episode,
+    generic,
     job_queue,
     job_task_queue,
     show,

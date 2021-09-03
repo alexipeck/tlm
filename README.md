@@ -42,7 +42,7 @@ Optional arguments:
   --disable-print,--no-print
                         Disables printing by default. Specific types of print
                         can be enabled on top of this
-  --print-content       Enable printing content
+  --print-generic       Enable printing generic
   --print-shows         Enable printing shows
   --print-general       Enable printing general debug information
   --config,-c CONFIG    Set a custom config path

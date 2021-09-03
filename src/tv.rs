@@ -223,7 +223,7 @@ impl Show {
         let connection = establish_connection();
         let raw_shows = show_table
             .load::<ShowModel>(&connection)
-            .expect("Error loading content");
+            .expect("Error loading show");
 
         let mut shows: Vec<Show> = Vec::new();
         for show in raw_shows {

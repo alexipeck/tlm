@@ -11,7 +11,7 @@ pub fn establish_connection() -> PgConnection {
     PgConnection::establish(&database_url).expect(&format!("Error connecting to {}", database_url))
 }
 
-///Inserts content data into the database
+///Inserts generic data into the database
 pub fn create_generics<'a>(
     conn: &PgConnection,
     new_generics: Vec<NewGeneric>,

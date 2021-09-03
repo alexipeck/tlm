@@ -1,1 +1,1 @@
-DROP TABLE content
+DROP TABLE generic

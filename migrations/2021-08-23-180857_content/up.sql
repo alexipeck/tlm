@@ -1,2 +1,2 @@
-ALTER TABLE content
-RENAME COLUMN content_uid TO id;
+ALTER TABLE generic
+RENAME COLUMN generic_uid TO id;

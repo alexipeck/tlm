@@ -1,2 +1,2 @@
-ALTER TABLE content
+ALTER TABLE generic
 DROP COLUMN file_hash

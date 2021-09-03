@@ -18,7 +18,7 @@ pub struct GenericModel {
 }
 
 impl GenericModel {
-    pub fn from_content(c: Generic) -> GenericModel {
+    pub fn from_generic(c: Generic) -> GenericModel {
         return GenericModel {
             id: c.generic_uid.unwrap() as i32,
             full_path: c.get_full_path(),
