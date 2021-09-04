@@ -174,13 +174,9 @@ impl FileManager {
                 break;
             }
 
-            let connection = establish_connection();
-
-            let show_uid = self.tv.ensure_show_exists(
-                show_title.clone(),
-                utility.clone(),
-                &connection,
-            );
+            let show_uid =
+                self.tv
+                    .ensure_show_exists(show_title.clone(), utility.clone(), &connection);
             let season_number = season_temp;
             let episode_number = episodes[0];
 

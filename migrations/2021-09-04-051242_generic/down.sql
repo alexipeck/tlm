@@ -1,1 +1,2 @@
-DROP TABLE generic
+ALTER TABLE generic
+    RENAME TO content;
