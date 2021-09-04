@@ -8,7 +8,7 @@ pub enum ResolutionStandard {
 }
 
 pub struct EncodingProfile {
-    resolution_standard: ResolutionStandard,
+    _resolution_standard: ResolutionStandard,
 }
 
 #[derive(Clone, Debug)]

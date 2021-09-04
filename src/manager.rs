@@ -132,7 +132,6 @@ impl FileManager {
         for i in 0..generics.len() {
             temp_generics[i].generic_uid = Some(generics[i].generic_uid as usize);
         }
-        self.working_generic.append(&mut temp_generics);
 
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for generic in &mut temp_generics {
@@ -177,9 +176,8 @@ impl FileManager {
 
             let connection = establish_connection();
 
-            let show_uid = Show::ensure_show_exists(
+            let show_uid = self.tv.ensure_show_exists(
                 show_title.clone(),
-                &mut self.tv.shows,
                 utility.clone(),
                 &connection,
             );
@@ -195,6 +193,8 @@ impl FileManager {
             );
             new_episodes.push(new_episode);
         }
+
+        self.working_generic.append(&mut temp_generics);
 
         //episodes isn't being used yet but this does insert into the database
         let _episodes = create_episodes(&connection, new_episodes);
@@ -255,12 +255,12 @@ impl FileManager {
                 }
             }
         }
-
+        println!("{} new files ready for import", self.new_files_queue.len());
         utility.print_function_timer();
     }
 
     pub fn print_shows(&self, utility: Utility) {
-        Show::print_shows(&self.tv.shows, utility.clone());
+        self.tv.print_shows(utility.clone());
     }
 
     pub fn print_generics(&self, utility: Utility) {

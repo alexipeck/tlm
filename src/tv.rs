@@ -23,6 +23,57 @@ impl TV {
             shows: Show::get_all_shows(utility.clone()),
         };
     }
+
+    pub fn ensure_show_exists(
+        &mut self,
+        show_title: String,
+        utility: Utility,
+        connection: &PgConnection,
+    ) -> usize {
+        let utility = utility.clone_add_location("ensure_show_exists(Show)");
+
+        let show_uid = Show::show_exists(show_title.clone(), &mut self.shows, utility.clone());
+        match show_uid {
+            Some(uid) => return uid,
+            None => {
+                if utility.preferences.print_shows || utility.preferences.show_output_whitelisted {
+                    print(
+                        Verbosity::INFO,
+                        From::TV,
+                        format!("Adding a new show: {}", show_title),
+                        utility.preferences.show_output_whitelisted,
+                        utility.clone(),
+                    );
+                }
+
+                let show_model = create_show(connection, show_title.clone());
+
+                let show_uid = show_model.show_uid as usize;
+                let new_show = Show {
+                    show_uid: show_uid,
+                    show_title: show_title.clone(),
+                    seasons: Vec::new(),
+                };
+                self.shows.push(new_show);
+
+                return show_uid;
+            }
+        }
+    }
+
+    pub fn print_shows(&self, utility: Utility) {
+        let mut utility = utility.clone_add_location("print_shows(FileManager)");
+
+        if !utility.preferences.print_shows {
+            return;
+        }
+
+        for show in &self.shows {
+            show.print_show(utility.clone());
+        }
+
+        utility.print_function_timer();
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -121,7 +172,7 @@ impl Season {
 #[derive(Clone, Debug)]
 pub struct Show {
     pub show_uid: usize,
-    pub title: String,
+    pub show_title: String,
     pub seasons: Vec<Season>,
 }
 
@@ -129,7 +180,7 @@ impl Show {
     pub fn new(uid: usize, show_title: String) -> Show {
         Show {
             show_uid: uid,
-            title: show_title,
+            show_title: show_title,
             seasons: Vec::new(),
         }
     }
@@ -142,7 +193,7 @@ impl Show {
         print(
             Verbosity::DEBUG,
             From::Show,
-            format!("[uid: {}][title: {}]", self.show_uid, self.title),
+            format!("[uid: {}][show_title: {}]", self.show_uid, self.show_title),
             false,
             utility,
         );
@@ -155,50 +206,13 @@ impl Show {
     ) -> Option<usize> {
         let mut utility = utility.clone_add_location("show_exists(Show)");
         for s in working_shows {
-            if s.title == show_title {
+            if s.show_title == show_title {
                 return Some(s.show_uid);
             }
         }
 
         utility.print_function_timer();
         return None;
-    }
-
-    pub fn ensure_show_exists(
-        show_title: String,
-        working_shows: &mut Vec<Show>,
-        utility: Utility,
-        connection: &PgConnection,
-    ) -> usize {
-        let utility = utility.clone_add_location("ensure_show_exists(Show)");
-
-        let show_uid = Show::show_exists(show_title.clone(), working_shows, utility.clone());
-        match show_uid {
-            Some(uid) => return uid,
-            None => {
-                if utility.preferences.print_shows || utility.preferences.show_output_whitelisted {
-                    print(
-                        Verbosity::INFO,
-                        From::TV,
-                        format!("Adding a new show: {}", show_title),
-                        utility.preferences.show_output_whitelisted,
-                        utility.clone(),
-                    );
-                }
-
-                let show_model = create_show(connection, show_title.clone());
-
-                let show_uid = show_model.show_uid as usize;
-                let new_show = Show {
-                    show_uid: show_uid,
-                    title: show_title.clone(),
-                    seasons: Vec::new(),
-                };
-                working_shows.push(new_show);
-
-                return show_uid;
-            }
-        }
     }
 
     pub fn from_show_model(show_model: ShowModel, utility: Utility) -> Show {
@@ -209,7 +223,7 @@ impl Show {
 
         let show = Show {
             show_uid: show_uid_temp as usize,
-            title: title_temp,
+            show_title: title_temp,
             seasons: Vec::new(),
         };
         utility.print_function_timer();
@@ -232,19 +246,5 @@ impl Show {
 
         utility.print_function_timer();
         return shows;
-    }
-
-    pub fn print_shows(shows: &Vec<Show>, utility: Utility) {
-        let mut utility = utility.clone_add_location("print_shows(FileManager)");
-
-        if !utility.preferences.print_shows {
-            return;
-        }
-
-        for show in shows {
-            show.print_show(utility.clone());
-        }
-
-        utility.print_function_timer();
     }
 }
