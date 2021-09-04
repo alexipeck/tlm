@@ -16,12 +16,12 @@ pub struct Timer {
 
 impl Timer {
     pub fn create_timer(uid: usize, function_name: String) -> Timer {
-        return Timer {
-            uid: uid,
-            function_name: function_name,
+        Timer {
+            uid,
+            function_name,
             timer: Instant::now(),
             stored_time: None,
-        };
+        }
     }
 
     pub fn store_timing(&mut self) {

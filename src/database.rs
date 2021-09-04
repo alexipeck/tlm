@@ -8,14 +8,12 @@ use std::env;
 ///Sets up a connection to the database via DATABASE_URL environment variable
 pub fn establish_connection() -> PgConnection {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    PgConnection::establish(&database_url).expect(&format!("Error connecting to {}", database_url))
+    PgConnection::establish(&database_url)
+        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
 }
 
 ///Inserts generic data into the database
-pub fn create_generics<'a>(
-    conn: &PgConnection,
-    new_generics: Vec<NewGeneric>,
-) -> Vec<GenericModel> {
+pub fn create_generics(conn: &PgConnection, new_generics: Vec<NewGeneric>) -> Vec<GenericModel> {
     diesel::insert_into(generic_table::table)
         .values(&new_generics)
         .get_results(conn)
@@ -23,10 +21,8 @@ pub fn create_generics<'a>(
 }
 
 ///Inserts show data into the database
-pub fn create_show<'a>(conn: &PgConnection, show_title: String) -> ShowModel {
-    let new_show = NewShow {
-        show_title: show_title,
-    };
+pub fn create_show(conn: &PgConnection, show_title: String) -> ShowModel {
+    let new_show = NewShow { show_title };
 
     diesel::insert_into(show_table::table)
         .values(&new_show)
@@ -35,7 +31,7 @@ pub fn create_show<'a>(conn: &PgConnection, show_title: String) -> ShowModel {
 }
 
 ///Inserts episode data into the database
-pub fn create_episodes<'a>(conn: &PgConnection, new_episode: Vec<NewEpisode>) -> Vec<EpisodeModel> {
+pub fn create_episodes(conn: &PgConnection, new_episode: Vec<NewEpisode>) -> Vec<EpisodeModel> {
     diesel::insert_into(episode_table::table)
         .values(&new_episode)
         .get_results(conn)
@@ -48,8 +44,7 @@ pub fn get_all_generics(utility: Utility) -> Vec<GenericModel> {
     let connection = establish_connection();
 
     utility.print_function_timer();
-    let data = generic_data
+    generic_data
         .load::<GenericModel>(&connection)
-        .expect("Error loading generic");
-    return data;
+        .expect("Error loading generic")
 }

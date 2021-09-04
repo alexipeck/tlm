@@ -19,9 +19,9 @@ impl TV {
     pub fn new(utility: Utility) -> TV {
         let utility = utility.clone_add_location("new(TV)");
 
-        return TV {
-            shows: Show::get_all_shows(utility.clone()),
-        };
+        TV {
+            shows: Show::get_all_shows(utility),
+        }
     }
 
     pub fn insert_episodes(&mut self, episodes: Vec<Episode>, utility: Utility) {
@@ -50,9 +50,9 @@ impl TV {
     ) -> usize {
         let utility = utility.clone_add_location("ensure_show_exists(Show)");
 
-        let show_uid = Show::show_exists(show_title.clone(), &mut self.shows, utility.clone());
+        let show_uid = Show::show_exists(show_title.clone(), &self.shows, utility.clone());
         match show_uid {
-            Some(uid) => return uid,
+            Some(uid) => uid,
             None => {
                 if utility.preferences.print_shows || utility.preferences.show_output_whitelisted {
                     print(
@@ -60,7 +60,7 @@ impl TV {
                         From::TV,
                         format!("Adding a new show: {}", show_title),
                         utility.preferences.show_output_whitelisted,
-                        utility.clone(),
+                        utility,
                     );
                 }
 
@@ -68,13 +68,13 @@ impl TV {
 
                 let show_uid = show_model.show_uid as usize;
                 let new_show = Show {
-                    show_uid: show_uid,
-                    show_title: show_title.clone(),
+                    show_uid,
+                    show_title,
                     seasons: Vec::new(),
                 };
                 self.shows.push(new_show);
 
-                return show_uid;
+                show_uid
             }
         }
     }
@@ -114,14 +114,14 @@ impl Episode {
         show_season: usize,
         show_episode: Vec<usize>,
     ) -> Self {
-        return Episode {
+        Episode {
             episode_uid: None,
-            generic: generic,
-            show_uid: show_uid,
-            show_title: show_title,
-            show_season: show_season,
-            show_episode: show_episode,
-        };
+            generic,
+            show_uid,
+            show_title,
+            show_season,
+            show_episode,
+        }
     }
 
     pub fn get_filename_from_pathbuf(pathbuf: PathBuf) -> String {
@@ -130,7 +130,7 @@ impl Episode {
 
     pub fn get_episode_string(&self) -> String {
         let episode = self.show_episode.clone();
-        if episode.len() < 1 {
+        if episode.is_empty() {
             panic!("There was less than 1 episode in the thingo");
         } else {
             let mut episode_string = String::new();
@@ -143,7 +143,7 @@ impl Episode {
                     episode_string += &format!("_{}", episode);
                 }
             }
-            return episode_string;
+            episode_string
         }
     }
 
@@ -164,7 +164,7 @@ impl Episode {
                 self.show_title,
             ),
             utility.preferences.generic_output_whitelisted,
-            utility.clone(),
+            utility,
         );
     }
 }
@@ -178,7 +178,7 @@ pub struct Season {
 impl Season {
     pub fn new(number: usize) -> Season {
         Season {
-            number: number,
+            number,
             episodes: Vec::new(),
         }
     }
@@ -195,7 +195,7 @@ impl Show {
     pub fn new(uid: usize, show_title: String) -> Show {
         Show {
             show_uid: uid,
-            show_title: show_title,
+            show_title,
             seasons: Vec::new(),
         }
     }
@@ -242,7 +242,7 @@ impl Show {
 
     pub fn show_exists(
         show_title: String,
-        working_shows: &Vec<Show>,
+        working_shows: &[Show],
         utility: Utility,
     ) -> Option<usize> {
         let mut utility = utility.clone_add_location("show_exists(Show)");
@@ -253,7 +253,7 @@ impl Show {
         }
 
         utility.print_function_timer();
-        return None;
+        None
     }
 
     pub fn from_show_model(show_model: ShowModel, utility: Utility) -> Show {
@@ -269,7 +269,7 @@ impl Show {
         };
         utility.print_function_timer();
 
-        return show;
+        show
     }
 
     pub fn get_all_shows(utility: Utility) -> Vec<Show> {
@@ -286,6 +286,6 @@ impl Show {
         }
 
         utility.print_function_timer();
-        return shows;
+        shows
     }
 }

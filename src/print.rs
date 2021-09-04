@@ -1,4 +1,5 @@
 use crate::utility::Utility;
+use std::fmt;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
@@ -29,9 +30,9 @@ pub enum From {
     Scheduler = 12,
 }
 
-impl From {
-    pub fn to_string(self) -> String {
-        String::from(match self {
+impl fmt::Display for From {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let string = match self {
             From::Main => "main",
             From::Lib => "lib",
             From::Generic => "generic",
@@ -44,20 +45,22 @@ impl From {
             From::Scheduler => "scheduler",
             From::TV => "tv",
             _ => "notset",
-        })
+        };
+        write!(f, "{}", string)
     }
 }
 
-impl Verbosity {
-    pub fn to_string(self) -> String {
-        String::from(match self {
+impl fmt::Display for Verbosity {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let string = match self {
             Verbosity::CRITICAL => "CRITICAL",
             Verbosity::ERROR => "ERROR",
             Verbosity::WARNING => "WARNING",
             Verbosity::INFO => "INFO",
             Verbosity::DEBUG => "DEBUG",
             _ => "NOTSET",
-        })
+        };
+        write!(f, "{}", string)
     }
 }
 
@@ -103,7 +106,7 @@ pub fn print(
                 string
             );
         } else {
-            call_functions_string = format!("{}", utility.traceback[utility.traceback.len() - 1]);
+            call_functions_string = utility.traceback[utility.traceback.len() - 1].to_string();
             println!(
                 "[{}][{}][{}]::{}",
                 verbosity.to_string(),

@@ -79,7 +79,7 @@ impl Config {
             }
         }
 
-        return config;
+        config
     }
 }
 
@@ -98,9 +98,8 @@ pub struct Preferences {
     pub min_verbosity: Verbosity,
     pub disable_input: bool,
 }
-
-impl Preferences {
-    pub fn new() -> Preferences {
+impl Default for Preferences {
+    fn default() -> Preferences {
         let mut prepare = Preferences {
             default_print: true,
             print_generic: false,
@@ -118,9 +117,11 @@ impl Preferences {
 
         prepare.parse_arguments();
 
-        return prepare;
+        prepare
     }
+}
 
+impl Preferences {
     ///Parses command line arguments using arg parse
     fn parse_arguments(&mut self) {
         let mut parser = ArgumentParser::new();

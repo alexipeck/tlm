@@ -1,19 +1,35 @@
 extern crate diesel;
 use tlm::{
     config::Config,
-    scheduler::{ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType, Test},
+    scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType},
     utility::Utility,
 };
 
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use text_io::read;
 
 fn main() {
     //traceback and timing utility
     let utility = Utility::new("main");
+    let progress_bars = MultiProgress::new();
+
+    let style = ProgressStyle::default_bar()
+        .template(
+            "{spinner:.green} [{prefix}] [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}} ({eta})",
+        )
+        .with_key("eta", |state| format!("{:.1}s", state.eta().as_secs_f64()))
+        .progress_chars("#>-");
+
+    let import_bar = progress_bars.add(ProgressBar::new(0).with_style(style.clone()));
+    let process_bar = progress_bars.add(ProgressBar::new(0).with_style(style.clone()));
+    let hash_bar = progress_bars.add(ProgressBar::new(0).with_style(style));
+
+    hash_bar.set_prefix("Hashing");
+    process_bar.set_prefix("Processing");
+    import_bar.set_prefix("Importing");
 
     let config: Config = Config::new(&utility.preferences);
 
@@ -38,34 +54,27 @@ fn main() {
     //Initial setup in own scope so lock drops
     {
         let mut tasks_guard = tasks.lock().unwrap();
+        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::new(hash_bar))));
+
         tasks_guard.push_back(Task::new(TaskType::ImportFiles(ImportFiles::new(
             &config.allowed_extensions,
             &config.ignored_paths,
+            import_bar,
         ))));
 
-        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new())));
+        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new(
+            process_bar,
+        ))));
     }
 
-    //Placeholder user input
-    if !utility.preferences.disable_input {
-        println!("Pick a number to print or -1 to stop");
-        loop {
-            let input: i32 = read!();
-            if input == -1 {
-                break;
-            }
-
-            {
-                let mut tasks_guard = tasks.lock().unwrap();
-                tasks_guard.push_back(Task::new(TaskType::Test(Test::new(&format!(
-                    "Entered: {}",
-                    input
-                )))));
-            }
-        }
-    }
+    let running = Arc::new(AtomicBool::new(true));
+    let running_inner = running.clone();
+    ctrlc::set_handler(move || running_inner.store(false, Ordering::SeqCst))
+        .expect("Error setting Ctrl-C handler");
+    while running.load(Ordering::SeqCst) {}
 
     stop_scheduler.store(true, Ordering::Relaxed);
+
     let scheduler = scheduler_handle.join().unwrap();
 
     scheduler
@@ -76,5 +85,5 @@ fn main() {
         .print_number_of_shows(utility.clone());
 
     scheduler.file_manager.print_shows(utility.clone());
-    scheduler.file_manager.print_generics(utility.clone());
+    scheduler.file_manager.print_generics(utility);
 }

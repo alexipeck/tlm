@@ -14,6 +14,10 @@ table! {
         full_path -> Text,
         designation -> Int4,
         file_hash -> Nullable<Varchar>,
+        width -> Nullable<Int4>,
+        height -> Nullable<Int4>,
+        framerate -> Nullable<Float8>,
+        length_time -> Nullable<Float8>,
     }
 }
 
@@ -50,4 +54,10 @@ joinable!(episode -> generic (generic_uid));
 joinable!(episode -> show (show_uid));
 joinable!(job_task_queue -> job_queue (job_uid));
 
-allow_tables_to_appear_in_same_query!(episode, generic, job_queue, job_task_queue, show,);
+allow_tables_to_appear_in_same_query!(
+    episode,
+    generic,
+    job_queue,
+    job_task_queue,
+    show,
+);

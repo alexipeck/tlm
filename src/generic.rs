@@ -1,4 +1,8 @@
-use std::{collections::HashSet, fs, path::PathBuf};
+use std::{
+    collections::HashSet,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     designation::{convert_i32_to_designation, Designation},
@@ -23,7 +27,7 @@ pub struct Generic {
 
 impl Generic {
     //needs to be able to be created from a pathbuf or pulled from the database
-    pub fn new(raw_filepath: &PathBuf, utility: Utility) -> Self {
+    pub fn new(raw_filepath: &Path, utility: Utility) -> Self {
         let mut utility = utility.clone_add_location("new(Generic)");
 
         let generic = Generic {
@@ -31,11 +35,11 @@ impl Generic {
             designation: Designation::Generic,
             generic_uid: None,
             hash: None,
-            profile: None,
+            profile: Profile::from_file(raw_filepath.to_path_buf()),
         };
 
         utility.print_function_timer();
-        return generic;
+        generic
     }
 
     ///Hash the file with seahash for data integrity purposes so we
@@ -51,7 +55,7 @@ impl Generic {
         let mut utility = utility.clone_add_location("from_row(Generic)");
 
         let generic_uid_temp: i32 = generic_model.generic_uid;
-        let full_path_temp: String = generic_model.full_path;
+        let full_path_temp: String = generic_model.full_path.to_owned();
         let designation_temp: i32 = generic_model.designation;
 
         //change to have it pull all info out of the db, it currently generates what it can from the filename
@@ -59,17 +63,17 @@ impl Generic {
             full_path: PathBuf::from(&full_path_temp),
             designation: convert_i32_to_designation(designation_temp), //Designation::Generic
             generic_uid: Some(generic_uid_temp as usize),
-            hash: generic_model.file_hash,
-            profile: Some(Profile::new(0, 0, 0, 0)), //this is fine for now as profile isn't in the database//asdf;
+            hash: generic_model.file_hash.to_owned(),
+            profile: generic_model.get_profile(),
         };
 
         utility.print_function_timer();
 
-        return generic;
+        generic
     }
 
     pub fn get_all_filenames_as_hashset_from_generics(
-        generics: &Vec<Generic>,
+        generics: &[Generic],
         utility: Utility,
     ) -> HashSet<PathBuf> {
         let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
@@ -79,7 +83,7 @@ impl Generic {
         }
 
         utility.print_function_timer();
-        return hashset;
+        hashset
     }
 
     ///Returns a vector of ffmpeg arguments for later execution
@@ -167,7 +171,7 @@ impl Generic {
     /// I doubt this will stay as I think a temp directory would be more appropriate.
     /// This function returns that as a PathBuf
     pub fn generate_encode_path_from_pathbuf(pathbuf: PathBuf) -> PathBuf {
-        return Generic::get_full_path_with_suffix_from_pathbuf(pathbuf, "_encodeH4U8".to_string());
+        Generic::get_full_path_with_suffix_from_pathbuf(pathbuf, "_encodeH4U8".to_string())
     }
 
     pub fn get_full_path(&self) -> String {
@@ -178,7 +182,7 @@ impl Generic {
         let utility = utility.clone_add_location("get_generic_uid(Show)");
 
         if self.generic_uid.is_some() {
-            return self.generic_uid.unwrap();
+            self.generic_uid.unwrap()
         } else {
             print(
                 Verbosity::CRITICAL,
@@ -207,11 +211,11 @@ impl Generic {
                 self.get_full_path(),
             ),
             utility.preferences.generic_output_whitelisted,
-            utility.clone(),
+            utility,
         );
     }
 
-    pub fn print_generics(generics: &Vec<Generic>, utility: Utility) {
+    pub fn print_generics(generics: &[Generic], utility: Utility) {
         let mut utility = utility.clone_add_location("print_generics(Generic)");
 
         if !utility.preferences.print_generic && !utility.preferences.generic_output_whitelisted {

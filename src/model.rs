@@ -1,11 +1,16 @@
 use super::generic::Generic;
 use super::schema::{episode, generic, show};
+use crate::profile::Profile;
 
 #[derive(Insertable)]
 #[table_name = "generic"]
 pub struct NewGeneric {
     pub full_path: String,
     pub designation: i32,
+    pub width: Option<i32>,
+    pub height: Option<i32>,
+    pub framerate: Option<f64>,
+    pub length_time: Option<f64>,
 }
 
 #[derive(Queryable, AsChangeset, Identifiable)]
@@ -16,16 +21,46 @@ pub struct GenericModel {
     pub full_path: String,
     pub designation: i32,
     pub file_hash: Option<String>,
+    pub width: Option<i32>,
+    pub height: Option<i32>,
+    pub framerate: Option<f64>,
+    pub length_time: Option<f64>,
 }
 
 impl GenericModel {
     pub fn from_generic(generic: Generic) -> GenericModel {
-        return GenericModel {
-            generic_uid: generic.generic_uid.unwrap() as i32,
-            full_path: generic.get_full_path(),
-            designation: generic.designation as i32,
-            file_hash: generic.hash,
-        };
+        if generic.profile.is_some() {
+            GenericModel {
+                generic_uid: generic.generic_uid.unwrap() as i32,
+                full_path: generic.get_full_path(),
+                designation: generic.designation as i32,
+                file_hash: generic.hash,
+                width: Some(generic.profile.to_owned().unwrap().width as i32),
+                height: Some(generic.profile.to_owned().unwrap().height as i32),
+                framerate: Some(generic.profile.to_owned().unwrap().framerate),
+                length_time: Some(generic.profile.unwrap().length_time),
+            }
+        } else {
+            GenericModel {
+                generic_uid: generic.generic_uid.unwrap() as i32,
+                full_path: generic.get_full_path(),
+                designation: generic.designation as i32,
+                file_hash: generic.hash,
+                width: None,
+                height: None,
+                framerate: None,
+                length_time: None,
+            }
+        }
+    }
+
+    pub fn get_profile(&self) -> Option<Profile> {
+        Some(Profile {
+            width: self.width? as u32,
+            height: self.height? as u32,
+            framerate: self.framerate?,
+            length_time: self.length_time?,
+        })
     }
 }
 
@@ -47,13 +82,13 @@ impl NewEpisode {
         season_number: usize,
         episode_number: usize,
     ) -> Self {
-        return NewEpisode {
+        NewEpisode {
             generic_uid: generic_uid as i32,
             show_uid: show_uid as i32,
-            episode_title: episode_title,
+            episode_title,
             season_number: season_number as i32,
             episode_number: episode_number as i32,
-        };
+        }
     }
 }
 

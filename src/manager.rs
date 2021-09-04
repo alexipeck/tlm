@@ -8,6 +8,7 @@ use crate::{
     tv::{Episode, TV},
     utility::Utility,
 };
+use indicatif::ProgressBar;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -57,7 +58,7 @@ impl FileManager {
         file_manager.tracked_directories = config.tracked_directories.clone();
 
         utility.print_function_timer();
-        return file_manager;
+        file_manager
     }
 
     pub fn print_number_of_generic(&self, utility: Utility) {
@@ -96,32 +97,53 @@ impl FileManager {
         for generic_model in raw_generic {
             generic.push(Generic::from_generic_model(generic_model, utility.clone()));
         }
-
         utility.print_function_timer();
-        return generic;
+        generic
     }
 
-    pub fn process_new_files(&mut self, utility: Utility) {
+    pub fn process_new_files(&mut self, progress_bar: &ProgressBar, utility: Utility) {
         let mut utility = utility.clone_add_location("process_new_files(FileManager)");
         let connection = establish_connection();
         let mut new_episodes = Vec::new();
         let mut new_generics = Vec::new();
 
-        //Temporary because we need to get the id's that the database returns
-        //Will just be appended to working generic at the end
+        //Will just be appended to working content at the end
         let mut temp_generics = Vec::new();
+        progress_bar.set_length(self.new_files_queue.len() as u64);
 
-        //Create Generic and NewGeneric that will be added to the database in a batch
-        while self.new_files_queue.len() > 0 {
+        //Create Content and NewContent that will be added to the database in a batch
+        while !self.new_files_queue.is_empty() {
             let current = self.new_files_queue.pop();
-            if current.is_some() {
-                let current = current.unwrap();
+            if let Some(current) = current {
+                /*progress_bar.set_message(format!(
+                    "processing file: {}",
+                    current.file_name().unwrap().to_str().unwrap()
+                ));*/
 
                 let generic = Generic::new(&current, utility.clone());
-                new_generics.push(NewGeneric {
-                    full_path: String::from(generic.full_path.to_str().unwrap()),
-                    designation: generic.designation as i32,
-                });
+                progress_bar.inc(1);
+
+                if generic.profile.is_some() {
+                    let profile = generic.profile.unwrap();
+
+                    new_generics.push(NewGeneric {
+                        full_path: String::from(generic.full_path.to_str().unwrap()),
+                        designation: generic.designation as i32,
+                        width: Some(profile.width as i32),
+                        height: Some(profile.height as i32),
+                        framerate: Some(profile.framerate),
+                        length_time: Some(profile.length_time),
+                    });
+                } else {
+                    new_generics.push(NewGeneric {
+                        full_path: String::from(generic.full_path.to_str().unwrap()),
+                        designation: generic.designation as i32,
+                        width: None,
+                        height: None,
+                        framerate: None,
+                        length_time: None,
+                    });
+                }
 
                 temp_generics.push(generic);
             }
@@ -138,6 +160,10 @@ impl FileManager {
             lazy_static! {
                 static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
             }
+            progress_bar.set_message(format!(
+                "creating episode: {}",
+                generic.full_path.file_name().unwrap().to_str().unwrap()
+            ));
 
             let episode_string: String;
             match REGEX.find(&generic.get_filename()) {
@@ -157,22 +183,16 @@ impl FileManager {
             }
 
             generic.designation = Designation::Episode;
-            let mut show_title: String = String::new();
-            for section in String::from(
-                generic
-                    .full_path
-                    .parent()
-                    .unwrap()
-                    .parent()
-                    .unwrap()
-                    .to_string_lossy(),
-            )
-            .split(get_os_slash())
-            .rev()
-            {
-                show_title = String::from(section);
-                break;
-            }
+            let show_title = generic
+                .full_path
+                .parent()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .to_string();
 
             let show_uid =
                 self.tv
@@ -189,7 +209,6 @@ impl FileManager {
             );
             new_episodes.push(new_episode);
         }
-        println!("Amount of new_episodes to process: {}", new_episodes.len());
 
         self.generic_files.append(&mut temp_generics);
 
@@ -197,17 +216,8 @@ impl FileManager {
         let episode_models = create_episodes(&connection, new_episodes);
         let mut episodes: Vec<Episode> = Vec::new();
 
-        //make EpisodeModels into Episodes
-        println!(
-            "Amount of episode models to process: {}",
-            episode_models.len()
-        );
-        let mut cc: usize = 0;
-        let mut gc: usize = 0;
         for episode_model in episode_models {
-            cc += 1;
             for generic in &self.generic_files {
-                gc += 1;
                 if generic.get_generic_uid(utility.clone()) == episode_model.generic_uid as usize {
                     let episode = Episode::new(
                         generic.clone(),
@@ -221,45 +231,37 @@ impl FileManager {
                 }
             }
         }
-        println!("outer: {} | inner: {}", cc, gc);
-        println!("Amount of episodes to add: {}", episodes.len());
 
         self.tv.insert_episodes(episodes, utility.clone());
 
         utility.print_function_timer();
 
-        fn get_os_slash() -> char {
-            return if !cfg!(target_os = "windows") {
-                '/'
-            } else {
-                '\\'
-            };
-        }
-
         fn rem_first_char(value: &str) -> &str {
             let mut chars = value.chars();
             chars.next();
-            return chars.as_str();
+            chars.as_str()
         }
+        progress_bar.finish();
     }
 
     //Hash set guarentees no duplicates in O(1) time
     pub fn import_files(
         &mut self,
-        allowed_extensions: &Vec<String>,
-        ignored_paths: &Vec<String>,
+        allowed_extensions: &[String],
+        ignored_paths: &[String],
+        progress_bar: &ProgressBar,
         utility: Utility,
     ) {
         let mut utility = utility.clone_add_location("import_files(FileManager)");
 
         //Return true if string contains any substring from Vector
-        fn str_contains_strs(input_str: &str, substrings: &Vec<String>) -> bool {
+        fn str_contains_strs(input_str: &str, substrings: &[String]) -> bool {
             for substring in substrings {
                 if String::from(input_str).contains(&substring.to_lowercase()) {
                     return true;
                 }
             }
-            return false;
+            false
         }
 
         //import all files in tracked root directories
@@ -275,6 +277,10 @@ impl FileManager {
                     let temp_string = entry.path().extension().unwrap().to_str().unwrap();
                     if allowed_extensions.contains(&temp_string.to_lowercase()) {
                         let entry_string = entry.into_path();
+                        progress_bar.set_message(format!(
+                            "importing files: {}",
+                            entry_string.file_name().unwrap().to_str().unwrap()
+                        ));
                         if !self.existing_files_hashset.contains(&entry_string) {
                             self.existing_files_hashset.insert(entry_string.clone());
                             self.new_files_queue.push(entry_string.clone());
@@ -283,21 +289,15 @@ impl FileManager {
                 }
             }
         }
-        print(
-            Verbosity::INFO,
-            From::Manager,
-            format!("{} new files ready for import", self.new_files_queue.len()),
-            false,
-            utility.clone(),
-        );
+        progress_bar.finish_with_message("Finished importing files");
         utility.print_function_timer();
     }
 
     pub fn print_shows(&self, utility: Utility) {
-        self.tv.print_shows(utility.clone());
+        self.tv.print_shows(utility);
     }
 
     pub fn print_generics(&self, utility: Utility) {
-        Generic::print_generics(&self.generic_files, utility.clone());
+        Generic::print_generics(&self.generic_files, utility);
     }
 }
