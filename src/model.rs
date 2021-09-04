@@ -50,7 +50,6 @@ impl NewEpisode {
         return NewEpisode {
             generic_uid: generic_uid as i32,
             show_uid: show_uid as i32,
-
             episode_title: episode_title,
             season_number: season_number as i32,
             episode_number: episode_number as i32,

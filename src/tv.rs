@@ -24,6 +24,24 @@ impl TV {
         };
     }
 
+    pub fn insert_episodes(&mut self, episodes: Vec<Episode>, utility: Utility) {
+        let mut utility = utility.clone_add_location("insert_episodes(TV)");
+
+        //find the associated show
+        //insert episode into that show
+        for episode in episodes {
+            let show_uid = episode.show_uid;
+            for show in &mut self.shows {
+                if show.show_uid == show_uid {
+                    show.insert_episode(episode, utility.clone());
+                    break;
+                }
+            }
+        }
+
+        utility.print_function_timer();
+    }
+
     pub fn ensure_show_exists(
         &mut self,
         show_title: String,
@@ -67,9 +85,11 @@ impl TV {
         if !utility.preferences.print_shows {
             return;
         }
-
         for show in &self.shows {
             show.print_show(utility.clone());
+            for season in &show.seasons {
+                println!("S{} has {} episodes", season.number, season.episodes.len());
+            }
         }
 
         utility.print_function_timer();
@@ -162,11 +182,6 @@ impl Season {
             episodes: Vec::new(),
         }
     }
-
-    pub fn insert_in_order(&mut self, generic: Episode) {
-        //not in order, but that's fine for now
-        self.episodes.push(generic);
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -183,6 +198,32 @@ impl Show {
             show_title: show_title,
             seasons: Vec::new(),
         }
+    }
+
+    pub fn insert_episode(&mut self, episode: Episode, utility: Utility) {
+        let mut utility = utility.clone_add_location("insert_episode(Show)");
+        let season_number = episode.show_season;
+
+        let mut found_season: bool = false;
+        for season in &mut self.seasons {
+            if season.number == season_number {
+                found_season = true;
+            }
+        }
+
+        if !found_season {
+            self.seasons.push(Season::new(season_number))
+        }
+        
+        for season in &mut self.seasons {
+            if season.number != season_number {
+                continue;
+            }
+            season.episodes.push(episode);
+            break;
+        }
+
+        utility.print_function_timer();
     }
 
     pub fn print_show(&self, utility: Utility) {

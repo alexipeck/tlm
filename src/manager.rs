@@ -5,7 +5,7 @@ use crate::{
     designation::Designation,
     generic::Generic,
     print::{print, From, Verbosity},
-    tv::{Show, TV},
+    tv::{Episode, TV},
     utility::Utility,
 };
 use lazy_static::lazy_static;
@@ -31,7 +31,7 @@ impl TrackedDirectories {
 
 pub struct FileManager {
     pub tracked_directories: TrackedDirectories,
-    pub working_generic: Vec<Generic>,
+    pub generic_files: Vec<Generic>,
     pub existing_files_hashset: HashSet<PathBuf>,
     pub tv: TV,
     pub new_files_queue: Vec<PathBuf>,
@@ -44,14 +44,14 @@ impl FileManager {
         let mut file_manager = FileManager {
             tracked_directories: TrackedDirectories::new(),
             tv: TV::new(utility.clone()),
-            working_generic: Vec::new(),
+            generic_files: Vec::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
         };
 
-        file_manager.working_generic = file_manager.get_all_generic(utility.clone());
+        file_manager.generic_files = file_manager.get_all_generic(utility.clone());
         file_manager.existing_files_hashset = Generic::get_all_filenames_as_hashset_from_generics(
-            &file_manager.working_generic,
+            &file_manager.generic_files,
             utility.clone(),
         );
         file_manager.tracked_directories = config.tracked_directories.clone();
@@ -68,7 +68,7 @@ impl FileManager {
             From::Manager,
             format!(
                 "Number of generic loaded in memory: {}",
-                self.working_generic.len()
+                self.generic_files.len()
             ),
             false,
             utility,
@@ -189,11 +189,34 @@ impl FileManager {
             );
             new_episodes.push(new_episode);
         }
+        println!("Amount of new_episodes to process: {}", new_episodes.len());
 
-        self.working_generic.append(&mut temp_generics);
+        self.generic_files.append(&mut temp_generics);
 
         //episodes isn't being used yet but this does insert into the database
-        let _episodes = create_episodes(&connection, new_episodes);
+        let episode_models = create_episodes(&connection, new_episodes);
+        let mut episodes: Vec<Episode> = Vec::new();
+
+        //make EpisodeModels into Episodes
+        println!("Amount of episode models to process: {}", episode_models.len());
+        let mut cc: usize = 0;
+        let mut gc: usize = 0;
+        for episode_model in episode_models {
+            cc += 1;
+            for generic in &self.generic_files {
+                gc += 1;
+                if generic.get_generic_uid(utility.clone()) == episode_model.generic_uid as usize {
+                    let episode = Episode::new(generic.clone(), episode_model.show_uid as usize, "".to_string(), episode_model.season_number as usize, vec![episode_model.episode_number as usize]);//temporary first episode_number
+                    episodes.push(episode);
+                    break;
+                }
+            }
+        }
+        println!("outer: {} | inner: {}", cc, gc);
+        println!("Amount of episodes to add: {}", episodes.len());
+
+        self.tv.insert_episodes(episodes, utility.clone());
+
         utility.print_function_timer();
 
         fn get_os_slash() -> char {
@@ -251,7 +274,7 @@ impl FileManager {
                 }
             }
         }
-        println!("{} new files ready for import", self.new_files_queue.len());
+        print(Verbosity::INFO, From::Manager, format!("{} new files ready for import", self.new_files_queue.len()), false, utility.clone());
         utility.print_function_timer();
     }
 
@@ -260,6 +283,6 @@ impl FileManager {
     }
 
     pub fn print_generics(&self, utility: Utility) {
-        Generic::print_generics(&self.working_generic, utility.clone());
+        Generic::print_generics(&self.generic_files, utility.clone());
     }
 }
