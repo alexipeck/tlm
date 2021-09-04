@@ -8,9 +8,11 @@ defined directories and a list of allowed extensions.
 * [ffmpeg](https://ffmpeg.org/)
 * [Diesel](https://diesel.rs/)
 * [Postgres](https://www.postgresql.org/)
+* [Mediainfo](https://mediaarea.net/en/MediaInfo)
 
 ## Installation
 Currently the setup for tlm isn't very complicated, you'll need postgres running and diesel setup to interact with it.
+Mediainfo will also need to be installed and in path
 A guide to setting up diesel can be found [here](https://diesel.rs/guides/getting-started.html).<br/>
 
 Make sure to run ```diesel database setup``` before the first run to populate postgres with tables<br/>
