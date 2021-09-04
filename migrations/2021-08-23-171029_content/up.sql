@@ -1,0 +1,2 @@
+ALTER TABLE content
+ADD COLUMN file_hash VARCHAR(20)
