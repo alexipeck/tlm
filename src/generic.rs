@@ -50,7 +50,7 @@ impl Generic {
     pub fn from_generic_model(generic_model: GenericModel, utility: Utility) -> Generic {
         let mut utility = utility.clone_add_location("from_row(Generic)");
 
-        let generic_uid_temp: i32 = generic_model.id;
+        let generic_uid_temp: i32 = generic_model.generic_uid;
         let full_path_temp: String = generic_model.full_path;
         let designation_temp: i32 = generic_model.designation;
 
@@ -211,14 +211,14 @@ impl Generic {
         );
     }
 
-    pub fn print_generics(generic: &Vec<Generic>, utility: Utility) {
+    pub fn print_generics(generics: &Vec<Generic>, utility: Utility) {
         let mut utility = utility.clone_add_location("print_generics(Generic)");
 
         if !utility.preferences.print_generic && !utility.preferences.generic_output_whitelisted {
             return;
         }
 
-        for generic in generic {
+        for generic in generics {
             generic.print_generic(utility.clone());
         }
 

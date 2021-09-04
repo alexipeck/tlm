@@ -24,7 +24,9 @@ pub fn create_generics<'a>(
 
 ///Inserts show data into the database
 pub fn create_show<'a>(conn: &PgConnection, show_title: String) -> ShowModel {
-    let new_show = NewShow { show_title: show_title };
+    let new_show = NewShow {
+        show_title: show_title,
+    };
 
     diesel::insert_into(show_table::table)
         .values(&new_show)
@@ -42,7 +44,7 @@ pub fn create_episodes<'a>(conn: &PgConnection, new_episode: Vec<NewEpisode>) ->
 
 ///Get all generic from the database
 pub fn get_all_generics(utility: Utility) -> Vec<GenericModel> {
-    let mut utility = utility.clone_add_location("get_all_generic (database)");
+    let mut utility = utility.clone_add_location("get_all_generic(database)");
     let connection = establish_connection();
 
     utility.print_function_timer();

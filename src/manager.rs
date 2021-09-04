@@ -130,7 +130,7 @@ impl FileManager {
         //Insert the generic and then update the uid's for the full Generic structure
         let generics = create_generics(&connection, new_generics);
         for i in 0..generics.len() {
-            temp_generics[i].generic_uid = Some(generics[i].id as usize);
+            temp_generics[i].generic_uid = Some(generics[i].generic_uid as usize);
         }
         self.working_generic.append(&mut temp_generics);
 
@@ -189,7 +189,6 @@ impl FileManager {
             let new_episode = NewEpisode::new(
                 generic.get_generic_uid(utility.clone()),
                 show_uid,
-                show_title.clone(),
                 "".to_string(), //episode_title
                 season_number,
                 episode_number,

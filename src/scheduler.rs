@@ -252,7 +252,7 @@ impl Scheduler {
 
     pub fn start_scheduler(&mut self, utility: Utility) {
         let utility = utility.clone_add_location("start_scheduler");
-        let wait_time = time::Duration::from_secs(1);
+        let wait_time = time::Duration::from_secs(0);
         loop {
             let mut task: Task;
             {
