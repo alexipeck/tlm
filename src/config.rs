@@ -87,13 +87,13 @@ impl Config {
 #[derive(Clone, Debug)]
 pub struct Preferences {
     pub default_print: bool,
-    pub print_content: bool,
+    pub print_generic: bool,
     pub print_shows: bool,
     pub print_general: bool,
     pub config_file_path: String,
     pub timing_enabled: bool,
     pub timing_threshold: u128,
-    pub content_output_whitelisted: bool,
+    pub generic_output_whitelisted: bool,
     pub show_output_whitelisted: bool,
     pub min_verbosity: Verbosity,
     pub disable_input: bool,
@@ -103,7 +103,7 @@ impl Preferences {
     pub fn new() -> Preferences {
         let mut prepare = Preferences {
             default_print: true,
-            print_content: false,
+            print_generic: false,
             print_shows: false,
             print_general: false,
             config_file_path: String::from("./.tlm_config"),
@@ -111,7 +111,7 @@ impl Preferences {
             timing_enabled: false,
             timing_threshold: 0,
 
-            content_output_whitelisted: false,
+            generic_output_whitelisted: false,
             show_output_whitelisted: false,
             disable_input: false,
         };
@@ -125,51 +125,59 @@ impl Preferences {
     fn parse_arguments(&mut self) {
         let mut parser = ArgumentParser::new();
         parser.set_description("tlm: Transcoding Library Manager");
+
         parser.refer(&mut self.default_print).add_option(
             &["--disable-print", "--no-print"],
             StoreFalse,
             "Disables printing by default. Specific types of print can be enabled on top of this",
         );
-        parser.refer(&mut self.print_content).add_option(
-            &["--print-content"],
+
+        parser.refer(&mut self.print_generic).add_option(
+            &["--print-generic"],
             StoreTrue,
-            "Enable printing content",
+            "Enable printing generic",
         );
+
         parser.refer(&mut self.print_shows).add_option(
             &["--print-shows"],
             StoreTrue,
             "Enable printing shows",
         );
+
         parser.refer(&mut self.print_general).add_option(
             &["--print-general"],
             StoreTrue,
             "Enable printing general debug information",
         );
+
         parser.refer(&mut self.config_file_path).add_option(
             &["--config", "-c"],
             Store,
             "Set a custom config path",
         );
+
         parser.refer(&mut self.min_verbosity).add_option(
             &["--min-severity", "--min-verbosity"],
             Store,
             "Set a minimum severity (debug, info, warning, error, critical)",
         );
+
         parser.refer(&mut self.timing_enabled).add_option(
             &["--enable-timing"],
             StoreTrue,
             "Enable program self-timing",
         );
+
         parser.refer(&mut self.timing_threshold).add_option(
             &["--timing-threshold", "--timing-cutoff"],
             Store,
             "Threshold for how slow a timed event has to be in order to print",
         );
 
-        parser.refer(&mut self.content_output_whitelisted).add_option(
-            &["--whitelist-content-output"],
+        parser.refer(&mut self.generic_output_whitelisted).add_option(
+            &["--whitelist-generic-output"],
             StoreTrue,
-            "Whitelist all output from content, whitelisting a type will cause it to print regardless of other limiting flags",
+            "Whitelist all output from generic, whitelisting a type will cause it to print regardless of other limiting flags",
         );
 
         parser.refer(&mut self.show_output_whitelisted).add_option(
@@ -177,6 +185,7 @@ impl Preferences {
             StoreTrue,
             "Whitelist all output from shows, whitelisting a type will cause it to print regardless of other limiting flags",
         );
+
         parser.refer(&mut self.disable_input).add_option(
             &["--disable-input", "--no-input"],
             StoreTrue,

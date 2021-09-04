@@ -70,11 +70,11 @@ fn main() {
 
     scheduler
         .file_manager
-        .print_number_of_content(utility.clone());
+        .print_number_of_generic(utility.clone());
     scheduler
         .file_manager
         .print_number_of_shows(utility.clone());
 
     scheduler.file_manager.print_shows(utility.clone());
-    scheduler.file_manager.print_content(utility.clone());
+    scheduler.file_manager.print_generics(utility.clone());
 }

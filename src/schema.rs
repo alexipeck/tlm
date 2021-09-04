@@ -1,19 +1,19 @@
 table! {
-    content (id) {
-        id -> Int4,
-        full_path -> Text,
-        designation -> Int4,
-        file_hash -> Nullable<Varchar>,
-    }
-}
-
-table! {
-    episode (content_uid, show_uid, season_number, episode_number) {
-        content_uid -> Int4,
+    episode (generic_uid, show_uid, season_number, episode_number) {
+        generic_uid -> Int4,
         show_uid -> Int4,
         episode_title -> Text,
         season_number -> Int4,
         episode_number -> Int4,
+    }
+}
+
+table! {
+    generic (generic_uid) {
+        generic_uid -> Int4,
+        full_path -> Text,
+        designation -> Int4,
+        file_hash -> Nullable<Varchar>,
     }
 }
 
@@ -42,18 +42,12 @@ table! {
 table! {
     show (show_uid) {
         show_uid -> Int4,
-        title -> Text,
+        show_title -> Text,
     }
 }
 
-joinable!(episode -> content (content_uid));
+joinable!(episode -> generic (generic_uid));
 joinable!(episode -> show (show_uid));
 joinable!(job_task_queue -> job_queue (job_uid));
 
-allow_tables_to_appear_in_same_query!(
-    content,
-    episode,
-    job_queue,
-    job_task_queue,
-    show,
-);
+allow_tables_to_appear_in_same_query!(episode, generic, job_queue, job_task_queue, show,);

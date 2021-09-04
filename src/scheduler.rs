@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    content::Content,
+    generic::Generic,
     manager::FileManager,
     print::{print, From, Verbosity},
     utility::Utility,
@@ -110,7 +110,7 @@ impl Encode {
             From::Job,
             format!(
                 "Encoding file \'{}\'",
-                Content::get_filename_from_pathbuf(self.source_path.clone().clone())
+                Generic::get_filename_from_pathbuf(self.source_path.clone().clone())
             ),
             false,
             utility,
@@ -132,7 +132,7 @@ impl Encode {
         }
         //only uncomment if you want disgusting output
         //should be error, but from ffmpeg, stderr mostly consists of stdout information
-        //print(Verbosity::DEBUG, "content", "encode", format!("{}", String::from_utf8_lossy(&buffer.stderr).to_string()));
+        //print(Verbosity::DEBUG, "generic", "encode", format!("{}", String::from_utf8_lossy(&buffer.stderr).to_string()));
         self.status_completed = true;
     }
 }
@@ -164,18 +164,18 @@ impl Test {
 }
 
 //TODO Needs to be properly implemented here
-/*fn hash_files(contents: Vec<Content>, stop_marker: Arc<AtomicBool>) -> JoinHandle<()> {
+/*fn hash_files(generics: Vec<generic>, stop_marker: Arc<AtomicBool>) -> JoinHandle<()> {
     let stop_background = Arc::new(AtomicBool::new(false));
     let stop_background_inner = stop_background.clone();
 
     //Hash files until all other functions are complete
     thread::spawn(move || {
         let connection = establish_connection();
-        for mut content in contents {
-            if content.hash.is_none() {
-                content.hash();
-                if ContentModel::from_content(content)
-                    .save_changes::<ContentModel>(&connection)
+        for mut generic in generics {
+            if generic.hash.is_none() {
+                generic.hash();
+                if GenericModel::from_generic(generic)
+                    .save_changes::<GenericModel>(&connection)
                     .is_err()
                 {
                     eprintln!("Failed to update hash in database");
@@ -252,7 +252,7 @@ impl Scheduler {
 
     pub fn start_scheduler(&mut self, utility: Utility) {
         let utility = utility.clone_add_location("start_scheduler");
-        let wait_time = time::Duration::from_secs(1);
+        let wait_time = time::Duration::from_secs(0);
         loop {
             let mut task: Task;
             {

@@ -1,11 +1,8 @@
-use crate::model::*;
-use crate::schema::content as content_table;
-use crate::schema::content::dsl::content as content_data;
-use crate::schema::episode as episode_table;
-use crate::schema::show as show_table;
-use crate::utility::Utility;
-use diesel::pg::PgConnection;
-use diesel::prelude::*;
+use crate::{
+    model::*, schema::episode as episode_table, schema::generic as generic_table,
+    schema::generic::dsl::generic as generic_data, schema::show as show_table, utility::Utility,
+};
+use diesel::{pg::PgConnection, prelude::*};
 use std::env;
 
 ///Sets up a connection to the database via DATABASE_URL environment variable
@@ -14,20 +11,22 @@ pub fn establish_connection() -> PgConnection {
     PgConnection::establish(&database_url).expect(&format!("Error connecting to {}", database_url))
 }
 
-///Inserts content data into the database
-pub fn create_contents<'a>(
+///Inserts generic data into the database
+pub fn create_generics<'a>(
     conn: &PgConnection,
-    new_contents: Vec<NewContent>,
-) -> Vec<ContentModel> {
-    diesel::insert_into(content_table::table)
-        .values(&new_contents)
+    new_generics: Vec<NewGeneric>,
+) -> Vec<GenericModel> {
+    diesel::insert_into(generic_table::table)
+        .values(&new_generics)
         .get_results(conn)
-        .expect("Error saving new content")
+        .expect("Error saving new generic")
 }
 
 ///Inserts show data into the database
-pub fn create_show<'a>(conn: &PgConnection, title: String) -> ShowModel {
-    let new_show = NewShow { title: title };
+pub fn create_show<'a>(conn: &PgConnection, show_title: String) -> ShowModel {
+    let new_show = NewShow {
+        show_title: show_title,
+    };
 
     diesel::insert_into(show_table::table)
         .values(&new_show)
@@ -43,14 +42,14 @@ pub fn create_episodes<'a>(conn: &PgConnection, new_episode: Vec<NewEpisode>) ->
         .expect("Error saving new episode")
 }
 
-///Get all content from the database
-pub fn get_all_content(utility: Utility) -> Vec<ContentModel> {
-    let mut utility = utility.clone_add_location("get_all_content (database)");
+///Get all generic from the database
+pub fn get_all_generics(utility: Utility) -> Vec<GenericModel> {
+    let mut utility = utility.clone_add_location("get_all_generic(database)");
     let connection = establish_connection();
 
     utility.print_function_timer();
-    let data = content_data
-        .load::<ContentModel>(&connection)
-        .expect("Error loading content");
+    let data = generic_data
+        .load::<GenericModel>(&connection)
+        .expect("Error loading generic");
     return data;
 }

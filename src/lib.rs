@@ -1,7 +1,7 @@
 pub mod config;
-pub mod content;
 pub mod database;
 pub mod designation;
+pub mod generic;
 pub mod manager;
 pub mod model;
 pub mod print;

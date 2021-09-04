@@ -1,29 +1,30 @@
-use super::content::Content;
-use super::schema::{content, episode, show};
+use super::generic::Generic;
+use super::schema::{episode, generic, show};
 
 #[derive(Insertable)]
-#[table_name = "content"]
-pub struct NewContent {
+#[table_name = "generic"]
+pub struct NewGeneric {
     pub full_path: String,
     pub designation: i32,
 }
 
 #[derive(Queryable, AsChangeset, Identifiable)]
-#[table_name = "content"]
-pub struct ContentModel {
-    pub id: i32,
+#[primary_key(generic_uid)]
+#[table_name = "generic"]
+pub struct GenericModel {
+    pub generic_uid: i32,
     pub full_path: String,
     pub designation: i32,
     pub file_hash: Option<String>,
 }
 
-impl ContentModel {
-    pub fn from_content(c: Content) -> ContentModel {
-        return ContentModel {
-            id: c.content_uid.unwrap() as i32,
-            full_path: c.get_full_path(),
-            designation: c.designation as i32,
-            file_hash: c.hash,
+impl GenericModel {
+    pub fn from_generic(generic: Generic) -> GenericModel {
+        return GenericModel {
+            generic_uid: generic.generic_uid.unwrap() as i32,
+            full_path: generic.get_full_path(),
+            designation: generic.designation as i32,
+            file_hash: generic.hash,
         };
     }
 }
@@ -31,16 +32,34 @@ impl ContentModel {
 #[derive(Insertable)]
 #[table_name = "episode"]
 pub struct NewEpisode {
-    pub content_uid: i32,
+    pub generic_uid: i32,
     pub show_uid: i32,
     pub episode_title: String,
     pub season_number: i32,
     pub episode_number: i32,
 }
 
+impl NewEpisode {
+    pub fn new(
+        generic_uid: usize,
+        show_uid: usize,
+        episode_title: String,
+        season_number: usize,
+        episode_number: usize,
+    ) -> Self {
+        return NewEpisode {
+            generic_uid: generic_uid as i32,
+            show_uid: show_uid as i32,
+            episode_title: episode_title,
+            season_number: season_number as i32,
+            episode_number: episode_number as i32,
+        };
+    }
+}
+
 #[derive(Queryable)]
 pub struct EpisodeModel {
-    pub content_uid: i32,
+    pub generic_uid: i32,
     pub show_uid: i32,
     pub episode_title: String,
     pub season_number: i32,
@@ -70,11 +89,11 @@ pub struct JobTaskQueueModel {
 #[derive(Insertable)]
 #[table_name = "show"]
 pub struct NewShow {
-    pub title: String,
+    pub show_title: String,
 }
 
 #[derive(Queryable)]
 pub struct ShowModel {
     pub show_uid: i32,
-    pub title: String,
+    pub show_title: String,
 }
