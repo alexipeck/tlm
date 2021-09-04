@@ -67,11 +67,13 @@ fn main() {
         ))));
     }
 
-    let running = Arc::new(AtomicBool::new(true));
-    let running_inner = running.clone();
-    ctrlc::set_handler(move || running_inner.store(false, Ordering::SeqCst))
-        .expect("Error setting Ctrl-C handler");
-    while running.load(Ordering::SeqCst) {}
+    if !utility.preferences.disable_input {
+        let running = Arc::new(AtomicBool::new(true));
+        let running_inner = running.clone();
+        ctrlc::set_handler(move || running_inner.store(false, Ordering::SeqCst))
+            .expect("Error setting Ctrl-C handler");
+        while running.load(Ordering::SeqCst) {}
+    }
 
     stop_scheduler.store(true, Ordering::Relaxed);
 
