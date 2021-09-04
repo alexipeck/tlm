@@ -198,7 +198,10 @@ impl FileManager {
         let mut episodes: Vec<Episode> = Vec::new();
 
         //make EpisodeModels into Episodes
-        println!("Amount of episode models to process: {}", episode_models.len());
+        println!(
+            "Amount of episode models to process: {}",
+            episode_models.len()
+        );
         let mut cc: usize = 0;
         let mut gc: usize = 0;
         for episode_model in episode_models {
@@ -206,7 +209,13 @@ impl FileManager {
             for generic in &self.generic_files {
                 gc += 1;
                 if generic.get_generic_uid(utility.clone()) == episode_model.generic_uid as usize {
-                    let episode = Episode::new(generic.clone(), episode_model.show_uid as usize, "".to_string(), episode_model.season_number as usize, vec![episode_model.episode_number as usize]);//temporary first episode_number
+                    let episode = Episode::new(
+                        generic.clone(),
+                        episode_model.show_uid as usize,
+                        "".to_string(),
+                        episode_model.season_number as usize,
+                        vec![episode_model.episode_number as usize],
+                    ); //temporary first episode_number
                     episodes.push(episode);
                     break;
                 }
@@ -274,7 +283,13 @@ impl FileManager {
                 }
             }
         }
-        print(Verbosity::INFO, From::Manager, format!("{} new files ready for import", self.new_files_queue.len()), false, utility.clone());
+        print(
+            Verbosity::INFO,
+            From::Manager,
+            format!("{} new files ready for import", self.new_files_queue.len()),
+            false,
+            utility.clone(),
+        );
         utility.print_function_timer();
     }
 

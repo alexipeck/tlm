@@ -125,7 +125,7 @@ impl Preferences {
     fn parse_arguments(&mut self) {
         let mut parser = ArgumentParser::new();
         parser.set_description("tlm: Transcoding Library Manager");
-        
+
         parser.refer(&mut self.default_print).add_option(
             &["--disable-print", "--no-print"],
             StoreFalse,
@@ -167,7 +167,7 @@ impl Preferences {
             StoreTrue,
             "Enable program self-timing",
         );
-        
+
         parser.refer(&mut self.timing_threshold).add_option(
             &["--timing-threshold", "--timing-cutoff"],
             Store,

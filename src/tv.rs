@@ -214,7 +214,7 @@ impl Show {
         if !found_season {
             self.seasons.push(Season::new(season_number))
         }
-        
+
         for season in &mut self.seasons {
             if season.number != season_number {
                 continue;
