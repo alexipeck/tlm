@@ -1,9 +1,9 @@
 use crate::{
-    model::{NewEpisode, NewGeneric},
     config::Config,
     database::*,
     designation::Designation,
     generic::Generic,
+    model::{NewEpisode, NewGeneric},
     print::{print, From, Verbosity},
     show::{Episode, Show},
     utility::Utility,
@@ -90,7 +90,8 @@ impl FileManager {
         generics: &[Generic],
         utility: Utility,
     ) {
-        let mut utility = utility.clone_add_location("add_all_filenames_to_hashset_from_generics(FileManager)");
+        let mut utility =
+            utility.clone_add_location("add_all_filenames_to_hashset_from_generics(FileManager)");
         for generic in generics {
             self.existing_files_hashset
                 .insert(generic.full_path.clone());
@@ -99,8 +100,8 @@ impl FileManager {
         utility.print_function_timer();
     }
 
-    pub fn print_number_of_generic(&self, utility: Utility) {
-        let utility = utility.clone_add_location("print_number_of_generic(FileManager)");
+    pub fn print_number_of_generics(&self, utility: Utility) {
+        let utility = utility.clone_add_location("print_number_of_generics(FileManager)");
 
         print(
             Verbosity::INFO,
@@ -115,15 +116,38 @@ impl FileManager {
     }
 
     pub fn print_number_of_shows(&self, utility: Utility) {
-        let utility = utility.clone_add_location("print_number_of_shows(FileManager)");
+        let mut utility = utility.clone_add_location("print_number_of_shows(FileManager)");
 
         print(
             Verbosity::INFO,
             From::Manager,
             format!("Number of shows loaded in memory: {}", self.shows.len()),
             false,
-            utility,
+            utility.clone(),
         );
+
+        utility.print_function_timer();
+    }
+
+    pub fn print_number_of_episodes(&self, utility: Utility) {
+        let mut utility = utility.clone_add_location("print_number_of_episodes(FileManager)");
+
+        let mut episode_counter = 0;
+        for show in &self.shows {
+            for season in &show.seasons {
+                episode_counter += season.episodes.len();
+            }
+        }
+
+        print(
+            Verbosity::INFO,
+            From::Manager,
+            format!("Number of episodes loaded in memory: {}", episode_counter),
+            false,
+            utility.clone(),
+        );
+
+        utility.print_function_timer();
     }
 
     pub fn process_new_files(&mut self, progress_bar: &ProgressBar, utility: Utility) {
@@ -245,7 +269,7 @@ impl FileManager {
         //episodes isn't being used yet but this does insert into the database
         let episode_models = create_episodes(&connection, new_episodes);
         let mut episodes: Vec<Episode> = Vec::new();
-        
+
         for episode_model in episode_models {
             for generic in &self.generic_files {
                 if generic.get_generic_uid(utility.clone()) == episode_model.generic_uid as usize {
@@ -391,7 +415,11 @@ impl FileManager {
         for show in &self.shows {
             show.print_show(utility.clone());
             for season in &show.seasons {
-                println!("S{} has {} episodes", season.number, season.episodes.len());
+                println!(
+                    "S{:2} has {} episodes",
+                    season.number,
+                    season.episodes.len()
+                );
             }
         }
 

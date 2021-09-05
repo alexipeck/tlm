@@ -81,10 +81,13 @@ fn main() {
 
     scheduler
         .file_manager
-        .print_number_of_generic(utility.clone());
+        .print_number_of_generics(utility.clone());
     scheduler
         .file_manager
         .print_number_of_shows(utility.clone());
+    scheduler
+        .file_manager
+        .print_number_of_episodes(utility.clone());
 
     scheduler.file_manager.print_shows(utility.clone());
     scheduler.file_manager.print_generics(utility);

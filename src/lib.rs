@@ -8,8 +8,8 @@ pub mod print;
 pub mod profile;
 pub mod scheduler;
 pub mod schema;
-pub mod timer;
 pub mod show;
+pub mod timer;
 pub mod utility;
 
 #[macro_use]
