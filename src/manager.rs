@@ -52,15 +52,51 @@ impl FileManager {
             new_files_queue: Vec::new(),
         };
 
+        //add generic_files and generics from their respective episodes to the existing_files_hashset
         file_manager.generic_files = get_all_generics(utility.clone());
-        file_manager.existing_files_hashset = Generic::get_all_filenames_as_hashset_from_generics(
-            &file_manager.generic_files,
-            utility.clone(),
-        );
+
+
+        file_manager.add_existing_files_to_hashset(utility.clone());
+        file_manager.add_show_episodes_to_hashset(utility.clone());
         file_manager.tracked_directories = config.tracked_directories.clone();
 
         utility.print_function_timer();
         file_manager
+    }
+
+    pub fn add_show_episodes_to_hashset(&mut self, utility: Utility) {
+        let mut generics: Vec<Generic> = Vec::new();
+        for show in &self.shows {
+            for season in &show.seasons {
+                for episode in &season.episodes {
+                    generics.push(episode.generic.clone());
+                }
+            }
+        }
+        
+        self.add_all_filenames_to_hashset_from_generics(&generics, utility);
+    }
+
+    fn add_existing_files_to_hashset(&mut self, utility: Utility) {
+        let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
+        for generic in &self.generic_files {
+            self.existing_files_hashset.insert(generic.full_path.clone());
+        }
+
+        utility.print_function_timer();
+    }
+
+    pub fn add_all_filenames_to_hashset_from_generics(
+        &mut self,
+        generics: &[Generic],
+        utility: Utility,
+    ) {
+        let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
+        for generic in generics {
+            self.existing_files_hashset.insert(generic.full_path.clone());
+        }
+
+        utility.print_function_timer();
     }
 
     pub fn print_number_of_generic(&self, utility: Utility) {
@@ -99,6 +135,9 @@ impl FileManager {
         //Will just be appended to working content at the end
         let mut temp_generics = Vec::new();
         progress_bar.set_length(self.new_files_queue.len() as u64);
+        lazy_static! {
+            static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
+        }
 
         //Create Content and NewContent that will be added to the database in a batch
         while !self.new_files_queue.is_empty() {
@@ -109,8 +148,14 @@ impl FileManager {
                     current.file_name().unwrap().to_str().unwrap()
                 ));*/
 
-                let generic = Generic::new(&current, utility.clone());
+                let mut generic = Generic::new(&current, utility.clone());
                 progress_bar.inc(1);
+
+                //TODO: Why yes this is slower, no I don't care abou 100ms right now
+                match REGEX.find(&generic.get_filename()) {
+                    None => {}
+                    Some(_) => generic.designation = Designation::Episode,
+                }
 
                 if generic.profile.is_some() {
                     let profile = generic.profile.unwrap();
@@ -146,9 +191,6 @@ impl FileManager {
 
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for generic in &mut temp_generics {
-            lazy_static! {
-                static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
-            }
             progress_bar.set_message(format!(
                 "creating episode: {}",
                 generic.full_path.file_name().unwrap().to_str().unwrap()

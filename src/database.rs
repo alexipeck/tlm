@@ -1,9 +1,10 @@
+use crate::schema::generic::designation;
 use crate::{
-    generic::Generic, model::*, schema::episode as episode_table, schema::generic as generic_table,
+    designation::Designation, generic::Generic, model::*, schema::episode as episode_table, schema::generic as generic_table,
     schema::generic::dsl::generic as generic_data, schema::show as show_table,
-    schema::show::dsl::show as show_db, tv::Show, utility::Utility,
     schema::episode::dsl::episode as episode_db,
     tv::Episode,
+    schema::show::dsl::show as show_db, tv::Show, utility::Utility,
 };
 use diesel::{pg::PgConnection, prelude::*};
 use std::env;
@@ -48,6 +49,7 @@ pub fn get_all_generics(utility: Utility) -> Vec<Generic> {
 
     utility.print_function_timer();
     let generic_models = generic_data
+        .filter(designation.eq(Designation::Generic as i32))
         .load::<GenericModel>(&connection)
         .expect("Error loading generic");
 
@@ -66,7 +68,17 @@ pub fn get_all_shows(utility: Utility) -> Vec<Show> {
         .load::<ShowModel>(&connection)
         .expect("Error loading shows");
 
-    let generics = get_all_generics(utility.clone());
+    //these all contain the episode designation
+    let generic_models = generic_data
+        .filter(designation.eq(Designation::Episode as i32))
+        .load::<GenericModel>(&connection)
+        .expect("Error loading generic");
+
+    let mut generics: Vec<Generic> = Vec::new();
+    for generic_model in generic_models {
+        generics.push(Generic::from_generic_model(generic_model, utility.clone()));
+    }
+
     let episode_models = episode_db.load::<EpisodeModel>(&connection).expect("Error loading episodes");
     let mut episodes: Vec<Episode> = Vec::new();
 

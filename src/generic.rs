@@ -41,7 +41,7 @@ impl Generic {
         utility.print_function_timer();
         generic
     }
-    
+
     ///Hash the file with seahash for data integrity purposes so we
     /// know if a file has been replaced and may need to be reprocessed
     pub fn hash(&mut self) {
@@ -70,20 +70,6 @@ impl Generic {
         utility.print_function_timer();
 
         generic
-    }
-
-    pub fn get_all_filenames_as_hashset_from_generics(
-        generics: &[Generic],
-        utility: Utility,
-    ) -> HashSet<PathBuf> {
-        let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
-        let mut hashset = HashSet::new();
-        for generic in generics {
-            hashset.insert(generic.full_path.clone());
-        }
-
-        utility.print_function_timer();
-        hashset
     }
 
     ///Returns a vector of ffmpeg arguments for later execution
