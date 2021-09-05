@@ -99,6 +99,9 @@ impl FileManager {
         //Will just be appended to working content at the end
         let mut temp_generics = Vec::new();
         progress_bar.set_length(self.new_files_queue.len() as u64);
+        lazy_static! {
+            static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
+        }
 
         //Create Content and NewContent that will be added to the database in a batch
         while !self.new_files_queue.is_empty() {
@@ -109,8 +112,14 @@ impl FileManager {
                     current.file_name().unwrap().to_str().unwrap()
                 ));*/
 
-                let generic = Generic::new(&current, utility.clone());
+                let mut generic = Generic::new(&current, utility.clone());
                 progress_bar.inc(1);
+
+                //TODO: Why yes this is slower, no I don't care abou 100ms right now
+                match REGEX.find(&generic.get_filename()) {
+                    None => {}
+                    Some(_) => generic.designation = Designation::Episode,
+                }
 
                 if generic.profile.is_some() {
                     let profile = generic.profile.unwrap();
@@ -146,9 +155,6 @@ impl FileManager {
 
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for generic in &mut temp_generics {
-            lazy_static! {
-                static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
-            }
             progress_bar.set_message(format!(
                 "creating episode: {}",
                 generic.full_path.file_name().unwrap().to_str().unwrap()

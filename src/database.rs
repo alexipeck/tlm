@@ -1,7 +1,8 @@
+use crate::schema::generic::designation;
 use crate::{
-    generic::Generic, model::*, schema::episode as episode_table, schema::generic as generic_table,
-    schema::generic::dsl::generic as generic_data, schema::show as show_table,
-    schema::show::dsl::show as show_db, tv::Show, utility::Utility,
+    designation::Designation, generic::Generic, model::*, schema::episode as episode_table,
+    schema::generic as generic_table, schema::generic::dsl::generic as generic_data,
+    schema::show as show_table, schema::show::dsl::show as show_db, tv::Show, utility::Utility,
 };
 use diesel::{pg::PgConnection, prelude::*};
 use std::env;
@@ -46,6 +47,7 @@ pub fn get_all_generics(utility: Utility) -> Vec<Generic> {
 
     utility.print_function_timer();
     let generic_models = generic_data
+        .filter(designation.eq(Designation::Generic as i32))
         .load::<GenericModel>(&connection)
         .expect("Error loading generic");
 
