@@ -72,20 +72,6 @@ impl Generic {
         generic
     }
 
-    pub fn get_all_filenames_as_hashset_from_generics(
-        generics: &[Generic],
-        utility: Utility,
-    ) -> HashSet<PathBuf> {
-        let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
-        let mut hashset = HashSet::new();
-        for generic in generics {
-            hashset.insert(generic.full_path.clone());
-        }
-
-        utility.print_function_timer();
-        hashset
-    }
-
     ///Returns a vector of ffmpeg arguments for later execution
     /// This has no options currently
     pub fn generate_encode_string(&self) -> Vec<String> {
