@@ -1,10 +1,9 @@
 use crate::schema::generic::designation;
 use crate::{
-    designation::Designation, generic::Generic, model::*, schema::episode as episode_table, schema::generic as generic_table,
+    designation::Designation, generic::Generic, model::*, schema::episode as episode_table,
+    schema::episode::dsl::episode as episode_db, schema::generic as generic_table,
     schema::generic::dsl::generic as generic_data, schema::show as show_table,
-    schema::episode::dsl::episode as episode_db,
-    tv::Episode,
-    schema::show::dsl::show as show_db, tv::Show, utility::Utility,
+    schema::show::dsl::show as show_db, tv::Episode, tv::Show, utility::Utility,
 };
 use diesel::{pg::PgConnection, prelude::*};
 use std::env;
@@ -79,7 +78,9 @@ pub fn get_all_shows(utility: Utility) -> Vec<Show> {
         generics.push(Generic::from_generic_model(generic_model, utility.clone()));
     }
 
-    let episode_models = episode_db.load::<EpisodeModel>(&connection).expect("Error loading episodes");
+    let episode_models = episode_db
+        .load::<EpisodeModel>(&connection)
+        .expect("Error loading episodes");
     let mut episodes: Vec<Episode> = Vec::new();
 
     for episode_model in episode_models {
@@ -97,9 +98,6 @@ pub fn get_all_shows(utility: Utility) -> Vec<Show> {
             }
         }
     }
-
-
-
 
     let mut shows: Vec<Show> = Vec::new();
     for show in raw_shows {

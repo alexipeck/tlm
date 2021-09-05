@@ -55,7 +55,6 @@ impl FileManager {
         //add generic_files and generics from their respective episodes to the existing_files_hashset
         file_manager.generic_files = get_all_generics(utility.clone());
 
-
         file_manager.add_existing_files_to_hashset(utility.clone());
         file_manager.add_show_episodes_to_hashset(utility.clone());
         file_manager.tracked_directories = config.tracked_directories.clone();
@@ -73,14 +72,15 @@ impl FileManager {
                 }
             }
         }
-        
+
         self.add_all_filenames_to_hashset_from_generics(&generics, utility);
     }
 
     fn add_existing_files_to_hashset(&mut self, utility: Utility) {
         let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
         for generic in &self.generic_files {
-            self.existing_files_hashset.insert(generic.full_path.clone());
+            self.existing_files_hashset
+                .insert(generic.full_path.clone());
         }
 
         utility.print_function_timer();
@@ -93,7 +93,8 @@ impl FileManager {
     ) {
         let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
         for generic in generics {
-            self.existing_files_hashset.insert(generic.full_path.clone());
+            self.existing_files_hashset
+                .insert(generic.full_path.clone());
         }
 
         utility.print_function_timer();
@@ -264,6 +265,7 @@ impl FileManager {
 
         self.insert_episodes(episodes, utility.clone());
 
+        progress_bar.finish();
         utility.print_function_timer();
 
         fn rem_first_char(value: &str) -> &str {
@@ -271,7 +273,6 @@ impl FileManager {
             chars.next();
             chars.as_str()
         }
-        progress_bar.finish();
     }
 
     //Hash set guarentees no duplicates in O(1) time
