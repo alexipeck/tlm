@@ -41,7 +41,7 @@ impl Generic {
         utility.print_function_timer();
         generic
     }
-
+    
     ///Hash the file with seahash for data integrity purposes so we
     /// know if a file has been replaced and may need to be reprocessed
     pub fn hash(&mut self) {

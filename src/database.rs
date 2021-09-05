@@ -2,6 +2,8 @@ use crate::{
     generic::Generic, model::*, schema::episode as episode_table, schema::generic as generic_table,
     schema::generic::dsl::generic as generic_data, schema::show as show_table,
     schema::show::dsl::show as show_db, tv::Show, utility::Utility,
+    schema::episode::dsl::episode as episode_db,
+    tv::Episode,
 };
 use diesel::{pg::PgConnection, prelude::*};
 use std::env;
@@ -62,11 +64,43 @@ pub fn get_all_shows(utility: Utility) -> Vec<Show> {
     let connection = establish_connection();
     let raw_shows = show_db
         .load::<ShowModel>(&connection)
-        .expect("Error loading show");
+        .expect("Error loading shows");
+
+    let generics = get_all_generics(utility.clone());
+    let episode_models = episode_db.load::<EpisodeModel>(&connection).expect("Error loading episodes");
+    let mut episodes: Vec<Episode> = Vec::new();
+
+    for episode_model in episode_models {
+        for generic in &generics {
+            if generic.get_generic_uid(utility.clone()) == episode_model.generic_uid as usize {
+                let episode = Episode::new(
+                    generic.clone(),
+                    episode_model.show_uid as usize,
+                    "".to_string(),
+                    episode_model.season_number as usize,
+                    vec![episode_model.episode_number as usize],
+                ); //temporary first episode_number
+                episodes.push(episode);
+                break;
+            }
+        }
+    }
+
+
+
 
     let mut shows: Vec<Show> = Vec::new();
     for show in raw_shows {
         shows.push(Show::from_show_model(show, utility.clone()));
+    }
+    for episode in episodes {
+        let show_uid = episode.show_uid;
+        for show in &mut shows {
+            if show.show_uid == show_uid {
+                show.insert_episode(episode, utility.clone());
+                break;
+            }
+        }
     }
 
     utility.print_function_timer();
