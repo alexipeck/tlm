@@ -1,13 +1,15 @@
 use crate::model::{NewEpisode, NewGeneric};
+
 use crate::{
     config::Config,
-    database::{create_episodes, create_generics, establish_connection, get_all_generics},
+    database::*,
     designation::Designation,
     generic::Generic,
     print::{print, From, Verbosity},
-    tv::{Episode, TV},
+    tv::{Episode, Show},
     utility::Utility,
 };
+use diesel::pg::PgConnection;
 use indicatif::ProgressBar;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -33,8 +35,8 @@ impl TrackedDirectories {
 pub struct FileManager {
     pub tracked_directories: TrackedDirectories,
     pub generic_files: Vec<Generic>,
+    pub shows: Vec<Show>,
     pub existing_files_hashset: HashSet<PathBuf>,
-    pub tv: TV,
     pub new_files_queue: Vec<PathBuf>,
 }
 
@@ -44,13 +46,13 @@ impl FileManager {
 
         let mut file_manager = FileManager {
             tracked_directories: TrackedDirectories::new(),
-            tv: TV::new(utility.clone()),
+            shows: get_all_shows(utility.clone()),
             generic_files: Vec::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
         };
 
-        file_manager.generic_files = file_manager.get_all_generic(utility.clone());
+        file_manager.generic_files = get_all_generics(utility.clone());
         file_manager.existing_files_hashset = Generic::get_all_filenames_as_hashset_from_generics(
             &file_manager.generic_files,
             utility.clone(),
@@ -82,23 +84,10 @@ impl FileManager {
         print(
             Verbosity::INFO,
             From::Manager,
-            format!("Number of shows loaded in memory: {}", self.tv.shows.len()),
+            format!("Number of shows loaded in memory: {}", self.shows.len()),
             false,
             utility,
         );
-    }
-
-    pub fn get_all_generic(&mut self, utility: Utility) -> Vec<Generic> {
-        let mut utility = utility.clone_add_location("get_all_generics(Generic)");
-
-        let mut generic: Vec<Generic> = Vec::new();
-        let raw_generic = get_all_generics(utility.clone());
-
-        for generic_model in raw_generic {
-            generic.push(Generic::from_generic_model(generic_model, utility.clone()));
-        }
-        utility.print_function_timer();
-        generic
     }
 
     pub fn process_new_files(&mut self, progress_bar: &ProgressBar, utility: Utility) {
@@ -195,8 +184,7 @@ impl FileManager {
                 .to_string();
 
             let show_uid =
-                self.tv
-                    .ensure_show_exists(show_title.clone(), utility.clone(), &connection);
+                self.ensure_show_exists(show_title.clone(), utility.clone(), &connection);
             let season_number = season_temp;
             let episode_number = episodes[0];
 
@@ -232,7 +220,7 @@ impl FileManager {
             }
         }
 
-        self.tv.insert_episodes(episodes, utility.clone());
+        self.insert_episodes(episodes, utility.clone());
 
         utility.print_function_timer();
 
@@ -293,11 +281,78 @@ impl FileManager {
         utility.print_function_timer();
     }
 
-    pub fn print_shows(&self, utility: Utility) {
-        self.tv.print_shows(utility);
-    }
-
     pub fn print_generics(&self, utility: Utility) {
         Generic::print_generics(&self.generic_files, utility);
+    }
+
+    pub fn insert_episodes(&mut self, episodes: Vec<Episode>, utility: Utility) {
+        let mut utility = utility.clone_add_location("insert_episodes(TV)");
+
+        //find the associated show
+        //insert episode into that show
+        for episode in episodes {
+            let show_uid = episode.show_uid;
+            for show in &mut self.shows {
+                if show.show_uid == show_uid {
+                    show.insert_episode(episode, utility.clone());
+                    break;
+                }
+            }
+        }
+
+        utility.print_function_timer();
+    }
+
+    pub fn ensure_show_exists(
+        &mut self,
+        show_title: String,
+        utility: Utility,
+        connection: &PgConnection,
+    ) -> usize {
+        let utility = utility.clone_add_location("ensure_show_exists(Show)");
+
+        let show_uid = Show::show_exists(show_title.clone(), &self.shows, utility.clone());
+        match show_uid {
+            Some(uid) => uid,
+            None => {
+                if utility.preferences.print_shows || utility.preferences.show_output_whitelisted {
+                    print(
+                        Verbosity::INFO,
+                        From::TV,
+                        format!("Adding a new show: {}", show_title),
+                        utility.preferences.show_output_whitelisted,
+                        utility,
+                    );
+                }
+
+                let show_model = create_show(connection, show_title.clone());
+
+                let show_uid = show_model.show_uid as usize;
+                let new_show = Show {
+                    show_uid,
+                    show_title,
+                    seasons: Vec::new(),
+                };
+                self.shows.push(new_show);
+
+                show_uid
+            }
+        }
+    }
+
+    pub fn print_shows(&self, utility: Utility) {
+        let mut utility = utility.clone_add_location("print_shows(FileManager)");
+
+        if !utility.preferences.print_shows {
+            return;
+        }
+        for show in &self.shows {
+            show.print_show(utility.clone());
+            for season in &show.seasons {
+                println!("S{} has {} episodes", season.number, season.episodes.len());
+            }
+        }
+
+        utility.print_function_timer();
     }
 }

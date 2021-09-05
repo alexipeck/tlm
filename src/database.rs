@@ -1,6 +1,7 @@
 use crate::{
-    model::*, schema::episode as episode_table, schema::generic as generic_table,
-    schema::generic::dsl::generic as generic_data, schema::show as show_table, utility::Utility,
+    generic::Generic, model::*, schema::episode as episode_table, schema::generic as generic_table,
+    schema::generic::dsl::generic as generic_data, schema::show as show_table,
+    schema::show::dsl::show as show_db, tv::Show, utility::Utility,
 };
 use diesel::{pg::PgConnection, prelude::*};
 use std::env;
@@ -39,12 +40,35 @@ pub fn create_episodes(conn: &PgConnection, new_episode: Vec<NewEpisode>) -> Vec
 }
 
 ///Get all generic from the database
-pub fn get_all_generics(utility: Utility) -> Vec<GenericModel> {
+pub fn get_all_generics(utility: Utility) -> Vec<Generic> {
     let mut utility = utility.clone_add_location("get_all_generic(database)");
     let connection = establish_connection();
 
     utility.print_function_timer();
-    generic_data
+    let generic_models = generic_data
         .load::<GenericModel>(&connection)
-        .expect("Error loading generic")
+        .expect("Error loading generic");
+
+    let mut generics: Vec<Generic> = Vec::new();
+    for generic_model in generic_models {
+        generics.push(Generic::from_generic_model(generic_model, utility.clone()));
+    }
+    generics
+}
+
+pub fn get_all_shows(utility: Utility) -> Vec<Show> {
+    let mut utility = utility.clone_add_location("get_all_shows(Show)");
+
+    let connection = establish_connection();
+    let raw_shows = show_db
+        .load::<ShowModel>(&connection)
+        .expect("Error loading show");
+
+    let mut shows: Vec<Show> = Vec::new();
+    for show in raw_shows {
+        shows.push(Show::from_show_model(show, utility.clone()));
+    }
+
+    utility.print_function_timer();
+    shows
 }

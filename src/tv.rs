@@ -1,100 +1,11 @@
 use crate::{
-    database::{create_show, establish_connection},
-    diesel::prelude::*,
     generic::Generic,
     model::*,
     print::{print, From, Verbosity},
-    schema::show::dsl::show as show_table,
     utility::Utility,
 };
 
 use std::path::PathBuf;
-
-#[derive(Clone, Debug)]
-pub struct TV {
-    pub shows: Vec<Show>,
-}
-
-impl TV {
-    pub fn new(utility: Utility) -> TV {
-        let utility = utility.clone_add_location("new(TV)");
-
-        TV {
-            shows: Show::get_all_shows(utility),
-        }
-    }
-
-    pub fn insert_episodes(&mut self, episodes: Vec<Episode>, utility: Utility) {
-        let mut utility = utility.clone_add_location("insert_episodes(TV)");
-
-        //find the associated show
-        //insert episode into that show
-        for episode in episodes {
-            let show_uid = episode.show_uid;
-            for show in &mut self.shows {
-                if show.show_uid == show_uid {
-                    show.insert_episode(episode, utility.clone());
-                    break;
-                }
-            }
-        }
-
-        utility.print_function_timer();
-    }
-
-    pub fn ensure_show_exists(
-        &mut self,
-        show_title: String,
-        utility: Utility,
-        connection: &PgConnection,
-    ) -> usize {
-        let utility = utility.clone_add_location("ensure_show_exists(Show)");
-
-        let show_uid = Show::show_exists(show_title.clone(), &self.shows, utility.clone());
-        match show_uid {
-            Some(uid) => uid,
-            None => {
-                if utility.preferences.print_shows || utility.preferences.show_output_whitelisted {
-                    print(
-                        Verbosity::INFO,
-                        From::TV,
-                        format!("Adding a new show: {}", show_title),
-                        utility.preferences.show_output_whitelisted,
-                        utility,
-                    );
-                }
-
-                let show_model = create_show(connection, show_title.clone());
-
-                let show_uid = show_model.show_uid as usize;
-                let new_show = Show {
-                    show_uid,
-                    show_title,
-                    seasons: Vec::new(),
-                };
-                self.shows.push(new_show);
-
-                show_uid
-            }
-        }
-    }
-
-    pub fn print_shows(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location("print_shows(FileManager)");
-
-        if !utility.preferences.print_shows {
-            return;
-        }
-        for show in &self.shows {
-            show.print_show(utility.clone());
-            for season in &show.seasons {
-                println!("S{} has {} episodes", season.number, season.episodes.len());
-            }
-        }
-
-        utility.print_function_timer();
-    }
-}
 
 #[derive(Clone, Debug)]
 pub struct Episode {
@@ -270,22 +181,5 @@ impl Show {
         utility.print_function_timer();
 
         show
-    }
-
-    pub fn get_all_shows(utility: Utility) -> Vec<Show> {
-        let mut utility = utility.clone_add_location("get_all_shows(Show)");
-
-        let connection = establish_connection();
-        let raw_shows = show_table
-            .load::<ShowModel>(&connection)
-            .expect("Error loading show");
-
-        let mut shows: Vec<Show> = Vec::new();
-        for show in raw_shows {
-            shows.push(Show::from_show_model(show, utility.clone()));
-        }
-
-        utility.print_function_timer();
-        shows
     }
 }
