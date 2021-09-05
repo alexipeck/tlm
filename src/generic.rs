@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     fs,
     path::{Path, PathBuf},
 };
@@ -52,7 +51,7 @@ impl Generic {
     ///Create a new generic from the database equivalent. This is neccesary because
     /// not all fields are stored in the database because they can be so easily recalculated
     pub fn from_generic_model(generic_model: GenericModel, utility: Utility) -> Generic {
-        let mut utility = utility.clone_add_location("from_row(Generic)");
+        let mut utility = utility.clone_add_location("from_generic_model(Generic)");
 
         let generic_uid_temp: i32 = generic_model.generic_uid;
         let full_path_temp: String = generic_model.full_path.to_owned();
@@ -165,7 +164,7 @@ impl Generic {
     }
 
     pub fn get_generic_uid(&self, utility: Utility) -> usize {
-        let utility = utility.clone_add_location("get_generic_uid(Show)");
+        let utility = utility.clone_add_location("get_generic_uid(Generic)");
 
         if self.generic_uid.is_some() {
             self.generic_uid.unwrap()

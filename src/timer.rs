@@ -46,7 +46,7 @@ impl Timer {
         if self.stored_time.unwrap() > utility.preferences.timing_threshold {
             print(
                 Verbosity::DEBUG,
-                From::Utility,
+                From::Timer,
                 format!(
                     "{} took: {}ms",
                     self.function_name,

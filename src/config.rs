@@ -20,7 +20,7 @@ impl Config {
     ///Config constructor loads the config from the path defined at the cli
     /// or if it doesn't exist creates a default config file
     pub fn new(preferences: &Preferences) -> Config {
-        let utility = Utility::new("new (Config)");
+        let utility = Utility::new("new(Config)");
         let config: Config;
 
         if Path::new(&preferences.config_file_path).exists() {

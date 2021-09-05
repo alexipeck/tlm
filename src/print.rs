@@ -25,9 +25,9 @@ pub enum From {
     DB = 7,
     Job = 8,
     Manager = 9,
-    TV = 10,
-    Config = 11,
-    Scheduler = 12,
+    Config = 10,
+    Scheduler = 11,
+    Timer = 12,
 }
 
 impl fmt::Display for From {
@@ -37,13 +37,14 @@ impl fmt::Display for From {
             From::Lib => "lib",
             From::Generic => "generic",
             From::Utility => "utility",
-            From::Show => "shows",
+            From::Show => "show",
             From::Queue => "queue",
             From::DB => "db",
             From::Job => "job",
             From::Manager => "manager",
+            From::Config => "config",
             From::Scheduler => "scheduler",
-            From::TV => "tv",
+            From::Timer => "timer",
             _ => "notset",
         };
         write!(f, "{}", string)

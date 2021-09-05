@@ -9,7 +9,7 @@ pub mod profile;
 pub mod scheduler;
 pub mod schema;
 pub mod timer;
-pub mod tv;
+pub mod show;
 pub mod utility;
 
 #[macro_use]

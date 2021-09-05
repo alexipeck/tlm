@@ -127,7 +127,7 @@ impl Encode {
 
         print(
             Verbosity::INFO,
-            From::Job,
+            From::Scheduler,
             format!(
                 "Encoding file \'{}\'",
                 Generic::get_filename_from_pathbuf(self.source_path.clone())

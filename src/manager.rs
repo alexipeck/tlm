@@ -1,12 +1,11 @@
-use crate::model::{NewEpisode, NewGeneric};
-
 use crate::{
+    model::{NewEpisode, NewGeneric},
     config::Config,
     database::*,
     designation::Designation,
     generic::Generic,
     print::{print, From, Verbosity},
-    tv::{Episode, Show},
+    show::{Episode, Show},
     utility::Utility,
 };
 use diesel::pg::PgConnection;
@@ -77,7 +76,7 @@ impl FileManager {
     }
 
     fn add_existing_files_to_hashset(&mut self, utility: Utility) {
-        let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
+        let mut utility = utility.clone_add_location("add_existing_files_to_hashset(FileManager)");
         for generic in &self.generic_files {
             self.existing_files_hashset
                 .insert(generic.full_path.clone());
@@ -91,7 +90,7 @@ impl FileManager {
         generics: &[Generic],
         utility: Utility,
     ) {
-        let mut utility = utility.clone_add_location("get_all_filenames_as_hashset");
+        let mut utility = utility.clone_add_location("add_all_filenames_to_hashset_from_generics(FileManager)");
         for generic in generics {
             self.existing_files_hashset
                 .insert(generic.full_path.clone());
@@ -246,7 +245,7 @@ impl FileManager {
         //episodes isn't being used yet but this does insert into the database
         let episode_models = create_episodes(&connection, new_episodes);
         let mut episodes: Vec<Episode> = Vec::new();
-
+        
         for episode_model in episode_models {
             for generic in &self.generic_files {
                 if generic.get_generic_uid(utility.clone()) == episode_model.generic_uid as usize {
@@ -329,7 +328,7 @@ impl FileManager {
     }
 
     pub fn insert_episodes(&mut self, episodes: Vec<Episode>, utility: Utility) {
-        let mut utility = utility.clone_add_location("insert_episodes(TV)");
+        let mut utility = utility.clone_add_location("insert_episodes(FileManager)");
 
         //find the associated show
         //insert episode into that show
@@ -352,7 +351,7 @@ impl FileManager {
         utility: Utility,
         connection: &PgConnection,
     ) -> usize {
-        let utility = utility.clone_add_location("ensure_show_exists(Show)");
+        let utility = utility.clone_add_location("ensure_show_exists(FileManager)");
 
         let show_uid = Show::show_exists(show_title.clone(), &self.shows, utility.clone());
         match show_uid {
@@ -361,7 +360,7 @@ impl FileManager {
                 if utility.preferences.print_shows || utility.preferences.show_output_whitelisted {
                     print(
                         Verbosity::INFO,
-                        From::TV,
+                        From::Manager,
                         format!("Adding a new show: {}", show_title),
                         utility.preferences.show_output_whitelisted,
                         utility,

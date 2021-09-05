@@ -64,7 +64,7 @@ impl Episode {
         //could realistically just check if it has an episode designation,
         print(
             Verbosity::DEBUG,
-            From::TV,
+            From::Show,
             format!(
                 "[generic_uid:'{:4}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
                 self.generic.get_generic_uid(utility.clone()),
