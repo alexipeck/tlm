@@ -79,16 +79,10 @@ fn main() {
 
     let scheduler = scheduler_handle.join().unwrap();
 
-    scheduler
-        .file_manager
-        .print_number_of_generics(utility.clone());
-    scheduler
-        .file_manager
-        .print_number_of_shows(utility.clone());
-    scheduler
-        .file_manager
-        .print_number_of_episodes(utility.clone());
-
+    scheduler.file_manager.print_number_of_generics(utility.clone());
+    scheduler.file_manager.print_number_of_shows(utility.clone());
+    scheduler.file_manager.print_number_of_episodes(utility.clone());
     scheduler.file_manager.print_shows(utility.clone());
-    scheduler.file_manager.print_generics(utility);
+    scheduler.file_manager.print_generics(utility.clone());
+    scheduler.file_manager.print_episodes(utility);
 }

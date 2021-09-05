@@ -89,12 +89,14 @@ pub struct Preferences {
     pub default_print: bool,
     pub print_generic: bool,
     pub print_shows: bool,
+    pub print_episode: bool,
     pub print_general: bool,
     pub config_file_path: String,
     pub timing_enabled: bool,
     pub timing_threshold: u128,
     pub generic_output_whitelisted: bool,
     pub show_output_whitelisted: bool,
+    pub episode_output_whitelisted: bool,
     pub min_verbosity: Verbosity,
     pub disable_input: bool,
 }
@@ -104,6 +106,7 @@ impl Default for Preferences {
             default_print: true,
             print_generic: false,
             print_shows: false,
+            print_episode: false,
             print_general: false,
             config_file_path: String::from("./.tlm_config"),
             min_verbosity: Verbosity::INFO,
@@ -112,6 +115,7 @@ impl Default for Preferences {
 
             generic_output_whitelisted: false,
             show_output_whitelisted: false,
+            episode_output_whitelisted: false,
             disable_input: false,
         };
 
@@ -143,6 +147,12 @@ impl Preferences {
             &["--print-shows"],
             StoreTrue,
             "Enable printing shows",
+        );
+
+        parser.refer(&mut self.print_episode).add_option(
+            &["--print-episodes"],
+            StoreTrue,
+            "Enable printing episodes",
         );
 
         parser.refer(&mut self.print_general).add_option(

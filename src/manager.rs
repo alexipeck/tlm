@@ -101,7 +101,7 @@ impl FileManager {
     }
 
     pub fn print_number_of_generics(&self, utility: Utility) {
-        let utility = utility.clone_add_location("print_number_of_generics(FileManager)");
+        let mut utility = utility.clone_add_location("print_number_of_generics(FileManager)");
 
         print(
             Verbosity::INFO,
@@ -111,8 +111,10 @@ impl FileManager {
                 self.generic_files.len()
             ),
             false,
-            utility,
+            utility.clone(),
         );
+
+        utility.print_function_timer();
     }
 
     pub fn print_number_of_shows(&self, utility: Utility) {
@@ -264,7 +266,16 @@ impl FileManager {
             new_episodes.push(new_episode);
         }
 
-        self.generic_files.append(&mut temp_generics);
+        self.add_all_filenames_to_hashset_from_generics(&temp_generics, utility.clone());
+
+        let mut temp_generics_without_episodes: Vec<Generic> = Vec::new();
+        for generic in &temp_generics {
+            if generic.designation == Designation::Generic {
+                temp_generics_without_episodes.push(generic.clone());
+            }
+        }
+
+        self.generic_files.append(&mut temp_generics_without_episodes);
 
         //episodes isn't being used yet but this does insert into the database
         let episode_models = create_episodes(&connection, new_episodes);
@@ -347,13 +358,29 @@ impl FileManager {
         utility.print_function_timer();
     }
 
+    pub fn print_episodes(&self, utility: Utility) {
+        let mut utility = utility.clone_add_location("print_episodes(FileManager)");
+
+        if !utility.preferences.print_episode && !utility.preferences.episode_output_whitelisted {
+            return;
+        }
+        for show in &self.shows {
+            for season in &show.seasons {
+                for episode in &season.episodes {
+                    episode.print_episode(utility.clone());
+                }
+            }
+        }
+
+        utility.print_function_timer();
+    }
+
     pub fn print_generics(&self, utility: Utility) {
         Generic::print_generics(&self.generic_files, utility);
     }
 
     pub fn insert_episodes(&mut self, episodes: Vec<Episode>, utility: Utility) {
         let mut utility = utility.clone_add_location("insert_episodes(FileManager)");
-
         //find the associated show
         //insert episode into that show
         for episode in episodes {
