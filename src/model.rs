@@ -13,6 +13,30 @@ pub struct NewGeneric {
     pub length_time: Option<f64>,
 }
 
+fn profile_is_some_split(profile: Option<Profile>) -> (Option<i32>, Option<i32>, Option<f64>, Option<f64>) {
+    if profile.is_some() {
+        let profile = profile.unwrap();
+        (Some(profile.width as i32), Some(profile.height as i32), Some(profile.framerate), Some(profile.length_time))
+    } else {
+        (None, None, None, None)
+    }
+}
+
+impl NewGeneric {
+    pub fn new(full_path: String, designation: i32, profile: Option<Profile>) -> Self {
+        let temp_profile = profile_is_some_split(profile);
+
+        NewGeneric {
+            full_path,
+            designation,
+            width: temp_profile.0,
+            height: temp_profile.1,
+            framerate: temp_profile.2,
+            length_time: temp_profile.3,
+        }
+    }
+}
+
 #[derive(Queryable, AsChangeset, Identifiable)]
 #[primary_key(generic_uid)]
 #[table_name = "generic"]

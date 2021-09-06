@@ -1,13 +1,4 @@
-use crate::{
-    config::Config,
-    database::*,
-    designation::Designation,
-    generic::Generic,
-    model::{NewEpisode, NewGeneric},
-    print::{print, From, Verbosity},
-    show::{Episode, Show},
-    utility::Utility,
-};
+use crate::{config::Config, database::*, designation::Designation, generic::Generic, model::{NewEpisode, NewGeneric}, print::{print, From, Verbosity}, show::{Episode, Show}, utility::Utility};
 use diesel::pg::PgConnection;
 use indicatif::ProgressBar;
 use lazy_static::lazy_static;
@@ -101,7 +92,7 @@ impl FileManager {
     }
 
     pub fn print_number_of_generics(&self, utility: Utility) {
-        let utility = utility.clone_add_location("print_number_of_generics(FileManager)");
+        let mut utility = utility.clone_add_location("print_number_of_generics(FileManager)");
 
         print(
             Verbosity::INFO,
@@ -111,8 +102,10 @@ impl FileManager {
                 self.generic_files.len()
             ),
             false,
-            utility,
+            utility.clone(),
         );
+
+        utility.print_function_timer();
     }
 
     pub fn print_number_of_shows(&self, utility: Utility) {
@@ -155,9 +148,8 @@ impl FileManager {
         let connection = establish_connection();
         let mut new_episodes = Vec::new();
         let mut new_generics = Vec::new();
-
-        //Will just be appended to working content at the end
         let mut temp_generics = Vec::new();
+
         progress_bar.set_length(self.new_files_queue.len() as u64);
         lazy_static! {
             static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
@@ -180,29 +172,11 @@ impl FileManager {
                     None => {}
                     Some(_) => generic.designation = Designation::Episode,
                 }
-
-                if generic.profile.is_some() {
-                    let profile = generic.profile.unwrap();
-
-                    new_generics.push(NewGeneric {
-                        full_path: String::from(generic.full_path.to_str().unwrap()),
-                        designation: generic.designation as i32,
-                        width: Some(profile.width as i32),
-                        height: Some(profile.height as i32),
-                        framerate: Some(profile.framerate),
-                        length_time: Some(profile.length_time),
-                    });
-                } else {
-                    new_generics.push(NewGeneric {
-                        full_path: String::from(generic.full_path.to_str().unwrap()),
-                        designation: generic.designation as i32,
-                        width: None,
-                        height: None,
-                        framerate: None,
-                        length_time: None,
-                    });
-                }
-
+                new_generics.push(NewGeneric::new(
+                    String::from(generic.full_path.to_str().unwrap()),
+                    generic.designation as i32,
+                    generic.profile
+                ));
                 temp_generics.push(generic);
             }
         }
@@ -264,14 +238,24 @@ impl FileManager {
             new_episodes.push(new_episode);
         }
 
-        self.generic_files.append(&mut temp_generics);
+        self.add_all_filenames_to_hashset_from_generics(&temp_generics, utility.clone());
 
-        //episodes isn't being used yet but this does insert into the database
+        let mut temp_generics_only_episodes: Vec<Generic> = Vec::new();
+        let mut temp_generics_only_generics: Vec<Generic> = Vec::new();
+        for generic in &temp_generics {
+            match generic.designation {
+                Designation::Generic => temp_generics_only_generics.push(generic.clone()),
+                Designation::Episode => temp_generics_only_episodes.push(generic.clone()),
+                _ => {}
+            }
+        }
+
+        self.generic_files.append(&mut temp_generics_only_generics);
+
         let episode_models = create_episodes(&connection, new_episodes);
         let mut episodes: Vec<Episode> = Vec::new();
-
         for episode_model in episode_models {
-            for generic in &self.generic_files {
+            for generic in &temp_generics_only_episodes {
                 if generic.get_generic_uid(utility.clone()) == episode_model.generic_uid as usize {
                     let episode = Episode::new(
                         generic.clone(),
@@ -347,13 +331,29 @@ impl FileManager {
         utility.print_function_timer();
     }
 
+    pub fn print_episodes(&self, utility: Utility) {
+        let mut utility = utility.clone_add_location("print_episodes(FileManager)");
+
+        if !utility.preferences.print_episode && !utility.preferences.episode_output_whitelisted {
+            return;
+        }
+        for show in &self.shows {
+            for season in &show.seasons {
+                for episode in &season.episodes {
+                    episode.print_episode(utility.clone());
+                }
+            }
+        }
+
+        utility.print_function_timer();
+    }
+
     pub fn print_generics(&self, utility: Utility) {
         Generic::print_generics(&self.generic_files, utility);
     }
 
     pub fn insert_episodes(&mut self, episodes: Vec<Episode>, utility: Utility) {
         let mut utility = utility.clone_add_location("insert_episodes(FileManager)");
-
         //find the associated show
         //insert episode into that show
         for episode in episodes {
