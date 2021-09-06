@@ -197,7 +197,13 @@ impl FileManager {
             let episode_string: String;
             match REGEX.find(&generic.get_filename()) {
                 None => continue,
-                Some(val) => episode_string = String::from(rem_first_char(val.as_str())),
+                Some(val) => {
+                    //Removes first character
+                    let mut chars = val.as_str().chars();
+                    chars.next();
+
+                    episode_string = String::from(chars.as_str());
+                },
             }
 
             let mut season_episode_iter = episode_string.split('E');
@@ -274,12 +280,6 @@ impl FileManager {
 
         progress_bar.finish();
         utility.print_function_timer();
-
-        fn rem_first_char(value: &str) -> &str {
-            let mut chars = value.chars();
-            chars.next();
-            chars.as_str()
-        }
     }
 
     //Hash set guarentees no duplicates in O(1) time
