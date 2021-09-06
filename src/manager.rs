@@ -240,21 +240,22 @@ impl FileManager {
 
         self.add_all_filenames_to_hashset_from_generics(&temp_generics, utility.clone());
 
-        let mut temp_generics_without_episodes: Vec<Generic> = Vec::new();
+        let mut temp_generics_only_episodes: Vec<Generic> = Vec::new();
+        let mut temp_generics_only_generics: Vec<Generic> = Vec::new();
         for generic in &temp_generics {
-            if generic.designation == Designation::Generic {
-                temp_generics_without_episodes.push(generic.clone());
+            match generic.designation {
+                Designation::Generic => temp_generics_only_generics.push(generic.clone()),
+                Designation::Episode => temp_generics_only_episodes.push(generic.clone()),
+                _ => {}
             }
         }
 
-        self.generic_files.append(&mut temp_generics_without_episodes);
+        self.generic_files.append(&mut temp_generics_only_generics);
 
-        //episodes isn't being used yet but this does insert into the database
         let episode_models = create_episodes(&connection, new_episodes);
         let mut episodes: Vec<Episode> = Vec::new();
-
         for episode_model in episode_models {
-            for generic in &self.generic_files {
+            for generic in &temp_generics_only_episodes {
                 if generic.get_generic_uid(utility.clone()) == episode_model.generic_uid as usize {
                     let episode = Episode::new(
                         generic.clone(),
