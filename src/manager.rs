@@ -416,7 +416,7 @@ impl FileManager {
             show.print_show(utility.clone());
             for season in &show.seasons {
                 println!(
-                    "S{:2} has {} episodes",
+                    "S{:02} has {} episodes",
                     season.number,
                     season.episodes.len()
                 );
