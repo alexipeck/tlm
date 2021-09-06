@@ -1,13 +1,4 @@
-use crate::{
-    config::Config,
-    database::*,
-    designation::Designation,
-    generic::Generic,
-    model::{NewEpisode, NewGeneric},
-    print::{print, From, Verbosity},
-    show::{Episode, Show},
-    utility::Utility,
-};
+use crate::{config::Config, database::*, designation::Designation, generic::Generic, model::{NewEpisode, NewGeneric}, print::{print, From, Verbosity}, show::{Episode, Show}, utility::Utility};
 use diesel::pg::PgConnection;
 use indicatif::ProgressBar;
 use lazy_static::lazy_static;
@@ -157,9 +148,8 @@ impl FileManager {
         let connection = establish_connection();
         let mut new_episodes = Vec::new();
         let mut new_generics = Vec::new();
-
-        //Will just be appended to working content at the end
         let mut temp_generics = Vec::new();
+
         progress_bar.set_length(self.new_files_queue.len() as u64);
         lazy_static! {
             static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
@@ -182,29 +172,11 @@ impl FileManager {
                     None => {}
                     Some(_) => generic.designation = Designation::Episode,
                 }
-
-                if generic.profile.is_some() {
-                    let profile = generic.profile.unwrap();
-
-                    new_generics.push(NewGeneric {
-                        full_path: String::from(generic.full_path.to_str().unwrap()),
-                        designation: generic.designation as i32,
-                        width: Some(profile.width as i32),
-                        height: Some(profile.height as i32),
-                        framerate: Some(profile.framerate),
-                        length_time: Some(profile.length_time),
-                    });
-                } else {
-                    new_generics.push(NewGeneric {
-                        full_path: String::from(generic.full_path.to_str().unwrap()),
-                        designation: generic.designation as i32,
-                        width: None,
-                        height: None,
-                        framerate: None,
-                        length_time: None,
-                    });
-                }
-
+                new_generics.push(NewGeneric::new(
+                    String::from(generic.full_path.to_str().unwrap()),
+                    generic.designation as i32,
+                    generic.profile
+                ));
                 temp_generics.push(generic);
             }
         }
