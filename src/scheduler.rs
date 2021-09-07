@@ -31,32 +31,21 @@ pub struct ImportFiles {
 
     pub status_underway: bool,
     pub status_completed: bool,
-    pub progress_bar: ProgressBar,
 }
 
 impl ImportFiles {
-    pub fn new(
-        allowed_extensions: &[String],
-        ignored_paths: &[String],
-        progress_bar: ProgressBar,
-    ) -> Self {
+    pub fn new(allowed_extensions: &[String], ignored_paths: &[String]) -> Self {
         ImportFiles {
             allowed_extensions: allowed_extensions.to_owned(),
             ignored_paths: ignored_paths.to_owned(),
             status_underway: false,
             status_completed: false,
-            progress_bar,
         }
     }
 
     pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
         self.status_underway = true;
-        file_manager.import_files(
-            &self.allowed_extensions,
-            &self.ignored_paths,
-            &self.progress_bar,
-            utility,
-        );
+        file_manager.import_files(&self.allowed_extensions, &self.ignored_paths, utility);
         self.status_completed = true;
     }
 }

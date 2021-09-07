@@ -23,13 +23,11 @@ fn main() {
         .with_key("eta", |state| format!("{:.1}s", state.eta().as_secs_f64()))
         .progress_chars("#>-");
 
-    let import_bar = progress_bars.add(ProgressBar::new(0).with_style(style.clone()));
     let process_bar = progress_bars.add(ProgressBar::new(0).with_style(style.clone()));
     let hash_bar = progress_bars.add(ProgressBar::new(0).with_style(style));
 
     hash_bar.set_prefix("Hashing");
     process_bar.set_prefix("Processing");
-    import_bar.set_prefix("Importing");
 
     let config: Config = Config::new(&utility.preferences);
 
@@ -59,7 +57,6 @@ fn main() {
         tasks_guard.push_back(Task::new(TaskType::ImportFiles(ImportFiles::new(
             &config.allowed_extensions,
             &config.ignored_paths,
-            import_bar,
         ))));
 
         tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new(
@@ -79,9 +76,15 @@ fn main() {
 
     let scheduler = scheduler_handle.join().unwrap();
 
-    scheduler.file_manager.print_number_of_generics(utility.clone());
-    scheduler.file_manager.print_number_of_shows(utility.clone());
-    scheduler.file_manager.print_number_of_episodes(utility.clone());
+    scheduler
+        .file_manager
+        .print_number_of_generics(utility.clone());
+    scheduler
+        .file_manager
+        .print_number_of_shows(utility.clone());
+    scheduler
+        .file_manager
+        .print_number_of_episodes(utility.clone());
     scheduler.file_manager.print_shows(utility.clone());
     scheduler.file_manager.print_generics(utility.clone());
     scheduler.file_manager.print_episodes(utility);

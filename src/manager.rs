@@ -1,4 +1,13 @@
-use crate::{config::Config, database::*, designation::Designation, generic::Generic, model::{NewEpisode, NewGeneric}, print::{print, From, Verbosity}, show::{Episode, Show}, utility::Utility};
+use crate::{
+    config::Config,
+    database::*,
+    designation::Designation,
+    generic::Generic,
+    model::{NewEpisode, NewGeneric},
+    print::{print, From, Verbosity},
+    show::{Episode, Show},
+    utility::Utility,
+};
 use diesel::pg::PgConnection;
 use indicatif::ProgressBar;
 use lazy_static::lazy_static;
@@ -175,7 +184,7 @@ impl FileManager {
                 new_generics.push(NewGeneric::new(
                     String::from(generic.full_path.to_str().unwrap()),
                     generic.designation as i32,
-                    generic.profile
+                    generic.profile,
                 ));
                 temp_generics.push(generic);
             }
@@ -203,7 +212,7 @@ impl FileManager {
                     chars.next();
 
                     episode_string = String::from(chars.as_str());
-                },
+                }
             }
 
             let mut season_episode_iter = episode_string.split('E');
@@ -235,7 +244,7 @@ impl FileManager {
             let episode_number = episodes[0];
 
             let new_episode = NewEpisode::new(
-                generic.get_generic_uid(utility.clone()),
+                generic.get_generic_uid(),
                 show_uid,
                 "".to_string(), //episode_title
                 season_number,
@@ -262,7 +271,7 @@ impl FileManager {
         let mut episodes: Vec<Episode> = Vec::new();
         for episode_model in episode_models {
             for generic in &temp_generics_only_episodes {
-                if generic.get_generic_uid(utility.clone()) == episode_model.generic_uid as usize {
+                if generic.get_generic_uid() == episode_model.generic_uid as usize {
                     let episode = Episode::new(
                         generic.clone(),
                         episode_model.show_uid as usize,
@@ -287,7 +296,6 @@ impl FileManager {
         &mut self,
         allowed_extensions: &[String],
         ignored_paths: &[String],
-        progress_bar: &ProgressBar,
         utility: Utility,
     ) {
         let mut utility = utility.clone_add_location("import_files(FileManager)");
@@ -304,7 +312,8 @@ impl FileManager {
 
         //import all files in tracked root directories
         for directory in &self.tracked_directories.root_directories {
-            for entry in WalkDir::new(directory).into_iter().filter_map(|e| e.ok()) {
+            let entries = WalkDir::new(directory).into_iter().filter_map(|e| e.ok());
+            for entry in entries {
                 if str_contains_strs(
                     &entry.path().to_str().unwrap().to_lowercase(),
                     ignored_paths,
@@ -315,10 +324,6 @@ impl FileManager {
                     let temp_string = entry.path().extension().unwrap().to_str().unwrap();
                     if allowed_extensions.contains(&temp_string.to_lowercase()) {
                         let entry_string = entry.into_path();
-                        progress_bar.set_message(format!(
-                            "importing files: {}",
-                            entry_string.file_name().unwrap().to_str().unwrap()
-                        ));
                         if !self.existing_files_hashset.contains(&entry_string) {
                             self.existing_files_hashset.insert(entry_string.clone());
                             self.new_files_queue.push(entry_string.clone());
@@ -327,7 +332,6 @@ impl FileManager {
                 }
             }
         }
-        progress_bar.finish_with_message("Finished importing files");
         utility.print_function_timer();
     }
 
