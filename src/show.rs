@@ -67,7 +67,7 @@ impl Episode {
             From::Show,
             format!(
                 "[generic_uid:'{:4}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
-                self.generic.get_generic_uid(utility.clone()),
+                self.generic.get_generic_uid(),
                 self.show_uid,
                 self.show_season,
                 self.get_episode_string(),

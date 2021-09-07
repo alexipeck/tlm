@@ -13,12 +13,17 @@ pub struct NewGeneric {
     pub length_time: Option<f64>,
 }
 
-fn profile_is_some_split(profile: Option<Profile>) -> (Option<i32>, Option<i32>, Option<f64>, Option<f64>) {
-    if profile.is_some() {
-        let profile = profile.unwrap();
-        (Some(profile.width as i32), Some(profile.height as i32), Some(profile.framerate), Some(profile.length_time))
-    } else {
-        (None, None, None, None)
+fn profile_is_some_split(
+    profile: Option<Profile>,
+) -> (Option<i32>, Option<i32>, Option<f64>, Option<f64>) {
+    match profile {
+        Some(profile) => (
+            Some(profile.width as i32),
+            Some(profile.height as i32),
+            Some(profile.framerate),
+            Some(profile.length_time),
+        ),
+        None => (None, None, None, None),
     }
 }
 

@@ -163,20 +163,12 @@ impl Generic {
         return self.full_path.as_os_str().to_str().unwrap().to_string();
     }
 
-    pub fn get_generic_uid(&self, utility: Utility) -> usize {
-        let utility = utility.clone_add_location("get_generic_uid(Generic)");
-
+    #[inline(always)]
+    pub fn get_generic_uid(&self) -> usize {
         if self.generic_uid.is_some() {
             self.generic_uid.unwrap()
         } else {
-            print(
-                Verbosity::CRITICAL,
-                From::Generic,
-                String::from("get_generic_uid was called on a generic that hasn't been inserted into the db yet or hasn't been assigned a generic_uid from the database correctly"),
-                false,
-                utility,
-            );
-            panic!();
+            panic!("get_generic_uid was called on a generic that hasn't been inserted into the db yet or hasn't been assigned a generic_uid from the database correctly");
         }
     }
 
@@ -191,7 +183,7 @@ impl Generic {
             From::Generic,
             format!(
                 "[generic_uid:'{:4}'][designation:'{}'][full_path:'{}']",
-                self.get_generic_uid(utility.clone()),
+                self.get_generic_uid(),
                 self.designation as i32,
                 self.get_full_path(),
             ),

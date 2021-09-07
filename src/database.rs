@@ -85,7 +85,7 @@ pub fn get_all_shows(utility: Utility) -> Vec<Show> {
 
     for episode_model in episode_models {
         for generic in &generics {
-            if generic.get_generic_uid(utility.clone()) == episode_model.generic_uid as usize {
+            if generic.get_generic_uid() == episode_model.generic_uid as usize {
                 let episode = Episode::new(
                     generic.clone(),
                     episode_model.show_uid as usize,
