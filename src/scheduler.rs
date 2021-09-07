@@ -16,7 +16,7 @@ use std::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     sync::{Arc, Mutex},
     thread,
-    thread::JoinHandle,
+    thread::{current, JoinHandle},
     time,
 };
 
@@ -229,7 +229,15 @@ impl Task {
                 process_new_files.run(file_manager, utility);
             }
             TaskType::Hash(hash) => {
-                return Some(hash.run(file_manager.generic_files.clone()));
+                let mut current_content = file_manager.generic_files.clone();
+                for show in &file_manager.shows {
+                    for season in &show.seasons {
+                        for episode in &season.episodes {
+                            current_content.push(episode.generic.clone());
+                        }
+                    }
+                }
+                return Some(hash.run(current_content));
             }
         }
         None
