@@ -318,17 +318,18 @@ impl FileManager {
                     &entry.path().to_str().unwrap().to_lowercase(),
                     ignored_paths,
                 ) {
-                    break;
+                    continue;
                 }
-                if entry.path().is_file() {
-                    let temp_string = entry.path().extension().unwrap().to_str().unwrap();
-                    if allowed_extensions.contains(&temp_string.to_lowercase()) {
-                        let entry_string = entry.into_path();
-                        if !self.existing_files_hashset.contains(&entry_string) {
-                            self.existing_files_hashset.insert(entry_string.clone());
-                            self.new_files_queue.push(entry_string.clone());
-                        };
-                    }
+                if !entry.path().is_file() {
+                    continue;
+                }
+                let temp_string = entry.path().extension().unwrap().to_str().unwrap();
+                if allowed_extensions.contains(&temp_string.to_lowercase()) {
+                    let entry_string = entry.into_path();
+                    if !self.existing_files_hashset.contains(&entry_string) {
+                        self.existing_files_hashset.insert(entry_string.clone());
+                        self.new_files_queue.push(entry_string.clone());
+                    };
                 }
             }
         }
