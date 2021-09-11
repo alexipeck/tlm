@@ -18,6 +18,7 @@ table! {
         height -> Nullable<Int4>,
         framerate -> Nullable<Float8>,
         length_time -> Nullable<Float8>,
+        fast_file_hash -> Nullable<Varchar>,
     }
 }
 

@@ -1,7 +1,9 @@
 use std::{
-    fs,
+    fs::{self, File},
     path::{Path, PathBuf},
 };
+use std::io;
+use std::io::prelude::*;
 
 use crate::{
     designation::{convert_i32_to_designation, Designation},
@@ -21,6 +23,7 @@ pub struct Generic {
     pub full_path: PathBuf,
     pub designation: Designation,
     pub hash: Option<String>,
+    pub fast_hash: Option<String>,
     pub profile: Option<Profile>,
 }
 
@@ -34,6 +37,7 @@ impl Generic {
             designation: Designation::Generic,
             generic_uid: None,
             hash: None,
+            fast_hash: None,
             profile: Profile::from_file(raw_filepath.to_path_buf()),
         };
 
@@ -47,6 +51,23 @@ impl Generic {
         let hash = seahash::hash(&fs::read(self.full_path.to_str().unwrap()).unwrap());
         self.hash = Some(hash.to_string());
     }
+
+    ///Hash the first 32MB of the filewith seahash so we can quickly know
+    ///if a file is likely to have changed or is likely to be the same as
+    ///an existing file.
+    ///
+    ///For example if we backup all of tlm's information and all files get
+    ///renamed to something that doesn't make sense we can quickly search for
+    ///files that tlm knows about to restore by calculating the fast hash and
+    ///then calculating full hashes of matching hashes to save time
+    pub fn fast_hash(&mut self) {
+        let mut buffer = Box::new(vec![0; 33554432]);
+        let mut file = File::open(self.full_path.to_str().unwrap()).unwrap();
+        file.read(&mut buffer);
+        let fast_hash = seahash::hash(&buffer);
+        self.fast_hash = Some(fast_hash.to_string());
+    }
+
 
     ///Create a new generic from the database equivalent. This is neccesary because
     /// not all fields are stored in the database because they can be so easily recalculated
@@ -63,6 +84,7 @@ impl Generic {
             designation: convert_i32_to_designation(designation_temp), //Designation::Generic
             generic_uid: Some(generic_uid_temp as usize),
             hash: generic_model.file_hash.to_owned(),
+            fast_hash: generic_model.fast_file_hash.to_owned(),
             profile: generic_model.get_profile(),
         };
 

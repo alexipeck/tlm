@@ -157,6 +157,7 @@ impl Hash {
             for mut content in current_content {
                 if content.hash.is_none() {
                     content.hash();
+                    content.fast_hash();
                     if GenericModel::from_generic(content)
                         .save_changes::<GenericModel>(&connection)
                         .is_err()
