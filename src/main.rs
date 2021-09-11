@@ -18,7 +18,7 @@ fn main() {
 
     let style = ProgressStyle::default_bar()
         .template(
-            "{spinner:.green} [{prefix}] [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}} ({eta})",
+            "{spinner:.green} [{prefix}] [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}} ({eta_precise})",
         )
         .with_key("eta", |state| format!("{:.1}s", state.eta().as_secs_f64()))
         .progress_chars("#>-");
