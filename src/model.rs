@@ -54,6 +54,7 @@ pub struct GenericModel {
     pub height: Option<i32>,
     pub framerate: Option<f64>,
     pub length_time: Option<f64>,
+    pub fast_file_hash: Option<String>,
 }
 
 impl GenericModel {
@@ -64,6 +65,7 @@ impl GenericModel {
                 full_path: generic.get_full_path(),
                 designation: generic.designation as i32,
                 file_hash: generic.hash,
+                fast_file_hash: generic.fast_hash,
                 width: Some(generic.profile.to_owned().unwrap().width as i32),
                 height: Some(generic.profile.to_owned().unwrap().height as i32),
                 framerate: Some(generic.profile.to_owned().unwrap().framerate),
@@ -75,6 +77,7 @@ impl GenericModel {
                 full_path: generic.get_full_path(),
                 designation: generic.designation as i32,
                 file_hash: generic.hash,
+                fast_file_hash: generic.fast_hash,
                 width: None,
                 height: None,
                 framerate: None,
