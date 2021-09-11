@@ -53,58 +53,56 @@ pub enum Traceback {
 }
 
 //lower-case item in parenthasis implies *.rs file rather than a struct
-#[allow(clippy::inherent_to_string)]
-#[allow(bindings_with_variant_name)]
-impl Traceback {
-    pub fn to_string(&self) -> String {
-        match self {
-
+impl fmt::Display for Traceback {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let formatted: &str = match self {
             //FileManager
-            Self::AddExistingFilesToHashsetFileManager => {String::from("add_existing_files_to_hashset(FileManager)")},
-            Self::AddAllFilenamesToHashsetFileManager => {String::from("add_all_filenames_to_hashset_from_generics(FileManager)")},
-            Self::PrintNumberOfGenericsFileManager => {String::from("print_number_of_generics(FileManager)")},
-            Self::PrintNumberOfShowsFileManager => {String::from("print_number_of_shows(FileManager)")},
-            Self::PrintNumberOfEpisodesFileManager => {String::from("print_number_of_episodes(FileManager)")},
-            Self::ImportFilesFileManager  => {String::from("import_files(FileManager)")},
-            Self::ProcessNewFilesFileManager  => {String::from("process_new_files(FileManager)")},
-            Self::PrintEpisodesFileManager => {String::from("print_episodes(FileManager)")},
-            Self::InsertEpisodesFileManager => {String::from("insert_episodes(FileManager)")},
-            Self::EnsureShowExistsFileManager => {String::from("ensure_show_exists(FileManager)")},
-            Self::PrintShowsFileManager => {String::from("print_shows(FileManager)")},
+            Self::AddExistingFilesToHashsetFileManager => {"add_existing_files_to_hashset(FileManager)"},
+            Self::AddAllFilenamesToHashsetFileManager => {"add_all_filenames_to_hashset_from_generics(FileManager)"},
+            Self::PrintNumberOfGenericsFileManager => {"print_number_of_generics(FileManager)"},
+            Self::PrintNumberOfShowsFileManager => {"print_number_of_shows(FileManager)"},
+            Self::PrintNumberOfEpisodesFileManager => {"print_number_of_episodes(FileManager)"},
+            Self::ImportFilesFileManager  => {"import_files(FileManager)"},
+            Self::ProcessNewFilesFileManager  => {"process_new_files(FileManager)"},
+            Self::PrintEpisodesFileManager => {"print_episodes(FileManager)"},
+            Self::InsertEpisodesFileManager => {"insert_episodes(FileManager)"},
+            Self::EnsureShowExistsFileManager => {"ensure_show_exists(FileManager)"},
+            Self::PrintShowsFileManager => {"print_shows(FileManager)"},
             
             //database
-            Self::GetAllGenericDatabase => {String::from("get_all_generic(database)")},
-            Self::GetAllShowsDatabase => {String::from("get_all_shows(database)")},
+            Self::GetAllGenericDatabase => {"get_all_generic(database)"},
+            Self::GetAllShowsDatabase => {"get_all_shows(database)"},
 
             //Episode
-            Self::PrintEpisodeEpisode => {String::from("print_episode(Episode)")},
+            Self::PrintEpisodeEpisode => {"print_episode(Episode)"},
 
             //Show
-            Self::InsertEpisodeShow => {String::from("insert_episode(Show)")},
-            Self::PrintShowShow => {String::from("print_show(Show)")},
-            Self::ShowExistsShow => {String::from("show_exists(Show)")},
-            Self::FromShowModelShow => {String::from("from_show_model(Show)")},
+            Self::InsertEpisodeShow => {"insert_episode(Show)"},
+            Self::PrintShowShow => {"print_show(Show)"},
+            Self::ShowExistsShow => {"show_exists(Show)"},
+            Self::FromShowModelShow => {"from_show_model(Show)"},
 
             //Generic
-            Self::NewGeneric => {String::from("new(Generic)")},
-            Self::FromGenericModelGeneric => {String::from("from_generic_model(Generic)")},
-            Self::PrintGenericGeneric => {String::from("print_generic(Generic)")},
-            Self::PrintGenericsGeneric => {String::from("print_generics(Generic)")},
+            Self::NewGeneric => {"new(Generic)"},
+            Self::FromGenericModelGeneric => {"from_generic_model(Generic)"},
+            Self::PrintGenericGeneric => {"print_generic(Generic)"},
+            Self::PrintGenericsGeneric => {"print_generics(Generic)"},
 
             //Print
-            Self::PrintPrint => {String::from("print(print)")},
+            Self::PrintPrint => {"print(print)"},
 
             //_
-            Self::Main => {String::from("main")},
-            Self::PrintTimer => {String::from("print_timer(Timer)")},
-            Self::RunEncode => {String::from("run(Encode)")},
-            Self::HandleTask => {String::from("handle_task(Task)")},
-            Self::StartScheduler => {String::from("start_scheduler(Scheduler)")},
-            Self::NewConfig => {String::from("new(Config)")},
-            Self::NewFileManager => {String::from("new(FileManager)")},
+            Self::Main => {"main"},
+            Self::PrintTimer => {"print_timer(Timer)"},
+            Self::RunEncode => {"run(Encode)"},
+            Self::HandleTask => {"handle_task(Task)"},
+            Self::StartScheduler => {"start_scheduler(Scheduler)"},
+            Self::NewConfig => {"new(Config)"},
+            Self::NewFileManager => {"new(FileManager)"},
 
-            _ => {String::from("NOTSET")},
-        }
+            _ => {"NOTSET"},
+        };
+        write!(f, "{}", formatted)
     }
 }
 
