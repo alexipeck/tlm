@@ -60,45 +60,47 @@ impl Traceback {
         match self {
 
             //FileManager
-            AddExistingFilesToHashsetFileManager => {return String::from("add_existing_files_to_hashset(FileManager)")},
-            AddAllFilenamesToHashsetFileManager => {return String::from("add_all_filenames_to_hashset_from_generics(FileManager)")},
-            PrintNumberOfGenericsFileManager => {return String::from("print_number_of_generics(FileManager)")},
-            PrintNumberOfShowsFileManager => {return String::from("print_number_of_shows(FileManager)")},
-            PrintNumberOfEpisodesFileManager => {return String::from("print_number_of_episodes(FileManager)")},
-            ImportFiles  => {return String::from("import_files(FileManager)")},
-            ProcessNewFiles  => {return String::from("process_new_files(FileManager)")},
-            PrintEpisodesFileManager => {return String::from("print_episodes(FileManager)")},
-            InsertEpisodesFileManager => {return String::from("insert_episodes(FileManager)")},
-            EnsureShowExistsFileManager => {return String::from("ensure_show_exists(FileManager)")},
-            PrintShowsFileManager => {return String::from("print_shows(FileManager)")},
+            Self::AddExistingFilesToHashsetFileManager => {String::from("add_existing_files_to_hashset(FileManager)")},
+            Self::AddAllFilenamesToHashsetFileManager => {String::from("add_all_filenames_to_hashset_from_generics(FileManager)")},
+            Self::PrintNumberOfGenericsFileManager => {String::from("print_number_of_generics(FileManager)")},
+            Self::PrintNumberOfShowsFileManager => {String::from("print_number_of_shows(FileManager)")},
+            Self::PrintNumberOfEpisodesFileManager => {String::from("print_number_of_episodes(FileManager)")},
+            Self::ImportFilesFileManager  => {String::from("import_files(FileManager)")},
+            Self::ProcessNewFilesFileManager  => {String::from("process_new_files(FileManager)")},
+            Self::PrintEpisodesFileManager => {String::from("print_episodes(FileManager)")},
+            Self::InsertEpisodesFileManager => {String::from("insert_episodes(FileManager)")},
+            Self::EnsureShowExistsFileManager => {String::from("ensure_show_exists(FileManager)")},
+            Self::PrintShowsFileManager => {String::from("print_shows(FileManager)")},
             
             //database
-            GetAllGenericDatabase => {return String::from("get_all_generic(database)")},
-            GetAllShowsDatabase => {return String::from("get_all_shows(database)")},
+            Self::GetAllGenericDatabase => {String::from("get_all_generic(database)")},
+            Self::GetAllShowsDatabase => {String::from("get_all_shows(database)")},
 
             //Episode
-            InsertEpisodeShow => {return String::from("print_episode(Episode)")},
+            Self::PrintEpisodeEpisode => {String::from("print_episode(Episode)")},
 
             //Show
-            InsertEpisodeShow => {return String::from("insert_episode(Show)")},
-            PrintShowShow => {return String::from("print_show(Show)")},
-            ShowExistsShow => {return String::from("show_exists(Show)")},
-            FromShowModelShow => {return String::from("from_show_model(Show)")},
+            Self::InsertEpisodeShow => {String::from("insert_episode(Show)")},
+            Self::PrintShowShow => {String::from("print_show(Show)")},
+            Self::ShowExistsShow => {String::from("show_exists(Show)")},
+            Self::FromShowModelShow => {String::from("from_show_model(Show)")},
 
             //Generic
-            NewGeneric => {return String::from("new(Generic)")},
-            FromGenericModelGeneric => {return String::from("from_generic_model(Generic)")},
-            PrintGenericGeneric => {return String::from("print_generic(Generic)")},
-            PrintGenericsGeneric => {return String::from("print_generics(Generic)")},
+            Self::NewGeneric => {String::from("new(Generic)")},
+            Self::FromGenericModelGeneric => {String::from("from_generic_model(Generic)")},
+            Self::PrintGenericGeneric => {String::from("print_generic(Generic)")},
+            Self::PrintGenericsGeneric => {String::from("print_generics(Generic)")},
 
             //_
-            Main => {return String::from("main")},
-            PrintTimer => {return String::from("print_timer(Timer)")},
-            RunEncode => {return String::from("run(Encode)")},
-            HandleTask => {return String::from("handle_task(Task)")},
-            StartScheduler => {return String::from("start_scheduler(Scheduler)")},
-            NewConfig => {return String::from("new(Config)")},
-            NewFileManager => {return String::from("new(FileManager)")},
+            Self::Main => {String::from("main")},
+            Self::PrintTimer => {String::from("print_timer(Timer)")},
+            Self::RunEncode => {String::from("run(Encode)")},
+            Self::HandleTask => {String::from("handle_task(Task)")},
+            Self::StartScheduler => {String::from("start_scheduler(Scheduler)")},
+            Self::NewConfig => {String::from("new(Config)")},
+            Self::NewFileManager => {String::from("new(FileManager)")},
+
+            _ => {String::from("NOTSET")},
         }
     }
 }
