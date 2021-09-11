@@ -91,6 +91,9 @@ impl Traceback {
             Self::PrintGenericGeneric => {String::from("print_generic(Generic)")},
             Self::PrintGenericsGeneric => {String::from("print_generics(Generic)")},
 
+            //Print
+            Self::PrintPrint => {String::from("print(print)")},
+
             //_
             Self::Main => {String::from("main")},
             Self::PrintTimer => {String::from("print_timer(Timer)")},
