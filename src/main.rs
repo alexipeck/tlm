@@ -2,7 +2,7 @@ extern crate diesel;
 use tlm::{
     config::Config,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType},
-    utility::Utility,
+    utility::{Utility, Traceback},
 };
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
@@ -13,7 +13,7 @@ use std::thread;
 
 fn main() {
     //traceback and timing utility
-    let utility = Utility::new("main");
+    let utility = Utility::new(Traceback::Main);
     let progress_bars = MultiProgress::new();
 
     let style = ProgressStyle::default_bar()

@@ -6,7 +6,7 @@ use crate::{
     manager::FileManager,
     model::GenericModel,
     print::{print, From, Verbosity},
-    utility::Utility,
+    utility::{Utility, Traceback},
 };
 
 use std::{
@@ -100,7 +100,7 @@ impl Encode {
     }
 
     pub fn run(&mut self, utility: Utility) {
-        let utility = utility.clone_add_location("run(Encode)");
+        let utility = utility.clone_add_location(Traceback::RunEncode);
         if !self.is_ready_to_encode() {
             print(
                 Verbosity::ERROR,
@@ -216,7 +216,7 @@ impl Task {
         file_manager: &mut FileManager,
         utility: Utility,
     ) -> Option<TaskReturnAsync> {
-        let utility = utility.clone_add_location("handle_task(Task)");
+        let utility = utility.clone_add_location(Traceback::HandleTask);
 
         match &mut self.task_type {
             TaskType::Encode(encode) => {
@@ -278,7 +278,7 @@ impl Scheduler {
     }
 
     pub fn start_scheduler(&mut self, utility: Utility) {
-        let utility = utility.clone_add_location("start_scheduler");
+        let utility = utility.clone_add_location(Traceback::StartScheduler);
         let wait_time = time::Duration::from_secs(1);
 
         //Take a handle from any async function and 2 Bools

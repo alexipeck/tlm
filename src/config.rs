@@ -1,6 +1,6 @@
 use crate::manager::TrackedDirectories;
 use crate::print::{print, From, Verbosity};
-use crate::utility::Utility;
+use crate::utility::{Utility, Traceback};
 use argparse::{ArgumentParser, Store, StoreFalse, StoreTrue};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -20,7 +20,7 @@ impl Config {
     ///Config constructor loads the config from the path defined at the cli
     /// or if it doesn't exist creates a default config file
     pub fn new(preferences: &Preferences) -> Config {
-        let utility = Utility::new("new(Config)");
+        let utility = Utility::new(Traceback::NewConfig);
         let config: Config;
 
         if Path::new(&preferences.config_file_path).exists() {

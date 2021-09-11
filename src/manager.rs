@@ -6,7 +6,7 @@ use crate::{
     model::{NewEpisode, NewGeneric},
     print::{print, From, Verbosity},
     show::{Episode, Show},
-    utility::Utility,
+    utility::{Utility, Traceback},
 };
 use diesel::pg::PgConnection;
 use indicatif::ProgressBar;
@@ -41,7 +41,7 @@ pub struct FileManager {
 
 impl FileManager {
     pub fn new(config: &Config, utility: Utility) -> FileManager {
-        let mut utility = utility.clone_add_location("new(FileManager)");
+        let mut utility = utility.clone_add_location(Traceback::NewFileManager);
 
         let mut file_manager = FileManager {
             tracked_directories: TrackedDirectories::new(),
@@ -76,7 +76,7 @@ impl FileManager {
     }
 
     fn add_existing_files_to_hashset(&mut self, utility: Utility) {
-        let mut utility = utility.clone_add_location("add_existing_files_to_hashset(FileManager)");
+        let mut utility = utility.clone_add_location(Traceback::AddExistingFilesToHashsetFileManager);
         for generic in &self.generic_files {
             self.existing_files_hashset
                 .insert(generic.full_path.clone());
@@ -91,7 +91,7 @@ impl FileManager {
         utility: Utility,
     ) {
         let mut utility =
-            utility.clone_add_location("add_all_filenames_to_hashset_from_generics(FileManager)");
+            utility.clone_add_location(Traceback::AddAllFilenamesToHashsetFileManager);
         for generic in generics {
             self.existing_files_hashset
                 .insert(generic.full_path.clone());
@@ -101,7 +101,7 @@ impl FileManager {
     }
 
     pub fn print_number_of_generics(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location("print_number_of_generics(FileManager)");
+        let mut utility = utility.clone_add_location(Traceback::PrintNumberOfGenericsFileManager);
 
         print(
             Verbosity::INFO,
@@ -118,7 +118,7 @@ impl FileManager {
     }
 
     pub fn print_number_of_shows(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location("print_number_of_shows(FileManager)");
+        let mut utility = utility.clone_add_location(Traceback::PrintNumberOfShowsFileManager);
 
         print(
             Verbosity::INFO,
@@ -132,7 +132,7 @@ impl FileManager {
     }
 
     pub fn print_number_of_episodes(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location("print_number_of_episodes(FileManager)");
+        let mut utility = utility.clone_add_location(Traceback::PrintNumberOfEpisodesFileManager);
 
         let mut episode_counter = 0;
         for show in &self.shows {
@@ -153,7 +153,7 @@ impl FileManager {
     }
 
     pub fn process_new_files(&mut self, progress_bar: &ProgressBar, utility: Utility) {
-        let mut utility = utility.clone_add_location("process_new_files(FileManager)");
+        let mut utility = utility.clone_add_location(Traceback::ProcessNewFilesFileManager);
         let connection = establish_connection();
         let mut new_episodes = Vec::new();
         let mut new_generics = Vec::new();
@@ -298,7 +298,7 @@ impl FileManager {
         ignored_paths: &[String],
         utility: Utility,
     ) {
-        let mut utility = utility.clone_add_location("import_files(FileManager)");
+        let mut utility = utility.clone_add_location(Traceback::ImportFilesFileManager);
 
         //Return true if string contains any substring from Vector
         fn str_contains_strs(input_str: &str, substrings: &[String]) -> bool {
@@ -318,17 +318,18 @@ impl FileManager {
                     &entry.path().to_str().unwrap().to_lowercase(),
                     ignored_paths,
                 ) {
-                    break;
+                    continue;
                 }
-                if entry.path().is_file() {
-                    let temp_string = entry.path().extension().unwrap().to_str().unwrap();
-                    if allowed_extensions.contains(&temp_string.to_lowercase()) {
-                        let entry_string = entry.into_path();
-                        if !self.existing_files_hashset.contains(&entry_string) {
-                            self.existing_files_hashset.insert(entry_string.clone());
-                            self.new_files_queue.push(entry_string.clone());
-                        };
-                    }
+                if !entry.path().is_file() {
+                    continue;
+                }
+                let temp_string = entry.path().extension().unwrap().to_str().unwrap();
+                if allowed_extensions.contains(&temp_string.to_lowercase()) {
+                    let entry_string = entry.into_path();
+                    if !self.existing_files_hashset.contains(&entry_string) {
+                        self.existing_files_hashset.insert(entry_string.clone());
+                        self.new_files_queue.push(entry_string.clone());
+                    };
                 }
             }
         }
@@ -336,7 +337,7 @@ impl FileManager {
     }
 
     pub fn print_episodes(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location("print_episodes(FileManager)");
+        let mut utility = utility.clone_add_location(Traceback::PrintEpisodesFileManager);
 
         if !utility.preferences.print_episode && !utility.preferences.episode_output_whitelisted {
             return;
@@ -357,7 +358,7 @@ impl FileManager {
     }
 
     pub fn insert_episodes(&mut self, episodes: Vec<Episode>, utility: Utility) {
-        let mut utility = utility.clone_add_location("insert_episodes(FileManager)");
+        let mut utility = utility.clone_add_location(Traceback::InsertEpisodesFileManager);
         //find the associated show
         //insert episode into that show
         for episode in episodes {
@@ -379,7 +380,7 @@ impl FileManager {
         utility: Utility,
         connection: &PgConnection,
     ) -> usize {
-        let utility = utility.clone_add_location("ensure_show_exists(FileManager)");
+        let utility = utility.clone_add_location(Traceback::EnsureShowExistsFileManager);
 
         let show_uid = Show::show_exists(show_title.clone(), &self.shows, utility.clone());
         match show_uid {
@@ -411,7 +412,7 @@ impl FileManager {
     }
 
     pub fn print_shows(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location("print_shows(FileManager)");
+        let mut utility = utility.clone_add_location(Traceback::PrintShowsFileManager);
 
         if !utility.preferences.print_shows {
             return;

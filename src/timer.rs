@@ -1,6 +1,6 @@
 use crate::{
     print::{print, From, Verbosity},
-    utility::Utility,
+    utility::{Utility, Traceback},
 };
 use std::time::Instant;
 
@@ -9,13 +9,13 @@ pub struct Timer {
     //The stage and task are for instance: "startup: looping through generics to do 'x'"
     //The identifier is an arbitrary string of characters you can search the code directly for, I recommend a 4 character alpha-numeric combination
     pub uid: usize,
-    pub function_name: String,
+    pub function_name: Traceback,
     pub timer: Instant,
     pub stored_time: Option<u128>,
 }
 
 impl Timer {
-    pub fn create_timer(uid: usize, function_name: String) -> Timer {
+    pub fn create_timer(uid: usize, function_name: Traceback) -> Timer {
         Timer {
             uid,
             function_name,
@@ -37,7 +37,7 @@ impl Timer {
         if !utility.preferences.timing_enabled {
             return;
         }
-        let utility = utility.clone_add_location("print_timer(Timer)");
+        let utility = utility.clone_add_location(Traceback::PrintTimer);
 
         if self.stored_time.is_none() {
             self.store_timing();
@@ -49,7 +49,7 @@ impl Timer {
                 From::Timer,
                 format!(
                     "{} took: {}ms",
-                    self.function_name,
+                    self.function_name.to_string(),
                     self.stored_time.unwrap()
                 ),
                 true,
