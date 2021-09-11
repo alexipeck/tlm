@@ -6,26 +6,99 @@ use crate::{
 use std::fmt;
 
 #[derive(Clone, Debug)]
-pub enum Traceback {
-    ImportFiles,
-    ProcessNewFiles,
+pub enum Traceback {    
+    //FileManager
+    AddExistingFilesToHashsetFileManager,
+    AddAllFilenamesToHashsetFileManager,
+    PrintNumberOfGenericsFileManager,
+    PrintNumberOfShowsFileManager,
+    PrintNumberOfEpisodesFileManager,
+    ImportFilesFileManager,
+    ProcessNewFilesFileManager,
+    PrintEpisodesFileManager,
+    InsertEpisodesFileManager,
+    EnsureShowExistsFileManager,
+    PrintShowsFileManager,
+
+    //Database
+    GetAllGenericDatabase,
+    GetAllShowsDatabase,
+    
+    //Episode
+    PrintEpisodeEpisode,        
+
+    //Show
+    InsertEpisodeShow,
+    PrintShowShow,
+    ShowExistsShow,
+    FromShowModelShow,
+
+    //Generic
+    NewGeneric,
+    FromGenericModelGeneric,
+    PrintGenericGeneric,
+    PrintGenericsGeneric,
+
+    //Print
+    PrintPrint,
+
+    //Unsorted
+    Main,
     PrintTimer,
     RunEncode,
     HandleTask,
     StartScheduler,
     NewConfig,
+    NewFileManager,
 }
 
+//lower-case item in parenthasis implies *.rs file rather than a struct
+#[allow(clippy::inherent_to_string)]
+#[allow(bindings_with_variant_name)]
 impl Traceback {
     pub fn to_string(&self) -> String {
         match self {
-            ImportFiles => {return String::from("import_files(FileManager)")},
-            ProcessNewFiles => {return String::from("process_new_files(FileManager)")},
+
+            //FileManager
+            AddExistingFilesToHashsetFileManager => {return String::from("add_existing_files_to_hashset(FileManager)")},
+            AddAllFilenamesToHashsetFileManager => {return String::from("add_all_filenames_to_hashset_from_generics(FileManager)")},
+            PrintNumberOfGenericsFileManager => {return String::from("print_number_of_generics(FileManager)")},
+            PrintNumberOfShowsFileManager => {return String::from("print_number_of_shows(FileManager)")},
+            PrintNumberOfEpisodesFileManager => {return String::from("print_number_of_episodes(FileManager)")},
+            ImportFiles  => {return String::from("import_files(FileManager)")},
+            ProcessNewFiles  => {return String::from("process_new_files(FileManager)")},
+            PrintEpisodesFileManager => {return String::from("print_episodes(FileManager)")},
+            InsertEpisodesFileManager => {return String::from("insert_episodes(FileManager)")},
+            EnsureShowExistsFileManager => {return String::from("ensure_show_exists(FileManager)")},
+            PrintShowsFileManager => {return String::from("print_shows(FileManager)")},
+            
+            //database
+            GetAllGenericDatabase => {return String::from("get_all_generic(database)")},
+            GetAllShowsDatabase => {return String::from("get_all_shows(database)")},
+
+            //Episode
+            InsertEpisodeShow => {return String::from("print_episode(Episode)")},
+
+            //Show
+            InsertEpisodeShow => {return String::from("insert_episode(Show)")},
+            PrintShowShow => {return String::from("print_show(Show)")},
+            ShowExistsShow => {return String::from("show_exists(Show)")},
+            FromShowModelShow => {return String::from("from_show_model(Show)")},
+
+            //Generic
+            NewGeneric => {return String::from("new(Generic)")},
+            FromGenericModelGeneric => {return String::from("from_generic_model(Generic)")},
+            PrintGenericGeneric => {return String::from("print_generic(Generic)")},
+            PrintGenericsGeneric => {return String::from("print_generics(Generic)")},
+
+            //_
+            Main => {return String::from("main")},
             PrintTimer => {return String::from("print_timer(Timer)")},
             RunEncode => {return String::from("run(Encode)")},
             HandleTask => {return String::from("handle_task(Task)")},
             StartScheduler => {return String::from("start_scheduler(Scheduler)")},
             NewConfig => {return String::from("new(Config)")},
+            NewFileManager => {return String::from("new(FileManager)")},
         }
     }
 }
@@ -42,7 +115,7 @@ impl Utility {
     pub fn new(created_from: Traceback) -> Self {
         let mut utility = Utility {
             traceback: Vec::new(),
-            current_location: created_from,
+            current_location: created_from.clone(),
             function_timer: None,
             preferences: Preferences::default(),
         };
@@ -82,8 +155,8 @@ impl Utility {
 
     pub fn clone_add_location(&self, called_from: Traceback) -> Utility {
         let mut temp = self.clone();
+        temp.current_location = called_from.clone();
         temp.add_traceback_location(called_from);
-        temp.current_location = called_from;
         if self.preferences.timing_enabled {
             temp.start_function_timer();
         }

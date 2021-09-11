@@ -1,4 +1,4 @@
-use crate::utility::Utility;
+use crate::utility::{Utility, Traceback};
 use std::fmt;
 use std::num::ParseIntError;
 use std::str::FromStr;
@@ -87,7 +87,7 @@ pub fn print(
     whitelisted: bool,
     utility: Utility,
 ) {
-    let mut utility = utility.clone_add_location("print");
+    let mut utility = utility.clone_add_location(Traceback::PrintPrint);
 
     if !utility.preferences.default_print && !whitelisted {
         return;

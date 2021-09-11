@@ -2,7 +2,7 @@ use crate::{
     generic::Generic,
     model::*,
     print::{print, From, Verbosity},
-    utility::Utility,
+    utility::{Utility, Traceback},
 };
 
 use std::path::PathBuf;
@@ -59,7 +59,7 @@ impl Episode {
     }
 
     pub fn print_episode(&self, utility: Utility) {
-        let utility = utility.clone_add_location("print_episode(Episode)");
+        let utility = utility.clone_add_location(Traceback::PrintEpisodeEpisode);
 
         //could realistically just check if it has an episode designation,
         print(
@@ -112,7 +112,7 @@ impl Show {
     }
 
     pub fn insert_episode(&mut self, episode: Episode, utility: Utility) {
-        let mut utility = utility.clone_add_location("insert_episode(Show)");
+        let mut utility = utility.clone_add_location(Traceback::InsertEpisodeShow);
         let season_number = episode.show_season;
 
         let mut found_season: bool = false;
@@ -138,7 +138,7 @@ impl Show {
     }
 
     pub fn print_show(&self, utility: Utility) {
-        let utility = utility.clone_add_location("print_show(Show)");
+        let utility = utility.clone_add_location(Traceback::PrintShowShow);
         if !utility.preferences.print_shows && !utility.preferences.show_output_whitelisted {
             return;
         }
@@ -156,7 +156,7 @@ impl Show {
         working_shows: &[Show],
         utility: Utility,
     ) -> Option<usize> {
-        let mut utility = utility.clone_add_location("show_exists(Show)");
+        let mut utility = utility.clone_add_location(Traceback::ShowExistsShow);
         for s in working_shows {
             if s.show_title == show_title {
                 return Some(s.show_uid);
@@ -168,7 +168,7 @@ impl Show {
     }
 
     pub fn from_show_model(show_model: ShowModel, utility: Utility) -> Show {
-        let mut utility = utility.clone_add_location("from_show_model(Show)");
+        let mut utility = utility.clone_add_location(Traceback::FromShowModelShow);
 
         let show_uid_temp: i32 = show_model.show_uid;
         let title_temp: String = show_model.show_title;

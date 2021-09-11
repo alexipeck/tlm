@@ -8,7 +8,7 @@ use crate::{
     model::*,
     print::{print, From, Verbosity},
     profile::Profile,
-    utility::Utility,
+    utility::{Utility, Traceback},
 };
 
 /// this will obviously mean memory overhead. In future I think
@@ -27,7 +27,7 @@ pub struct Generic {
 impl Generic {
     //needs to be able to be created from a pathbuf or pulled from the database
     pub fn new(raw_filepath: &Path, utility: Utility) -> Self {
-        let mut utility = utility.clone_add_location("new(Generic)");
+        let mut utility = utility.clone_add_location(Traceback::NewGeneric);
 
         let generic = Generic {
             full_path: raw_filepath.to_path_buf(),
@@ -51,7 +51,7 @@ impl Generic {
     ///Create a new generic from the database equivalent. This is neccesary because
     /// not all fields are stored in the database because they can be so easily recalculated
     pub fn from_generic_model(generic_model: GenericModel, utility: Utility) -> Generic {
-        let mut utility = utility.clone_add_location("from_generic_model(Generic)");
+        let mut utility = utility.clone_add_location(Traceback::FromGenericModelGeneric);
 
         let generic_uid_temp: i32 = generic_model.generic_uid;
         let full_path_temp: String = generic_model.full_path.to_owned();
@@ -177,7 +177,7 @@ impl Generic {
     }
 
     pub fn print_generic(&self, utility: Utility) {
-        let utility = utility.clone_add_location("print_generic(Generic)");
+        let utility = utility.clone_add_location(Traceback::PrintGenericGeneric);
         print(
             Verbosity::DEBUG,
             From::Generic,
@@ -193,7 +193,7 @@ impl Generic {
     }
 
     pub fn print_generics(generics: &[Generic], utility: Utility) {
-        let mut utility = utility.clone_add_location("print_generics(Generic)");
+        let mut utility = utility.clone_add_location(Traceback::PrintGenericsGeneric);
 
         if !utility.preferences.print_generic && !utility.preferences.generic_output_whitelisted {
             return;
