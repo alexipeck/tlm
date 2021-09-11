@@ -14,7 +14,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
-use walkdir::WalkDir;
+use walkdir::{WalkDir, DirEntry};
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct TrackedDirectories {
@@ -291,6 +291,46 @@ impl FileManager {
         utility.print_function_timer();
     }
 
+    pub fn path_contains_ignored_path(&self, input_str: &str, ignored_paths: &[String]) -> bool {
+        for ignored_path in ignored_paths {
+            if String::from(input_str).contains(&ignored_path.to_lowercase()) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn accept_file(&mut self, dir_entry: DirEntry, ignored_paths: &[String], allowed_extensions: &[String]) -> bool {
+        let path = dir_entry.path();
+
+        //rejects if the path contains any element of an ignored path
+        for ignored_path in ignored_paths {
+            if path.to_str().unwrap().to_lowercase().contains(&ignored_path.to_lowercase()) {
+                return false;
+            }
+        }
+
+        //rejects if the path isn't a file or doesn't have an extension
+        if !dir_entry.path().is_file() || dir_entry.path().extension().is_none() {
+            return false;
+        }
+        
+        //rejects if the file doesn't have an allowed extension
+        if !allowed_extensions.contains(&path.extension().unwrap().to_str().unwrap().to_lowercase()) {
+            return false;
+        }
+
+        let entry_string = dir_entry.into_path();
+        if !self.existing_files_hashset.contains(&entry_string) {
+            self.existing_files_hashset.insert(entry_string.clone());
+            self.new_files_queue.push(entry_string);
+        };
+
+        true
+    }
+
+
+
     //Hash set guarentees no duplicates in O(1) time
     pub fn import_files(
         &mut self,
@@ -300,38 +340,12 @@ impl FileManager {
     ) {
         let mut utility = utility.clone_add_location(Traceback::ImportFilesFileManager);
 
-        //Return true if string contains any substring from Vector
-        fn str_contains_strs(input_str: &str, substrings: &[String]) -> bool {
-            for substring in substrings {
-                if String::from(input_str).contains(&substring.to_lowercase()) {
-                    return true;
-                }
-            }
-            false
-        }
-
         //import all files in tracked root directories
-        for directory in &self.tracked_directories.root_directories {
+        for directory in &self.tracked_directories.root_directories.clone() {
             let entries = WalkDir::new(directory).into_iter().filter_map(|e| e.ok());
             for entry in entries {
-                if str_contains_strs(
-                    &entry.path().to_str().unwrap().to_lowercase(),
-                    ignored_paths,
-                ) {
-                    continue;
-                }
-                
-                if !entry.path().is_file() || entry.path().extension().is_none() {
-                    continue;
-                }
-
-                let temp_string = entry.path().extension().unwrap().to_str().unwrap();
-                if allowed_extensions.contains(&temp_string.to_lowercase()) {
-                    let entry_string = entry.into_path();
-                    if !self.existing_files_hashset.contains(&entry_string) {
-                        self.existing_files_hashset.insert(entry_string.clone());
-                        self.new_files_queue.push(entry_string.clone());
-                    };
+                if !self.accept_file(entry, ignored_paths, allowed_extensions) {
+                    //do something with rejected entry
                 }
             }
         }
