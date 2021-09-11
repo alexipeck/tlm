@@ -320,9 +320,11 @@ impl FileManager {
                 ) {
                     continue;
                 }
-                if !entry.path().is_file() {
+                
+                if !entry.path().is_file() || entry.path().extension().is_none() {
                     continue;
                 }
+
                 let temp_string = entry.path().extension().unwrap().to_str().unwrap();
                 if allowed_extensions.contains(&temp_string.to_lowercase()) {
                     let entry_string = entry.into_path();

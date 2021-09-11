@@ -37,7 +37,12 @@ impl Profile {
     }
 
     pub fn split_profile(&self) -> (Option<i32>, Option<i32>, Option<f64>, Option<f64>) {
-        (Some(self.width as i32), Some(self.height as i32), Some(self.framerate), Some(self.length_time))//lossy casts
+        (
+            Some(self.width as i32),
+            Some(self.height as i32),
+            Some(self.framerate),
+            Some(self.length_time),
+        ) //lossy casts
     }
 }
 
