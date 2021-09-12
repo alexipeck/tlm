@@ -1,9 +1,17 @@
 use crate::schema::generic::designation;
 use crate::{
-    designation::Designation, generic::Generic, model::*, schema::episode as episode_table,
-    schema::episode::dsl::episode as episode_db, schema::generic as generic_table,
-    schema::generic::dsl::generic as generic_data, schema::show as show_table,
-    schema::show::dsl::show as show_db, show::Episode, show::Show, utility::{Utility, Traceback},
+    designation::Designation,
+    generic::Generic,
+    model::*,
+    schema::episode as episode_table,
+    schema::episode::dsl::episode as episode_db,
+    schema::generic as generic_table,
+    schema::generic::dsl::generic as generic_data,
+    schema::show as show_table,
+    schema::show::dsl::show as show_db,
+    show::Episode,
+    show::Show,
+    utility::{Traceback, Utility},
 };
 use diesel::{pg::PgConnection, prelude::*};
 use std::env;

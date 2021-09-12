@@ -6,7 +6,7 @@ use crate::{
     manager::FileManager,
     model::GenericModel,
     print::{print, From, Verbosity},
-    utility::{Utility, Traceback},
+    utility::{Traceback, Utility},
 };
 
 use std::{

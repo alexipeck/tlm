@@ -1,6 +1,6 @@
 use crate::manager::TrackedDirectories;
 use crate::print::{print, From, Verbosity};
-use crate::utility::{Utility, Traceback};
+use crate::utility::{Traceback, Utility};
 use argparse::{ArgumentParser, Store, StoreFalse, StoreTrue};
 use serde::{Deserialize, Serialize};
 use std::fs;

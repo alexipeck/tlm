@@ -2,7 +2,7 @@ use crate::{
     generic::Generic,
     model::*,
     print::{print, From, Verbosity},
-    utility::{Utility, Traceback},
+    utility::{Traceback, Utility},
 };
 
 use std::path::PathBuf;

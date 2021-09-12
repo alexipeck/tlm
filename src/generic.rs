@@ -1,16 +1,16 @@
+use std::io;
+use std::io::prelude::*;
 use std::{
     fs::{self, File},
     path::{Path, PathBuf},
 };
-use std::io;
-use std::io::prelude::*;
 
 use crate::{
     designation::{convert_i32_to_designation, Designation},
     model::*,
     print::{print, From, Verbosity},
     profile::Profile,
-    utility::{Utility, Traceback},
+    utility::{Traceback, Utility},
 };
 
 /// this will obviously mean memory overhead. In future I think
@@ -67,7 +67,6 @@ impl Generic {
         let fast_hash = seahash::hash(&buffer);
         self.fast_hash = Some(fast_hash.to_string());
     }
-
 
     ///Create a new generic from the database equivalent. This is neccesary because
     /// not all fields are stored in the database because they can be so easily recalculated

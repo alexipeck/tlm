@@ -6,7 +6,7 @@ use crate::{
 use std::fmt;
 
 #[derive(Clone, Debug)]
-pub enum Traceback {    
+pub enum Traceback {
     //FileManager
     AddExistingFilesToHashsetFileManager,
     AddAllFilenamesToHashsetFileManager,
@@ -23,9 +23,9 @@ pub enum Traceback {
     //Database
     GetAllGenericDatabase,
     GetAllShowsDatabase,
-    
+
     //Episode
-    PrintEpisodeEpisode,        
+    PrintEpisodeEpisode,
 
     //Show
     InsertEpisodeShow,
@@ -57,50 +57,54 @@ impl fmt::Display for Traceback {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let formatted: &str = match self {
             //FileManager
-            Self::AddExistingFilesToHashsetFileManager => {"add_existing_files_to_hashset(FileManager)"},
-            Self::AddAllFilenamesToHashsetFileManager => {"add_all_filenames_to_hashset_from_generics(FileManager)"},
-            Self::PrintNumberOfGenericsFileManager => {"print_number_of_generics(FileManager)"},
-            Self::PrintNumberOfShowsFileManager => {"print_number_of_shows(FileManager)"},
-            Self::PrintNumberOfEpisodesFileManager => {"print_number_of_episodes(FileManager)"},
-            Self::ImportFilesFileManager  => {"import_files(FileManager)"},
-            Self::ProcessNewFilesFileManager  => {"process_new_files(FileManager)"},
-            Self::PrintEpisodesFileManager => {"print_episodes(FileManager)"},
-            Self::InsertEpisodesFileManager => {"insert_episodes(FileManager)"},
-            Self::EnsureShowExistsFileManager => {"ensure_show_exists(FileManager)"},
-            Self::PrintShowsFileManager => {"print_shows(FileManager)"},
-            
+            Self::AddExistingFilesToHashsetFileManager => {
+                "add_existing_files_to_hashset(FileManager)"
+            }
+            Self::AddAllFilenamesToHashsetFileManager => {
+                "add_all_filenames_to_hashset_from_generics(FileManager)"
+            }
+            Self::PrintNumberOfGenericsFileManager => "print_number_of_generics(FileManager)",
+            Self::PrintNumberOfShowsFileManager => "print_number_of_shows(FileManager)",
+            Self::PrintNumberOfEpisodesFileManager => "print_number_of_episodes(FileManager)",
+            Self::ImportFilesFileManager => "import_files(FileManager)",
+            Self::ProcessNewFilesFileManager => "process_new_files(FileManager)",
+            Self::PrintEpisodesFileManager => "print_episodes(FileManager)",
+            Self::InsertEpisodesFileManager => "insert_episodes(FileManager)",
+            Self::EnsureShowExistsFileManager => "ensure_show_exists(FileManager)",
+            Self::PrintShowsFileManager => "print_shows(FileManager)",
+
             //database
-            Self::GetAllGenericDatabase => {"get_all_generic(database)"},
-            Self::GetAllShowsDatabase => {"get_all_shows(database)"},
+            Self::GetAllGenericDatabase => "get_all_generic(database)",
+            Self::GetAllShowsDatabase => "get_all_shows(database)",
 
             //Episode
-            Self::PrintEpisodeEpisode => {"print_episode(Episode)"},
+            Self::PrintEpisodeEpisode => "print_episode(Episode)",
 
             //Show
-            Self::InsertEpisodeShow => {"insert_episode(Show)"},
-            Self::PrintShowShow => {"print_show(Show)"},
-            Self::ShowExistsShow => {"show_exists(Show)"},
-            Self::FromShowModelShow => {"from_show_model(Show)"},
+            Self::InsertEpisodeShow => "insert_episode(Show)",
+            Self::PrintShowShow => "print_show(Show)",
+            Self::ShowExistsShow => "show_exists(Show)",
+            Self::FromShowModelShow => "from_show_model(Show)",
 
             //Generic
-            Self::NewGeneric => {"new(Generic)"},
-            Self::FromGenericModelGeneric => {"from_generic_model(Generic)"},
-            Self::PrintGenericGeneric => {"print_generic(Generic)"},
-            Self::PrintGenericsGeneric => {"print_generics(Generic)"},
+            Self::NewGeneric => "new(Generic)",
+            Self::FromGenericModelGeneric => "from_generic_model(Generic)",
+            Self::PrintGenericGeneric => "print_generic(Generic)",
+            Self::PrintGenericsGeneric => "print_generics(Generic)",
 
             //Print
-            Self::PrintPrint => {"print(print)"},
+            Self::PrintPrint => "print(print)",
 
             //_
-            Self::Main => {"main"},
-            Self::PrintTimer => {"print_timer(Timer)"},
-            Self::RunEncode => {"run(Encode)"},
-            Self::HandleTask => {"handle_task(Task)"},
-            Self::StartScheduler => {"start_scheduler(Scheduler)"},
-            Self::NewConfig => {"new(Config)"},
-            Self::NewFileManager => {"new(FileManager)"},
+            Self::Main => "main",
+            Self::PrintTimer => "print_timer(Timer)",
+            Self::RunEncode => "run(Encode)",
+            Self::HandleTask => "handle_task(Task)",
+            Self::StartScheduler => "start_scheduler(Scheduler)",
+            Self::NewConfig => "new(Config)",
+            Self::NewFileManager => "new(FileManager)",
 
-            _ => {"NOTSET"},
+            _ => "NOTSET",
         };
         write!(f, "{}", formatted)
     }

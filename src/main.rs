@@ -2,7 +2,7 @@ extern crate diesel;
 use tlm::{
     config::Config,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType},
-    utility::{Utility, Traceback},
+    utility::{Traceback, Utility},
 };
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};

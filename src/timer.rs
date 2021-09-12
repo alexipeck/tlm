@@ -1,6 +1,6 @@
 use crate::{
     print::{print, From, Verbosity},
-    utility::{Utility, Traceback},
+    utility::{Traceback, Utility},
 };
 use std::time::Instant;
 

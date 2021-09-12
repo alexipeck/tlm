@@ -1,4 +1,4 @@
-use crate::utility::{Utility, Traceback};
+use crate::utility::{Traceback, Utility};
 use std::fmt;
 use std::num::ParseIntError;
 use std::str::FromStr;

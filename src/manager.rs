@@ -6,15 +6,19 @@ use crate::{
     model::{NewEpisode, NewGeneric},
     print::{print, From, Verbosity},
     show::{Episode, Show},
-    utility::{Utility, Traceback},
+    utility::{Traceback, Utility},
 };
 use diesel::pg::PgConnection;
 use indicatif::ProgressBar;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, path::PathBuf};
-use walkdir::{WalkDir, DirEntry};
+use std::{
+    collections::HashSet,
+    fmt::{self, Display},
+    path::PathBuf,
+};
+use walkdir::{DirEntry, WalkDir};
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct TrackedDirectories {
@@ -28,6 +32,42 @@ impl TrackedDirectories {
             root_directories: Vec::new(),
             cache_directories: Vec::new(),
         }
+    }
+}
+
+pub enum Reason {
+    PathContainsIgnoredPath,
+    ExtensionMissing,
+    ExtensionDisallowed,
+    IsNotFile,
+    MatchesExisting,
+}
+pub fn reasons_to_string(reasons: Vec<Reason>) -> String {
+    let mut formatted: String = String::new();
+    for reason in reasons {
+        formatted.push_str(&format!("[{}]", reason.to_string()));
+    }
+    formatted
+}
+
+impl Reason {
+    #[allow(clippy::inherent_to_string_shadow_display)]
+    pub fn to_string(&self) -> String {
+        let formatted: &str = match self {
+            Self::PathContainsIgnoredPath => "PathContainsIgnoredPath",
+            Self::ExtensionMissing => "ExtensionMissing",
+            Self::ExtensionDisallowed => "ExtensionDisallowed",
+            Self::IsNotFile => "IsNotFile",
+            Self::MatchesExisting => "MatchesExisting",
+            _ => "MissingToString",
+        };
+        String::from(formatted)
+    }
+}
+
+impl fmt::Display for Reason {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_string())
     }
 }
 
@@ -76,7 +116,8 @@ impl FileManager {
     }
 
     fn add_existing_files_to_hashset(&mut self, utility: Utility) {
-        let mut utility = utility.clone_add_location(Traceback::AddExistingFilesToHashsetFileManager);
+        let mut utility =
+            utility.clone_add_location(Traceback::AddExistingFilesToHashsetFileManager);
         for generic in &self.generic_files {
             self.existing_files_hashset
                 .insert(generic.full_path.clone());
@@ -291,45 +332,69 @@ impl FileManager {
         utility.print_function_timer();
     }
 
-    pub fn path_contains_ignored_path(&self, input_str: &str, ignored_paths: &[String]) -> bool {
-        for ignored_path in ignored_paths {
-            if String::from(input_str).contains(&ignored_path.to_lowercase()) {
-                return true;
-            }
-        }
-        false
-    }
+    fn verify_database() {}
 
-    pub fn accept_file(&mut self, dir_entry: DirEntry, ignored_paths: &[String], allowed_extensions: &[String]) -> bool {
+    ///returns none when a file is rejected because is accepted, or already exists in the existing_files_hashset
+    fn accept_or_reject_file(
+        &mut self,
+        dir_entry: DirEntry,
+        ignored_paths: &[String],
+        allowed_extensions: &[String],
+        read_only: bool,
+    ) -> Option<Vec<Reason>> {
         let path = dir_entry.path();
+        let mut reason: Vec<Reason> = Vec::new();
+        let mut allowed: bool = true;
 
         //rejects if the path contains any element of an ignored path
         for ignored_path in ignored_paths {
-            if path.to_str().unwrap().to_lowercase().contains(&ignored_path.to_lowercase()) {
-                return false;
+            if path
+                .to_str()
+                .unwrap()
+                .to_lowercase()
+                .contains(&ignored_path.to_lowercase())
+            {
+                reason.push(Reason::PathContainsIgnoredPath);
+                allowed = false;
             }
         }
 
-        //rejects if the path isn't a file or doesn't have an extension
-        if !dir_entry.path().is_file() || dir_entry.path().extension().is_none() {
-            return false;
-        }
-        
-        //rejects if the file doesn't have an allowed extension
-        if !allowed_extensions.contains(&path.extension().unwrap().to_str().unwrap().to_lowercase()) {
-            return false;
+        //rejects if the path doesn't have an extension
+        if dir_entry.path().extension().is_none() {
+            reason.push(Reason::ExtensionMissing);
+            allowed = false;
+        } else {
+            //rejects if the file doesn't have an allowed extension
+            if !allowed_extensions
+                .contains(&path.extension().unwrap().to_str().unwrap().to_lowercase())
+            {
+                reason.push(Reason::ExtensionDisallowed);
+                allowed = false;
+            }
         }
 
         let entry_string = dir_entry.into_path();
-        if !self.existing_files_hashset.contains(&entry_string) {
+
+        //rejects if the file exists in the existing_files_hashset
+        if self.existing_files_hashset.contains(&entry_string) {
+            reason.push(Reason::MatchesExisting);
+            allowed = false;
+            return None;
+        }
+
+        if read_only {
+            return Some(reason);
+        }
+
+        if allowed {
             self.existing_files_hashset.insert(entry_string.clone());
             self.new_files_queue.push(entry_string);
-        };
+        } else {
+            //Handle real file rejection here
+        }
 
-        true
+        None
     }
-
-
 
     //Hash set guarentees no duplicates in O(1) time
     pub fn import_files(
@@ -344,8 +409,30 @@ impl FileManager {
         for directory in &self.tracked_directories.root_directories.clone() {
             let entries = WalkDir::new(directory).into_iter().filter_map(|e| e.ok());
             for entry in entries {
-                if !self.accept_file(entry, ignored_paths, allowed_extensions) {
-                    //do something with rejected entry
+                //rejects if the path isn't a file
+                if !entry.path().is_file() {
+                    continue;
+                }
+
+                let reason = self.accept_or_reject_file(
+                    entry.clone(),
+                    ignored_paths,
+                    allowed_extensions,
+                    false,
+                );
+
+                if reason.is_some() {
+                    print(
+                        Verbosity::INFO,
+                        From::Manager,
+                        format!(
+                            "Path: '{}' disallowed because {}",
+                            String::from(entry.into_path().to_str().unwrap()),
+                            reasons_to_string(reason.unwrap())
+                        ),
+                        false,
+                        utility.clone(),
+                    );
                 }
             }
         }
