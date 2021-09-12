@@ -1,9 +1,13 @@
 extern crate diesel;
+extern crate websocket;
+
 use tlm::{
     config::Config,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType},
     utility::{Traceback, Utility},
 };
+use websocket::sync::Server;
+use websocket::OwnedMessage;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::collections::VecDeque;
@@ -64,12 +68,30 @@ fn main() {
         ))));
     }
 
+    let mut server = Server::bind("127.0.0.1:49200").unwrap();
+    server.set_nonblocking(true);
+
     if !utility.preferences.disable_input {
         let running = Arc::new(AtomicBool::new(true));
         let running_inner = running.clone();
         ctrlc::set_handler(move || running_inner.store(false, Ordering::SeqCst))
             .expect("Error setting Ctrl-C handler");
-        while running.load(Ordering::SeqCst) {}
+        while running.load(Ordering::SeqCst) {
+            let result = match server.accept() {
+                Ok(wsupgrade) => {
+                    let message = wsupgrade.accept().unwrap().recv_message().unwrap();
+                    match message {
+                        OwnedMessage::Text(text) => {
+                            println!("{}", text);
+                        }
+                        _ => {
+                            println!("Unk");
+                        }
+                    }
+                }
+                _ => {}
+            };
+        }
     }
 
     stop_scheduler.store(true, Ordering::Relaxed);
