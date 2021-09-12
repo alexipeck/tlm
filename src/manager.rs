@@ -216,7 +216,7 @@ impl FileManager {
                 let mut generic = Generic::new(&current, utility.clone());
                 progress_bar.inc(1);
 
-                //TODO: Why yes this is slower, no I don't care abou 100ms right now
+                //TODO: Why yes this is slower, no I don't care about 100ms right now
                 match REGEX.find(&generic.get_filename()) {
                     None => {}
                     Some(_) => generic.designation = Designation::Episode,
@@ -394,7 +394,7 @@ impl FileManager {
         None
     }
 
-    //Hash set guarentees no duplicates in O(1) time
+    //Hash set guarantees no duplicates in O(1) time
     pub fn import_files(
         &mut self,
         allowed_extensions: &[String],
