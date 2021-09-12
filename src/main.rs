@@ -87,5 +87,6 @@ fn main() {
         .print_number_of_episodes(utility.clone());
     scheduler.file_manager.print_shows(utility.clone());
     scheduler.file_manager.print_generics(utility.clone());
-    scheduler.file_manager.print_episodes(utility);
+    scheduler.file_manager.print_episodes(utility.clone());
+    scheduler.file_manager.print_rejected_files(utility);
 }

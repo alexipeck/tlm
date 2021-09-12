@@ -19,6 +19,7 @@ pub enum Traceback {
     InsertEpisodesFileManager,
     EnsureShowExistsFileManager,
     PrintShowsFileManager,
+    PrintRejectedFilesFileManager,
 
     //Database
     GetAllGenericDatabase,
@@ -72,6 +73,7 @@ impl fmt::Display for Traceback {
             Self::InsertEpisodesFileManager => "insert_episodes(FileManager)",
             Self::EnsureShowExistsFileManager => "ensure_show_exists(FileManager)",
             Self::PrintShowsFileManager => "print_shows(FileManager)",
+            Self::PrintRejectedFilesFileManager => "print_rejected_files(FileManager)",
 
             //database
             Self::GetAllGenericDatabase => "get_all_generic(database)",
