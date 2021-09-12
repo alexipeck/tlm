@@ -45,7 +45,7 @@ impl ImportFiles {
 
     pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
         self.status_underway = true;
-        file_manager.import_files(&self.allowed_extensions, &self.ignored_paths, utility);
+        file_manager.import_files(utility);
         self.status_completed = true;
     }
 }

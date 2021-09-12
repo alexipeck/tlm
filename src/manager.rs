@@ -71,7 +71,7 @@ impl fmt::Display for Reason {
 }
 
 pub struct FileManager {
-    pub tracked_directories: TrackedDirectories,
+    pub config: Config,//copy of the one in the scheduler
     pub generic_files: Vec<Generic>,
     pub shows: Vec<Show>,
     pub existing_files_hashset: HashSet<PathBuf>,
@@ -83,7 +83,7 @@ impl FileManager {
         let mut utility = utility.clone_add_location(Traceback::NewFileManager);
 
         let mut file_manager = FileManager {
-            tracked_directories: TrackedDirectories::new(),
+            config: config.clone(),
             shows: get_all_shows(utility.clone()),
             generic_files: Vec::new(),
             existing_files_hashset: HashSet::new(),
@@ -95,7 +95,6 @@ impl FileManager {
 
         file_manager.add_existing_files_to_hashset(utility.clone());
         file_manager.add_show_episodes_to_hashset(utility.clone());
-        file_manager.tracked_directories = config.tracked_directories.clone();
 
         utility.print_function_timer();
         file_manager
@@ -337,8 +336,6 @@ impl FileManager {
     fn accept_or_reject_file(
         &mut self,
         dir_entry: DirEntry,
-        ignored_paths: &[String],
-        allowed_extensions: &[String],
         read_only: bool,
     ) -> Option<Vec<Reason>> {
         let path = dir_entry.path();
@@ -346,7 +343,7 @@ impl FileManager {
         let mut allowed: bool = true;
 
         //rejects if the path contains any element of an ignored path
-        for ignored_path in ignored_paths {
+        for ignored_path in &self.config.ignored_paths {
             if path
                 .to_str()
                 .unwrap()
@@ -364,7 +361,7 @@ impl FileManager {
             allowed = false;
         } else {
             //rejects if the file doesn't have an allowed extension
-            if !allowed_extensions
+            if !self.config.allowed_extensions
                 .contains(&path.extension().unwrap().to_str().unwrap().to_lowercase())
             {
                 reason.push(Reason::ExtensionDisallowed);
@@ -397,14 +394,12 @@ impl FileManager {
     //Hash set guarentees no duplicates in O(1) time
     pub fn import_files(
         &mut self,
-        allowed_extensions: &[String],
-        ignored_paths: &[String],
         utility: Utility,
     ) {
         let mut utility = utility.clone_add_location(Traceback::ImportFilesFileManager);
 
         //import all files in tracked root directories
-        for directory in &self.tracked_directories.root_directories.clone() {
+        for directory in &self.config.tracked_directories.root_directories.clone() {
             let entries = WalkDir::new(directory).into_iter().filter_map(|e| e.ok());
             for entry in entries {
                 //rejects if the path isn't a file
@@ -414,8 +409,6 @@ impl FileManager {
 
                 let reason = self.accept_or_reject_file(
                     entry.clone(),
-                    ignored_paths,
-                    allowed_extensions,
                     false,
                 );
 
