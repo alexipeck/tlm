@@ -52,7 +52,7 @@ pub enum Traceback {
     NewFileManager,
 }
 
-//lower-case item in parenthasis implies *.rs file rather than a struct
+//lower-case item in parentheses implies *.rs file rather than a struct
 impl fmt::Display for Traceback {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let formatted: &str = match self {
@@ -136,7 +136,7 @@ impl Utility {
             return;
         }
         if self.function_timer.is_some() {
-            //the function interally saves inside, but because of the clone, it isn't persistent
+            //the function internally saves inside, but because of the clone, it isn't persistent
             self.function_timer
                 .clone()
                 .unwrap()
