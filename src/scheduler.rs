@@ -16,7 +16,7 @@ use std::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     sync::{Arc, Mutex},
     thread,
-    thread::{current, JoinHandle},
+    thread::JoinHandle,
     time,
 };
 

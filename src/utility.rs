@@ -103,8 +103,6 @@ impl fmt::Display for Traceback {
             Self::StartScheduler => "start_scheduler(Scheduler)",
             Self::NewConfig => "new(Config)",
             Self::NewFileManager => "new(FileManager)",
-
-            _ => "NOTSET",
         };
         write!(f, "{}", formatted)
     }

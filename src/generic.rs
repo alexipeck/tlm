@@ -1,4 +1,3 @@
-use std::io;
 use std::io::prelude::*;
 use std::{
     fs::{self, File},
@@ -63,7 +62,9 @@ impl Generic {
     pub fn fast_hash(&mut self) {
         let mut buffer = Box::new(vec![0; 33554432]);
         let mut file = File::open(self.full_path.to_str().unwrap()).unwrap();
-        file.read(&mut buffer);
+        if file.read(&mut buffer).is_err() {
+            panic!("Failed to read file for fast hashing");
+        }
         let fast_hash = seahash::hash(&buffer);
         self.fast_hash = Some(fast_hash.to_string());
     }

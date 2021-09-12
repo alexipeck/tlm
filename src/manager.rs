@@ -15,7 +15,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
-    fmt::{self, Display},
+    fmt,
     path::PathBuf,
 };
 use walkdir::{DirEntry, WalkDir};
@@ -59,7 +59,6 @@ impl Reason {
             Self::ExtensionDisallowed => "ExtensionDisallowed",
             Self::IsNotFile => "IsNotFile",
             Self::MatchesExisting => "MatchesExisting",
-            _ => "MissingToString",
         };
         String::from(formatted)
     }
@@ -378,7 +377,6 @@ impl FileManager {
         //rejects if the file exists in the existing_files_hashset
         if self.existing_files_hashset.contains(&entry_string) {
             reason.push(Reason::MatchesExisting);
-            allowed = false;
             return None;
         }
 
