@@ -1,13 +1,4 @@
-use crate::{
-    config::Config,
-    database::*,
-    designation::Designation,
-    generic::Generic,
-    model::{NewEpisode, NewGeneric},
-    print::{print, From, Verbosity},
-    show::{Episode, Show},
-    utility::{Traceback, Utility},
-};
+use crate::{config::Config, database::*, designation::Designation, generic::Generic, model::{NewEpisode, NewGeneric}, print::{print, From, Verbosity}, show::{Episode, Show}, utility::{self, Traceback, Utility}};
 use diesel::pg::PgConnection;
 use indicatif::ProgressBar;
 use lazy_static::lazy_static;
@@ -35,11 +26,11 @@ impl TrackedDirectories {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum Reason {
     PathContainsIgnoredPath,
     ExtensionMissing,
     ExtensionDisallowed,
-    IsNotFile,
     MatchesExisting,
 }
 pub fn reasons_to_string(reasons: Vec<Reason>) -> String {
@@ -57,7 +48,6 @@ impl Reason {
             Self::PathContainsIgnoredPath => "PathContainsIgnoredPath",
             Self::ExtensionMissing => "ExtensionMissing",
             Self::ExtensionDisallowed => "ExtensionDisallowed",
-            Self::IsNotFile => "IsNotFile",
             Self::MatchesExisting => "MatchesExisting",
         };
         String::from(formatted)
@@ -76,6 +66,9 @@ pub struct FileManager {
     pub shows: Vec<Show>,
     pub existing_files_hashset: HashSet<PathBuf>,
     pub new_files_queue: Vec<PathBuf>,
+
+    pub rejected_files: Vec<(PathBuf, Vec<Reason>)>,
+    pub rejected_files_hashset: HashSet<PathBuf>,
 }
 
 impl FileManager {
@@ -88,6 +81,9 @@ impl FileManager {
             generic_files: Vec::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
+
+            rejected_files: Vec::new(),
+            rejected_files_hashset: HashSet::new(),
         };
 
         //add generic_files and generics from their respective episodes to the existing_files_hashset
@@ -385,7 +381,10 @@ impl FileManager {
             self.existing_files_hashset.insert(entry_string.clone());
             self.new_files_queue.push(entry_string);
         } else {
-            //Handle real file rejection here
+            if !self.rejected_files_hashset.contains(&entry_string) {
+                self.rejected_files_hashset.insert(entry_string.clone());
+                self.rejected_files.push((entry_string, reason));
+            }
         }
 
         None
@@ -522,6 +521,26 @@ impl FileManager {
             }
         }
 
+        utility.print_function_timer();
+    }
+
+    pub fn print_rejected_files(&self, utility: Utility) {
+        let mut utility = utility.clone_add_location(Traceback::PrintRejectedFilesFileManager);
+
+        for (pathbuf, reason) in &self.rejected_files {
+            print(
+                Verbosity::INFO,
+                From::Manager,
+                format!(
+                    "Path: '{}' disallowed because {}",
+                    String::from(pathbuf.to_str().unwrap()),
+                    reasons_to_string(reason.clone()),
+                ),
+                false,
+                utility.clone(),
+            );
+        }
+        
         utility.print_function_timer();
     }
 }
