@@ -8,8 +8,6 @@ pub mod profile;
 pub mod scheduler;
 pub mod schema;
 pub mod show;
-pub mod timer;
-pub mod utility;
 
 #[macro_use]
 extern crate diesel;
