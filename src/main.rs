@@ -17,7 +17,6 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::registry::Registry;
 
 fn main() {
-    //traceback and timing utility
     let file = tracing_appender::rolling::daily("./logs", "tlm.log");
     let (writer, _guard) = tracing_appender::non_blocking(stdout());
     let (writer2, _guard) = tracing_appender::non_blocking(file);
@@ -48,10 +47,11 @@ fn main() {
         stop_scheduler.clone(),
     );
 
+    let inner_pref = preferences.clone();
     //Start the scheduler in it's own thread and return the scheduler at the end
     //so that we can print information before exiting
     let scheduler_handle = thread::spawn(move || {
-        scheduler.start_scheduler(&preferences);
+        scheduler.start_scheduler(&inner_pref);
         scheduler
     });
 
@@ -70,7 +70,7 @@ fn main() {
 
     let mut server = Server::bind("127.0.0.1:49200").unwrap();
     server.set_nonblocking(true);
-
+    
     if !preferences.disable_input {
         let running = Arc::new(AtomicBool::new(true));
         let running_inner = running.clone();
@@ -113,5 +113,5 @@ fn main() {
     scheduler.file_manager.print_shows(&preferences);
     scheduler.file_manager.print_generics(&preferences);
     scheduler.file_manager.print_episodes(&preferences);
-    //scheduler.file_manager.print_rejected_files(utility); //I'm all for it as soon as it's disabled by default
+    //scheduler.file_manager.print_rejected_files(preferences); //I'm all for it as soon as it's disabled by default
 }
