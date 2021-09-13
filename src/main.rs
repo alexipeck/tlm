@@ -22,7 +22,7 @@ use tracing_subscriber::registry::Registry;
 
 fn main() {
     //traceback and timing utility
-    let file = tracing_appender::rolling::daily("./logs", "prefix.log");
+    let file = tracing_appender::rolling::daily("./logs", "tlm.log");
     let (writer, _guard) = tracing_appender::non_blocking(stdout());
     let (writer2, _guard) = tracing_appender::non_blocking(file);
     let layer = tracing_subscriber::fmt::layer()
