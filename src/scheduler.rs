@@ -26,9 +26,6 @@ static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 pub struct ImportFiles {
     allowed_extensions: Vec<String>,
     ignored_paths: Vec<String>,
-
-    pub status_underway: bool,
-    pub status_completed: bool,
 }
 
 impl ImportFiles {
@@ -36,40 +33,28 @@ impl ImportFiles {
         ImportFiles {
             allowed_extensions: allowed_extensions.to_owned(),
             ignored_paths: ignored_paths.to_owned(),
-            status_underway: false,
-            status_completed: false,
         }
     }
 
     pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
-        self.status_underway = true;
         file_manager.import_files(utility);
-        self.status_completed = true;
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct ProcessNewFiles {
-    pub status_underway: bool,
-    pub status_completed: bool,
-}
+pub struct ProcessNewFiles {}
 
 impl ProcessNewFiles {
     pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
         event!(Level::INFO, "Started processing new files");
-        self.status_underway = true;
         file_manager.process_new_files(utility);
-        self.status_completed = true;
         event!(
             Level::INFO,
             "Finished processing new files you can now stop the program with Ctrl-c"
         );
     }
     pub fn new() -> Self {
-        ProcessNewFiles {
-            status_underway: false,
-            status_completed: false,
-        }
+        ProcessNewFiles {}
     }
 }
 
@@ -78,9 +63,6 @@ pub struct Encode {
     pub source_path: PathBuf,
     pub encode_path: PathBuf,
     pub encode_string: Vec<String>,
-
-    pub status_underway: bool,
-    pub status_completed: bool,
 }
 
 impl Encode {
@@ -89,9 +71,6 @@ impl Encode {
             source_path,
             encode_path,
             encode_string,
-
-            status_underway: false,
-            status_completed: false,
         }
     }
 
@@ -110,7 +89,6 @@ impl Encode {
             return;
         }
 
-        self.status_underway = true;
         event!(
             Level::INFO,
             "Encoding file \'{}\'",
@@ -127,7 +105,6 @@ impl Encode {
         //only uncomment if you want disgusting output
         //should be error, but from ffmpeg, stderr mostly consists of stdout information
         //print(Verbosity::DEBUG, "generic", "encode", format!("{}", String::from_utf8_lossy(&buffer.stderr).to_string()));
-        self.status_completed = true;
     }
 }
 

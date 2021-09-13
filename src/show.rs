@@ -39,10 +39,10 @@ impl Episode {
         return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
 
-    pub fn get_episode_string(&self) -> String {
+    fn get_episode_string(&self) -> String {
         let episode = self.show_episode.clone();
         if episode.is_empty() {
-            panic!("There was less than 1 episode in the thingo");
+            panic!("No episodes in show");
         } else {
             let mut episode_string = String::new();
             let mut first: bool = true;

@@ -45,22 +45,16 @@ pub fn reasons_to_string(reasons: Vec<Reason>) -> String {
     formatted
 }
 
-impl Reason {
-    #[allow(clippy::inherent_to_string_shadow_display)]
-    pub fn to_string(&self) -> String {
+impl fmt::Display for Reason {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let formatted: &str = match self {
             Self::PathContainsIgnoredPath => "PathContainsIgnoredPath",
             Self::ExtensionMissing => "ExtensionMissing",
             Self::ExtensionDisallowed => "ExtensionDisallowed",
             Self::MatchesExisting => "MatchesExisting",
         };
-        String::from(formatted)
-    }
-}
 
-impl fmt::Display for Reason {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(f, "{}", formatted)
     }
 }
 
