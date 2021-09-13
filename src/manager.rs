@@ -1,14 +1,10 @@
-use crate::{config::Config, database::*, designation::Designation, generic::Generic, model::{NewEpisode, NewGeneric}, print::{print, From, Verbosity}, show::{Episode, Show}, utility::{self, Traceback, Utility}};
+use crate::{config::{Config, Preferences}, database::*, designation::Designation, generic::Generic, model::{NewEpisode, NewGeneric}, show::{Episode, Show}};
 use diesel::pg::PgConnection;
-use indicatif::ProgressBar;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashSet,
-    fmt,
-    path::PathBuf,
-};
+use std::{collections::HashSet, fmt, path::PathBuf};
+use tracing::{event, Level};
 use walkdir::{DirEntry, WalkDir};
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -41,27 +37,21 @@ pub fn reasons_to_string(reasons: Vec<Reason>) -> String {
     formatted
 }
 
-impl Reason {
-    #[allow(clippy::inherent_to_string_shadow_display)]
-    pub fn to_string(&self) -> String {
+impl fmt::Display for Reason {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let formatted: &str = match self {
             Self::PathContainsIgnoredPath => "PathContainsIgnoredPath",
             Self::ExtensionMissing => "ExtensionMissing",
             Self::ExtensionDisallowed => "ExtensionDisallowed",
             Self::MatchesExisting => "MatchesExisting",
         };
-        String::from(formatted)
-    }
-}
 
-impl fmt::Display for Reason {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(f, "{}", formatted)
     }
 }
 
 pub struct FileManager {
-    pub config: Config,//copy of the one in the scheduler
+    pub config: Config, //copy of the one in the scheduler
     pub generic_files: Vec<Generic>,
     pub shows: Vec<Show>,
     pub existing_files_hashset: HashSet<PathBuf>,
@@ -72,12 +62,10 @@ pub struct FileManager {
 }
 
 impl FileManager {
-    pub fn new(config: &Config, utility: Utility) -> FileManager {
-        let mut utility = utility.clone_add_location(Traceback::NewFileManager);
-
+    pub fn new(config: &Config) -> FileManager {
         let mut file_manager = FileManager {
             config: config.clone(),
-            shows: get_all_shows(utility.clone()),
+            shows: get_all_shows(),
             generic_files: Vec::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
@@ -87,16 +75,15 @@ impl FileManager {
         };
 
         //add generic_files and generics from their respective episodes to the existing_files_hashset
-        file_manager.generic_files = get_all_generics(utility.clone());
+        file_manager.generic_files = get_all_generics();
 
-        file_manager.add_existing_files_to_hashset(utility.clone());
-        file_manager.add_show_episodes_to_hashset(utility.clone());
+        file_manager.add_existing_files_to_hashset();
+        file_manager.add_show_episodes_to_hashset();
 
-        utility.print_function_timer();
         file_manager
     }
 
-    pub fn add_show_episodes_to_hashset(&mut self, utility: Utility) {
+    pub fn add_show_episodes_to_hashset(&mut self) {
         let mut generics: Vec<Generic> = Vec::new();
         for show in &self.shows {
             for season in &show.seasons {
@@ -106,69 +93,43 @@ impl FileManager {
             }
         }
 
-        self.add_all_filenames_to_hashset_from_generics(&generics, utility);
+        self.add_all_filenames_to_hashset_from_generics(&generics);
     }
 
-    fn add_existing_files_to_hashset(&mut self, utility: Utility) {
-        let mut utility =
-            utility.clone_add_location(Traceback::AddExistingFilesToHashsetFileManager);
+    fn add_existing_files_to_hashset(&mut self) {
         for generic in &self.generic_files {
             self.existing_files_hashset
                 .insert(generic.full_path.clone());
         }
-
-        utility.print_function_timer();
     }
 
     pub fn add_all_filenames_to_hashset_from_generics(
         &mut self,
         generics: &[Generic],
-        utility: Utility,
     ) {
-        let mut utility =
-            utility.clone_add_location(Traceback::AddAllFilenamesToHashsetFileManager);
         for generic in generics {
             self.existing_files_hashset
                 .insert(generic.full_path.clone());
         }
-
-        utility.print_function_timer();
     }
 
-    pub fn print_number_of_generics(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location(Traceback::PrintNumberOfGenericsFileManager);
-
-        print(
-            Verbosity::INFO,
-            From::Manager,
-            format!(
-                "Number of generic loaded in memory: {}",
-                self.generic_files.len()
-            ),
-            false,
-            utility.clone(),
+    pub fn print_number_of_generics(&self) {
+        event!(
+            Level::INFO,
+            "Number of generics loaded in memory: {}",
+            self.generic_files.len()
         );
-
-        utility.print_function_timer();
     }
 
-    pub fn print_number_of_shows(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location(Traceback::PrintNumberOfShowsFileManager);
-
-        print(
-            Verbosity::INFO,
-            From::Manager,
-            format!("Number of shows loaded in memory: {}", self.shows.len()),
-            false,
-            utility.clone(),
+    pub fn print_number_of_shows(&self) {
+        event!(
+            Level::INFO,
+            "Number of shows loaded in memory: {}",
+            self.shows.len()
         );
-
-        utility.print_function_timer();
     }
 
-    pub fn print_number_of_episodes(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location(Traceback::PrintNumberOfEpisodesFileManager);
-
+    pub fn print_number_of_episodes(&self) {
         let mut episode_counter = 0;
         for show in &self.shows {
             for season in &show.seasons {
@@ -176,25 +137,19 @@ impl FileManager {
             }
         }
 
-        print(
-            Verbosity::INFO,
-            From::Manager,
-            format!("Number of episodes loaded in memory: {}", episode_counter),
-            false,
-            utility.clone(),
+        event!(
+            Level::INFO,
+            "Number of episodes loaded in memory: {}",
+            episode_counter
         );
-
-        utility.print_function_timer();
     }
 
-    pub fn process_new_files(&mut self, progress_bar: &ProgressBar, utility: Utility) {
-        let mut utility = utility.clone_add_location(Traceback::ProcessNewFilesFileManager);
+    pub fn process_new_files(&mut self, preferences: &Preferences) {
         let connection = establish_connection();
         let mut new_episodes = Vec::new();
         let mut new_generics = Vec::new();
         let mut temp_generics = Vec::new();
 
-        progress_bar.set_length(self.new_files_queue.len() as u64);
         lazy_static! {
             static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
         }
@@ -203,13 +158,7 @@ impl FileManager {
         while !self.new_files_queue.is_empty() {
             let current = self.new_files_queue.pop();
             if let Some(current) = current {
-                /*progress_bar.set_message(format!(
-                    "processing file: {}",
-                    current.file_name().unwrap().to_str().unwrap()
-                ));*/
-
-                let mut generic = Generic::new(&current, utility.clone());
-                progress_bar.inc(1);
+                let mut generic = Generic::new(&current);
 
                 //TODO: Why yes this is slower, no I don't care about 100ms right now
                 match REGEX.find(&generic.get_filename()) {
@@ -233,11 +182,6 @@ impl FileManager {
 
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for generic in &mut temp_generics {
-            progress_bar.set_message(format!(
-                "creating episode: {}",
-                generic.full_path.file_name().unwrap().to_str().unwrap()
-            ));
-
             let episode_string: String;
             match REGEX.find(&generic.get_filename()) {
                 None => continue,
@@ -274,7 +218,7 @@ impl FileManager {
                 .to_string();
 
             let show_uid =
-                self.ensure_show_exists(show_title.clone(), utility.clone(), &connection);
+                self.ensure_show_exists(show_title.clone(), &connection, &preferences);
             let season_number = season_temp;
             let episode_number = episodes[0];
 
@@ -288,7 +232,7 @@ impl FileManager {
             new_episodes.push(new_episode);
         }
 
-        self.add_all_filenames_to_hashset_from_generics(&temp_generics, utility.clone());
+        self.add_all_filenames_to_hashset_from_generics(&temp_generics);
 
         let mut temp_generics_only_episodes: Vec<Generic> = Vec::new();
         let mut temp_generics_only_generics: Vec<Generic> = Vec::new();
@@ -320,10 +264,7 @@ impl FileManager {
             }
         }
 
-        self.insert_episodes(episodes, utility.clone());
-
-        progress_bar.finish();
-        utility.print_function_timer();
+        self.insert_episodes(episodes);
     }
 
     fn verify_database() {}
@@ -357,7 +298,9 @@ impl FileManager {
             allowed = false;
         } else {
             //rejects if the file doesn't have an allowed extension
-            if !self.config.allowed_extensions
+            if !self
+                .config
+                .allowed_extensions
                 .contains(&path.extension().unwrap().to_str().unwrap().to_lowercase())
             {
                 reason.push(Reason::ExtensionDisallowed);
@@ -380,23 +323,16 @@ impl FileManager {
         if allowed {
             self.existing_files_hashset.insert(entry_string.clone());
             self.new_files_queue.push(entry_string);
-        } else {
-            if !self.rejected_files_hashset.contains(&entry_string) {
-                self.rejected_files_hashset.insert(entry_string.clone());
-                self.rejected_files.push((entry_string, reason));
-            }
+        } else if !self.rejected_files_hashset.contains(&entry_string) {
+            self.rejected_files_hashset.insert(entry_string.clone());
+            self.rejected_files.push((entry_string, reason));
         }
 
         None
     }
 
     //Hash set guarantees no duplicates in O(1) time
-    pub fn import_files(
-        &mut self,
-        utility: Utility,
-    ) {
-        let mut utility = utility.clone_add_location(Traceback::ImportFilesFileManager);
-
+    pub fn import_files(&mut self) {
         //import all files in tracked root directories
         for directory in &self.config.tracked_directories.root_directories.clone() {
             let entries = WalkDir::new(directory).into_iter().filter_map(|e| e.ok());
@@ -406,87 +342,63 @@ impl FileManager {
                     continue;
                 }
 
-                let reason = self.accept_or_reject_file(
-                    entry.clone(),
-                    false,
-                );
+                let reason = self.accept_or_reject_file(entry.clone(), false);
 
                 if reason.is_some() {
-                    print(
-                        Verbosity::INFO,
-                        From::Manager,
-                        format!(
-                            "Path: '{}' disallowed because {}",
-                            String::from(entry.into_path().to_str().unwrap()),
-                            reasons_to_string(reason.unwrap())
-                        ),
-                        false,
-                        utility.clone(),
+                    event!(
+                        Level::INFO,
+                        "Path: '{}' disallowed because {}",
+                        String::from(entry.into_path().to_str().unwrap()),
+                        reasons_to_string(reason.unwrap())
                     );
                 }
             }
         }
-        utility.print_function_timer();
     }
 
-    pub fn print_episodes(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location(Traceback::PrintEpisodesFileManager);
-
-        if !utility.preferences.print_episode && !utility.preferences.episode_output_whitelisted {
+    pub fn print_episodes(&self, preferences: &Preferences) {
+        if !preferences.print_episode && !preferences.episode_output_whitelisted {
             return;
         }
         for show in &self.shows {
             for season in &show.seasons {
                 for episode in &season.episodes {
-                    episode.print_episode(utility.clone());
+                    episode.print_episode();
                 }
             }
         }
-
-        utility.print_function_timer();
     }
 
-    pub fn print_generics(&self, utility: Utility) {
-        Generic::print_generics(&self.generic_files, utility);
+    pub fn print_generics(&self, preferences: &Preferences) {
+        Generic::print_generics(&self.generic_files, &preferences);
     }
 
-    pub fn insert_episodes(&mut self, episodes: Vec<Episode>, utility: Utility) {
-        let mut utility = utility.clone_add_location(Traceback::InsertEpisodesFileManager);
+    pub fn insert_episodes(&mut self, episodes: Vec<Episode>) {
         //find the associated show
         //insert episode into that show
         for episode in episodes {
             let show_uid = episode.show_uid;
             for show in &mut self.shows {
                 if show.show_uid == show_uid {
-                    show.insert_episode(episode, utility.clone());
+                    show.insert_episode(episode);
                     break;
                 }
             }
         }
-
-        utility.print_function_timer();
     }
 
     pub fn ensure_show_exists(
         &mut self,
         show_title: String,
-        utility: Utility,
         connection: &PgConnection,
+        preferences: &Preferences,
     ) -> usize {
-        let utility = utility.clone_add_location(Traceback::EnsureShowExistsFileManager);
-
-        let show_uid = Show::show_exists(show_title.clone(), &self.shows, utility.clone());
+        let show_uid = Show::show_exists(show_title.clone(), &self.shows);
         match show_uid {
             Some(uid) => uid,
             None => {
-                if utility.preferences.print_shows || utility.preferences.show_output_whitelisted {
-                    print(
-                        Verbosity::INFO,
-                        From::Manager,
-                        format!("Adding a new show: {}", show_title),
-                        utility.preferences.show_output_whitelisted,
-                        utility,
-                    );
+                if preferences.print_shows || preferences.show_output_whitelisted {
+                    event!(Level::DEBUG, "Adding a new show: {}", show_title);
                 }
 
                 let show_model = create_show(connection, show_title.clone());
@@ -504,43 +416,31 @@ impl FileManager {
         }
     }
 
-    pub fn print_shows(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location(Traceback::PrintShowsFileManager);
-
-        if !utility.preferences.print_shows {
+    pub fn print_shows(&self, preferences: &Preferences) {
+        if !preferences.print_shows {
             return;
         }
         for show in &self.shows {
-            show.print_show(utility.clone());
+            show.print_show(&preferences);
             for season in &show.seasons {
-                println!(
+                event!(
+                    Level::DEBUG,
                     "S{:02} has {} episodes",
                     season.number,
                     season.episodes.len()
                 );
             }
         }
-
-        utility.print_function_timer();
     }
 
-    pub fn print_rejected_files(&self, utility: Utility) {
-        let mut utility = utility.clone_add_location(Traceback::PrintRejectedFilesFileManager);
-
+    pub fn print_rejected_files(&self) {
         for (pathbuf, reason) in &self.rejected_files {
-            print(
-                Verbosity::INFO,
-                From::Manager,
-                format!(
-                    "Path: '{}' disallowed because {}",
-                    String::from(pathbuf.to_str().unwrap()),
-                    reasons_to_string(reason.clone()),
-                ),
-                false,
-                utility.clone(),
+            event!(
+                Level::INFO,
+                "Path: '{}' disallowed because {}",
+                String::from(pathbuf.to_str().unwrap()),
+                reasons_to_string(reason.clone())
             );
         }
-        
-        utility.print_function_timer();
     }
 }

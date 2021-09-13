@@ -1,13 +1,13 @@
 use crate::{
-    config::Config,
+    config::{Config, Preferences},
     database::establish_connection,
     diesel::SaveChangesDsl,
     generic::Generic,
     manager::FileManager,
     model::GenericModel,
-    print::{print, From, Verbosity},
-    utility::{Traceback, Utility},
 };
+use tracing::{event, Level};
+use websocket::header::Prefer;
 
 use std::{
     collections::VecDeque,
@@ -20,17 +20,12 @@ use std::{
     time,
 };
 
-use indicatif::ProgressBar;
-
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Clone, Debug)]
 pub struct ImportFiles {
     allowed_extensions: Vec<String>,
     ignored_paths: Vec<String>,
-
-    pub status_underway: bool,
-    pub status_completed: bool,
 }
 
 impl ImportFiles {
@@ -38,37 +33,28 @@ impl ImportFiles {
         ImportFiles {
             allowed_extensions: allowed_extensions.to_owned(),
             ignored_paths: ignored_paths.to_owned(),
-            status_underway: false,
-            status_completed: false,
         }
     }
 
-    pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
-        self.status_underway = true;
-        file_manager.import_files(utility);
-        self.status_completed = true;
+    pub fn run(&mut self, file_manager: &mut FileManager) {
+        file_manager.import_files();
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct ProcessNewFiles {
-    pub status_underway: bool,
-    pub status_completed: bool,
-    pub progress_bar: ProgressBar,
-}
+pub struct ProcessNewFiles {}
 
 impl ProcessNewFiles {
-    pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
-        self.status_underway = true;
-        file_manager.process_new_files(&self.progress_bar, utility);
-        self.status_completed = true;
+    pub fn run(&mut self, file_manager: &mut FileManager, preferences: &Preferences) {
+        event!(Level::INFO, "Started processing new files");
+        file_manager.process_new_files(preferences);
+        event!(
+            Level::INFO,
+            "Finished processing new files you can now stop the program with Ctrl-c"
+        );
     }
-    pub fn new(progress_bar: ProgressBar) -> Self {
-        ProcessNewFiles {
-            status_underway: false,
-            status_completed: false,
-            progress_bar,
-        }
+    pub fn new() -> Self {
+        ProcessNewFiles {}
     }
 }
 
@@ -77,9 +63,6 @@ pub struct Encode {
     pub source_path: PathBuf,
     pub encode_path: PathBuf,
     pub encode_string: Vec<String>,
-
-    pub status_underway: bool,
-    pub status_completed: bool,
 }
 
 impl Encode {
@@ -88,9 +71,6 @@ impl Encode {
             source_path,
             encode_path,
             encode_string,
-
-            status_underway: false,
-            status_completed: false,
         }
     }
 
@@ -99,30 +79,19 @@ impl Encode {
         true
     }
 
-    pub fn run(&mut self, utility: Utility) {
-        let utility = utility.clone_add_location(Traceback::RunEncode);
+    pub fn run(&mut self) {
         if !self.is_ready_to_encode() {
-            print(
-                Verbosity::ERROR,
-                From::Scheduler,
-                "Encode didn't have the required fields for being sent to the encoder".to_string(),
-                false,
-                utility,
+            event!(
+                Level::WARN,
+                "Encode didn't have the required fields for being sent to the encoder"
             );
             return;
         }
 
-        self.status_underway = true;
-
-        print(
-            Verbosity::INFO,
-            From::Scheduler,
-            format!(
-                "Encoding file \'{}\'",
-                Generic::get_filename_from_pathbuf(self.source_path.clone())
-            ),
-            false,
-            utility,
+        event!(
+            Level::INFO,
+            "Encoding file \'{}\'",
+            Generic::get_filename_from_pathbuf(self.source_path.clone())
         );
 
         let _buffer;
@@ -135,21 +104,17 @@ impl Encode {
         //only uncomment if you want disgusting output
         //should be error, but from ffmpeg, stderr mostly consists of stdout information
         //print(Verbosity::DEBUG, "generic", "encode", format!("{}", String::from_utf8_lossy(&buffer.stderr).to_string()));
-        self.status_completed = true;
     }
 }
 
-pub struct Hash {
-    pub progress_bar: ProgressBar,
-}
+pub struct Hash {}
 
 impl Hash {
     pub fn run(&self, current_content: Vec<Generic>) -> TaskReturnAsync {
         let is_finished = Arc::new(AtomicBool::new(false));
 
+        event!(Level::INFO, "Started hashing in the background");
         let is_finished_inner = is_finished.clone();
-        let progress_bar = self.progress_bar.to_owned();
-        progress_bar.set_length(current_content.len() as u64);
         //Hash files until all other functions are complete
         let handle = Some(thread::spawn(move || {
             let connection = establish_connection();
@@ -169,15 +134,13 @@ impl Hash {
                     did_finish = false;
                     break;
                 }
-                progress_bar.inc(1);
             }
             is_finished_inner.store(true, Ordering::Relaxed);
             if did_finish {
-                progress_bar.set_prefix("Hashing (finished)");
+                event!(Level::INFO, "Finished hashing");
             } else {
-                progress_bar.set_prefix("Hashing (incomplete)");
+                event!(Level::INFO, "Stopped hashing (incomplete)");
             }
-            progress_bar.finish();
         }))
         .unwrap();
 
@@ -186,8 +149,8 @@ impl Hash {
 }
 
 impl Hash {
-    pub fn new(progress_bar: ProgressBar) -> Self {
-        Hash { progress_bar }
+    pub fn new() -> Self {
+        Hash {}
     }
 }
 
@@ -215,19 +178,17 @@ impl Task {
     pub fn handle_task(
         &mut self,
         file_manager: &mut FileManager,
-        utility: Utility,
+        preferences: &Preferences,
     ) -> Option<TaskReturnAsync> {
-        let utility = utility.clone_add_location(Traceback::HandleTask);
-
         match &mut self.task_type {
             TaskType::Encode(encode) => {
-                encode.run(utility);
+                encode.run();
             }
             TaskType::ImportFiles(import_files) => {
-                import_files.run(file_manager, utility);
+                import_files.run(file_manager);
             }
             TaskType::ProcessNewFiles(process_new_files) => {
-                process_new_files.run(file_manager, utility);
+                process_new_files.run(file_manager, &preferences);
             }
             TaskType::Hash(hash) => {
                 let mut current_content = file_manager.generic_files.clone();
@@ -266,20 +227,18 @@ pub struct Scheduler {
 impl Scheduler {
     pub fn new(
         config: Config,
-        utility: Utility,
         tasks: Arc<Mutex<VecDeque<Task>>>,
         input_completed: Arc<AtomicBool>,
     ) -> Self {
         Scheduler {
             tasks,
-            file_manager: FileManager::new(&config, utility),
+            file_manager: FileManager::new(&config),
             config,
             input_completed,
         }
     }
 
-    pub fn start_scheduler(&mut self, utility: Utility) {
-        let utility = utility.clone_add_location(Traceback::StartScheduler);
+    pub fn start_scheduler(&mut self, preferences: &Preferences) {
         let wait_time = time::Duration::from_secs(1);
 
         //Take a handle from any async function and 2 Bools
@@ -330,7 +289,7 @@ impl Scheduler {
                 task = tasks.pop_front().unwrap();
             }
 
-            let result = task.handle_task(&mut self.file_manager, utility.clone());
+            let result = task.handle_task(&mut self.file_manager, &preferences);
             if let Some(handle) = result {
                 handles.push(handle)
             }

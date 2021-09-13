@@ -1,9 +1,5 @@
-use crate::{
-    generic::Generic,
-    model::*,
-    print::{print, From, Verbosity},
-    utility::{Traceback, Utility},
-};
+use crate::{config::Preferences, generic::Generic, model::*};
+use tracing::{event, Level};
 
 use std::path::PathBuf;
 
@@ -39,10 +35,10 @@ impl Episode {
         return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
 
-    pub fn get_episode_string(&self) -> String {
+    fn get_episode_string(&self) -> String {
         let episode = self.show_episode.clone();
         if episode.is_empty() {
-            panic!("There was less than 1 episode in the thingo");
+            panic!("No episodes in show");
         } else {
             let mut episode_string = String::new();
             let mut first: bool = true;
@@ -58,24 +54,14 @@ impl Episode {
         }
     }
 
-    pub fn print_episode(&self, utility: Utility) {
-        let utility = utility.clone_add_location(Traceback::PrintEpisodeEpisode);
-
-        //could realistically just check if it has an episode designation,
-        print(
-            Verbosity::DEBUG,
-            From::Show,
-            format!(
-                "[generic_uid:'{:4}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
+    pub fn print_episode(&self) {
+        event!(Level::DEBUG, "[generic_uid:'{:4}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
                 self.generic.get_generic_uid(),
                 self.show_uid,
                 self.show_season,
                 self.get_episode_string(),
                 self.generic.get_full_path(),
                 self.show_title,
-            ),
-            utility.preferences.generic_output_whitelisted,
-            utility,
         );
     }
 }
@@ -111,8 +97,7 @@ impl Show {
         }
     }
 
-    pub fn insert_episode(&mut self, episode: Episode, utility: Utility) {
-        let mut utility = utility.clone_add_location(Traceback::InsertEpisodeShow);
+    pub fn insert_episode(&mut self, episode: Episode) {
         let season_number = episode.show_season;
 
         let mut found_season: bool = false;
@@ -133,43 +118,33 @@ impl Show {
             season.episodes.push(episode);
             break;
         }
-
-        utility.print_function_timer();
     }
 
-    pub fn print_show(&self, utility: Utility) {
-        let utility = utility.clone_add_location(Traceback::PrintShowShow);
-        if !utility.preferences.print_shows && !utility.preferences.show_output_whitelisted {
+    pub fn print_show(&self, preferences: &Preferences) {
+        if !preferences.print_shows && !preferences.show_output_whitelisted {
             return;
         }
-        print(
-            Verbosity::DEBUG,
-            From::Show,
-            format!("[uid: {}][show_title: {}]", self.show_uid, self.show_title),
-            false,
-            utility,
+        event!(
+            Level::DEBUG,
+            "[uid: {}][show_title: {}]",
+            self.show_uid,
+            self.show_title
         );
     }
 
     pub fn show_exists(
         show_title: String,
         working_shows: &[Show],
-        utility: Utility,
     ) -> Option<usize> {
-        let mut utility = utility.clone_add_location(Traceback::ShowExistsShow);
         for s in working_shows {
             if s.show_title == show_title {
                 return Some(s.show_uid);
             }
         }
-
-        utility.print_function_timer();
         None
     }
 
-    pub fn from_show_model(show_model: ShowModel, utility: Utility) -> Show {
-        let mut utility = utility.clone_add_location(Traceback::FromShowModelShow);
-
+    pub fn from_show_model(show_model: ShowModel) -> Show {
         let show_uid_temp: i32 = show_model.show_uid;
         let title_temp: String = show_model.show_title;
 
@@ -178,7 +153,6 @@ impl Show {
             show_title: title_temp,
             seasons: Vec::new(),
         };
-        utility.print_function_timer();
 
         show
     }

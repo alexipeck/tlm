@@ -1,10 +1,9 @@
 use crate::manager::TrackedDirectories;
-use crate::print::{print, From, Verbosity};
-use crate::utility::{Traceback, Utility};
 use argparse::{ArgumentParser, Store, StoreFalse, StoreTrue};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use tracing::{event, Level};
 
 ///This struct contains any system specific data (paths, extensions, etc)
 /// likely will be replaced later with database tables but as we clear data
@@ -20,33 +19,20 @@ impl Config {
     ///Config constructor loads the config from the path defined at the cli
     /// or if it doesn't exist creates a default config file
     pub fn new(preferences: &Preferences) -> Config {
-        let utility = Utility::new(Traceback::NewConfig);
         let config: Config;
 
         if Path::new(&preferences.config_file_path).exists() {
             let config_toml = match fs::read_to_string(&preferences.config_file_path) {
                 Ok(x) => x,
                 Err(err) => {
-                    print(
-                        Verbosity::CRITICAL,
-                        From::Config,
-                        format!("Failed to read config file: {}", err),
-                        false,
-                        utility,
-                    );
+                    event!(Level::ERROR, "Failed to read config file: {}", err);
                     panic!();
                 }
             };
             config = match toml::from_str(&config_toml) {
                 Ok(x) => x,
                 Err(err) => {
-                    print(
-                        Verbosity::CRITICAL,
-                        From::Config,
-                        format!("Failed to parse toml: {}", err),
-                        false,
-                        utility,
-                    );
+                    event!(Level::INFO, "Failed to parse toml: {}", err);
                     panic!();
                 }
             };
@@ -68,13 +54,7 @@ impl Config {
             };
             let toml = toml::to_string(&config).unwrap();
             if fs::write(&preferences.config_file_path, toml).is_err() {
-                print(
-                    Verbosity::CRITICAL,
-                    From::Config,
-                    String::from("Failed to write config file"),
-                    false,
-                    utility,
-                );
+                event!(Level::ERROR, "Failed to write config file");
                 panic!();
             }
         }
@@ -97,7 +77,6 @@ pub struct Preferences {
     pub generic_output_whitelisted: bool,
     pub show_output_whitelisted: bool,
     pub episode_output_whitelisted: bool,
-    pub min_verbosity: Verbosity,
     pub disable_input: bool,
 }
 impl Default for Preferences {
@@ -109,7 +88,6 @@ impl Default for Preferences {
             print_episode: false,
             print_general: false,
             config_file_path: String::from("./.tlm_config"),
-            min_verbosity: Verbosity::INFO,
             timing_enabled: false,
             timing_threshold: 0,
 
@@ -165,12 +143,6 @@ impl Preferences {
             &["--config", "-c"],
             Store,
             "Set a custom config path",
-        );
-
-        parser.refer(&mut self.min_verbosity).add_option(
-            &["--min-severity", "--min-verbosity"],
-            Store,
-            "Set a minimum severity (debug, info, warning, error, critical)",
         );
 
         parser.refer(&mut self.timing_enabled).add_option(

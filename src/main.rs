@@ -1,92 +1,108 @@
 extern crate diesel;
-use tlm::{
-    config::Config,
-    scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType},
-    utility::{Traceback, Utility},
-};
+extern crate websocket;
 
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use tlm::{
+    config::{Config, Preferences},
+    scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType},
+};
+use websocket::sync::Server;
+use websocket::OwnedMessage;
+
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use std::io::stdout;
+use tracing::{event, Level};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::registry::Registry;
+
 fn main() {
-    //traceback and timing utility
-    let utility = Utility::new(Traceback::Main);
-    let progress_bars = MultiProgress::new();
+    let file = tracing_appender::rolling::daily("./logs", "tlm.log");
+    let (writer, _guard) = tracing_appender::non_blocking(stdout());
+    let (writer2, _guard) = tracing_appender::non_blocking(file);
+    let layer = tracing_subscriber::fmt::layer().with_writer(writer);
 
-    let style = ProgressStyle::default_bar()
-        .template(
-            "{spinner:.green} [{prefix}] [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}} ({eta_precise})",
-        )
-        .with_key("eta", |state| format!("{:.1}s", state.eta().as_secs_f64()))
-        .progress_chars("#>-");
+    let layer2 = tracing_subscriber::fmt::layer().with_writer(writer2);
 
-    let process_bar = progress_bars.add(ProgressBar::new(0).with_style(style.clone()));
-    let hash_bar = progress_bars.add(ProgressBar::new(0).with_style(style));
+    let subscriber = Registry::default().with(layer).with(layer2);
 
-    hash_bar.set_prefix("Hashing");
-    process_bar.set_prefix("Processing");
+    tracing::subscriber::set_global_default(subscriber).unwrap();
 
-    let config: Config = Config::new(&utility.preferences);
+    event!(Level::INFO, "Starting tlm");
+
+    let preferences = Preferences::default();
+
+    let config: Config = Config::new(&preferences);
 
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 
     let stop_scheduler = Arc::new(AtomicBool::new(false));
-    let mut scheduler: Scheduler = Scheduler::new(
-        config.clone(),
-        utility.clone(),
-        tasks.clone(),
-        stop_scheduler.clone(),
-    );
-    let utility_inner = utility.clone();
+    let mut scheduler: Scheduler =
+        Scheduler::new(config.clone(), tasks.clone(), stop_scheduler.clone());
 
+    let inner_pref = preferences.clone();
     //Start the scheduler in it's own thread and return the scheduler at the end
     //so that we can print information before exiting
     let scheduler_handle = thread::spawn(move || {
-        scheduler.start_scheduler(utility_inner.clone());
+        scheduler.start_scheduler(&inner_pref);
         scheduler
     });
 
     //Initial setup in own scope so lock drops
     {
         let mut tasks_guard = tasks.lock().unwrap();
-        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::new(hash_bar))));
+        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::new())));
 
         tasks_guard.push_back(Task::new(TaskType::ImportFiles(ImportFiles::new(
             &config.allowed_extensions,
             &config.ignored_paths,
         ))));
 
-        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new(
-            process_bar,
-        ))));
+        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new())));
     }
 
-    if !utility.preferences.disable_input {
+    let mut server = Server::bind("127.0.0.1:49200").unwrap();
+    if server.set_nonblocking(true).is_err() {
+        event!(Level::ERROR, "");
+        panic!();
+    }
+
+    server.set_nonblocking(true);
+
+    if !preferences.disable_input {
         let running = Arc::new(AtomicBool::new(true));
         let running_inner = running.clone();
-        ctrlc::set_handler(move || running_inner.store(false, Ordering::SeqCst))
-            .expect("Error setting Ctrl-C handler");
-        while running.load(Ordering::SeqCst) {}
+        ctrlc::set_handler(move || {
+            event!(Level::WARN, "Stop signal received shutting down");
+            running_inner.store(false, Ordering::SeqCst)
+        })
+        .expect("Error setting Ctrl-C handler");
+        while running.load(Ordering::SeqCst) {
+            if let Ok(wsupgrade) = server.accept() {
+                let message = wsupgrade.accept().unwrap().recv_message().unwrap();
+                match message {
+                    OwnedMessage::Text(text) => {
+                        println!("{}", text);
+                    }
+                    _ => {
+                        println!("Unk");
+                    }
+                }
+            }
+        }
     }
 
     stop_scheduler.store(true, Ordering::Relaxed);
 
     let scheduler = scheduler_handle.join().unwrap();
 
-    scheduler
-        .file_manager
-        .print_number_of_generics(utility.clone());
-    scheduler
-        .file_manager
-        .print_number_of_shows(utility.clone());
-    scheduler
-        .file_manager
-        .print_number_of_episodes(utility.clone());
-    scheduler.file_manager.print_shows(utility.clone());
-    scheduler.file_manager.print_generics(utility.clone());
-    scheduler.file_manager.print_episodes(utility.clone());
-    scheduler.file_manager.print_rejected_files(utility);
+    scheduler.file_manager.print_number_of_generics();
+    scheduler.file_manager.print_number_of_shows();
+    scheduler.file_manager.print_number_of_episodes();
+    scheduler.file_manager.print_shows(&preferences);
+    scheduler.file_manager.print_generics(&preferences);
+    scheduler.file_manager.print_episodes(&preferences);
+    //scheduler.file_manager.print_rejected_files(preferences); //I'm all for it as soon as it's disabled by default
 }

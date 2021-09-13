@@ -7,3 +7,4 @@ workspace.code-workspace
 *.data
 *.data.old
 .vscode
+logs/
