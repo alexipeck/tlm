@@ -16,7 +16,6 @@ use std::thread;
 
 use std::io::stdout;
 use tracing::{event, Level};
-use tracing_appender;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::registry::Registry;
 
@@ -25,13 +24,9 @@ fn main() {
     let file = tracing_appender::rolling::daily("./logs", "tlm.log");
     let (writer, _guard) = tracing_appender::non_blocking(stdout());
     let (writer2, _guard) = tracing_appender::non_blocking(file);
-    let layer = tracing_subscriber::fmt::layer()
-        .with_writer(writer)
-        .finish();
+    let layer = tracing_subscriber::fmt::layer().with_writer(writer);
 
-    let layer2 = tracing_subscriber::fmt::layer()
-        .with_writer(writer2)
-        .finish();
+    let layer2 = tracing_subscriber::fmt::layer().with_writer(writer2);
 
     let subscriber = Registry::default().with(layer).with(layer2);
 
@@ -76,7 +71,7 @@ fn main() {
 
     let mut server = Server::bind("127.0.0.1:49200").unwrap();
     if server.set_nonblocking(true).is_err() {
-        event!(Level::ERROR, "Starting tlm");
+        event!(Level::ERROR, "");
         panic!();
     }
 
