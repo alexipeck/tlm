@@ -9,29 +9,39 @@ use tlm::{
 use websocket::sync::Server;
 use websocket::OwnedMessage;
 
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use tracing_appender;
+use tracing_subscriber::registry::Registry;
+use tracing_subscriber::layer::SubscriberExt;
+use std::io::stdout;
+use tracing::{event, Level};
+
+
 fn main() {
     //traceback and timing utility
+    let file = tracing_appender::rolling::daily("./logs", "prefix.log");
+    let (writer, _guard) = tracing_appender::non_blocking(stdout());
+    let (writer2, _guard) = tracing_appender::non_blocking(file);
+    let layer = tracing_subscriber::fmt::layer()
+        .with_writer(writer).finish();
+
+    let layer2 = tracing_subscriber::fmt::layer()
+        .with_writer(writer2).finish();
+
+    let subscriber = Registry::default()
+        .with(layer)
+        .with(layer2);
+
+    tracing::subscriber::set_global_default(subscriber).unwrap();
+
+
+    event!(Level::INFO, "Starting tlm");
+
     let utility = Utility::new(Traceback::Main);
-    let progress_bars = MultiProgress::new();
-
-    let style = ProgressStyle::default_bar()
-        .template(
-            "{spinner:.green} [{prefix}] [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}} ({eta_precise})",
-        )
-        .with_key("eta", |state| format!("{:.1}s", state.eta().as_secs_f64()))
-        .progress_chars("#>-");
-
-    let process_bar = progress_bars.add(ProgressBar::new(0).with_style(style.clone()));
-    let hash_bar = progress_bars.add(ProgressBar::new(0).with_style(style));
-
-    hash_bar.set_prefix("Hashing");
-    process_bar.set_prefix("Processing");
 
     let config: Config = Config::new(&utility.preferences);
 
@@ -56,7 +66,7 @@ fn main() {
     //Initial setup in own scope so lock drops
     {
         let mut tasks_guard = tasks.lock().unwrap();
-        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::new(hash_bar))));
+        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::new())));
 
         tasks_guard.push_back(Task::new(TaskType::ImportFiles(ImportFiles::new(
             &config.allowed_extensions,
@@ -64,7 +74,6 @@ fn main() {
         ))));
 
         tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new(
-            process_bar,
         ))));
     }
 
@@ -110,5 +119,5 @@ fn main() {
     scheduler.file_manager.print_shows(utility.clone());
     scheduler.file_manager.print_generics(utility.clone());
     scheduler.file_manager.print_episodes(utility.clone());
-    scheduler.file_manager.print_rejected_files(utility);
+    //scheduler.file_manager.print_rejected_files(utility);
 }

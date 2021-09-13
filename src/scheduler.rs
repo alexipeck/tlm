@@ -20,8 +20,6 @@ use std::{
     time,
 };
 
-use indicatif::ProgressBar;
-
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Clone, Debug)]
@@ -54,20 +52,18 @@ impl ImportFiles {
 pub struct ProcessNewFiles {
     pub status_underway: bool,
     pub status_completed: bool,
-    pub progress_bar: ProgressBar,
 }
 
 impl ProcessNewFiles {
     pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
         self.status_underway = true;
-        file_manager.process_new_files(&self.progress_bar, utility);
+        file_manager.process_new_files(utility);
         self.status_completed = true;
     }
-    pub fn new(progress_bar: ProgressBar) -> Self {
+    pub fn new() -> Self {
         ProcessNewFiles {
             status_underway: false,
             status_completed: false,
-            progress_bar,
         }
     }
 }
@@ -140,7 +136,6 @@ impl Encode {
 }
 
 pub struct Hash {
-    pub progress_bar: ProgressBar,
 }
 
 impl Hash {
@@ -148,8 +143,6 @@ impl Hash {
         let is_finished = Arc::new(AtomicBool::new(false));
 
         let is_finished_inner = is_finished.clone();
-        let progress_bar = self.progress_bar.to_owned();
-        progress_bar.set_length(current_content.len() as u64);
         //Hash files until all other functions are complete
         let handle = Some(thread::spawn(move || {
             let connection = establish_connection();
@@ -169,15 +162,11 @@ impl Hash {
                     did_finish = false;
                     break;
                 }
-                progress_bar.inc(1);
             }
             is_finished_inner.store(true, Ordering::Relaxed);
             if did_finish {
-                progress_bar.set_prefix("Hashing (finished)");
             } else {
-                progress_bar.set_prefix("Hashing (incomplete)");
             }
-            progress_bar.finish();
         }))
         .unwrap();
 
@@ -186,8 +175,8 @@ impl Hash {
 }
 
 impl Hash {
-    pub fn new(progress_bar: ProgressBar) -> Self {
-        Hash { progress_bar }
+    pub fn new() -> Self {
+        Hash {}
     }
 }
 

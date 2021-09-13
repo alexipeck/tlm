@@ -1,6 +1,5 @@
 use crate::{config::Config, database::*, designation::Designation, generic::Generic, model::{NewEpisode, NewGeneric}, print::{print, From, Verbosity}, show::{Episode, Show}, utility::{self, Traceback, Utility}};
 use diesel::pg::PgConnection;
-use indicatif::ProgressBar;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -187,14 +186,13 @@ impl FileManager {
         utility.print_function_timer();
     }
 
-    pub fn process_new_files(&mut self, progress_bar: &ProgressBar, utility: Utility) {
+    pub fn process_new_files(&mut self, utility: Utility) {
         let mut utility = utility.clone_add_location(Traceback::ProcessNewFilesFileManager);
         let connection = establish_connection();
         let mut new_episodes = Vec::new();
         let mut new_generics = Vec::new();
         let mut temp_generics = Vec::new();
 
-        progress_bar.set_length(self.new_files_queue.len() as u64);
         lazy_static! {
             static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
         }
@@ -203,13 +201,7 @@ impl FileManager {
         while !self.new_files_queue.is_empty() {
             let current = self.new_files_queue.pop();
             if let Some(current) = current {
-                /*progress_bar.set_message(format!(
-                    "processing file: {}",
-                    current.file_name().unwrap().to_str().unwrap()
-                ));*/
-
                 let mut generic = Generic::new(&current, utility.clone());
-                progress_bar.inc(1);
 
                 //TODO: Why yes this is slower, no I don't care about 100ms right now
                 match REGEX.find(&generic.get_filename()) {
@@ -233,10 +225,6 @@ impl FileManager {
 
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for generic in &mut temp_generics {
-            progress_bar.set_message(format!(
-                "creating episode: {}",
-                generic.full_path.file_name().unwrap().to_str().unwrap()
-            ));
 
             let episode_string: String;
             match REGEX.find(&generic.get_filename()) {
@@ -322,7 +310,6 @@ impl FileManager {
 
         self.insert_episodes(episodes, utility.clone());
 
-        progress_bar.finish();
         utility.print_function_timer();
     }
 
