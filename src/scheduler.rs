@@ -1,13 +1,6 @@
-use crate::{
-    config::Config,
-    database::establish_connection,
-    diesel::SaveChangesDsl,
-    generic::Generic,
-    manager::FileManager,
-    model::GenericModel,
-    utility::{Traceback, Utility},
-};
+use crate::{config::{Config, Preferences}, database::establish_connection, diesel::SaveChangesDsl, generic::Generic, manager::FileManager, model::GenericModel};
 use tracing::{event, Level};
+use websocket::header::Prefer;
 
 use std::{
     collections::VecDeque,
@@ -41,9 +34,9 @@ impl ImportFiles {
         }
     }
 
-    pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
+    pub fn run(&mut self, file_manager: &mut FileManager) {
         self.status_underway = true;
-        file_manager.import_files(utility);
+        file_manager.import_files();
         self.status_completed = true;
     }
 }
@@ -55,10 +48,10 @@ pub struct ProcessNewFiles {
 }
 
 impl ProcessNewFiles {
-    pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
+    pub fn run(&mut self, file_manager: &mut FileManager, preferences: &Preferences) {
         event!(Level::INFO, "Started processing new files");
         self.status_underway = true;
-        file_manager.process_new_files(utility);
+        file_manager.process_new_files(preferences);
         self.status_completed = true;
         event!(Level::INFO, "Finished processing new files you can now stop the program with Ctrl-c");
     }
@@ -97,8 +90,7 @@ impl Encode {
         true
     }
 
-    pub fn run(&mut self, utility: Utility) {
-        let utility = utility.clone_add_location(Traceback::RunEncode);
+    pub fn run(&mut self) {
         if !self.is_ready_to_encode() {
             event!(
                 Level::WARN,
@@ -199,19 +191,17 @@ impl Task {
     pub fn handle_task(
         &mut self,
         file_manager: &mut FileManager,
-        utility: Utility,
+        preferences: &Preferences,
     ) -> Option<TaskReturnAsync> {
-        let utility = utility.clone_add_location(Traceback::HandleTask);
-
         match &mut self.task_type {
             TaskType::Encode(encode) => {
-                encode.run(utility);
+                encode.run();
             }
             TaskType::ImportFiles(import_files) => {
-                import_files.run(file_manager, utility);
+                import_files.run(file_manager);
             }
             TaskType::ProcessNewFiles(process_new_files) => {
-                process_new_files.run(file_manager, utility);
+                process_new_files.run(file_manager, &preferences);
             }
             TaskType::Hash(hash) => {
                 let mut current_content = file_manager.generic_files.clone();
@@ -250,20 +240,18 @@ pub struct Scheduler {
 impl Scheduler {
     pub fn new(
         config: Config,
-        utility: Utility,
         tasks: Arc<Mutex<VecDeque<Task>>>,
         input_completed: Arc<AtomicBool>,
     ) -> Self {
         Scheduler {
             tasks,
-            file_manager: FileManager::new(&config, utility),
+            file_manager: FileManager::new(&config),
             config,
             input_completed,
         }
     }
 
-    pub fn start_scheduler(&mut self, utility: Utility) {
-        let utility = utility.clone_add_location(Traceback::StartScheduler);
+    pub fn start_scheduler(&mut self, preferences: &Preferences) {
         let wait_time = time::Duration::from_secs(1);
 
         //Take a handle from any async function and 2 Bools
@@ -314,7 +302,7 @@ impl Scheduler {
                 task = tasks.pop_front().unwrap();
             }
 
-            let result = task.handle_task(&mut self.file_manager, utility.clone());
+            let result = task.handle_task(&mut self.file_manager, &preferences);
             if let Some(handle) = result {
                 handles.push(handle)
             }

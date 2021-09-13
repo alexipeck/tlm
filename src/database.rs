@@ -11,7 +11,6 @@ use crate::{
     schema::show::dsl::show as show_db,
     show::Episode,
     show::Show,
-    utility::{Traceback, Utility},
 };
 use diesel::{pg::PgConnection, prelude::*};
 use std::env;
@@ -50,11 +49,9 @@ pub fn create_episodes(conn: &PgConnection, new_episode: Vec<NewEpisode>) -> Vec
 }
 
 ///Get all generic from the database
-pub fn get_all_generics(utility: Utility) -> Vec<Generic> {
-    let mut utility = utility.clone_add_location(Traceback::GetAllGenericDatabase);
+pub fn get_all_generics() -> Vec<Generic> {
     let connection = establish_connection();
 
-    utility.print_function_timer();
     let generic_models = generic_data
         .filter(designation.eq(Designation::Generic as i32))
         .load::<GenericModel>(&connection)
@@ -62,14 +59,12 @@ pub fn get_all_generics(utility: Utility) -> Vec<Generic> {
 
     let mut generics: Vec<Generic> = Vec::new();
     for generic_model in generic_models {
-        generics.push(Generic::from_generic_model(generic_model, utility.clone()));
+        generics.push(Generic::from_generic_model(generic_model));
     }
     generics
 }
 
-pub fn get_all_shows(utility: Utility) -> Vec<Show> {
-    let mut utility = utility.clone_add_location(Traceback::GetAllShowsDatabase);
-
+pub fn get_all_shows() -> Vec<Show> {
     let connection = establish_connection();
     let raw_shows = show_db
         .load::<ShowModel>(&connection)
@@ -83,7 +78,7 @@ pub fn get_all_shows(utility: Utility) -> Vec<Show> {
 
     let mut generics: Vec<Generic> = Vec::new();
     for generic_model in generic_models {
-        generics.push(Generic::from_generic_model(generic_model, utility.clone()));
+        generics.push(Generic::from_generic_model(generic_model));
     }
 
     let episode_models = episode_db
@@ -109,18 +104,16 @@ pub fn get_all_shows(utility: Utility) -> Vec<Show> {
 
     let mut shows: Vec<Show> = Vec::new();
     for show in raw_shows {
-        shows.push(Show::from_show_model(show, utility.clone()));
+        shows.push(Show::from_show_model(show));
     }
     for episode in episodes {
         let show_uid = episode.show_uid;
         for show in &mut shows {
             if show.show_uid == show_uid {
-                show.insert_episode(episode, utility.clone());
+                show.insert_episode(episode);
                 break;
             }
         }
     }
-
-    utility.print_function_timer();
     shows
 }

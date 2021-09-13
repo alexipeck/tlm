@@ -1,11 +1,7 @@
 extern crate diesel;
 extern crate websocket;
 
-use tlm::{
-    config::Config,
-    scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType},
-    utility::{Traceback, Utility},
-};
+use tlm::{config::{Config, Preferences}, scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType}};
 use websocket::sync::Server;
 use websocket::OwnedMessage;
 
@@ -39,25 +35,23 @@ fn main() {
 
     event!(Level::INFO, "Starting tlm");
 
-    let utility = Utility::new(Traceback::Main);
+    let preferences = Preferences::default();
 
-    let config: Config = Config::new(&utility.preferences);
+    let config: Config = Config::new(&preferences);
 
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 
     let stop_scheduler = Arc::new(AtomicBool::new(false));
     let mut scheduler: Scheduler = Scheduler::new(
         config.clone(),
-        utility.clone(),
         tasks.clone(),
         stop_scheduler.clone(),
     );
-    let utility_inner = utility.clone();
 
     //Start the scheduler in it's own thread and return the scheduler at the end
     //so that we can print information before exiting
     let scheduler_handle = thread::spawn(move || {
-        scheduler.start_scheduler(utility_inner.clone());
+        scheduler.start_scheduler(&preferences);
         scheduler
     });
 
@@ -77,7 +71,7 @@ fn main() {
     let mut server = Server::bind("127.0.0.1:49200").unwrap();
     server.set_nonblocking(true);
 
-    if !utility.preferences.disable_input {
+    if !preferences.disable_input {
         let running = Arc::new(AtomicBool::new(true));
         let running_inner = running.clone();
         ctrlc::set_handler(move || {
@@ -109,15 +103,15 @@ fn main() {
 
     scheduler
         .file_manager
-        .print_number_of_generics(utility.clone());
+        .print_number_of_generics();
     scheduler
         .file_manager
-        .print_number_of_shows(utility.clone());
+        .print_number_of_shows();
     scheduler
         .file_manager
-        .print_number_of_episodes(utility.clone());
-    scheduler.file_manager.print_shows(utility.clone());
-    scheduler.file_manager.print_generics(utility.clone());
-    scheduler.file_manager.print_episodes(utility.clone());
+        .print_number_of_episodes();
+    scheduler.file_manager.print_shows(&preferences);
+    scheduler.file_manager.print_generics(&preferences);
+    scheduler.file_manager.print_episodes(&preferences);
     //scheduler.file_manager.print_rejected_files(utility); //I'm all for it as soon as it's disabled by default
 }
