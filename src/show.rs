@@ -1,9 +1,9 @@
 use crate::{
     generic::Generic,
     model::*,
-    print::{print, From, Verbosity},
     utility::{Traceback, Utility},
 };
+use tracing::{event, Level};
 
 use std::path::PathBuf;
 
@@ -61,21 +61,13 @@ impl Episode {
     pub fn print_episode(&self, utility: Utility) {
         let utility = utility.clone_add_location(Traceback::PrintEpisodeEpisode);
 
-        //could realistically just check if it has an episode designation,
-        print(
-            Verbosity::DEBUG,
-            From::Show,
-            format!(
-                "[generic_uid:'{:4}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
+        event!(Level::DEBUG, "[generic_uid:'{:4}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
                 self.generic.get_generic_uid(),
                 self.show_uid,
                 self.show_season,
                 self.get_episode_string(),
                 self.generic.get_full_path(),
                 self.show_title,
-            ),
-            utility.preferences.generic_output_whitelisted,
-            utility,
         );
     }
 }
@@ -142,12 +134,11 @@ impl Show {
         if !utility.preferences.print_shows && !utility.preferences.show_output_whitelisted {
             return;
         }
-        print(
-            Verbosity::DEBUG,
-            From::Show,
-            format!("[uid: {}][show_title: {}]", self.show_uid, self.show_title),
-            false,
-            utility,
+        event!(
+            Level::DEBUG,
+            "[uid: {}][show_title: {}]",
+            self.show_uid,
+            self.show_title
         );
     }
 

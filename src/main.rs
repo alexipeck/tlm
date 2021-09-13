@@ -14,12 +14,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use tracing_appender;
-use tracing_subscriber::registry::Registry;
-use tracing_subscriber::layer::SubscriberExt;
 use std::io::stdout;
 use tracing::{event, Level};
-
+use tracing_appender;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::registry::Registry;
 
 fn main() {
     //traceback and timing utility
@@ -27,17 +26,16 @@ fn main() {
     let (writer, _guard) = tracing_appender::non_blocking(stdout());
     let (writer2, _guard) = tracing_appender::non_blocking(file);
     let layer = tracing_subscriber::fmt::layer()
-        .with_writer(writer).finish();
+        .with_writer(writer)
+        .finish();
 
     let layer2 = tracing_subscriber::fmt::layer()
-        .with_writer(writer2).finish();
+        .with_writer(writer2)
+        .finish();
 
-    let subscriber = Registry::default()
-        .with(layer)
-        .with(layer2);
+    let subscriber = Registry::default().with(layer).with(layer2);
 
     tracing::subscriber::set_global_default(subscriber).unwrap();
-
 
     event!(Level::INFO, "Starting tlm");
 
@@ -73,8 +71,7 @@ fn main() {
             &config.ignored_paths,
         ))));
 
-        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new(
-        ))));
+        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new())));
     }
 
     let mut server = Server::bind("127.0.0.1:49200").unwrap();
@@ -119,5 +116,5 @@ fn main() {
     scheduler.file_manager.print_shows(utility.clone());
     scheduler.file_manager.print_generics(utility.clone());
     scheduler.file_manager.print_episodes(utility.clone());
-    //scheduler.file_manager.print_rejected_files(utility);
+    //scheduler.file_manager.print_rejected_files(utility); //I'm all for it as soon as it's disabled by default
 }

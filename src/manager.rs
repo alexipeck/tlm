@@ -1,13 +1,18 @@
-use crate::{config::Config, database::*, designation::Designation, generic::Generic, model::{NewEpisode, NewGeneric}, print::{print, From, Verbosity}, show::{Episode, Show}, utility::{self, Traceback, Utility}};
+use crate::{
+    config::Config,
+    database::*,
+    designation::Designation,
+    generic::Generic,
+    model::{NewEpisode, NewGeneric},
+    show::{Episode, Show},
+    utility::{self, Traceback, Utility},
+};
 use diesel::pg::PgConnection;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashSet,
-    fmt,
-    path::PathBuf,
-};
+use std::{collections::HashSet, fmt, path::PathBuf};
+use tracing::{event, Level};
 use walkdir::{DirEntry, WalkDir};
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -60,7 +65,7 @@ impl fmt::Display for Reason {
 }
 
 pub struct FileManager {
-    pub config: Config,//copy of the one in the scheduler
+    pub config: Config, //copy of the one in the scheduler
     pub generic_files: Vec<Generic>,
     pub shows: Vec<Show>,
     pub existing_files_hashset: HashSet<PathBuf>,
@@ -136,16 +141,10 @@ impl FileManager {
 
     pub fn print_number_of_generics(&self, utility: Utility) {
         let mut utility = utility.clone_add_location(Traceback::PrintNumberOfGenericsFileManager);
-
-        print(
-            Verbosity::INFO,
-            From::Manager,
-            format!(
-                "Number of generic loaded in memory: {}",
-                self.generic_files.len()
-            ),
-            false,
-            utility.clone(),
+        event!(
+            Level::INFO,
+            "Number of generics loaded in memory: {}",
+            self.generic_files.len()
         );
 
         utility.print_function_timer();
@@ -154,12 +153,10 @@ impl FileManager {
     pub fn print_number_of_shows(&self, utility: Utility) {
         let mut utility = utility.clone_add_location(Traceback::PrintNumberOfShowsFileManager);
 
-        print(
-            Verbosity::INFO,
-            From::Manager,
-            format!("Number of shows loaded in memory: {}", self.shows.len()),
-            false,
-            utility.clone(),
+        event!(
+            Level::INFO,
+            "Number of shows loaded in memory: {}",
+            self.shows.len()
         );
 
         utility.print_function_timer();
@@ -175,12 +172,10 @@ impl FileManager {
             }
         }
 
-        print(
-            Verbosity::INFO,
-            From::Manager,
-            format!("Number of episodes loaded in memory: {}", episode_counter),
-            false,
-            utility.clone(),
+        event!(
+            Level::INFO,
+            "Number of episodes loaded in memory: {}",
+            episode_counter
         );
 
         utility.print_function_timer();
@@ -225,7 +220,6 @@ impl FileManager {
 
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for generic in &mut temp_generics {
-
             let episode_string: String;
             match REGEX.find(&generic.get_filename()) {
                 None => continue,
@@ -344,7 +338,9 @@ impl FileManager {
             allowed = false;
         } else {
             //rejects if the file doesn't have an allowed extension
-            if !self.config.allowed_extensions
+            if !self
+                .config
+                .allowed_extensions
                 .contains(&path.extension().unwrap().to_str().unwrap().to_lowercase())
             {
                 reason.push(Reason::ExtensionDisallowed);
@@ -378,10 +374,7 @@ impl FileManager {
     }
 
     //Hash set guarantees no duplicates in O(1) time
-    pub fn import_files(
-        &mut self,
-        utility: Utility,
-    ) {
+    pub fn import_files(&mut self, utility: Utility) {
         let mut utility = utility.clone_add_location(Traceback::ImportFilesFileManager);
 
         //import all files in tracked root directories
@@ -393,22 +386,14 @@ impl FileManager {
                     continue;
                 }
 
-                let reason = self.accept_or_reject_file(
-                    entry.clone(),
-                    false,
-                );
+                let reason = self.accept_or_reject_file(entry.clone(), false);
 
                 if reason.is_some() {
-                    print(
-                        Verbosity::INFO,
-                        From::Manager,
-                        format!(
-                            "Path: '{}' disallowed because {}",
-                            String::from(entry.into_path().to_str().unwrap()),
-                            reasons_to_string(reason.unwrap())
-                        ),
-                        false,
-                        utility.clone(),
+                    event!(
+                        Level::INFO,
+                        "Path: '{}' disallowed because {}",
+                        String::from(entry.into_path().to_str().unwrap()),
+                        reasons_to_string(reason.unwrap())
                     );
                 }
             }
@@ -467,13 +452,7 @@ impl FileManager {
             Some(uid) => uid,
             None => {
                 if utility.preferences.print_shows || utility.preferences.show_output_whitelisted {
-                    print(
-                        Verbosity::INFO,
-                        From::Manager,
-                        format!("Adding a new show: {}", show_title),
-                        utility.preferences.show_output_whitelisted,
-                        utility,
-                    );
+                    event!(Level::DEBUG, "Adding a new show: {}", show_title);
                 }
 
                 let show_model = create_show(connection, show_title.clone());
@@ -500,7 +479,8 @@ impl FileManager {
         for show in &self.shows {
             show.print_show(utility.clone());
             for season in &show.seasons {
-                println!(
+                event!(
+                    Level::DEBUG,
                     "S{:02} has {} episodes",
                     season.number,
                     season.episodes.len()
@@ -515,19 +495,14 @@ impl FileManager {
         let mut utility = utility.clone_add_location(Traceback::PrintRejectedFilesFileManager);
 
         for (pathbuf, reason) in &self.rejected_files {
-            print(
-                Verbosity::INFO,
-                From::Manager,
-                format!(
-                    "Path: '{}' disallowed because {}",
-                    String::from(pathbuf.to_str().unwrap()),
-                    reasons_to_string(reason.clone()),
-                ),
-                false,
-                utility.clone(),
+            event!(
+                Level::INFO,
+                "Path: '{}' disallowed because {}",
+                String::from(pathbuf.to_str().unwrap()),
+                reasons_to_string(reason.clone())
             );
         }
-        
+
         utility.print_function_timer();
     }
 }

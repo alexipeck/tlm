@@ -4,10 +4,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use tracing::{event, Level};
+
 use crate::{
     designation::{convert_i32_to_designation, Designation},
     model::*,
-    print::{print, From, Verbosity},
     profile::Profile,
     utility::{Traceback, Utility},
 };
@@ -200,17 +201,12 @@ impl Generic {
 
     pub fn print_generic(&self, utility: Utility) {
         let utility = utility.clone_add_location(Traceback::PrintGenericGeneric);
-        print(
-            Verbosity::DEBUG,
-            From::Generic,
-            format!(
-                "[generic_uid:'{:4}'][designation:'{}'][full_path:'{}']",
-                self.get_generic_uid(),
-                self.designation as i32,
-                self.get_full_path(),
-            ),
-            utility.preferences.generic_output_whitelisted,
-            utility,
+        event!(
+            Level::DEBUG,
+            "[generic_uid:'{:4}'][designation:'{}'][full_path:'{}']",
+            self.get_generic_uid(),
+            self.designation as i32,
+            self.get_full_path(),
         );
     }
 

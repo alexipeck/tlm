@@ -1,8 +1,6 @@
-use crate::{
-    print::{print, From, Verbosity},
-    utility::{Traceback, Utility},
-};
+use crate::utility::{Traceback, Utility};
 use std::time::Instant;
+use tracing::{event, Level};
 
 #[derive(Clone, Debug)]
 pub struct Timer {
@@ -44,16 +42,11 @@ impl Timer {
         }
 
         if self.stored_time.unwrap() > utility.preferences.timing_threshold {
-            print(
-                Verbosity::DEBUG,
-                From::Timer,
-                format!(
-                    "{} took: {}ms",
-                    self.function_name.to_string(),
-                    self.stored_time.unwrap()
-                ),
-                true,
-                utility,
+            event!(
+                Level::INFO,
+                "{} took: {}ms",
+                self.function_name.to_string(),
+                self.stored_time.unwrap()
             );
         }
     }

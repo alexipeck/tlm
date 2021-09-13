@@ -5,9 +5,9 @@ use crate::{
     generic::Generic,
     manager::FileManager,
     model::GenericModel,
-    print::{print, From, Verbosity},
     utility::{Traceback, Utility},
 };
+use tracing::{event, Level};
 
 use std::{
     collections::VecDeque,
@@ -98,27 +98,18 @@ impl Encode {
     pub fn run(&mut self, utility: Utility) {
         let utility = utility.clone_add_location(Traceback::RunEncode);
         if !self.is_ready_to_encode() {
-            print(
-                Verbosity::ERROR,
-                From::Scheduler,
-                "Encode didn't have the required fields for being sent to the encoder".to_string(),
-                false,
-                utility,
+            event!(
+                Level::WARN,
+                "Encode didn't have the required fields for being sent to the encoder"
             );
             return;
         }
 
         self.status_underway = true;
-
-        print(
-            Verbosity::INFO,
-            From::Scheduler,
-            format!(
-                "Encoding file \'{}\'",
-                Generic::get_filename_from_pathbuf(self.source_path.clone())
-            ),
-            false,
-            utility,
+        event!(
+            Level::INFO,
+            "Encoding file \'{}\'",
+            Generic::get_filename_from_pathbuf(self.source_path.clone())
         );
 
         let _buffer;
@@ -135,8 +126,7 @@ impl Encode {
     }
 }
 
-pub struct Hash {
-}
+pub struct Hash {}
 
 impl Hash {
     pub fn run(&self, current_content: Vec<Generic>) -> TaskReturnAsync {

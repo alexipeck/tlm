@@ -1,9 +1,6 @@
-use crate::{
-    config::Preferences,
-    print::{print, From, Verbosity},
-    timer::Timer,
-};
+use crate::{config::Preferences, timer::Timer};
 use std::fmt;
+use tracing::{event, Level};
 
 #[derive(Clone, Debug)]
 pub enum Traceback {
@@ -144,12 +141,9 @@ impl Utility {
                 .unwrap()
                 .print_timer(self.clone());
         } else {
-            print(
-                Verbosity::CRITICAL,
-                From::Utility,
-                "You tried to print a timer that doesn't exist.".to_string(),
-                false,
-                self.clone(),
+            event!(
+                Level::ERROR,
+                "You tried to print a timer that doesn't exist."
             );
             panic!()
         }
