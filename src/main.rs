@@ -80,7 +80,10 @@ fn main() {
     if !utility.preferences.disable_input {
         let running = Arc::new(AtomicBool::new(true));
         let running_inner = running.clone();
-        ctrlc::set_handler(move || running_inner.store(false, Ordering::SeqCst))
+        ctrlc::set_handler(move || {
+            event!(Level::WARN, "Stop signal received shutting down");
+            running_inner.store(false, Ordering::SeqCst)
+        })
             .expect("Error setting Ctrl-C handler");
         while running.load(Ordering::SeqCst) {
             let result = match server.accept() {

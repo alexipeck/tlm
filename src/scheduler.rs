@@ -56,9 +56,11 @@ pub struct ProcessNewFiles {
 
 impl ProcessNewFiles {
     pub fn run(&mut self, file_manager: &mut FileManager, utility: Utility) {
+        event!(Level::INFO, "Started processing new files");
         self.status_underway = true;
         file_manager.process_new_files(utility);
         self.status_completed = true;
+        event!(Level::INFO, "Finished processing new files you can now stop the program with Ctrl-c");
     }
     pub fn new() -> Self {
         ProcessNewFiles {
@@ -132,6 +134,7 @@ impl Hash {
     pub fn run(&self, current_content: Vec<Generic>) -> TaskReturnAsync {
         let is_finished = Arc::new(AtomicBool::new(false));
 
+        event!(Level::INFO, "Started hashing in the background");
         let is_finished_inner = is_finished.clone();
         //Hash files until all other functions are complete
         let handle = Some(thread::spawn(move || {
@@ -155,7 +158,9 @@ impl Hash {
             }
             is_finished_inner.store(true, Ordering::Relaxed);
             if did_finish {
+                event!(Level::INFO, "Finished hashing");
             } else {
+                event!(Level::INFO, "Stopped hashing (incomplete)");
             }
         }))
         .unwrap();
