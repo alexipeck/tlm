@@ -75,7 +75,10 @@ fn main() {
     }
 
     let mut server = Server::bind("127.0.0.1:49200").unwrap();
-    server.set_nonblocking(true);
+    if server.set_nonblocking(true).is_err() {
+        event!(Level::ERROR, "Starting tlm");
+        panic!();
+    }
 
     if !utility.preferences.disable_input {
         let running = Arc::new(AtomicBool::new(true));
@@ -84,22 +87,19 @@ fn main() {
             event!(Level::WARN, "Stop signal received shutting down");
             running_inner.store(false, Ordering::SeqCst)
         })
-            .expect("Error setting Ctrl-C handler");
+        .expect("Error setting Ctrl-C handler");
         while running.load(Ordering::SeqCst) {
-            let result = match server.accept() {
-                Ok(wsupgrade) => {
-                    let message = wsupgrade.accept().unwrap().recv_message().unwrap();
-                    match message {
-                        OwnedMessage::Text(text) => {
-                            println!("{}", text);
-                        }
-                        _ => {
-                            println!("Unk");
-                        }
+            if let Ok(wsupgrade) = server.accept() {
+                let message = wsupgrade.accept().unwrap().recv_message().unwrap();
+                match message {
+                    OwnedMessage::Text(text) => {
+                        println!("{}", text);
+                    }
+                    _ => {
+                        println!("Unk");
                     }
                 }
-                _ => {}
-            };
+            }
         }
     }
 

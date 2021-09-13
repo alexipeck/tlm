@@ -60,7 +60,10 @@ impl ProcessNewFiles {
         self.status_underway = true;
         file_manager.process_new_files(utility);
         self.status_completed = true;
-        event!(Level::INFO, "Finished processing new files you can now stop the program with Ctrl-c");
+        event!(
+            Level::INFO,
+            "Finished processing new files you can now stop the program with Ctrl-c"
+        );
     }
     pub fn new() -> Self {
         ProcessNewFiles {
