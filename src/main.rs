@@ -55,10 +55,7 @@ fn main() {
         let mut tasks_guard = tasks.lock().unwrap();
         tasks_guard.push_back(Task::new(TaskType::Hash(Hash::default())));
 
-        tasks_guard.push_back(Task::new(TaskType::ImportFiles(ImportFiles::new(
-            &config.allowed_extensions,
-            &config.ignored_paths,
-        ))));
+        tasks_guard.push_back(Task::new(TaskType::ImportFiles(ImportFiles::default())));
 
         tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(
             ProcessNewFiles::default(),
@@ -104,5 +101,5 @@ fn main() {
     scheduler.file_manager.print_shows(&preferences);
     scheduler.file_manager.print_generics(&preferences);
     scheduler.file_manager.print_episodes(&preferences);
-    //scheduler.file_manager.print_rejected_files(preferences); //I'm all for it as soon as it's disabled by default
+    scheduler.file_manager.print_rejected_files(); //I'm all for it as soon as it's disabled by default
 }

@@ -2,6 +2,7 @@ use super::generic::Generic;
 use super::schema::{episode, generic, show};
 use crate::profile::Profile;
 
+///Struct for inserting into the database
 #[derive(Insertable)]
 #[table_name = "generic"]
 pub struct NewGeneric {
@@ -13,6 +14,7 @@ pub struct NewGeneric {
     pub length_time: Option<f64>,
 }
 
+///Helper function to set all database fields to none if the profile contains data
 fn profile_is_some_split(
     profile: Option<Profile>,
 ) -> (Option<i32>, Option<i32>, Option<f64>, Option<f64>) {
@@ -42,6 +44,7 @@ impl NewGeneric {
     }
 }
 
+///Data structure to modify or select an existing Generic in the database
 #[derive(Queryable, AsChangeset, Identifiable)]
 #[primary_key(generic_uid)]
 #[table_name = "generic"]
@@ -58,6 +61,7 @@ pub struct GenericModel {
 }
 
 impl GenericModel {
+    ///Create an in memory generic from a database one
     pub fn from_generic(generic: Generic) -> GenericModel {
         if generic.profile.is_some() {
             GenericModel {
@@ -86,6 +90,7 @@ impl GenericModel {
         }
     }
 
+    ///Construct a profile from database fields
     pub fn get_profile(&self) -> Option<Profile> {
         Some(Profile {
             width: self.width? as u32,
@@ -96,6 +101,7 @@ impl GenericModel {
     }
 }
 
+///Structure for inserting an episode into the database
 #[derive(Insertable)]
 #[table_name = "episode"]
 pub struct NewEpisode {
@@ -124,6 +130,7 @@ impl NewEpisode {
     }
 }
 
+///Structure to select Episodes from the database
 #[derive(Queryable)]
 pub struct EpisodeModel {
     pub generic_uid: i32,
@@ -153,12 +160,14 @@ pub struct JobTaskQueueModel {
     pub task_id: i32,
 }
 
+///Struct to insert shows into the database
 #[derive(Insertable)]
 #[table_name = "show"]
 pub struct NewShow {
     pub show_title: String,
 }
 
+///Struct to select shows from the database
 #[derive(Queryable)]
 pub struct ShowModel {
     pub show_uid: i32,

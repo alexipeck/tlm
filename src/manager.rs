@@ -1,3 +1,5 @@
+//!A struct for managing all types of media that are stored in ram as well as
+//!Functionality to import files. This is mostly used in the scheduler
 use crate::{
     config::{Config, Preferences},
     database::*,
@@ -14,6 +16,7 @@ use std::{collections::HashSet, fmt, path::PathBuf};
 use tracing::{event, Level};
 use walkdir::{DirEntry, WalkDir};
 
+///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct TrackedDirectories {
     pub root_directories: Vec<String>,
@@ -29,19 +32,24 @@ impl TrackedDirectories {
     }
 }
 
+///This enum represents the list of reasons that a file was not imported.
+///This is used to create a log of files that weren't imported so
+///that the user can determine the reason that some of their media
+///was not imported if they expected it to be
 #[derive(Debug, Clone)]
 pub enum Reason {
     PathContainsIgnoredPath,
     ExtensionMissing,
     ExtensionDisallowed,
-    MatchesExisting,
 }
-pub fn reasons_to_string(reasons: Vec<Reason>) -> String {
-    let mut formatted: String = String::new();
-    for reason in reasons {
-        formatted.push_str(&format!("[{}]", reason.to_string()));
-    }
-    formatted
+
+///Convert a vector of reasons to a vector of strings. Used to convert all
+///reasons for a particular file
+fn reasons_to_string(reasons: Vec<Reason>) -> String {
+    reasons
+        .iter()
+        .map(|reason| format!("[{}]", reason.to_string()))
+        .collect()
 }
 
 impl fmt::Display for Reason {
@@ -50,15 +58,17 @@ impl fmt::Display for Reason {
             Self::PathContainsIgnoredPath => "PathContainsIgnoredPath",
             Self::ExtensionMissing => "ExtensionMissing",
             Self::ExtensionDisallowed => "ExtensionDisallowed",
-            Self::MatchesExisting => "MatchesExisting",
         };
 
         write!(f, "{}", formatted)
     }
 }
 
+///Contains all media data that is stored in ram as well as
+///a list of rejected files
 pub struct FileManager {
-    pub config: Config, //copy of the one in the scheduler
+    ///copy of the one in the scheduler
+    pub config: Config,
     pub generic_files: Vec<Generic>,
     pub shows: Vec<Show>,
     pub existing_files_hashset: HashSet<PathBuf>,
@@ -90,7 +100,9 @@ impl FileManager {
         file_manager
     }
 
-    pub fn add_show_episodes_to_hashset(&mut self) {
+    ///Takes all loaded episodes and add them to the hashset of
+    ///existing files to ensure that files don't get imported twice
+    fn add_show_episodes_to_hashset(&mut self) {
         let mut generics: Vec<Generic> = Vec::new();
         for show in &self.shows {
             for season in &show.seasons {
@@ -103,6 +115,8 @@ impl FileManager {
         self.add_all_filenames_to_hashset_from_generics(&generics);
     }
 
+    ///Adds all generics that exist in the file manager to the hashset to ensure that
+    ///files can't be imported twice
     fn add_existing_files_to_hashset(&mut self) {
         for generic in &self.generic_files {
             self.existing_files_hashset
@@ -110,7 +124,9 @@ impl FileManager {
         }
     }
 
-    pub fn add_all_filenames_to_hashset_from_generics(&mut self, generics: &[Generic]) {
+    ///Add a collection of generics to the hashset of generics to ensure
+    ///that files can't be imported twice
+    fn add_all_filenames_to_hashset_from_generics(&mut self, generics: &[Generic]) {
         for generic in generics {
             self.existing_files_hashset
                 .insert(generic.full_path.clone());
@@ -148,6 +164,10 @@ impl FileManager {
         );
     }
 
+    ///Processes all files in the new files queue and converts them to
+    ///episodes and generics based on pattern matching. So far only accepts
+    ///The filename pattern SxxExx where Sxx is the season number and Exx
+    ///is the episode number
     pub fn process_new_files(&mut self, preferences: &Preferences) {
         let connection = establish_connection();
         let mut new_episodes = Vec::new();
@@ -313,7 +333,6 @@ impl FileManager {
 
         //rejects if the file exists in the existing_files_hashset
         if self.existing_files_hashset.contains(&entry_string) {
-            reason.push(Reason::MatchesExisting);
             return None;
         }
 
@@ -332,7 +351,9 @@ impl FileManager {
         None
     }
 
-    //Hash set guarantees no duplicates in O(1) time
+    ///Import all files in the list of tracked root directories
+    ///into a queue for later processing. Uses a Hash set to
+    ///guarantee no duplicates in O(1) time
     pub fn import_files(&mut self) {
         //import all files in tracked root directories
         for directory in &self.config.tracked_directories.root_directories.clone() {
@@ -370,10 +391,13 @@ impl FileManager {
         }
     }
 
+    //TODO: This shouldn't call another version in generic
+    //it should just use the logic of the other function here
     pub fn print_generics(&self, preferences: &Preferences) {
         Generic::print_generics(&self.generic_files, preferences);
     }
 
+    ///Insert a vector of episodes into an existing show
     pub fn insert_episodes(&mut self, episodes: Vec<Episode>) {
         //find the associated show
         //insert episode into that show
@@ -388,13 +412,25 @@ impl FileManager {
         }
     }
 
-    pub fn ensure_show_exists(
+    ///Check if a show exists in ram
+    fn show_exists(&self, show_title: String) -> Option<usize> {
+        for s in &self.shows {
+            if s.show_title == show_title {
+                return Some(s.show_uid);
+            }
+        }
+        None
+    }
+
+    ///Make sure a show exists by checking for it in ram and inserting it into
+    ///the database if it doesn't exist yet
+    fn ensure_show_exists(
         &mut self,
         show_title: String,
         connection: &PgConnection,
         preferences: &Preferences,
     ) -> usize {
-        let show_uid = Show::show_exists(show_title.clone(), &self.shows);
+        let show_uid = self.show_exists(show_title.clone());
         match show_uid {
             Some(uid) => uid,
             None => {

@@ -5,6 +5,7 @@ use std::str::from_utf8;
 
 use std::path::PathBuf;
 
+///Currently unused enum to allow filtering media by resolution standard
 pub enum ResolutionStandard {
     UHD,
     WQHD,
@@ -13,11 +14,16 @@ pub enum ResolutionStandard {
     ED,
     SD,
 }
+
+///Currently unused encoding profile used to set ffmpeg flags based on resolution
+///standard
 #[allow(dead_code)]
 pub struct EncodingProfile {
     _resolution_standard: ResolutionStandard,
 }
 
+///Struct to store media information collected from media info
+///which will then be used to filter media and to set ffmpeg flags
 #[derive(Clone, Debug, Copy)]
 pub struct Profile {
     pub width: u32,
@@ -35,15 +41,6 @@ impl Profile {
             length_time,
         }
     }
-
-    pub fn split_profile(&self) -> (Option<i32>, Option<i32>, Option<f64>, Option<f64>) {
-        (
-            Some(self.width as i32),
-            Some(self.height as i32),
-            Some(self.framerate),
-            Some(self.length_time),
-        ) //lossy casts
-    }
 }
 
 impl fmt::Display for Profile {
@@ -57,6 +54,7 @@ impl fmt::Display for Profile {
 }
 
 impl Profile {
+    ///Create profile from a pathbuf
     pub fn from_file(path: PathBuf) -> Option<Self> {
         let buffer;
         //linux & friends
