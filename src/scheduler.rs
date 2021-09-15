@@ -7,7 +7,6 @@ use crate::{
     model::GenericModel,
 };
 use tracing::{event, Level};
-use websocket::header::Prefer;
 
 use std::{
     collections::VecDeque,
@@ -53,7 +52,9 @@ impl ProcessNewFiles {
             "Finished processing new files you can now stop the program with Ctrl-c"
         );
     }
-    pub fn new() -> Self {
+}
+impl Default for ProcessNewFiles {
+    fn default() -> Self {
         ProcessNewFiles {}
     }
 }
@@ -148,8 +149,8 @@ impl Hash {
     }
 }
 
-impl Hash {
-    pub fn new() -> Self {
+impl Default for Hash {
+    fn default() -> Self {
         Hash {}
     }
 }
@@ -188,7 +189,7 @@ impl Task {
                 import_files.run(file_manager);
             }
             TaskType::ProcessNewFiles(process_new_files) => {
-                process_new_files.run(file_manager, &preferences);
+                process_new_files.run(file_manager, preferences);
             }
             TaskType::Hash(hash) => {
                 let mut current_content = file_manager.generic_files.clone();
@@ -289,7 +290,7 @@ impl Scheduler {
                 task = tasks.pop_front().unwrap();
             }
 
-            let result = task.handle_task(&mut self.file_manager, &preferences);
+            let result = task.handle_task(&mut self.file_manager, preferences);
             if let Some(handle) = result {
                 handles.push(handle)
             }

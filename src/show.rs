@@ -132,10 +132,7 @@ impl Show {
         );
     }
 
-    pub fn show_exists(
-        show_title: String,
-        working_shows: &[Show],
-    ) -> Option<usize> {
+    pub fn show_exists(show_title: String, working_shows: &[Show]) -> Option<usize> {
         for s in working_shows {
             if s.show_title == show_title {
                 return Some(s.show_uid);
@@ -148,12 +145,10 @@ impl Show {
         let show_uid_temp: i32 = show_model.show_uid;
         let title_temp: String = show_model.show_title;
 
-        let show = Show {
+        Show {
             show_uid: show_uid_temp as usize,
             show_title: title_temp,
             seasons: Vec::new(),
-        };
-
-        show
+        }
     }
 }

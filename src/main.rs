@@ -53,14 +53,16 @@ fn main() {
     //Initial setup in own scope so lock drops
     {
         let mut tasks_guard = tasks.lock().unwrap();
-        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::new())));
+        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::default())));
 
         tasks_guard.push_back(Task::new(TaskType::ImportFiles(ImportFiles::new(
             &config.allowed_extensions,
             &config.ignored_paths,
         ))));
 
-        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::new())));
+        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(
+            ProcessNewFiles::default(),
+        )));
     }
 
     let mut server = Server::bind("127.0.0.1:49200").unwrap();
@@ -68,8 +70,6 @@ fn main() {
         event!(Level::ERROR, "");
         panic!();
     }
-
-    server.set_nonblocking(true);
 
     if !preferences.disable_input {
         let running = Arc::new(AtomicBool::new(true));

@@ -1,4 +1,11 @@
-use crate::{config::{Config, Preferences}, database::*, designation::Designation, generic::Generic, model::{NewEpisode, NewGeneric}, show::{Episode, Show}};
+use crate::{
+    config::{Config, Preferences},
+    database::*,
+    designation::Designation,
+    generic::Generic,
+    model::{NewEpisode, NewGeneric},
+    show::{Episode, Show},
+};
 use diesel::pg::PgConnection;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -103,10 +110,7 @@ impl FileManager {
         }
     }
 
-    pub fn add_all_filenames_to_hashset_from_generics(
-        &mut self,
-        generics: &[Generic],
-    ) {
+    pub fn add_all_filenames_to_hashset_from_generics(&mut self, generics: &[Generic]) {
         for generic in generics {
             self.existing_files_hashset
                 .insert(generic.full_path.clone());
@@ -217,8 +221,7 @@ impl FileManager {
                 .to_string_lossy()
                 .to_string();
 
-            let show_uid =
-                self.ensure_show_exists(show_title.clone(), &connection, &preferences);
+            let show_uid = self.ensure_show_exists(show_title.clone(), &connection, preferences);
             let season_number = season_temp;
             let episode_number = episodes[0];
 
@@ -266,8 +269,6 @@ impl FileManager {
 
         self.insert_episodes(episodes);
     }
-
-    fn verify_database() {}
 
     ///returns none when a file is rejected because is accepted, or already exists in the existing_files_hashset
     fn accept_or_reject_file(
@@ -370,7 +371,7 @@ impl FileManager {
     }
 
     pub fn print_generics(&self, preferences: &Preferences) {
-        Generic::print_generics(&self.generic_files, &preferences);
+        Generic::print_generics(&self.generic_files, preferences);
     }
 
     pub fn insert_episodes(&mut self, episodes: Vec<Episode>) {
@@ -421,7 +422,7 @@ impl FileManager {
             return;
         }
         for show in &self.shows {
-            show.print_show(&preferences);
+            show.print_show(preferences);
             for season in &show.seasons {
                 event!(
                     Level::DEBUG,
