@@ -412,6 +412,16 @@ impl FileManager {
         }
     }
 
+    ///Check if a show exists in ram
+    fn show_exists(&self, show_title: String) -> Option<usize> {
+        for s in &self.shows {
+            if s.show_title == show_title {
+                return Some(s.show_uid);
+            }
+        }
+        None
+    }
+
     ///Make sure a show exists by checking for it in ram and inserting it into
     ///the database if it doesn't exist yet
     fn ensure_show_exists(
@@ -420,7 +430,7 @@ impl FileManager {
         connection: &PgConnection,
         preferences: &Preferences,
     ) -> usize {
-        let show_uid = Show::show_exists(show_title.clone(), &self.shows);
+        let show_uid = self.show_exists(show_title.clone());
         match show_uid {
             Some(uid) => uid,
             None => {

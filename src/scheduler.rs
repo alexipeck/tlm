@@ -21,25 +21,25 @@ use std::{
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
+///Struct to represent a file import task. This is needed so we can have an enum
+///that contains all types of task
 #[derive(Clone, Debug)]
-pub struct ImportFiles {
-    allowed_extensions: Vec<String>,
-    ignored_paths: Vec<String>,
-}
+pub struct ImportFiles {}
 
 impl ImportFiles {
-    pub fn new(allowed_extensions: &[String], ignored_paths: &[String]) -> Self {
-        ImportFiles {
-            allowed_extensions: allowed_extensions.to_owned(),
-            ignored_paths: ignored_paths.to_owned(),
-        }
-    }
-
     pub fn run(&mut self, file_manager: &mut FileManager) {
         file_manager.import_files();
     }
 }
 
+impl Default for ImportFiles {
+    fn default() -> Self {
+        ImportFiles {}
+    }
+}
+
+///Struct to represent a file processing task. This is needed so we can have an enum
+///that contains all types of task
 #[derive(Clone, Debug)]
 pub struct ProcessNewFiles {}
 
@@ -59,6 +59,9 @@ impl Default for ProcessNewFiles {
     }
 }
 
+///Struct to represent a file encode task. This is needed so we can have an enum
+///that contains all types of task
+///This should probably handle it's current variables without having them passed
 #[derive(Clone, Debug)]
 pub struct Encode {
     pub source_path: PathBuf,
@@ -75,11 +78,13 @@ impl Encode {
         }
     }
 
+    ///Check if the encode contains all required data (likely unnecessary later)
     pub fn is_ready_to_encode(&self) -> bool {
         //TODO: Add check for whether the file is ready to go for encode
         true
     }
 
+    ///Run the encode TODO: Make this task asynchronous, allow offloading to worker machine
     pub fn run(&mut self) {
         if !self.is_ready_to_encode() {
             event!(
@@ -96,7 +101,6 @@ impl Encode {
         );
 
         let _buffer;
-        //linux & friends
         _buffer = Command::new("ffmpeg")
             .args(&self.encode_string.clone())
             .output()
@@ -108,6 +112,8 @@ impl Encode {
     }
 }
 
+///Struct to represent a hashing task. This is needed so we can have an enum
+///that contains all types of task
 pub struct Hash {}
 
 impl Hash {
@@ -155,6 +161,7 @@ impl Default for Hash {
     }
 }
 
+///This enum is required to create a queue of tasks independent of task type
 pub enum TaskType {
     Encode(Encode),
     ImportFiles(ImportFiles),
@@ -162,6 +169,8 @@ pub enum TaskType {
     Hash(Hash),
 }
 
+///Task struct that will later be in the database with a real id so that the queue
+///persists between runs
 #[allow(dead_code)]
 pub struct Task {
     task_uid: usize,
@@ -176,6 +185,7 @@ impl Task {
         }
     }
 
+    ///execute the tasks run function
     pub fn handle_task(
         &mut self,
         file_manager: &mut FileManager,
@@ -207,6 +217,8 @@ impl Task {
     }
 }
 
+///Struct to store all data required by an asynchronous task in order to join it and know when it has
+///finished it's task or tell it to stop early
 pub struct TaskReturnAsync {
     handle: Option<JoinHandle<()>>,
     is_done: Arc<AtomicBool>,
@@ -218,6 +230,7 @@ impl TaskReturnAsync {
     }
 }
 
+///Schedules all tasks and contains a queue of tasks that can be modified by other threads
 pub struct Scheduler {
     pub file_manager: FileManager,
     pub tasks: Arc<Mutex<VecDeque<Task>>>,
