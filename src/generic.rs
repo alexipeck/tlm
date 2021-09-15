@@ -1,3 +1,5 @@
+//!Datatype and associated function for handling Generic video files as well as the generic
+//!information used by all other video file types
 use std::io::prelude::*;
 use std::{
     fs::{self, File},
@@ -13,10 +15,8 @@ use crate::{
     profile::Profile,
 };
 
-/// this will obviously mean memory overhead. In future I think
-/// we should split this into 3 types that would however mean
-/// that the manager would require separate vectors but I consider
-/// that a non issue
+///Struct containing data that is shared by all file types
+///can also refer to only a generic media file
 #[derive(Clone, Debug)]
 pub struct Generic {
     pub generic_uid: Option<usize>,
@@ -28,7 +28,6 @@ pub struct Generic {
 }
 
 impl Generic {
-    //needs to be able to be created from a pathbuf or pulled from the database
     pub fn new(raw_filepath: &Path) -> Self {
         Generic {
             full_path: raw_filepath.to_path_buf(),
@@ -73,7 +72,7 @@ impl Generic {
         let designation_temp: i32 = generic_model.designation;
 
         //change to have it pull all info out of the db, it currently generates what it can from the filename
-       Generic {
+        Generic {
             full_path: PathBuf::from(&full_path_temp),
             designation: convert_i32_to_designation(designation_temp), //Designation::Generic
             generic_uid: Some(generic_uid_temp as usize),
@@ -85,7 +84,7 @@ impl Generic {
 
     ///Returns a vector of ffmpeg arguments for later execution
     ///This has no options currently
-    pub fn generate_encode_string(&self) -> Vec<String> {
+    fn generate_encode_string(&self) -> Vec<String> {
         return vec![
             "-i".to_string(),
             self.get_full_path(),
@@ -109,7 +108,7 @@ impl Generic {
     ///Appends a fixed string to differentiate rendered files from original before overwrite
     /// I doubt this will stay as I think a temp directory would be more appropriate.
     /// This function returns that as a string for the ffmpeg arguments
-    pub fn generate_target_path(&self) -> String {
+    fn generate_target_path(&self) -> String {
         return self
             .get_full_path_with_suffix("_encodeH4U8".to_string())
             .to_string_lossy()
@@ -126,7 +125,7 @@ impl Generic {
             .to_string();
     }
 
-    pub fn get_full_path_with_suffix(&self, suffix: String) -> PathBuf {
+    fn get_full_path_with_suffix(&self, suffix: String) -> PathBuf {
         //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
         //.push(self.full_path.extension().unwrap())
         //bad way of doing it
@@ -163,7 +162,7 @@ impl Generic {
         return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
 
-    pub fn print_generic(&self) {
+    fn print_generic(&self) {
         event!(
             Level::DEBUG,
             "[generic_uid:'{:4}'][designation:'{}'][full_path:'{}']",

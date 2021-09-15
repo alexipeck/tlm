@@ -1,3 +1,5 @@
+//!Enum for identifying whether a generic file is owned
+//!by something more complicated like an Episode or Movie
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Designation {
     Generic = 1,

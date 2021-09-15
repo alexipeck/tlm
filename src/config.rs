@@ -1,3 +1,5 @@
+//!Set of functions and structures to make is easier to handle the config file
+//!and command line arguments
 use crate::manager::TrackedDirectories;
 use argparse::{ArgumentParser, Store, StoreFalse, StoreTrue};
 use serde::{Deserialize, Serialize};
