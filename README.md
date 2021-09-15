@@ -1,4 +1,5 @@
 # Transcoding Library Manager(tlm)
+[![dependency status](https://deps.rs/repo/github/alexipeck/tlm/status.svg)](https://deps.rs/repo/github/alexipeck/tlm)
 ## Description
 Tlm is currently a cross platform command line application for maintaining a database of video files
 for transcoding with ffmpeg in an automated way. Video file lists are maintained from a set of user
