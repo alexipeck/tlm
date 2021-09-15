@@ -104,5 +104,5 @@ fn main() {
     scheduler.file_manager.print_shows(&preferences);
     scheduler.file_manager.print_generics(&preferences);
     scheduler.file_manager.print_episodes(&preferences);
-    //scheduler.file_manager.print_rejected_files(preferences); //I'm all for it as soon as it's disabled by default
+    scheduler.file_manager.print_rejected_files(); //I'm all for it as soon as it's disabled by default
 }
