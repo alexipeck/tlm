@@ -265,11 +265,11 @@ impl Scheduler {
     pub fn start_scheduler(&mut self, preferences: &Preferences) {
         let wait_time = time::Duration::from_secs(1);
 
-        //Take a handle from any async function and 2 Bools
+        //Take a handle from any async function and a booleans
         //The Handle is in an option so we can take the Handle in order to join it,
-        //that is neccesary because otherwise it is owned by the vector and joining would destroy it
-        //The first bool tells the thread to stop.
-        //The second bool tells us that the thread is complete
+        //that is necessary because otherwise it is owned by the vector and joining would destroy it
+        //The boolean tells the thread to stop and tells the scheduler thread that it has stopped
+        //Essentially it just makes it safe to join
         let mut handles: Vec<TaskReturnAsync> = Vec::new();
 
         loop {
@@ -294,7 +294,7 @@ impl Scheduler {
                 handles.remove(i);
             }
             {
-                let mut tasks = self.tasks.lock().unwrap(); //TODO: Switch to a fair mutex implementaion
+                let mut tasks = self.tasks.lock().unwrap();
 
                 //When the queue is empty we wait until another item is added or user input is marked as completed
                 if tasks.len() == 0 {
