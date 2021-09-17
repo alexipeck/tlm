@@ -8,3 +8,4 @@ workspace.code-workspace
 *.data.old
 .vscode
 logs/
+todo

@@ -124,13 +124,23 @@ impl Hash {
         let is_finished_inner = is_finished.clone();
         //Hash files until all other functions are complete
         let handle = Some(thread::spawn(move || {
+            let mut current_content = current_content;
+            current_content.retain(|elem| elem.hash.is_none());
+            let length = current_content.len();
             let connection = establish_connection();
             let mut did_finish = true;
-            for mut content in current_content {
+            for (i, content) in current_content.iter_mut().enumerate() {
                 if content.hash.is_none() {
                     content.hash();
+                    event![
+                        Level::DEBUG,
+                        "Hashed[{} of {}]: {}",
+                        i + 1,
+                        length,
+                        content.to_string()
+                    ];
                     content.fast_hash();
-                    if GenericModel::from_generic(content)
+                    if GenericModel::from_generic(content.clone())
                         .save_changes::<GenericModel>(&connection)
                         .is_err()
                     {
@@ -284,7 +294,7 @@ impl Scheduler {
                 handles.remove(i);
             }
             {
-                let mut tasks = self.tasks.lock().unwrap();
+                let mut tasks = self.tasks.lock().unwrap(); //TODO: Switch to a fair mutex implementaion
 
                 //When the queue is empty we wait until another item is added or user input is marked as completed
                 if tasks.len() == 0 {

@@ -6,6 +6,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use std::fmt;
+
 use tracing::{event, Level};
 
 use crate::config::Preferences;
@@ -25,6 +27,12 @@ pub struct Generic {
     pub hash: Option<String>,
     pub fast_hash: Option<String>,
     pub profile: Option<Profile>,
+}
+
+impl fmt::Display for Generic {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.get_full_path())
+    }
 }
 
 impl Generic {

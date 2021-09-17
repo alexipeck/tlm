@@ -10,6 +10,7 @@ use crate::{
 };
 use diesel::pg::PgConnection;
 use lazy_static::lazy_static;
+use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt, path::PathBuf};
@@ -172,30 +173,33 @@ impl FileManager {
         let connection = establish_connection();
         let mut new_episodes = Vec::new();
         let mut new_generics = Vec::new();
-        let mut temp_generics = Vec::new();
 
         lazy_static! {
             static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
         }
 
         //Create Content and NewContent that will be added to the database in a batch
-        while !self.new_files_queue.is_empty() {
-            let current = self.new_files_queue.pop();
-            if let Some(current) = current {
-                let mut generic = Generic::new(&current);
+        let mut temp_generics: Vec<Generic> = self
+            .new_files_queue
+            .par_iter()
+            .map(|current| {
+                let mut generic = Generic::new(current);
 
                 //TODO: Why yes this is slower, no I don't care about 100ms right now
                 match REGEX.find(&generic.get_filename()) {
                     None => {}
                     Some(_) => generic.designation = Designation::Episode,
                 }
-                new_generics.push(NewGeneric::new(
-                    String::from(generic.full_path.to_str().unwrap()),
-                    generic.designation as i32,
-                    generic.profile,
-                ));
-                temp_generics.push(generic);
-            }
+
+                generic
+            })
+            .collect();
+        for generic in &temp_generics {
+            new_generics.push(NewGeneric::new(
+                String::from(generic.full_path.to_str().unwrap()),
+                generic.designation as i32,
+                generic.profile,
+            ));
         }
 
         //Insert the generic and then update the uid's for the full Generic structure
