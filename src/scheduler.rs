@@ -28,7 +28,9 @@ pub struct ImportFiles {}
 
 impl ImportFiles {
     pub fn run(&mut self, file_manager: &mut FileManager) {
+        event!(Level::INFO, "Started importing new files");
         file_manager.import_files();
+        event!(Level::INFO, "Finished importing new files");
     }
 }
 
