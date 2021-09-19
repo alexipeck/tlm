@@ -122,13 +122,8 @@ impl QueueAllGenericEncodes {
     }
     pub fn run(&self, generics: &Vec<Generic>, tasks: &mut Arc<Mutex<VecDeque<Task>>>) {
         let mut tasks_guard = tasks.lock().unwrap();
-        let mut counter: usize = 0;
-        for generic in generics {
-            let t = generic.full_path.clone();
-            let f = generic.get_full_path_with_suffix(counter.to_string());
-            let m = generic.generate_encode_string();
-            tasks_guard.push_back(Task::new(TaskType::Encode(Encode::new(t, f, m))));
-            counter += 1;
+        for (i, generic) in generics.into_iter().enumerate() {
+            tasks_guard.push_back(Task::new(TaskType::Encode(Encode::new(generic.full_path.clone(), generic.get_full_path_with_suffix(i.to_string()), generic.generate_encode_string()))));
         }
     }
 }
@@ -267,7 +262,6 @@ impl TaskReturnAsync {
 }
 
 ///Schedules all tasks and contains a queue of tasks that can be modified by other threads
-#[derive(Clone)]
 pub struct Scheduler {
     pub file_manager: FileManager,
     pub tasks: Arc<Mutex<VecDeque<Task>>>,

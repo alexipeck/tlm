@@ -1,6 +1,6 @@
 extern crate diesel;
 
-use tlm::{command_controller::CommandController, config::{Config, Preferences}, scheduler::{Encode, Hash, ImportFiles, ProcessNewFiles, QueueAllGenericEncodes, Scheduler, Task, TaskType}};
+use tlm::{command_controller::CommandController, config::{Config, Preferences}, scheduler::{Hash, ImportFiles, ProcessNewFiles, QueueAllGenericEncodes, Scheduler, Task, TaskType}};
 
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};

@@ -67,7 +67,6 @@ impl fmt::Display for Reason {
 
 ///Contains all media data that is stored in ram as well as
 ///a list of rejected files
-#[derive(Clone)]
 pub struct FileManager {
     ///copy of the one in the scheduler
     pub config: Config,
