@@ -114,7 +114,24 @@ impl Encode {
     }
 }
 
+pub struct QueueAllGenericEncodes {}
 
+impl QueueAllGenericEncodes {
+    pub fn default() -> Self {
+        QueueAllGenericEncodes{}
+    }
+    pub fn run(&self, generics: &Vec<Generic>, tasks: &mut Arc<Mutex<VecDeque<Task>>>) {
+        let mut tasks_guard = tasks.lock().unwrap();
+        let mut counter: usize = 0;
+        for generic in generics {
+            let t = generic.full_path.clone();
+            let f = generic.get_full_path_with_suffix(counter.to_string());
+            let m = generic.generate_encode_string();
+            tasks_guard.push_back(Task::new(TaskType::Encode(Encode::new(t, f, m))));
+            counter += 1;
+        }
+    }
+}
 
 ///Struct to represent a hashing task. This is needed so we can have an enum
 ///that contains all types of task
@@ -181,6 +198,7 @@ pub enum TaskType {
     ImportFiles(ImportFiles),
     ProcessNewFiles(ProcessNewFiles),
     Hash(Hash),
+    QueueAllGenericEncodes(QueueAllGenericEncodes),
 }
 
 ///Task struct that will later be in the database with a real id so that the queue
@@ -203,6 +221,7 @@ impl Task {
     pub fn handle_task(
         &mut self,
         file_manager: &mut FileManager,
+        tasks: &mut Arc<Mutex<VecDeque<Task>>>,
         preferences: &Preferences,
     ) -> Option<TaskReturnAsync> {
         match &mut self.task_type {
@@ -226,6 +245,9 @@ impl Task {
                 }
                 return Some(hash.run(current_content));
             }
+            TaskType::QueueAllGenericEncodes(queue_all_generic_encodes) => {
+                queue_all_generic_encodes.run(&file_manager.generic_files, tasks);
+            }
         }
         None
     }
@@ -245,6 +267,7 @@ impl TaskReturnAsync {
 }
 
 ///Schedules all tasks and contains a queue of tasks that can be modified by other threads
+#[derive(Clone)]
 pub struct Scheduler {
     pub file_manager: FileManager,
     pub tasks: Arc<Mutex<VecDeque<Task>>>,
@@ -317,7 +340,7 @@ impl Scheduler {
                 task = tasks.pop_front().unwrap();
             }
 
-            let result = task.handle_task(&mut self.file_manager, preferences);
+            let result = task.handle_task(&mut self.file_manager, &mut self.tasks, preferences);
             if let Some(handle) = result {
                 handles.push(handle)
             }

@@ -93,7 +93,7 @@ impl Generic {
     ///Returns a vector of ffmpeg arguments for later execution
     ///This has no options currently
     #[allow(dead_code)]
-    fn generate_encode_string(&self) -> Vec<String> {
+    pub fn generate_encode_string(&self) -> Vec<String> {
         return vec![
             "-i".to_string(),
             self.get_full_path(),

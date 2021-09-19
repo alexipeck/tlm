@@ -1,6 +1,6 @@
 extern crate diesel;
 
-use tlm::{command_controller::CommandController, config::{Config, Preferences}, scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType}};
+use tlm::{command_controller::CommandController, config::{Config, Preferences}, scheduler::{Encode, Hash, ImportFiles, ProcessNewFiles, QueueAllGenericEncodes, Scheduler, Task, TaskType}};
 
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -54,10 +54,7 @@ fn main() {
         tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(
             ProcessNewFiles::default(),
         )));
-        for (i, generic) in scheduler.file_manager.generic_files.into_iter().enumerate() {
-            let task = Task::new(TaskType::Encode(generic.get_full_path(), generic.get_full_path_with_suffix(i.to_string()));
-            tasks_guard.push_back();
-        }
+        tasks_guard.push_back(Task::new(TaskType::QueueAllGenericEncodes(QueueAllGenericEncodes::default())));
     }
 
     if !preferences.disable_input {
