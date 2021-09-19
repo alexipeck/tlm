@@ -114,6 +114,8 @@ impl Encode {
     }
 }
 
+
+
 ///Struct to represent a hashing task. This is needed so we can have an enum
 ///that contains all types of task
 pub struct Hash {}

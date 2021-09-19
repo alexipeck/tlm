@@ -134,7 +134,7 @@ impl Generic {
             .to_string();
     }
 
-    fn get_full_path_with_suffix(&self, suffix: String) -> PathBuf {
+    pub fn get_full_path_with_suffix(&self, suffix: String) -> PathBuf {
         //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
         //.push(self.full_path.extension().unwrap())
         //bad way of doing it

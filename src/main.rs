@@ -54,6 +54,10 @@ fn main() {
         tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(
             ProcessNewFiles::default(),
         )));
+        for (i, generic) in scheduler.file_manager.generic_files.into_iter().enumerate() {
+            let task = Task::new(TaskType::Encode(generic.get_full_path(), generic.get_full_path_with_suffix(i.to_string()));
+            tasks_guard.push_back();
+        }
     }
 
     if !preferences.disable_input {
