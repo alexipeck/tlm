@@ -9,6 +9,7 @@ pub mod profile;
 pub mod scheduler;
 pub mod schema;
 pub mod show;
+pub mod command_controller;
 
 #[macro_use]
 extern crate diesel;
