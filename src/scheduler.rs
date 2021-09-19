@@ -120,9 +120,9 @@ impl QueueAllGenericEncodes {
     pub fn default() -> Self {
         QueueAllGenericEncodes{}
     }
-    pub fn run(&self, generics: &Vec<Generic>, tasks: &mut Arc<Mutex<VecDeque<Task>>>) {
+    pub fn run(&self, generics: &[Generic], tasks: &mut Arc<Mutex<VecDeque<Task>>>) {
         let mut tasks_guard = tasks.lock().unwrap();
-        for (i, generic) in generics.into_iter().enumerate() {
+        for (i, generic) in generics.iter().enumerate() {
             tasks_guard.push_back(Task::new(TaskType::Encode(Encode::new(generic.full_path.clone(), generic.get_full_path_with_suffix(i.to_string()), generic.generate_encode_string()))));
         }
     }
