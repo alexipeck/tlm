@@ -194,6 +194,7 @@ impl FileManager {
                 generic
             })
             .collect();
+        self.new_files_queue.clear();
         for generic in &temp_generics {
             new_generics.push(NewGeneric::new(
                 String::from(generic.full_path.to_str().unwrap()),

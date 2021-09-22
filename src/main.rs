@@ -3,9 +3,11 @@ extern crate diesel;
 use tlm::{
     config::{Config, Preferences},
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType},
+    ws::run,
 };
 
 use std::collections::VecDeque;
+use std::io::Error as IoError;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -15,7 +17,8 @@ use tracing::{event, Level};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::registry::Registry;
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), IoError> {
     //Optimal seems to be 2x the number of threads but more testing required
     //By default this is the number of threads the cpu has
     //rayon::ThreadPoolBuilder::new().num_threads(4).build_global().unwrap();
@@ -39,7 +42,8 @@ fn main() {
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 
     let stop_scheduler = Arc::new(AtomicBool::new(false));
-    let mut scheduler: Scheduler = Scheduler::new(config, tasks.clone(), stop_scheduler.clone());
+    let mut scheduler: Scheduler =
+        Scheduler::new(config.clone(), tasks.clone(), stop_scheduler.clone());
 
     let inner_pref = preferences.clone();
     //Start the scheduler in it's own thread and return the scheduler at the end
@@ -62,14 +66,7 @@ fn main() {
     }
 
     if !preferences.disable_input {
-        let running = Arc::new(AtomicBool::new(true));
-        let running_inner = running.clone();
-        ctrlc::set_handler(move || {
-            event!(Level::WARN, "Stop signal received shutting down");
-            running_inner.store(false, Ordering::SeqCst)
-        })
-        .expect("Error setting Ctrl-C handler");
-        while running.load(Ordering::SeqCst) {}
+        run(config.port, tasks).await?;
     }
 
     stop_scheduler.store(true, Ordering::Relaxed);
@@ -83,4 +80,5 @@ fn main() {
     scheduler.file_manager.print_generics(&preferences);
     scheduler.file_manager.print_episodes(&preferences);
     //scheduler.file_manager.print_rejected_files(); //I'm all for it as soon as it's disabled by default
+    Ok(())
 }

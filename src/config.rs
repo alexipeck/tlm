@@ -1,7 +1,7 @@
 //!Set of functions and structures to make is easier to handle the config file
 //!and command line arguments
 use crate::manager::TrackedDirectories;
-use argparse::{ArgumentParser, Store, StoreFalse, StoreTrue};
+use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -15,13 +15,14 @@ pub struct Config {
     pub allowed_extensions: Vec<String>,
     pub ignored_paths: Vec<String>,
     pub tracked_directories: TrackedDirectories,
+    pub port: u16,
 }
 
 impl Config {
     ///Config constructor loads the config from the path defined at the cli
     /// or if it doesn't exist creates a default config file
     pub fn new(preferences: &Preferences) -> Config {
-        let config: Config;
+        let mut config: Config;
 
         if Path::new(&preferences.config_file_path).exists() {
             let config_toml = match fs::read_to_string(&preferences.config_file_path) {
@@ -53,12 +54,17 @@ impl Config {
                 allowed_extensions,
                 ignored_paths,
                 tracked_directories,
+                port: 8888,
             };
             let toml = toml::to_string(&config).unwrap();
             if fs::write(&preferences.config_file_path, toml).is_err() {
                 event!(Level::ERROR, "Failed to write config file");
                 panic!();
             }
+        }
+
+        if preferences.port.is_some() {
+            config.port = preferences.port.unwrap();
         }
 
         config
@@ -76,6 +82,7 @@ pub struct Preferences {
     pub config_file_path: String,
     pub timing_enabled: bool,
     pub timing_threshold: u128,
+    pub port: Option<u16>,
     pub generic_output_whitelisted: bool,
     pub show_output_whitelisted: bool,
     pub episode_output_whitelisted: bool,
@@ -92,6 +99,7 @@ impl Default for Preferences {
             config_file_path: String::from("./.tlm_config"),
             timing_enabled: false,
             timing_threshold: 0,
+            port: None,
 
             generic_output_whitelisted: false,
             show_output_whitelisted: false,
@@ -175,6 +183,12 @@ impl Preferences {
             &["--disable-input", "--no-input"],
             StoreTrue,
             "Don't accept any inputs from the user (Testing only will be removed later)",
+        );
+
+        parser.refer(&mut self.port).add_option(
+            &["--port", "-p"],
+            StoreOption,
+            "Overwrite the port set in the config",
         );
 
         parser.parse_args_or_exit();

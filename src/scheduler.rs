@@ -146,7 +146,7 @@ impl Hash {
                         .save_changes::<GenericModel>(&connection)
                         .is_err()
                     {
-                        eprintln!("Failed to update hash in database");
+                        event!(Level::ERROR, "Failed to update hash in database");
                     }
                 }
                 if is_finished_inner.load(Ordering::Relaxed) {
