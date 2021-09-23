@@ -23,7 +23,7 @@ rayon = "1.5.1"
 
 #Web sockets related
 tokio-tungstenite = {version="0.15.0"}
-tokio = { version = "1.0.0", default-features = false, features = ["macros", "net", "rt-multi-thread", "time", "signal"] }
+tokio = { version = "1.12.0", default-features = false, features = ["macros", "net", "rt-multi-thread", "time", "signal"] }
 futures-channel = "0.3"
 url = "2.0.0"
 futures-util = { version = "0.3", default-features = false, features = ["async-await"] }
