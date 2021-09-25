@@ -56,13 +56,7 @@ async fn main() -> Result<(), IoError> {
     //Initial setup in own scope so lock drops
     {
         let mut tasks_guard = tasks.lock().unwrap(); //TODO: Switch to a fair mutex implementation
-        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::default())));
-
         tasks_guard.push_back(Task::new(TaskType::ImportFiles(ImportFiles::default())));
-
-        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(
-            ProcessNewFiles::default(),
-        )));
     }
 
     if !preferences.disable_input {

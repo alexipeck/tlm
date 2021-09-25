@@ -8,12 +8,15 @@ use crate::{
     model::{NewEpisode, NewGeneric},
     show::{Episode, Show},
 };
+extern crate derivative;
+use derivative::Derivative;
 use diesel::pg::PgConnection;
-use jwalk::WalkDir;
+use jwalk::WalkDirGeneric;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 use std::{collections::HashSet, fmt, path::PathBuf};
 use tracing::{event, Level};
 
@@ -37,11 +40,31 @@ impl TrackedDirectories {
 ///This is used to create a log of files that weren't imported so
 ///that the user can determine the reason that some of their media
 ///was not imported if they expected it to be
-#[derive(Debug, Clone)]
-pub enum Reason {
+#[derive(Debug, Clone, Derivative)]
+#[derivative(PartialEq, Hash)]
+enum Reason {
     PathContainsIgnoredPath,
     ExtensionMissing,
     ExtensionDisallowed,
+}
+
+struct PathBufReason {
+    pathbuf: PathBuf,
+    reason: Reason,
+}
+
+impl PartialEq for PathBufReason {
+    fn eq(&self, other: &Self) -> bool {
+        self.pathbuf == other.pathbuf
+    }
+}
+
+impl Eq for PathBufReason {}
+
+impl Hash for PathBufReason {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.pathbuf.hash(state);
+    }
 }
 
 ///Convert a vector of reasons to a vector of strings. Used to convert all
@@ -75,8 +98,7 @@ pub struct FileManager {
     pub existing_files_hashset: HashSet<PathBuf>,
     pub new_files_queue: Vec<PathBuf>,
 
-    pub rejected_files: Vec<(PathBuf, Vec<Reason>)>,
-    pub rejected_files_hashset: HashSet<PathBuf>,
+    rejected_files: HashSet<PathBufReason>,
 }
 
 impl FileManager {
@@ -88,8 +110,7 @@ impl FileManager {
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
 
-            rejected_files: Vec::new(),
-            rejected_files_hashset: HashSet::new(),
+            rejected_files: HashSet::new(),
         };
 
         //add generic_files and generics from their respective episodes to the existing_files_hashset
@@ -296,10 +317,13 @@ impl FileManager {
     }
 
     ///returns none when a file is rejected because is accepted, or already exists in the existing_files_hashset
-    fn accept_or_reject_file(&mut self, path: PathBuf, read_only: bool) -> Option<Vec<Reason>> {
-        let mut reason: Vec<Reason> = Vec::new();
-        let mut allowed: bool = true;
+    fn accept_or_reject_file(&mut self, path: PathBuf, store_reasons: bool) {
+        //rejects if the file exists in the existing_files_hashset
+        if self.existing_files_hashset.contains(&path) {
+            return;
+        }
 
+        let mut reason = None;
         //rejects if the path contains any element of an ignored path
         for ignored_path in &self.config.ignored_paths {
             if path
@@ -308,45 +332,35 @@ impl FileManager {
                 .to_lowercase()
                 .contains(&ignored_path.to_lowercase())
             {
-                reason.push(Reason::PathContainsIgnoredPath);
-                allowed = false;
+                reason = Some(Reason::PathContainsIgnoredPath);
             }
         }
 
         //rejects if the path doesn't have an extension
-        if path.extension().is_none() {
-            reason.push(Reason::ExtensionMissing);
-            allowed = false;
-        } else {
-            //rejects if the file doesn't have an allowed extension
-            if !self
-                .config
-                .allowed_extensions
-                .contains(&path.extension().unwrap().to_str().unwrap().to_lowercase())
-            {
-                reason.push(Reason::ExtensionDisallowed);
-                allowed = false;
+        if reason.is_none() {
+            if path.extension().is_none() {
+                reason = Some(Reason::ExtensionMissing);
+            } else {
+                //rejects if the file doesn't have an allowed extension
+                if !self
+                    .config
+                    .allowed_extensions
+                    .contains(&path.extension().unwrap().to_str().unwrap().to_lowercase())
+                {
+                    reason = Some(Reason::ExtensionDisallowed);
+                }
             }
         }
 
-        //rejects if the file exists in the existing_files_hashset
-        if self.existing_files_hashset.contains(&path) {
-            return None;
-        }
-
-        if read_only {
-            return Some(reason);
-        }
-
-        if allowed {
+        if reason.is_none() {
             self.existing_files_hashset.insert(path.clone());
             self.new_files_queue.push(path);
-        } else if !self.rejected_files_hashset.contains(&path) {
-            self.rejected_files_hashset.insert(path.clone());
-            self.rejected_files.push((path, reason));
+        } else if store_reasons {
+            self.rejected_files.insert(PathBufReason {
+                pathbuf: path,
+                reason: reason.unwrap(),
+            });
         }
-
-        None
     }
 
     ///Import all files in the list of tracked root directories
@@ -355,22 +369,11 @@ impl FileManager {
     pub fn import_files(&mut self) {
         //import all files in tracked root directories
         for directory in &self.config.tracked_directories.root_directories.clone() {
-            let entries = WalkDir::new(directory).into_iter().filter_map(|e| e.ok());
-            for entry in entries {
-                //rejects if the path isn't a file
-                if !entry.path().is_file() {
-                    continue;
-                }
-
-                let reason = self.accept_or_reject_file(entry.path(), false);
-
-                if reason.is_some() {
-                    event!(
-                        Level::INFO,
-                        "Path: '{}' disallowed because {}",
-                        String::from(entry.path().to_str().unwrap()),
-                        reasons_to_string(reason.unwrap())
-                    );
+            let walkdir = WalkDirGeneric::<(usize, bool)>::new(directory)
+                .parallelism(jwalk::Parallelism::RayonNewPool(2));
+            for entry in walkdir {
+                if entry.as_ref().unwrap().path().is_file() {
+                    self.accept_or_reject_file(entry.unwrap().path(), false);
                 }
             }
         }
@@ -469,12 +472,12 @@ impl FileManager {
     }
 
     pub fn print_rejected_files(&self) {
-        for (pathbuf, reason) in &self.rejected_files {
+        for file in &self.rejected_files {
             event!(
                 Level::INFO,
                 "Path: '{}' disallowed because {}",
-                String::from(pathbuf.to_str().unwrap()),
-                reasons_to_string(reason.clone())
+                String::from(file.pathbuf.to_str().unwrap()),
+                file.reason
             );
         }
     }
