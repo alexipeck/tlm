@@ -9,13 +9,13 @@ use crate::{
     show::{Episode, Show},
 };
 use diesel::pg::PgConnection;
+use jwalk::WalkDir;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt, path::PathBuf};
 use tracing::{event, Level};
-use walkdir::{DirEntry, WalkDir};
 
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -296,12 +296,7 @@ impl FileManager {
     }
 
     ///returns none when a file is rejected because is accepted, or already exists in the existing_files_hashset
-    fn accept_or_reject_file(
-        &mut self,
-        dir_entry: DirEntry,
-        read_only: bool,
-    ) -> Option<Vec<Reason>> {
-        let path = dir_entry.path();
+    fn accept_or_reject_file(&mut self, path: PathBuf, read_only: bool) -> Option<Vec<Reason>> {
         let mut reason: Vec<Reason> = Vec::new();
         let mut allowed: bool = true;
 
@@ -319,7 +314,7 @@ impl FileManager {
         }
 
         //rejects if the path doesn't have an extension
-        if dir_entry.path().extension().is_none() {
+        if path.extension().is_none() {
             reason.push(Reason::ExtensionMissing);
             allowed = false;
         } else {
@@ -334,10 +329,8 @@ impl FileManager {
             }
         }
 
-        let entry_string = dir_entry.into_path();
-
         //rejects if the file exists in the existing_files_hashset
-        if self.existing_files_hashset.contains(&entry_string) {
+        if self.existing_files_hashset.contains(&path) {
             return None;
         }
 
@@ -346,11 +339,11 @@ impl FileManager {
         }
 
         if allowed {
-            self.existing_files_hashset.insert(entry_string.clone());
-            self.new_files_queue.push(entry_string);
-        } else if !self.rejected_files_hashset.contains(&entry_string) {
-            self.rejected_files_hashset.insert(entry_string.clone());
-            self.rejected_files.push((entry_string, reason));
+            self.existing_files_hashset.insert(path.clone());
+            self.new_files_queue.push(path);
+        } else if !self.rejected_files_hashset.contains(&path) {
+            self.rejected_files_hashset.insert(path.clone());
+            self.rejected_files.push((path, reason));
         }
 
         None
@@ -369,13 +362,13 @@ impl FileManager {
                     continue;
                 }
 
-                let reason = self.accept_or_reject_file(entry.clone(), false);
+                let reason = self.accept_or_reject_file(entry.path(), false);
 
                 if reason.is_some() {
                     event!(
                         Level::INFO,
                         "Path: '{}' disallowed because {}",
-                        String::from(entry.into_path().to_str().unwrap()),
+                        String::from(entry.path().to_str().unwrap()),
                         reasons_to_string(reason.unwrap())
                     );
                 }
