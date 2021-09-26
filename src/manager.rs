@@ -319,11 +319,6 @@ impl FileManager {
 
     ///returns none when a file is rejected because is accepted, or already exists in the existing_files_hashset
     fn accept_or_reject_file(&mut self, path: PathBuf, store_reasons: bool) {
-        //rejects if the file exists in the existing_files_hashset
-        if self.existing_files_hashset.contains(&path) {
-            return;
-        }
-
         let mut reason = None;
         //rejects if the path contains any element of an ignored path
         for ignored_path in &self.config.ignored_paths_regex {
@@ -350,8 +345,9 @@ impl FileManager {
         }
 
         if reason.is_none() {
-            self.existing_files_hashset.insert(path.clone());
-            self.new_files_queue.push(path);
+            if self.existing_files_hashset.insert(path.clone()) {
+                self.new_files_queue.push(path);
+            }
         } else if store_reasons {
             self.rejected_files.insert(PathBufReason {
                 pathbuf: path,
@@ -367,14 +363,9 @@ impl FileManager {
         //import all files in tracked root directories
         for directory in &self.config.tracked_directories.root_directories.clone() {
             let walkdir = WalkDir::new(directory);
-            let mut entries = Vec::new();
             //If we do thi first we can max out IO without waiting
             //for accept_or_reject files. Will increase memory overhead obviously
             for entry in walkdir {
-                entries.push(entry);
-            }
-
-            for entry in entries {
                 if entry.as_ref().unwrap().path().is_file() {
                     self.accept_or_reject_file(entry.unwrap().path(), false);
                 }
