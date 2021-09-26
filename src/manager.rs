@@ -11,7 +11,7 @@ use crate::{
 extern crate derivative;
 use derivative::Derivative;
 use diesel::pg::PgConnection;
-use jwalk::WalkDirGeneric;
+use jwalk::WalkDir;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::Regex;
@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 use std::{collections::HashSet, fmt, path::PathBuf};
 use tracing::{event, Level};
+use unicase::UniCase;
 
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -325,12 +326,8 @@ impl FileManager {
 
         let mut reason = None;
         //rejects if the path contains any element of an ignored path
-        for ignored_path in &self.config.ignored_paths {
-            if path
-                .to_str()
-                .unwrap()
-                .to_lowercase()
-                .contains(&ignored_path.to_lowercase())
+        for ignored_path in &self.config.ignored_paths_regex {
+            if ignored_path.is_match(path.to_str().unwrap()).unwrap()
             {
                 reason = Some(Reason::PathContainsIgnoredPath);
             }
@@ -369,9 +366,15 @@ impl FileManager {
     pub fn import_files(&mut self) {
         //import all files in tracked root directories
         for directory in &self.config.tracked_directories.root_directories.clone() {
-            let walkdir = WalkDirGeneric::<(usize, bool)>::new(directory)
-                .parallelism(jwalk::Parallelism::RayonNewPool(2));
+            let walkdir = WalkDir::new(directory);
+            let mut entries = Vec::new();
+            //If we do thi first we can max out IO without waiting
+            //for accept_or_reject files. Will increase memory overhead obviously
             for entry in walkdir {
+                entries.push(entry);
+            }
+
+            for entry in entries {
                 if entry.as_ref().unwrap().path().is_file() {
                     self.accept_or_reject_file(entry.unwrap().path(), false);
                 }

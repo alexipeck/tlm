@@ -5,6 +5,7 @@ use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use fancy_regex::{Regex};
 use tracing::{event, Level};
 
 ///This struct contains any system specific data (paths, extensions, etc)
@@ -14,6 +15,8 @@ use tracing::{event, Level};
 pub struct Config {
     pub allowed_extensions: Vec<String>,
     pub ignored_paths: Vec<String>,
+    #[serde(skip)]
+    pub ignored_paths_regex: Vec<Regex>,
     pub tracked_directories: TrackedDirectories,
     pub port: u16,
 }
@@ -53,6 +56,7 @@ impl Config {
             config = Config {
                 allowed_extensions,
                 ignored_paths,
+                ignored_paths_regex: Vec::new(),
                 tracked_directories,
                 port: 8888,
             };
@@ -65,6 +69,11 @@ impl Config {
 
         if preferences.port.is_some() {
             config.port = preferences.port.unwrap();
+        }
+        for ignored_path in &config.ignored_paths {
+            config.ignored_paths_regex.push(
+                Regex::new(&format!("(?i){}", regex::escape(ignored_path))).unwrap()
+            )
         }
 
         config
