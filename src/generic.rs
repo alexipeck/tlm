@@ -7,6 +7,8 @@ use std::{
 };
 
 use std::fmt;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hasher;
 
 use tracing::{event, Level};
 
@@ -50,8 +52,13 @@ impl Generic {
     ///Hash the file with seahash for data integrity purposes so we
     /// know if a file has been replaced and may need to be reprocessed
     pub fn hash(&mut self) {
-        let hash = seahash::hash(&fs::read(self.full_path.to_str().unwrap()).unwrap());
-        self.hash = Some(hash.to_string());
+        let mut buffer = Box::new(vec![0; 33554432]);
+        let mut hasher = seahash::SeaHasher::new();
+        let mut file = File::open(self.full_path.to_str().unwrap()).unwrap();
+        while file.read(&mut buffer).unwrap() != 0 {
+            hasher.write(&buffer);
+        }
+        self.hash = Some(hasher.finish().to_string());
     }
 
     ///Hash the first 32MB of the file with seahash so we can quickly know
