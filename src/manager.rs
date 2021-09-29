@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 use std::{collections::HashSet, fmt, path::PathBuf};
 use tracing::{event, Level};
-use unicase::UniCase;
 
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -66,15 +65,6 @@ impl Hash for PathBufReason {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.pathbuf.hash(state);
     }
-}
-
-///Convert a vector of reasons to a vector of strings. Used to convert all
-///reasons for a particular file
-fn reasons_to_string(reasons: Vec<Reason>) -> String {
-    reasons
-        .iter()
-        .map(|reason| format!("[{}]", reason.to_string()))
-        .collect()
 }
 
 impl fmt::Display for Reason {
