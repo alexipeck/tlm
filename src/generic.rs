@@ -52,7 +52,7 @@ impl Generic {
     ///Hash the file with seahash for data integrity purposes so we
     /// know if a file has been replaced and may need to be reprocessed
     pub fn hash(&mut self) {
-        let mut buffer = Box::new(vec![0; 33554432]);
+        let mut buffer = Box::new(vec![0; 4096]);
         let mut hasher = seahash::SeaHasher::new();
         let mut file = File::open(self.full_path.to_str().unwrap()).unwrap();
         while file.read(&mut buffer).unwrap() != 0 {
@@ -70,10 +70,15 @@ impl Generic {
     ///files that tlm knows about to restore by calculating the fast hash and
     ///then calculating full hashes of matching hashes to save time
     pub fn fast_hash(&mut self) {
-        let mut buffer = Box::new(vec![0; 33554432]);
+        let mut buffer = Box::new(vec![0; 4096]);
+        let mut hasher = seahash::SeaHasher::new();
         let mut file = File::open(self.full_path.to_str().unwrap()).unwrap();
-        if file.read(&mut buffer).is_err() {
-            panic!("Failed to read file for fast hashing");
+        for _ in 0..8192 {
+            if file.read(&mut buffer).unwrap() != 0 {
+                hasher.write(&buffer);
+            } else {
+                break;
+            }
         }
         let fast_hash = seahash::hash(&buffer);
         self.fast_hash = Some(fast_hash.to_string());
