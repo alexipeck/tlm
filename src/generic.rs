@@ -79,8 +79,7 @@ impl Generic {
                 break;
             }
         }
-        let fast_hash = seahash::hash(&buffer);
-        self.fast_hash = Some(fast_hash.to_string());
+        self.fast_hash = Some(hasher.finish().to_string());
     }
 
     ///Create a new generic from the database equivalent. This is neccesary because
