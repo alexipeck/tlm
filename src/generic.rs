@@ -2,12 +2,11 @@
 //!information used by all other video file types
 use std::io::prelude::*;
 use std::{
-    fs::{self, File},
+    fs::File,
     path::{Path, PathBuf},
 };
 
 use std::fmt;
-use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 
 use tracing::{event, Level};
