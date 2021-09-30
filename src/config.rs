@@ -14,8 +14,8 @@ use tracing::{event, Level};
 pub struct Config {
     pub allowed_extensions: Vec<String>,
     pub ignored_paths: Vec<String>,
-    pub tracked_directories: TrackedDirectories,
     pub port: u16,
+    pub tracked_directories: TrackedDirectories,
 }
 
 impl Config {
@@ -53,8 +53,8 @@ impl Config {
             config = Config {
                 allowed_extensions,
                 ignored_paths,
-                tracked_directories,
                 port: 8888,
+                tracked_directories,
             };
             let toml = toml::to_string(&config).unwrap();
             if fs::write(&preferences.config_file_path, toml).is_err() {
