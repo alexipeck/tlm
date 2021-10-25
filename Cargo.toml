@@ -21,6 +21,7 @@ tracing-subscriber = { version = "0.2.24" }
 tracing = "0.1.26"
 rayon = "1.5.1"
 fancy-regex = "0.7.1"
+directories = "4.0"
 
 #Web sockets related
 tokio-tungstenite = {version="0.15.0"}

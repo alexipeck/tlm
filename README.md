@@ -32,11 +32,40 @@ root_directories = ["/path/to/directory1", "/path/to/directory2"]
 cache_directories = []
 ```
 
+## Configuration
+On the first run a default configuration file will be created in the users
+config directory. This is determined by the [directories](https://docs.rs/directories/4.0.1/directories/) crate. Logs for the program will be stored in a folder here with one file per day
+It is written in [toml](https://toml.io) and looks like this
+
+```toml
+port = 8888
+allowed_extensions = ["mp4", "mkv", "webm"]
+ignored_paths = [".recycle_bin"]
+
+[tracked_directories]
+root_directories = ["/home/ryan/tlmfiles", "/srv/data"]
+cache_directories = []
+```
+The list of root directories are the roots of media collection, in this example
+I have two and all paths under them will be scanned for media files. This
+can take a significant amount of time if run on a whole disk with many files
+so I recommend setting many roots instead but it will work either way
+
+The port is the port used for websocket connections, currently it just
+accepts simple commands (import, process, hash) and can be tested using
+pretty much any web socket tool but I use [websocat](https://github.com/vi/websocat) for testing
+
+Allowed extensions define the file extensions that files must have to be
+imported. In future this will be determined by ffmpeg instead to get all
+files that it can handle
+
+Ignored paths ignores and path you wish
+
 
 ## Usage
 ```
 Usage:
-  ./target/release/tlm [OPTIONS]
+  tlm [OPTIONS]
 
 tlm: Transcoding Library Manager
 
@@ -47,17 +76,15 @@ Optional arguments:
                         can be enabled on top of this
   --print-generic       Enable printing generic
   --print-shows         Enable printing shows
+  --print-episodes      Enable printing episodes
   --print-general       Enable printing general debug information
   --config,-c CONFIG    Set a custom config path
-  --min-severity,--min-verbosity MIN_VERBOSITY
-                        Set a minimum severity (debug, info, warning, error,
-                        critical)
   --enable-timing       Enable program self-timing
   --timing-threshold,--timing-cutoff TIMING_THRESHOLD
                         Threshold for how slow a timed event has to be in order
                         to print
-  --whitelist-content-output
-                        Whitelist all output from content, whitelisting a type
+  --whitelist-generic-output
+                        Whitelist all output from generic, whitelisting a type
                         will cause it to print regardless of other limiting
                         flags
   --whitelist-show-output
@@ -67,4 +94,5 @@ Optional arguments:
   --disable-input,--no-input
                         Don't accept any inputs from the user (Testing only
                         will be removed later)
+  --port,-p PORT        Overwrite the port set in the config
 ```
