@@ -202,6 +202,7 @@ impl FileManager {
                     None => {}
                     Some(_) => generic.designation = Designation::Episode,
                 }
+                event!(Level::TRACE, "Processed {}", generic);
 
                 generic
             })
@@ -215,12 +216,15 @@ impl FileManager {
             ));
         }
 
+        event!(Level::DEBUG, "Start inserting generics");
         //Insert the generic and then update the uid's for the full Generic structure
         let generics = create_generics(&connection, new_generics);
         for i in 0..generics.len() {
             temp_generics[i].generic_uid = Some(generics[i].generic_uid as usize);
         }
+        event!(Level::DEBUG, "Finished inserting generics");
 
+        event!(Level::DEBUG, "Start building episodes");
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for generic in &mut temp_generics {
             let episode_string: String;
@@ -271,6 +275,7 @@ impl FileManager {
             );
             new_episodes.push(new_episode);
         }
+        event!(Level::DEBUG, "Finished building episodes");
 
         self.add_all_filenames_to_hashset_from_generics(&temp_generics);
 
@@ -286,7 +291,9 @@ impl FileManager {
 
         self.generic_files.append(&mut temp_generics_only_generics);
 
+        event!(Level::DEBUG, "Start inserting episodes");
         let episode_models = create_episodes(&connection, new_episodes);
+        event!(Level::DEBUG, "Finished inserting episodes");
         let mut episodes: Vec<Episode> = Vec::new();
         for episode_model in episode_models {
             for generic in &temp_generics_only_episodes {
@@ -304,7 +311,9 @@ impl FileManager {
             }
         }
 
+        event!(Level::DEBUG, "Start filling shows");
         self.insert_episodes(episodes);
+        event!(Level::DEBUG, "Finished filling shows");
     }
 
     ///returns none when a file is rejected because is accepted, or already exists in the existing_files_hashset
@@ -312,8 +321,7 @@ impl FileManager {
         let mut reason = None;
         //rejects if the path contains any element of an ignored path
         for ignored_path in &self.config.ignored_paths_regex {
-            if ignored_path.is_match(path.to_str().unwrap()).unwrap()
-            {
+            if ignored_path.is_match(path.to_str().unwrap()).unwrap() {
                 reason = Some(Reason::PathContainsIgnoredPath);
             }
         }
@@ -339,6 +347,12 @@ impl FileManager {
                 self.new_files_queue.push(path);
             }
         } else if store_reasons {
+            event!(
+                Level::TRACE,
+                "Rejected {} for {}",
+                path.to_str().unwrap(),
+                reason.clone().unwrap()
+            );
             self.rejected_files.insert(PathBufReason {
                 pathbuf: path,
                 reason: reason.unwrap(),
@@ -357,7 +371,7 @@ impl FileManager {
             //for accept_or_reject files. Will increase memory overhead obviously
             for entry in walkdir {
                 if entry.as_ref().unwrap().path().is_file() {
-                    self.accept_or_reject_file(entry.unwrap().path(), false);
+                    self.accept_or_reject_file(entry.unwrap().path(), true);
                 }
             }
         }
@@ -376,10 +390,14 @@ impl FileManager {
         }
     }
 
-    //TODO: This shouldn't call another version in generic
-    //it should just use the logic of the other function here
     pub fn print_generics(&self, preferences: &Preferences) {
-        Generic::print_generics(&self.generic_files, preferences);
+        if !preferences.print_generic && !preferences.generic_output_whitelisted {
+            return;
+        }
+
+        for generic in &self.generic_files {
+            event!(Level::DEBUG, "{}", generic);
+        }
     }
 
     ///Insert a vector of episodes into an existing show

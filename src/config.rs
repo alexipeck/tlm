@@ -1,12 +1,12 @@
 //!Set of functions and structures to make is easier to handle the config file
 //!and command line arguments
 use crate::manager::TrackedDirectories;
-use directories::BaseDirs;
 use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
+use directories::BaseDirs;
+use fancy_regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use fancy_regex::{Regex};
 use tracing::{event, Level};
 
 ///This struct contains any system specific data (paths, extensions, etc)
@@ -39,7 +39,7 @@ impl Config {
             config = match toml::from_str(&config_toml) {
                 Ok(x) => x,
                 Err(err) => {
-                    event!(Level::INFO, "Failed to parse toml: {}", err);
+                    event!(Level::ERROR, "Failed to parse toml: {}", err);
                     panic!();
                 }
             };
@@ -63,7 +63,11 @@ impl Config {
             };
             let toml = toml::to_string(&config).unwrap();
             if fs::write(&preferences.config_file_path, toml).is_err() {
-                event!(Level::ERROR, "Failed to write config file at: {}", preferences.config_file_path);
+                event!(
+                    Level::ERROR,
+                    "Failed to write config file at: {}",
+                    preferences.config_file_path
+                );
                 panic!();
             }
         }
@@ -72,9 +76,9 @@ impl Config {
             config.port = preferences.port.unwrap();
         }
         for ignored_path in &config.ignored_paths {
-            config.ignored_paths_regex.push(
-                Regex::new(&format!("(?i){}", regex::escape(ignored_path))).unwrap()
-            )
+            config
+                .ignored_paths_regex
+                .push(Regex::new(&format!("(?i){}", regex::escape(ignored_path))).unwrap())
         }
 
         config
@@ -100,8 +104,8 @@ pub struct Preferences {
 }
 impl Default for Preferences {
     fn default() -> Preferences {
-    let base_dirs = BaseDirs::new().expect("Home directory could not be found");
-    let config_path = base_dirs.config_dir().join("tlm/tlm.config");
+        let base_dirs = BaseDirs::new().expect("Home directory could not be found");
+        let config_path = base_dirs.config_dir().join("tlm/tlm.config");
         let mut prepare = Preferences {
             default_print: true,
             print_generic: false,

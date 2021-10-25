@@ -15,10 +15,10 @@ use std::thread;
 
 use std::io::stdout;
 use tracing::{event, Level};
-use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::filter::LevelFilter;
-use tracing_subscriber::Layer;
+use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::registry::Registry;
+use tracing_subscriber::Layer;
 
 #[tokio::main]
 async fn main() -> Result<(), IoError> {
@@ -30,7 +30,9 @@ async fn main() -> Result<(), IoError> {
     let (file_writer, _guard) = tracing_appender::non_blocking(file);
 
     let level_filter = LevelFilter::from_level(Level::INFO);
-    let stdout_layer = tracing_subscriber::fmt::layer().with_writer(stdout_writer).with_filter(level_filter);
+    let stdout_layer = tracing_subscriber::fmt::layer()
+        .with_writer(stdout_writer)
+        .with_filter(level_filter);
 
     let logfile_layer = tracing_subscriber::fmt::layer().with_writer(file_writer);
 
@@ -62,7 +64,9 @@ async fn main() -> Result<(), IoError> {
         let mut tasks_guard = tasks.lock().unwrap(); //TODO: Switch to a fair mutex implementation
         tasks_guard.push_back(Task::new(TaskType::Hash(Hash::default())));
         tasks_guard.push_back(Task::new(TaskType::ImportFiles(ImportFiles::default())));
-        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::default())));
+        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(
+            ProcessNewFiles::default(),
+        )));
     }
 
     if !preferences.disable_input {

@@ -9,14 +9,12 @@ use std::{
 use std::fmt;
 use std::hash::Hasher;
 
-use tracing::{event, Level};
-
-use crate::config::Preferences;
 use crate::{
     designation::{convert_i32_to_designation, Designation},
     model::*,
     profile::Profile,
 };
+use tracing::{event, Level};
 
 ///Struct containing data that is shared by all file types
 ///can also refer to only a generic media file
@@ -28,12 +26,6 @@ pub struct Generic {
     pub hash: Option<String>,
     pub fast_hash: Option<String>,
     pub profile: Option<Profile>,
-}
-
-impl fmt::Display for Generic {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.get_full_path())
-    }
 }
 
 impl Generic {
@@ -173,31 +165,23 @@ impl Generic {
         if self.generic_uid.is_some() {
             self.generic_uid.unwrap()
         } else {
-            panic!("get_generic_uid was called on a generic that hasn't been inserted into the db yet or hasn't been assigned a generic_uid from the database correctly");
+            event!(Level::ERROR, "get_generic_uid was called on a generic that hasn't been inserted into the db yet or hasn't been assigned a generic_uid from the database correctly");
+            panic!();
         }
     }
 
     pub fn get_filename_from_pathbuf(pathbuf: PathBuf) -> String {
         return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
+}
 
-    fn print_generic(&self) {
-        event!(
-            Level::DEBUG,
-            "[generic_uid:'{:4}'][designation:'{}'][full_path:'{}']",
-            self.get_generic_uid(),
+impl fmt::Display for Generic {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "[designation:'{}'][full_path:'{}']",
             self.designation as i32,
             self.get_full_path(),
-        );
-    }
-
-    pub fn print_generics(generics: &[Generic], preferences: &Preferences) {
-        if !preferences.print_generic && !preferences.generic_output_whitelisted {
-            return;
-        }
-
-        for generic in generics {
-            generic.print_generic();
-        }
+        )
     }
 }

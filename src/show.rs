@@ -36,7 +36,8 @@ impl Episode {
     fn get_episode_string(&self) -> String {
         let episode = self.show_episode.clone();
         if episode.is_empty() {
-            panic!("No episodes in show");
+            event!(Level::ERROR, "No episodes in show");
+            panic!();
         } else {
             let mut episode_string = String::new();
             let mut first: bool = true;
@@ -109,7 +110,13 @@ impl Show {
         }
 
         if !found_season {
-            self.seasons.push(Season::new(season_number))
+            self.seasons.push(Season::new(season_number));
+            event!(
+                Level::DEBUG,
+                "Added {} season {}",
+                self.show_title,
+                season_number
+            );
         }
 
         for season in &mut self.seasons {

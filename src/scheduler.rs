@@ -139,7 +139,7 @@ impl Hash {
                         "Hashed[{} of {}]: {}",
                         i + 1,
                         length,
-                        content.to_string()
+                        content.full_path.to_str().unwrap()
                     ];
                     content.fast_hash();
                     if GenericModel::from_generic(content.clone())

@@ -7,12 +7,15 @@ use crate::{
 };
 use diesel::{pg::PgConnection, prelude::*};
 use std::env;
+use tracing::{event, Level};
 
 ///Sets up a connection to the database via DATABASE_URL environment variable
 pub fn establish_connection() -> PgConnection {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    PgConnection::establish(&database_url)
-        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
+    PgConnection::establish(&database_url).unwrap_or_else(|_| {
+        event!(Level::ERROR, "Error connecting to {}", database_url);
+        panic!();
+    })
 }
 
 ///Inserts generic data into the database
