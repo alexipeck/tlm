@@ -16,24 +16,25 @@ use std::thread;
 use std::io::stdout;
 use tracing::{event, Level};
 use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::Layer;
 use tracing_subscriber::registry::Registry;
 
 #[tokio::main]
 async fn main() -> Result<(), IoError> {
     let base_dirs = BaseDirs::new().expect("Home directory could not be found");
     let log_path = base_dirs.config_dir().join("tlm/logs/");
-    //Optimal seems to be 2x the number of threads but more testing required
-    //By default this is the number of threads the cpu has
-    //rayon::ThreadPoolBuilder::new().num_threads(4).build_global().unwrap();
+
     let file = tracing_appender::rolling::daily(log_path, "tlm.log");
-    let (writer, _guard) = tracing_appender::non_blocking(stdout());
-    let (writer2, _guard) = tracing_appender::non_blocking(file);
-    let layer = tracing_subscriber::fmt::layer().with_writer(writer);
+    let (stdout_writer, _guard) = tracing_appender::non_blocking(stdout());
+    let (file_writer, _guard) = tracing_appender::non_blocking(file);
 
-    let layer2 = tracing_subscriber::fmt::layer().with_writer(writer2);
+    let level_filter = LevelFilter::from_level(Level::INFO);
+    let stdout_layer = tracing_subscriber::fmt::layer().with_writer(stdout_writer).with_filter(level_filter);
 
-    let subscriber = Registry::default().with(layer).with(layer2);
+    let logfile_layer = tracing_subscriber::fmt::layer().with_writer(file_writer);
 
+    let subscriber = Registry::default().with(stdout_layer).with(logfile_layer);
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
     event!(Level::INFO, "Starting tlm");
