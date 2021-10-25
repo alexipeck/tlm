@@ -2,11 +2,12 @@
 //!information used by all other video file types
 use std::io::prelude::*;
 use std::{
-    fs::{self, File},
+    fs::File,
     path::{Path, PathBuf},
 };
 
 use std::fmt;
+use std::hash::Hasher;
 
 use tracing::{event, Level};
 
@@ -50,8 +51,13 @@ impl Generic {
     ///Hash the file with seahash for data integrity purposes so we
     /// know if a file has been replaced and may need to be reprocessed
     pub fn hash(&mut self) {
-        let hash = seahash::hash(&fs::read(self.full_path.to_str().unwrap()).unwrap());
-        self.hash = Some(hash.to_string());
+        let mut buffer = Box::new(vec![0; 4096]);
+        let mut hasher = seahash::SeaHasher::new();
+        let mut file = File::open(self.full_path.to_str().unwrap()).unwrap();
+        while file.read(&mut buffer).unwrap() != 0 {
+            hasher.write(&buffer);
+        }
+        self.hash = Some(hasher.finish().to_string());
     }
 
     ///Hash the first 32MB of the file with seahash so we can quickly know
@@ -63,13 +69,17 @@ impl Generic {
     ///files that tlm knows about to restore by calculating the fast hash and
     ///then calculating full hashes of matching hashes to save time
     pub fn fast_hash(&mut self) {
-        let mut buffer = Box::new(vec![0; 33554432]);
+        let mut buffer = Box::new(vec![0; 4096]);
+        let mut hasher = seahash::SeaHasher::new();
         let mut file = File::open(self.full_path.to_str().unwrap()).unwrap();
-        if file.read(&mut buffer).is_err() {
-            panic!("Failed to read file for fast hashing");
+        for _ in 0..8192 {
+            if file.read(&mut buffer).unwrap() != 0 {
+                hasher.write(&buffer);
+            } else {
+                break;
+            }
         }
-        let fast_hash = seahash::hash(&buffer);
-        self.fast_hash = Some(fast_hash.to_string());
+        self.fast_hash = Some(hasher.finish().to_string());
     }
 
     ///Create a new generic from the database equivalent. This is neccesary because

@@ -1,5 +1,6 @@
 extern crate diesel;
 
+use directories::BaseDirs;
 use tlm::{
     config::{Config, Preferences},
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType},
@@ -19,10 +20,12 @@ use tracing_subscriber::registry::Registry;
 
 #[tokio::main]
 async fn main() -> Result<(), IoError> {
+    let base_dirs = BaseDirs::new().expect("Home directory could not be found");
+    let log_path = base_dirs.config_dir().join("tlm/logs/");
     //Optimal seems to be 2x the number of threads but more testing required
     //By default this is the number of threads the cpu has
     //rayon::ThreadPoolBuilder::new().num_threads(4).build_global().unwrap();
-    let file = tracing_appender::rolling::daily("./logs", "tlm.log");
+    let file = tracing_appender::rolling::daily(log_path, "tlm.log");
     let (writer, _guard) = tracing_appender::non_blocking(stdout());
     let (writer2, _guard) = tracing_appender::non_blocking(file);
     let layer = tracing_subscriber::fmt::layer().with_writer(writer);
@@ -57,12 +60,8 @@ async fn main() -> Result<(), IoError> {
     {
         let mut tasks_guard = tasks.lock().unwrap(); //TODO: Switch to a fair mutex implementation
         tasks_guard.push_back(Task::new(TaskType::Hash(Hash::default())));
-
         tasks_guard.push_back(Task::new(TaskType::ImportFiles(ImportFiles::default())));
-
-        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(
-            ProcessNewFiles::default(),
-        )));
+        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::default())));
     }
 
     if !preferences.disable_input {

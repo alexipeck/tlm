@@ -1,10 +1,12 @@
 //!Set of functions and structures to make is easier to handle the config file
 //!and command line arguments
 use crate::manager::TrackedDirectories;
+use directories::BaseDirs;
 use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use fancy_regex::{Regex};
 use tracing::{event, Level};
 
 ///This struct contains any system specific data (paths, extensions, etc)
@@ -12,9 +14,11 @@ use tracing::{event, Level};
 /// so often I would prefer this config file for now.
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Config {
+    pub port: u16,
     pub allowed_extensions: Vec<String>,
     pub ignored_paths: Vec<String>,
-    pub port: u16,
+    #[serde(skip)]
+    pub ignored_paths_regex: Vec<Regex>,
     pub tracked_directories: TrackedDirectories,
 }
 
@@ -51,20 +55,26 @@ impl Config {
             let mut tracked_directories = TrackedDirectories::new();
             tracked_directories.root_directories = vec![String::from(r"D:\Desktop\tlmfiles")]; //these need to change
             config = Config {
+                port: 8888,
                 allowed_extensions,
                 ignored_paths,
-                port: 8888,
+                ignored_paths_regex: Vec::new(),
                 tracked_directories,
             };
             let toml = toml::to_string(&config).unwrap();
             if fs::write(&preferences.config_file_path, toml).is_err() {
-                event!(Level::ERROR, "Failed to write config file");
+                event!(Level::ERROR, "Failed to write config file at: {}", preferences.config_file_path);
                 panic!();
             }
         }
 
         if preferences.port.is_some() {
             config.port = preferences.port.unwrap();
+        }
+        for ignored_path in &config.ignored_paths {
+            config.ignored_paths_regex.push(
+                Regex::new(&format!("(?i){}", regex::escape(ignored_path))).unwrap()
+            )
         }
 
         config
@@ -90,13 +100,15 @@ pub struct Preferences {
 }
 impl Default for Preferences {
     fn default() -> Preferences {
+    let base_dirs = BaseDirs::new().expect("Home directory could not be found");
+    let config_path = base_dirs.config_dir().join("tlm/tlm.config");
         let mut prepare = Preferences {
             default_print: true,
             print_generic: false,
             print_shows: false,
             print_episode: false,
             print_general: false,
-            config_file_path: String::from("./.tlm_config"),
+            config_file_path: String::from(config_path.to_str().unwrap()),
             timing_enabled: false,
             timing_threshold: 0,
             port: None,

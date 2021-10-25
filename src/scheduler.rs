@@ -127,7 +127,7 @@ impl Hash {
         //Hash files until all other functions are complete
         let handle = Some(thread::spawn(move || {
             let mut current_content = current_content;
-            current_content.retain(|elem| elem.hash.is_none());
+            current_content.retain(|elem| elem.hash.is_none() || elem.fast_hash.is_none());
             let length = current_content.len();
             let connection = establish_connection();
             let mut did_finish = true;
@@ -141,6 +141,14 @@ impl Hash {
                         length,
                         content.to_string()
                     ];
+                    content.fast_hash();
+                    if GenericModel::from_generic(content.clone())
+                        .save_changes::<GenericModel>(&connection)
+                        .is_err()
+                    {
+                        event!(Level::ERROR, "Failed to update hash in database");
+                    }
+                } else if content.fast_hash.is_none() {
                     content.fast_hash();
                     if GenericModel::from_generic(content.clone())
                         .save_changes::<GenericModel>(&connection)
