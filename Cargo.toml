@@ -15,9 +15,9 @@ toml = "0.5.8"
 diesel = { version = "1.4.7", default-features = false, features = ["postgres"] }
 seahash = "4.1.0"
 lazy_static = "1.4.0"
-serde_json = { version = "1.0.67", default-features = false }
-tracing-appender = "0.1.2"
-tracing-subscriber = { version = "0.2.24" }
+serde_json = { version = "1.0.67" }
+tracing-appender = "0.2.0"
+tracing-subscriber = { version = "0.3.0" }
 tracing = "0.1.26"
 rayon = "1.5.1"
 fancy-regex = "0.7.1"
