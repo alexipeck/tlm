@@ -18,7 +18,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 use std::{collections::HashSet, fmt, path::PathBuf};
-use tracing::{event, Level};
+use tracing::{debug, info, trace};
 
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -147,19 +147,14 @@ impl FileManager {
     }
 
     pub fn print_number_of_generics(&self) {
-        event!(
-            Level::INFO,
+        info!(
             "Number of generics loaded in memory: {}",
             self.generic_files.len()
         );
     }
 
     pub fn print_number_of_shows(&self) {
-        event!(
-            Level::INFO,
-            "Number of shows loaded in memory: {}",
-            self.shows.len()
-        );
+        info!("Number of shows loaded in memory: {}", self.shows.len());
     }
 
     pub fn print_number_of_episodes(&self) {
@@ -170,11 +165,7 @@ impl FileManager {
             }
         }
 
-        event!(
-            Level::INFO,
-            "Number of episodes loaded in memory: {}",
-            episode_counter
-        );
+        info!("Number of episodes loaded in memory: {}", episode_counter);
     }
 
     ///Processes all files in the new files queue and converts them to
@@ -202,7 +193,7 @@ impl FileManager {
                     None => {}
                     Some(_) => generic.designation = Designation::Episode,
                 }
-                event!(Level::TRACE, "Processed {}", generic);
+                trace!("Processed {}", generic);
 
                 generic
             })
@@ -216,15 +207,15 @@ impl FileManager {
             ));
         }
 
-        event!(Level::DEBUG, "Start inserting generics");
+        debug!("Start inserting generics");
         //Insert the generic and then update the uid's for the full Generic structure
         let generics = create_generics(&connection, new_generics);
         for i in 0..generics.len() {
             temp_generics[i].generic_uid = Some(generics[i].generic_uid as usize);
         }
-        event!(Level::DEBUG, "Finished inserting generics");
+        debug!("Finished inserting generics");
 
-        event!(Level::DEBUG, "Start building episodes");
+        debug!("Start building episodes");
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for generic in &mut temp_generics {
             let episode_string: String;
@@ -275,7 +266,7 @@ impl FileManager {
             );
             new_episodes.push(new_episode);
         }
-        event!(Level::DEBUG, "Finished building episodes");
+        debug!("Finished building episodes");
 
         self.add_all_filenames_to_hashset_from_generics(&temp_generics);
 
@@ -291,9 +282,9 @@ impl FileManager {
 
         self.generic_files.append(&mut temp_generics_only_generics);
 
-        event!(Level::DEBUG, "Start inserting episodes");
+        debug!("Start inserting episodes");
         let episode_models = create_episodes(&connection, new_episodes);
-        event!(Level::DEBUG, "Finished inserting episodes");
+        debug!("Finished inserting episodes");
         let mut episodes: Vec<Episode> = Vec::new();
         for episode_model in episode_models {
             for generic in &temp_generics_only_episodes {
@@ -311,9 +302,9 @@ impl FileManager {
             }
         }
 
-        event!(Level::DEBUG, "Start filling shows");
+        debug!("Start filling shows");
         self.insert_episodes(episodes);
-        event!(Level::DEBUG, "Finished filling shows");
+        debug!("Finished filling shows");
     }
 
     ///returns none when a file is rejected because is accepted, or already exists in the existing_files_hashset
@@ -347,8 +338,7 @@ impl FileManager {
                 self.new_files_queue.push(path);
             }
         } else if store_reasons {
-            event!(
-                Level::TRACE,
+            trace!(
                 "Rejected {} for {}",
                 path.to_str().unwrap(),
                 reason.clone().unwrap()
@@ -396,7 +386,7 @@ impl FileManager {
         }
 
         for generic in &self.generic_files {
-            event!(Level::DEBUG, "{}", generic);
+            debug!("{}", generic);
         }
     }
 
@@ -438,7 +428,7 @@ impl FileManager {
             Some(uid) => uid,
             None => {
                 if preferences.print_shows || preferences.show_output_whitelisted {
-                    event!(Level::DEBUG, "Adding a new show: {}", show_title);
+                    debug!("Adding a new show: {}", show_title);
                 }
 
                 let show_model = create_show(connection, show_title.clone());
@@ -463,8 +453,7 @@ impl FileManager {
         for show in &self.shows {
             show.print_show(preferences);
             for season in &show.seasons {
-                event!(
-                    Level::DEBUG,
+                debug!(
                     "S{:02} has {} episodes",
                     season.number,
                     season.episodes.len()
@@ -475,8 +464,7 @@ impl FileManager {
 
     pub fn print_rejected_files(&self) {
         for file in &self.rejected_files {
-            event!(
-                Level::INFO,
+            info!(
                 "Path: '{}' disallowed because {}",
                 String::from(file.pathbuf.to_str().unwrap()),
                 file.reason

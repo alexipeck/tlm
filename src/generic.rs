@@ -14,7 +14,7 @@ use crate::{
     model::*,
     profile::Profile,
 };
-use tracing::{event, Level};
+use tracing::error;
 
 ///Struct containing data that is shared by all file types
 ///can also refer to only a generic media file
@@ -165,7 +165,7 @@ impl Generic {
         if self.generic_uid.is_some() {
             self.generic_uid.unwrap()
         } else {
-            event!(Level::ERROR, "get_generic_uid was called on a generic that hasn't been inserted into the db yet or hasn't been assigned a generic_uid from the database correctly");
+            error!("get_generic_uid was called on a generic that hasn't been inserted into the db yet or hasn't been assigned a generic_uid from the database correctly");
             panic!();
         }
     }

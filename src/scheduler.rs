@@ -6,7 +6,7 @@ use crate::{
     manager::FileManager,
     model::GenericModel,
 };
-use tracing::{event, Level};
+use tracing::{debug, error, info, warn};
 
 use std::{
     collections::VecDeque,
@@ -28,9 +28,9 @@ pub struct ImportFiles {}
 
 impl ImportFiles {
     pub fn run(&mut self, file_manager: &mut FileManager) {
-        event!(Level::INFO, "Started importing new files");
+        info!("Started importing new files");
         file_manager.import_files();
-        event!(Level::INFO, "Finished importing new files");
+        info!("Finished importing new files");
     }
 }
 
@@ -47,12 +47,9 @@ pub struct ProcessNewFiles {}
 
 impl ProcessNewFiles {
     pub fn run(&mut self, file_manager: &mut FileManager, preferences: &Preferences) {
-        event!(Level::INFO, "Started processing new files");
+        info!("Started processing new files");
         file_manager.process_new_files(preferences);
-        event!(
-            Level::INFO,
-            "Finished processing new files you can now stop the program with Ctrl-c"
-        );
+        info!("Finished processing new files you can now stop the program with Ctrl-c");
     }
 }
 impl Default for ProcessNewFiles {
@@ -89,15 +86,11 @@ impl Encode {
     ///Run the encode TODO: Make this task asynchronous, allow offloading to worker machine
     pub fn run(&mut self) {
         if !self.is_ready_to_encode() {
-            event!(
-                Level::WARN,
-                "Encode didn't have the required fields for being sent to the encoder"
-            );
+            warn!("Encode didn't have the required fields for being sent to the encoder");
             return;
         }
 
-        event!(
-            Level::INFO,
+        info!(
             "Encoding file \'{}\'",
             Generic::get_filename_from_pathbuf(self.source_path.clone())
         );
@@ -107,7 +100,7 @@ impl Encode {
             .args(&self.encode_string.clone())
             .output()
             .unwrap_or_else(|err| {
-                event!(Level::ERROR, "Failed to execute ffmpeg process. Err: {}", err);
+                error!("Failed to execute ffmpeg process. Err: {}", err);
                 panic!();
             });
 
@@ -125,7 +118,7 @@ impl Hash {
     pub fn run(&self, current_content: Vec<Generic>) -> TaskReturnAsync {
         let is_finished = Arc::new(AtomicBool::new(false));
 
-        event!(Level::INFO, "Started hashing in the background");
+        info!("Started hashing in the background");
         let is_finished_inner = is_finished.clone();
         //Hash files until all other functions are complete
         let handle = Some(thread::spawn(move || {
@@ -137,19 +130,18 @@ impl Hash {
             for (i, content) in current_content.iter_mut().enumerate() {
                 if content.hash.is_none() {
                     content.hash();
-                    event![
-                        Level::DEBUG,
+                    debug!(
                         "Hashed[{} of {}]: {}",
                         i + 1,
                         length,
                         content.full_path.to_str().unwrap()
-                    ];
+                    );
                     content.fast_hash();
                     if GenericModel::from_generic(content.clone())
                         .save_changes::<GenericModel>(&connection)
                         .is_err()
                     {
-                        event!(Level::ERROR, "Failed to update hash in database");
+                        error!("Failed to update hash in database");
                     }
                 } else if content.fast_hash.is_none() {
                     content.fast_hash();
@@ -157,7 +149,7 @@ impl Hash {
                         .save_changes::<GenericModel>(&connection)
                         .is_err()
                     {
-                        event!(Level::ERROR, "Failed to update hash in database");
+                        error!("Failed to update hash in database");
                     }
                 }
                 if is_finished_inner.load(Ordering::Relaxed) {
@@ -167,9 +159,9 @@ impl Hash {
             }
             is_finished_inner.store(true, Ordering::Relaxed);
             if did_finish {
-                event!(Level::INFO, "Finished hashing");
+                info!("Finished hashing");
             } else {
-                event!(Level::INFO, "Stopped hashing (incomplete)");
+                info!("Stopped hashing (incomplete)");
             }
         }))
         .unwrap();

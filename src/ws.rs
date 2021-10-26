@@ -1,7 +1,7 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
 use std::collections::VecDeque;
-use tracing::{event, Level};
+use tracing::{error, info, warn};
 
 use crate::scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType};
 
@@ -29,15 +29,18 @@ async fn handle_connection(
     addr: SocketAddr,
     tasks: Arc<Mutex<VecDeque<Task>>>,
 ) {
-    event!(Level::INFO, "Incoming TCP connection from: {}", addr);
+    info!("Incoming TCP connection from: {}", addr);
 
     let ws_stream = tokio_tungstenite::accept_async(raw_stream)
         .await
         .unwrap_or_else(|err| {
-            event!(Level::ERROR, "Error during the websocket handshake occurred. Err: {}", err);
+            error!(
+                "Error during the websocket handshake occurred. Err: {}",
+                err
+            );
             panic!();
         });
-    event!(Level::INFO, "WebSocket connection established: {}", addr);
+    info!("WebSocket connection established: {}", addr);
 
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = unbounded();
@@ -52,7 +55,7 @@ async fn handle_connection(
             .strip_suffix("\r\n")
             .or_else(|| msg.to_text().unwrap().strip_suffix('\n'))
             .unwrap_or_else(|| msg.to_text().unwrap());
-        event!(Level::INFO, "Received a message from {}: {}", addr, message);
+        info!("Received a message from {}: {}", addr, message);
 
         match message {
             "hash" => {
@@ -71,7 +74,7 @@ async fn handle_connection(
                 .push_back(Task::new(TaskType::ProcessNewFiles(
                     ProcessNewFiles::default(),
                 ))),
-            _ => event!(Level::WARN, "{} is not a valid input", message),
+            _ => warn!("{} is not a valid input", message),
         }
 
         future::ok(())
@@ -82,7 +85,7 @@ async fn handle_connection(
     pin_mut!(broadcast_incoming, receive_from_others);
     future::select(broadcast_incoming, receive_from_others).await;
 
-    event!(Level::INFO, "{} disconnected", &addr);
+    info!("{} disconnected", &addr);
     peer_map.lock().unwrap().remove(&addr);
 }
 
@@ -108,24 +111,22 @@ pub async fn run(port: u16, tasks: Arc<Mutex<VecDeque<Task>>>) -> Result<(), IoE
 
     if listener_ipv4.is_ok() {
         is_listening_ipv4 = true;
-        event!(Level::INFO, "Listening on: {}", addr_ipv4);
+        info!("Listening on: {}", addr_ipv4);
     } else {
-        event!(Level::WARN, "Failed to bind to ipv4: {}", addr_ipv4);
+        warn!("Failed to bind to ipv4: {}", addr_ipv4);
     }
 
     if listener_ipv6.is_ok() {
         is_listening_ipv6 = true;
-        event!(Level::INFO, "Listening on: {}", addr_ipv6);
+        info!("Listening on: {}", addr_ipv6);
     } else {
-        event!(Level::WARN, "Failed to bind to ipv6: {}", addr_ipv6);
+        warn!("Failed to bind to ipv6: {}", addr_ipv6);
     }
 
     if !is_listening_ipv4 && !is_listening_ipv6 {
-        event!(
-            Level::ERROR,
+        error!(
             "Could not bind to {} or {}. Websocket connections not possible",
-            addr_ipv6,
-            addr_ipv4
+            addr_ipv6, addr_ipv4
         );
     }
 
@@ -138,7 +139,7 @@ pub async fn run(port: u16, tasks: Arc<Mutex<VecDeque<Task>>>) -> Result<(), IoE
         if is_listening_ipv4 && is_listening_ipv6 {
             tokio::select! {
             _ = signal::ctrl_c() => {
-                event!(Level::WARN, "Ctrl-C recieved, shutting down");
+                warn!("Ctrl-C recieved, shutting down");
                 break;
             }
             Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
@@ -151,7 +152,7 @@ pub async fn run(port: u16, tasks: Arc<Mutex<VecDeque<Task>>>) -> Result<(), IoE
         } else if is_listening_ipv4 {
             tokio::select! {
             _ = signal::ctrl_c() => {
-                event!(Level::WARN, "Ctrl-C recieved, shutting down");
+                warn!("Ctrl-C recieved, shutting down");
                 break;
             }
             Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
@@ -161,7 +162,7 @@ pub async fn run(port: u16, tasks: Arc<Mutex<VecDeque<Task>>>) -> Result<(), IoE
         } else {
             tokio::select! {
             _ = signal::ctrl_c() => {
-                event!(Level::WARN, "Ctrl-C recieved, shutting down");
+                warn!("Ctrl-C recieved, shutting down");
                 break;
             }
             Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {

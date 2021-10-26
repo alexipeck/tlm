@@ -7,7 +7,7 @@ use fancy_regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use tracing::{event, Level};
+use tracing::error;
 
 ///This struct contains any system specific data (paths, extensions, etc)
 /// likely will be replaced later with database tables but as we clear data
@@ -32,14 +32,14 @@ impl Config {
             let config_toml = match fs::read_to_string(&preferences.config_file_path) {
                 Ok(x) => x,
                 Err(err) => {
-                    event!(Level::ERROR, "Failed to read config file: {}", err);
+                    error!("Failed to read config file: {}", err);
                     panic!();
                 }
             };
             config = match toml::from_str(&config_toml) {
                 Ok(x) => x,
                 Err(err) => {
-                    event!(Level::ERROR, "Failed to parse toml: {}", err);
+                    error!("Failed to parse toml: {}", err);
                     panic!();
                 }
             };
@@ -63,8 +63,7 @@ impl Config {
             };
             let toml = toml::to_string(&config).unwrap();
             if fs::write(&preferences.config_file_path, toml).is_err() {
-                event!(
-                    Level::ERROR,
+                error!(
                     "Failed to write config file at: {}",
                     preferences.config_file_path
                 );
@@ -105,7 +104,7 @@ pub struct Preferences {
 impl Default for Preferences {
     fn default() -> Preferences {
         let base_dirs = BaseDirs::new().unwrap_or_else(|| {
-            event!(Level::ERROR, "Home directory could not be found");
+            error!("Home directory could not be found");
             panic!();
         });
         let config_path = base_dirs.config_dir().join("tlm/tlm.config");

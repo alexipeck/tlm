@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use std::io::stdout;
-use tracing::{event, Level};
+use tracing::{error, info, Level};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::registry::Registry;
@@ -24,21 +24,19 @@ use tracing_subscriber::Layer;
 #[tokio::main]
 async fn main() -> Result<(), IoError> {
     let stdout_level = match env::var("TLM_DISPLAYED_LEVEL") {
-        Ok(level_str) => {
-            match level_str.to_lowercase().as_str() {
-                "info" => Some(Level::INFO),
-                "debug" => Some(Level::DEBUG),
-                "warning" | "warn" => Some(Level::WARN),
-                "trace" => Some(Level::TRACE),
-                "error" => Some(Level::ERROR),
-                _ => None,
-            }
+        Ok(level_str) => match level_str.to_lowercase().as_str() {
+            "info" => Some(Level::INFO),
+            "debug" => Some(Level::DEBUG),
+            "warning" | "warn" => Some(Level::WARN),
+            "trace" => Some(Level::TRACE),
+            "error" => Some(Level::ERROR),
+            _ => None,
         },
         Err(_) => None,
     };
-    
+
     let base_dirs = BaseDirs::new().unwrap_or_else(|| {
-        event!(Level::ERROR, "Home directory could not be found");
+        error!("Home directory could not be found");
         panic!();
     });
     let log_path = base_dirs.config_dir().join("tlm/logs/");
@@ -62,7 +60,7 @@ async fn main() -> Result<(), IoError> {
     let subscriber = Registry::default().with(stdout_layer).with(logfile_layer);
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
-    event!(Level::INFO, "Starting tlm");
+    info!("Starting tlm");
 
     let preferences = Preferences::default();
 

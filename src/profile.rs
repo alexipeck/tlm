@@ -2,7 +2,7 @@ use serde_json::Value;
 use std::fmt;
 use std::process::Command;
 use std::str::from_utf8;
-use tracing::{event, Level};
+use tracing::error;
 
 use std::path::PathBuf;
 
@@ -63,7 +63,7 @@ impl Profile {
             .args(&["--output=JSON", path.to_str().unwrap()])
             .output()
             .unwrap_or_else(|err| {
-                event!(Level::ERROR, "Failed to execute process for mediainfo. Err: {}", err);
+                error!("Failed to execute process for mediainfo. Err: {}", err);
                 panic!();
             });
 
