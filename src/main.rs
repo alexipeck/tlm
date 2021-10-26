@@ -22,7 +22,10 @@ use tracing_subscriber::Layer;
 
 #[tokio::main]
 async fn main() -> Result<(), IoError> {
-    let base_dirs = BaseDirs::new().expect("Home directory could not be found");
+    let base_dirs = BaseDirs::new().unwrap_or_else(|| {
+        event!(Level::ERROR, "Home directory could not be found");
+        panic!();
+    });
     let log_path = base_dirs.config_dir().join("tlm/logs/");
 
     let file = tracing_appender::rolling::daily(log_path, "tlm.log");

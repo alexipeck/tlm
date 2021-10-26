@@ -104,7 +104,10 @@ pub struct Preferences {
 }
 impl Default for Preferences {
     fn default() -> Preferences {
-        let base_dirs = BaseDirs::new().expect("Home directory could not be found");
+        let base_dirs = BaseDirs::new().unwrap_or_else(|| {
+            event!(Level::ERROR, "Home directory could not be found");
+            panic!();
+        });
         let config_path = base_dirs.config_dir().join("tlm/tlm.config");
         let mut prepare = Preferences {
             default_print: true,

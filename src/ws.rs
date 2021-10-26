@@ -33,7 +33,10 @@ async fn handle_connection(
 
     let ws_stream = tokio_tungstenite::accept_async(raw_stream)
         .await
-        .expect("Error during the websocket handshake occurred");
+        .unwrap_or_else(|err| {
+            event!(Level::ERROR, "Error during the websocket handshake occurred. Err: {}", err);
+            panic!();
+        });
     event!(Level::INFO, "WebSocket connection established: {}", addr);
 
     // Insert the write part of this peer to the peer map.

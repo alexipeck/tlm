@@ -106,7 +106,10 @@ impl Encode {
         _buffer = Command::new("ffmpeg")
             .args(&self.encode_string.clone())
             .output()
-            .expect("failed to execute process");
+            .unwrap_or_else(|err| {
+                event!(Level::ERROR, "Failed to execute ffmpeg process. Err: {}", err);
+                panic!();
+            });
 
         //only uncomment if you want disgusting output
         //should be error, but from ffmpeg, stderr mostly consists of stdout information

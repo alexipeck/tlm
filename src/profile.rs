@@ -2,6 +2,7 @@ use serde_json::Value;
 use std::fmt;
 use std::process::Command;
 use std::str::from_utf8;
+use tracing::{event, Level};
 
 use std::path::PathBuf;
 
@@ -61,7 +62,10 @@ impl Profile {
         buffer = Command::new("mediainfo")
             .args(&["--output=JSON", path.to_str().unwrap()])
             .output()
-            .expect("failed to execute process");
+            .unwrap_or_else(|err| {
+                event!(Level::ERROR, "Failed to execute process for mediainfo. Err: {}", err);
+                panic!();
+            });
 
         let v: Value = serde_json::from_str(from_utf8(&buffer.stdout).unwrap()).unwrap();
 

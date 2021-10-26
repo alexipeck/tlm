@@ -11,9 +11,12 @@ use tracing::{event, Level};
 
 ///Sets up a connection to the database via DATABASE_URL environment variable
 pub fn establish_connection() -> PgConnection {
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    PgConnection::establish(&database_url).unwrap_or_else(|_| {
-        event!(Level::ERROR, "Error connecting to {}", database_url);
+    let database_url = env::var("DATABASE_URL").unwrap_or_else(|err| {
+        event!(Level::ERROR, "DATABASE_URL must be set. Err: {}", err);
+        panic!();
+    });
+    PgConnection::establish(&database_url).unwrap_or_else(|err| {
+        event!(Level::ERROR, "Error connecting to {}. Err: {}", database_url, err);
         panic!();
     })
 }
@@ -23,7 +26,10 @@ pub fn create_generics(conn: &PgConnection, new_generics: Vec<NewGeneric>) -> Ve
     diesel::insert_into(generic_table::table)
         .values(&new_generics)
         .get_results(conn)
-        .expect("Error saving new generic")
+        .unwrap_or_else(|err| {
+            event!(Level::ERROR, "Error saving new generics. Err: {}", err);
+            panic!();
+        })
 }
 
 ///Inserts show data into the database
@@ -33,7 +39,10 @@ pub fn create_show(conn: &PgConnection, show_title: String) -> ShowModel {
     diesel::insert_into(show_table::table)
         .values(&new_show)
         .get_result(conn)
-        .expect("Error saving new show")
+        .unwrap_or_else(|err| {
+            event!(Level::ERROR, "Error saving new show. Err: {}", err);
+            panic!();
+        })
 }
 
 ///Inserts episode data into the database
@@ -41,7 +50,10 @@ pub fn create_episodes(conn: &PgConnection, new_episode: Vec<NewEpisode>) -> Vec
     diesel::insert_into(episode_table::table)
         .values(&new_episode)
         .get_results(conn)
-        .expect("Error saving new episode")
+        .unwrap_or_else(|err| {
+            event!(Level::ERROR, "Error saving new episode. Err: {}", err);
+            panic!();
+        })
 }
 
 ///Get all generic from the database
@@ -51,7 +63,10 @@ pub fn get_all_generics() -> Vec<Generic> {
     let generic_models = generic_data
         .filter(designation.eq(Designation::Generic as i32))
         .load::<GenericModel>(&connection)
-        .expect("Error loading generic");
+        .unwrap_or_else(|err| {
+            event!(Level::ERROR, "Error loading generic. Err: {}", err);
+            panic!();
+        });
 
     let mut generics: Vec<Generic> = Vec::new();
     for generic_model in generic_models {
@@ -64,13 +79,19 @@ pub fn get_all_shows() -> Vec<Show> {
     let connection = establish_connection();
     let raw_shows = show_db
         .load::<ShowModel>(&connection)
-        .expect("Error loading shows");
+        .unwrap_or_else(|err| {
+            event!(Level::ERROR, "Error loading shows. Err: {}", err);
+            panic!();
+        });
 
     //these all contain the episode designation
     let generic_models = generic_data
         .filter(designation.eq(Designation::Episode as i32))
         .load::<GenericModel>(&connection)
-        .expect("Error loading generic");
+        .unwrap_or_else(|err| {
+            event!(Level::ERROR, "Error loading generic. Err: {}", err);
+            panic!();
+        });
 
     let mut generics: Vec<Generic> = Vec::new();
     for generic_model in generic_models {
@@ -79,7 +100,10 @@ pub fn get_all_shows() -> Vec<Show> {
 
     let episode_models = episode_db
         .load::<EpisodeModel>(&connection)
-        .expect("Error loading episodes");
+        .unwrap_or_else(|err| {
+            event!(Level::ERROR, "Error loading episodes. Err: {}", err);
+            panic!();
+        });
     let mut episodes: Vec<Episode> = Vec::new();
 
     for episode_model in episode_models {
