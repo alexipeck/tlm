@@ -123,11 +123,10 @@ pub async fn run(port: u16, tasks: Arc<Mutex<VecDeque<Task>>>) -> Result<(), IoE
     if !is_listening_ipv4 && !is_listening_ipv6 {
         event!(
             Level::ERROR,
-            "Could not bind to {} or {}. Exiting",
+            "Could not bind to {} or {}. Websocket connections not possible",
             addr_ipv6,
             addr_ipv4
         );
-        panic!();
     }
 
     //Handle ipv4 and ipv6 simultaneously and end if ctrl_c is run

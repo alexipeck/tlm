@@ -8,6 +8,7 @@ use tlm::{
 };
 
 use std::collections::VecDeque;
+use std::env;
 use std::io::Error as IoError;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -22,6 +23,20 @@ use tracing_subscriber::Layer;
 
 #[tokio::main]
 async fn main() -> Result<(), IoError> {
+    let stdout_level = match env::var("TLM_DISPLAYED_LEVEL") {
+        Ok(level_str) => {
+            match level_str.to_lowercase().as_str() {
+                "info" => Some(Level::INFO),
+                "debug" => Some(Level::DEBUG),
+                "warning" | "warn" => Some(Level::WARN),
+                "trace" => Some(Level::TRACE),
+                "error" => Some(Level::ERROR),
+                _ => None,
+            }
+        },
+        Err(_) => None,
+    };
+    
     let base_dirs = BaseDirs::new().unwrap_or_else(|| {
         event!(Level::ERROR, "Home directory could not be found");
         panic!();
@@ -32,7 +47,12 @@ async fn main() -> Result<(), IoError> {
     let (stdout_writer, _guard) = tracing_appender::non_blocking(stdout());
     let (file_writer, _guard) = tracing_appender::non_blocking(file);
 
-    let level_filter = LevelFilter::from_level(Level::INFO);
+    let level_filter;
+    if let Some(level) = stdout_level {
+        level_filter = LevelFilter::from_level(level);
+    } else {
+        level_filter = LevelFilter::from_level(Level::INFO);
+    }
     let stdout_layer = tracing_subscriber::fmt::layer()
         .with_writer(stdout_writer)
         .with_filter(level_filter);
