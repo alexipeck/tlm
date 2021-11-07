@@ -22,6 +22,52 @@ use std::{
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
+///Struct to represent a file encode task. This is needed so we can have an enum
+///that contains all types of task
+///This should probably handle it's current variables without having them passed
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Encode {
+    pub source_path: PathBuf,
+    pub encoded_filename: PathBuf,
+    pub encode_string: Vec<String>,
+}
+
+impl Encode {
+    pub fn new(source_path: PathBuf, encoded_filename: PathBuf, encode_string: Vec<String>) -> Self {
+        Encode {
+            source_path,
+            encoded_filename,
+            encode_string,
+        }
+    }
+
+    ///Run the encode TODO: Make this task asynchronous, allow offloading to worker machine
+    pub fn send_to_worker(&mut self) {
+        //TODO: Check whether the server has access to the source file, share credentials will have to be handled on the worker side
+        //TODO: Have the worker send a message to the server if it can't access the file
+    }
+
+    pub fn run(&mut self) {
+        info!(
+            "Encoding file \'{}\'",
+            Generic::get_filename_from_pathbuf(self.source_path.clone())
+        );
+
+        let _buffer;
+        _buffer = Command::new("ffmpeg")
+            .args(&self.encode_string.clone())
+            .output()
+            .unwrap_or_else(|err| {
+                error!("Failed to execute ffmpeg process. Err: {}", err);
+                panic!();
+        });
+
+        //only uncomment if you want disgusting output
+        //should be error, but from ffmpeg, stderr mostly consists of stdout information
+        //print(Verbosity::DEBUG, "generic", "encode", format!("{}", String::from_utf8_lossy(&buffer.stderr).to_string()));
+    }
+}
+
 ///Struct to represent a file import task. This is needed so we can have an enum
 ///that contains all types of task
 #[derive(Clone, Debug)]
@@ -57,59 +103,6 @@ impl ProcessNewFiles {
 impl Default for ProcessNewFiles {
     fn default() -> Self {
         ProcessNewFiles {}
-    }
-}
-
-///Struct to represent a file encode task. This is needed so we can have an enum
-///that contains all types of task
-///This should probably handle it's current variables without having them passed
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Encode {
-    pub source_path: PathBuf,
-    pub encode_path: PathBuf,
-    pub encode_string: Vec<String>,
-}
-
-impl Encode {
-    pub fn new(source_path: PathBuf, encode_path: PathBuf, encode_string: Vec<String>) -> Self {
-        Encode {
-            source_path,
-            encode_path,
-            encode_string,
-        }
-    }
-
-    ///Server-side check for whether the source file is accessible
-    pub fn is_ready_to_encode(&self) -> bool {
-        //TODO: Check whether the server has access to the source file, share credentials will have to be handled on the worker side
-        //TODO: Have the worker send a message to the server if it can't access the file
-        true
-    }
-
-    ///Run the encode TODO: Make this task asynchronous, allow offloading to worker machine
-    pub fn run(&mut self) {
-        if !self.is_ready_to_encode() {
-            warn!("Encode didn't have the required fields for being sent to the encoder");
-            return;
-        }
-
-        info!(
-            "Encoding file \'{}\'",
-            Generic::get_filename_from_pathbuf(self.source_path.clone())
-        );
-
-        let _buffer;
-        _buffer = Command::new("ffmpeg")
-            .args(&self.encode_string.clone())
-            .output()
-            .unwrap_or_else(|err| {
-                error!("Failed to execute ffmpeg process. Err: {}", err);
-                panic!();
-            });
-
-        //only uncomment if you want disgusting output
-        //should be error, but from ffmpeg, stderr mostly consists of stdout information
-        //print(Verbosity::DEBUG, "generic", "encode", format!("{}", String::from_utf8_lossy(&buffer.stderr).to_string()));
     }
 }
 
@@ -211,7 +204,10 @@ impl Task {
     ) -> Option<TaskReturnAsync> {
         match &mut self.task_type {
             TaskType::Encode(encode) => {
-                encode.run();
+                //TODO: Start tracking a the worker that will be assigned to an encode (includes next in queue), if it isn't already
+                //TODO: If the Task is added as the next in line encode for the worker, change it's status to "waiting for encode"
+                //TODO: 
+                encode.send_to_worker();
             }
             TaskType::ImportFiles(import_files) => {
                 import_files.run(file_manager);

@@ -74,6 +74,8 @@ async fn handle_web_connection(
                 .push_back(Task::new(TaskType::ProcessNewFiles(
                     ProcessNewFiles::default(),
                 ))),
+            //TODO: Encode message needs a UID for transcoding a specific generic/episode
+            //"encode" => encode_tasks.lock().unwrap().push_back(Task::new(TaskType::Encode(Encode::new())))
             _ => warn!("{} is not a valid input", message),
         }
 
