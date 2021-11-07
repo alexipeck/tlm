@@ -252,6 +252,7 @@ impl TaskReturnAsync {
 pub struct Scheduler {
     pub file_manager: FileManager,
     pub tasks: Arc<Mutex<VecDeque<Task>>>,
+    pub encode_tasks: Arc<Mutex<VecDeque<Task>>>,
     pub config: Config,
     pub input_completed: Arc<AtomicBool>,
 }
@@ -260,10 +261,12 @@ impl Scheduler {
     pub fn new(
         config: Config,
         tasks: Arc<Mutex<VecDeque<Task>>>,
+        encode_tasks: Arc<Mutex<VecDeque<Task>>>,
         input_completed: Arc<AtomicBool>,
     ) -> Self {
         Scheduler {
             tasks,
+            encode_tasks,
             file_manager: FileManager::new(&config),
             config,
             input_completed,
