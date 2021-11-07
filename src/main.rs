@@ -4,7 +4,7 @@ use directories::BaseDirs;
 use tlm::{
     config::{Config, Preferences},
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType},
-    ws::run,
+    ws::run_web,
 };
 
 use std::collections::VecDeque;
@@ -91,7 +91,7 @@ async fn main() -> Result<(), IoError> {
     }
 
     if !preferences.disable_input {
-        run(config.port, tasks).await?;
+        run_web(config.port, tasks).await?;
     }
 
     stop_scheduler.store(true, Ordering::Relaxed);

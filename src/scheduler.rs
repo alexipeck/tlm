@@ -6,6 +6,7 @@ use crate::{
     manager::FileManager,
     model::GenericModel,
 };
+use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, warn};
 
 use std::{
@@ -61,7 +62,7 @@ impl Default for ProcessNewFiles {
 ///Struct to represent a file encode task. This is needed so we can have an enum
 ///that contains all types of task
 ///This should probably handle it's current variables without having them passed
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Encode {
     pub source_path: PathBuf,
     pub encode_path: PathBuf,
