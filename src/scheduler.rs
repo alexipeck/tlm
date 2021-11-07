@@ -53,6 +53,7 @@ impl ProcessNewFiles {
         info!("Finished processing new files you can now stop the program with Ctrl-c");
     }
 }
+
 impl Default for ProcessNewFiles {
     fn default() -> Self {
         ProcessNewFiles {}
@@ -78,9 +79,10 @@ impl Encode {
         }
     }
 
-    ///Check if the encode contains all required data (likely unnecessary later)
+    ///Server-side check for whether the source file is accessible
     pub fn is_ready_to_encode(&self) -> bool {
-        //TODO: Add check for whether the file is ready to go for encode
+        //TODO: Check whether the server has access to the source file, share credentials will have to be handled on the worker side
+        //TODO: Have the worker send a message to the server if it can't access the file
         true
     }
 

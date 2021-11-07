@@ -109,7 +109,7 @@ impl FileManager {
 
         file_manager.add_existing_files_to_hashset();
         file_manager.add_show_episodes_to_hashset();
-
+        
         file_manager
     }
 
