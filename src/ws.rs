@@ -39,7 +39,8 @@ async fn handle_web_connection(
                 err
             );
             panic!();
-        });
+        }
+    );
     info!("WebSocket connection established: {}", addr);
 
     // Insert the write part of this peer to the peer map.
@@ -55,6 +56,8 @@ async fn handle_web_connection(
             .strip_suffix("\r\n")
             .or_else(|| msg.to_text().unwrap().strip_suffix('\n'))
             .unwrap_or_else(|| msg.to_text().unwrap());
+
+        
         info!("Received a message from {}: {}", addr, message);
 
         match message {
@@ -140,16 +143,16 @@ pub async fn run_web(port: u16, tasks: Arc<Mutex<VecDeque<Task>>>) -> Result<(),
     loop {
         if is_listening_ipv4 && is_listening_ipv6 {
             tokio::select! {
-            _ = signal::ctrl_c() => {
-                warn!("Ctrl-C recieved, shutting down");
-                break;
-            }
-            Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
-                tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone()));
-            }
-            Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone()));
-            }
+                _ = signal::ctrl_c() => {
+                    warn!("Ctrl-C recieved, shutting down");
+                    break;
+                }
+                Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone()));
+                }
+                Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone()));
+                }
             }
         } else if is_listening_ipv4 {
             tokio::select! {

@@ -90,13 +90,6 @@ async fn main() -> Result<(), IoError> {
 
     //manual shutdown tasks or other manipulation
     let _scheduler = scheduler_handle.join().unwrap();
-    //_scheduler.file_manager.print_number_of_generics();
-    //_scheduler.file_manager.print_number_of_shows();
-    //_scheduler.file_manager.print_number_of_episodes();
-    //_scheduler.file_manager.print_shows(&preferences);
-    //_scheduler.file_manager.print_generics(&preferences);
-    //_scheduler.file_manager.print_episodes(&preferences);
-    //_scheduler.file_manager.print_rejected_files(); //I'm all for it as soon as it's disabled by default
     
     Ok(())
 }

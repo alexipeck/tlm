@@ -22,28 +22,52 @@ use std::{
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Worker {
+    //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
+    //NOTE: If this is running under a Docker container, it may have a random MAC address, so on reboot,
+    //    : becoming a new worker will probably mean the old one should be dropped after x amount of time.
+
+    //TODO: websocket connection handle
+}
+
+impl Worker {
+    pub fn check_if_active(&mut self) {
+        //If the connection is active, do nothing.
+        //TODO: If something is wrong with the connection, close the connection server-side, making this worker unavailable, start timeout for removing the work assigned to the worker.
+        //    : If there's not enough work for other workers, immediately shift the encodes to other workers (put it back in the encode queue)
+    }
+}
+
 ///Struct to represent a file encode task. This is needed so we can have an enum
 ///that contains all types of task
 ///This should probably handle it's current variables without having them passed
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Encode {
     pub source_path: PathBuf,
-    pub encoded_filename: PathBuf,
-    pub encode_string: Vec<String>,
+    pub future_filename: String,
+    pub encode_options: Vec<String>,
+    pub worker: Option<Worker>,
 }
 
 impl Encode {
-    pub fn new(source_path: PathBuf, encoded_filename: PathBuf, encode_string: Vec<String>) -> Self {
+    pub fn new(source_path: PathBuf, future_filename: String, encode_options: Vec<String>) -> Self {
         Encode {
             source_path,
-            encoded_filename,
-            encode_string,
+            future_filename,
+            encode_options,
+            worker: None,
         }
     }
 
     ///Run the encode TODO: Make this task asynchronous, allow offloading to worker machine
     pub fn send_to_worker(&mut self) {
-        //TODO: Check whether the server has access to the source file, share credentials will have to be handled on the worker side
+        //share credentials will have to be handled on the worker side
+        if !self.source_path.exists() {
+            //TODO: mark this Encode Task as failed because "file not found", change it to a
+            //      state where it can be stored, then manually fixed before being restarted,
+            return;
+        }
         //TODO: Have the worker send a message to the server if it can't access the file
     }
 
@@ -53,9 +77,8 @@ impl Encode {
             Generic::get_filename_from_pathbuf(self.source_path.clone())
         );
 
-        let _buffer;
-        _buffer = Command::new("ffmpeg")
-            .args(&self.encode_string.clone())
+        let _buffer = Command::new("ffmpeg")
+            .args(&self.encode_options.clone())
             .output()
             .unwrap_or_else(|err| {
                 error!("Failed to execute ffmpeg process. Err: {}", err);
