@@ -1,6 +1,6 @@
 use super::generic::Generic;
 use super::schema::{episode, generic, show};
-use crate::profile::{BasicProfile, Profile, ResolutionStandard, convert_i32_to_container, convert_i32_to_resolution_standard};
+use crate::profile::{BasicProfile, convert_i32_to_container, convert_i32_to_resolution_standard};
 
 ///Struct for inserting into the database
 #[derive(Insertable)]
@@ -12,20 +12,24 @@ pub struct NewGeneric {
     pub height: Option<i32>,
     pub framerate: Option<f64>,
     pub length_time: Option<f64>,
+    pub resolution_standard: Option<i32>,//I want this to eventually be a string
+    pub container: Option<i32>,//I want this to eventually be a string
 }
 
 ///Helper function to set all database fields to none if the profile contains data
 fn profile_is_some_split(
     profile: Option<BasicProfile>,
-) -> (Option<i32>, Option<i32>, Option<f64>, Option<f64>) {
+) -> (Option<i32>, Option<i32>, Option<f64>, Option<f64>, Option<i32>, Option<i32>) {
     match profile {
         Some(profile) => (
             Some(profile.width as i32),
             Some(profile.height as i32),
             Some(profile.framerate),
             Some(profile.length_time),
+            Some(profile.resolution_standard as i32),
+            Some(profile.container as i32),
         ),
-        None => (None, None, None, None),
+        None => (None, None, None, None, None, None),
     }
 }
 
@@ -40,6 +44,8 @@ impl NewGeneric {
             height: temp_profile.1,
             framerate: temp_profile.2,
             length_time: temp_profile.3,
+            resolution_standard: temp_profile.4,
+            container: temp_profile.5,
         }
     }
 }

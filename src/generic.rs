@@ -13,7 +13,6 @@ use crate::profile::BasicProfile;
 use crate::{
     designation::{convert_i32_to_designation, Designation},
     model::*,
-    profile::Profile,
 };
 use tracing::error;
 

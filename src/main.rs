@@ -3,7 +3,7 @@ extern crate diesel;
 use directories::BaseDirs;
 use tlm::{
     config::{Config, Preferences},
-    scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType},
+    scheduler::{Scheduler, Task},
     ws::run_web,
 };
 

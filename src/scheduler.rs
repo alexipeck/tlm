@@ -1,6 +1,6 @@
 use crate::{config::{Config, Preferences}, database::establish_connection, diesel::SaveChangesDsl, generic::Generic, manager::FileManager, model::GenericModel, profile::Profile};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use std::{
     collections::VecDeque,

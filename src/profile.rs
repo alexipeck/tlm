@@ -1,12 +1,6 @@
-use bincode::serialize;
-use diesel::backend::Backend;
-use diesel::pg::Pg;
-use diesel::serialize::{self, Output, ToSql};
-use diesel::sql_types::Text;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt;
-use std::io::Write;
 use std::process::Command;
 use std::str::from_utf8;
 use tracing::error;
@@ -41,12 +35,12 @@ impl ResolutionStandard {
 
 pub fn convert_i32_to_resolution_standard(input: i32) -> ResolutionStandard {
     match input {
-        0 => ResolutionStandard::SD,
-        1 => ResolutionStandard::ED,
-        2 => ResolutionStandard::HD,
-        3 => ResolutionStandard::FHD,
-        2 => ResolutionStandard::WQHD,
-        3 => ResolutionStandard::UHD,
+        1 => ResolutionStandard::SD,
+        2 => ResolutionStandard::ED,
+        3 => ResolutionStandard::HD,
+        4 => ResolutionStandard::FHD,
+        5 => ResolutionStandard::WQHD,
+        6 => ResolutionStandard::UHD,
         _ => panic!(),
     }
 }
@@ -112,9 +106,10 @@ pub enum AudioCodec {
 
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub enum Container {
-    MP4 = 0,
-    MKV = 1,
-    WEBM = 2,
+    UNKNOWN = 0,
+    MP4 = 1,
+    MKV = 2,
+    WEBM = 3,
 }
 
 impl Container {
@@ -124,6 +119,7 @@ impl Container {
             "mp4" => {Container::MP4},
             "mkv" => {Container::MKV},
             "webm" => {Container::WEBM},
+            _ => {Container::UNKNOWN},
         }
     }
 }
