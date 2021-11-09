@@ -15,8 +15,9 @@ use std::{
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]//, Serialize, Deserialize
 pub struct Worker {
+    encode_queue: Arc<Mutex<VecDeque<Encode>>>,
     //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
     //NOTE: If this is running under a Docker container, it may have a random MAC address, so on reboot,
     //    : becoming a new worker will probably mean the old one should be dropped after x amount of time.
@@ -40,7 +41,6 @@ pub struct Encode {
     pub source_path: PathBuf,
     pub future_filename: String,
     pub encode_options: Vec<String>,
-    pub worker: Option<Worker>,
     pub profile: Profile,
 }
 
@@ -50,12 +50,12 @@ impl Encode {
             source_path,
             future_filename,
             encode_options,
-            worker: None,
             profile,
         }
     }
 
     ///Run the encode TODO: Make this task asynchronous, allow offloading to worker machine
+    //TODO: This will need to use the link to the worker
     pub fn send_to_worker(&mut self) {
         //share credentials will have to be handled on the worker side
         if !self.source_path.exists() {
@@ -267,6 +267,7 @@ pub struct Scheduler {
     pub file_manager: FileManager,
     pub tasks: Arc<Mutex<VecDeque<Task>>>,
     pub encode_tasks: Arc<Mutex<VecDeque<Task>>>,
+    pub active_workers: Arc<Mutex<VecDeque<Worker>>>,
     pub config: Config,
     pub input_completed: Arc<AtomicBool>,
 }
@@ -276,6 +277,7 @@ impl Scheduler {
         config: Config,
         tasks: Arc<Mutex<VecDeque<Task>>>,
         encode_tasks: Arc<Mutex<VecDeque<Task>>>,
+        active_workers: Arc<Mutex<VecDeque<Worker>>>,
         input_completed: Arc<AtomicBool>,
     ) -> Self {
         Scheduler {
@@ -283,6 +285,7 @@ impl Scheduler {
             encode_tasks,
             file_manager: FileManager::new(&config),
             config,
+            active_workers,
             input_completed,
         }
     }

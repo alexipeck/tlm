@@ -1,11 +1,7 @@
 extern crate diesel;
 
 use directories::BaseDirs;
-use tlm::{
-    config::{Config, Preferences},
-    scheduler::{Scheduler, Task},
-    ws::run_web,
-};
+use tlm::{config::{Config, Preferences}, scheduler::{Scheduler, Task, Worker}, ws::run_web};
 
 use std::collections::VecDeque;
 use std::env;
@@ -29,7 +25,7 @@ async fn main() -> Result<(), IoError> {
             "debug" => Some(Level::DEBUG),
             "warning" | "warn" => Some(Level::WARN),
             "trace" => Some(Level::TRACE),
-            "error" => Some(Level::ERROR),
+            "error" | "err" => Some(Level::ERROR),
             _ => None,
         },
         Err(_) => None,
@@ -69,10 +65,11 @@ async fn main() -> Result<(), IoError> {
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 
     let encode_tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
+    let active_workers: Arc<Mutex<VecDeque<Worker>>> = Arc::new(Mutex::new(VecDeque::new()));
 
     let stop_scheduler = Arc::new(AtomicBool::new(false));
     let mut scheduler: Scheduler =
-        Scheduler::new(config.clone(), tasks.clone(), encode_tasks, stop_scheduler.clone());
+        Scheduler::new(config.clone(), tasks.clone(), encode_tasks, active_workers, stop_scheduler.clone());
 
     let inner_pref = preferences.clone();
     //Start the scheduler in it's own thread and return the scheduler at the end

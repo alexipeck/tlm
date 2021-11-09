@@ -22,13 +22,26 @@ pub enum ResolutionStandard {
 impl ResolutionStandard {
     pub fn get_resolution_standard_from_width(width: u32) -> Self {
         match width {
-            640 => {ResolutionStandard::ED},
-            720 => {ResolutionStandard::SD},
-            1280 => {ResolutionStandard::HD},
-            1920 => {ResolutionStandard::FHD},
-            2560 => {ResolutionStandard::WQHD},
-            3840|4096 => {ResolutionStandard::UHD},
-            _ => {ResolutionStandard::UNKNOWN},
+            640 => ResolutionStandard::ED,
+            720 => ResolutionStandard::SD,
+            1280 => ResolutionStandard::HD,
+            1920 => ResolutionStandard::FHD,
+            2560 => ResolutionStandard::WQHD,
+            3840 | 4096 => ResolutionStandard::UHD,
+            _ => ResolutionStandard::UNKNOWN,
+        }
+    }
+
+    #[allow(clippy::inherent_to_string)]
+    pub fn to_string(&self) -> String {
+        match self {
+            ResolutionStandard::ED => "ED".to_string(), 
+            ResolutionStandard::SD => "SD".to_string(), 
+            ResolutionStandard::HD => "HD".to_string(), 
+            ResolutionStandard::FHD => "FHD".to_string(),
+            ResolutionStandard::WQHD => "WQHD".to_string(),
+            ResolutionStandard::UHD => "UHD".to_string(),
+            ResolutionStandard::UNKNOWN => panic!(),
         }
     }
 }
@@ -41,7 +54,7 @@ pub fn convert_i32_to_resolution_standard(input: i32) -> ResolutionStandard {
         4 => ResolutionStandard::FHD,
         5 => ResolutionStandard::WQHD,
         6 => ResolutionStandard::UHD,
-        _ => panic!(),
+        _ => ResolutionStandard::UNKNOWN,
     }
 }
 
@@ -116,10 +129,20 @@ impl Container {
     pub fn get_container_from_extension(file_extension: String) -> Self {
         let file_extension = file_extension.to_lowercase();//Hopefully this to_lowercase function is sufficient for the moment
         match file_extension.as_str() {
-            "mp4" => {Container::MP4},
-            "mkv" => {Container::MKV},
-            "webm" => {Container::WEBM},
-            _ => {Container::UNKNOWN},
+            "mp4" => Container::MP4,
+            "mkv" => Container::MKV,
+            "webm" => Container::WEBM,
+            _   => Container::UNKNOWN,
+        }
+    }
+
+    #[allow(clippy::inherent_to_string)]
+    pub fn to_string(&self) -> String {
+        match self {
+            Container::MP4 => "mp4".to_string(),
+            Container::MKV => "mkv".to_string(),
+            Container::WEBM => "webm".to_string(),
+            Container::UNKNOWN => panic!(),
         }
     }
 }
@@ -129,7 +152,7 @@ pub fn convert_i32_to_container(input: i32) -> Container {
         0 => Container::MP4,
         1 => Container::MKV,
         2 => Container::WEBM,
-        _ => panic!(),
+        _ => Container::UNKNOWN,
     }
 }
 
@@ -150,8 +173,8 @@ impl fmt::Display for BasicProfile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Width: {}, Height: {}, Framerate: {}, Length: {}",
-            self.width, self.height, self.framerate, self.length_time
+            "Width: {}, Height: {}, Framerate: {}, Length: {}, ResolutionStandard: {}, Container: {}",
+            self.width, self.height, self.framerate, self.length_time, self.resolution_standard as i32, self.container as i32,
         )
     }
 }
