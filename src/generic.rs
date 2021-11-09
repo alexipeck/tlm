@@ -9,6 +9,7 @@ use std::{
 use std::fmt;
 use std::hash::Hasher;
 
+use crate::profile::BasicProfile;
 use crate::{
     designation::{convert_i32_to_designation, Designation},
     model::*,
@@ -25,18 +26,19 @@ pub struct Generic {
     pub designation: Designation,
     pub hash: Option<String>,
     pub fast_hash: Option<String>,
-    pub profile: Option<Profile>,
+    pub current_profile: Option<BasicProfile>,
+    //pub profile: Option<Profile>,
 }
 
 impl Generic {
     pub fn new(raw_filepath: &Path) -> Self {
-        Generic {
+        Self {
             full_path: raw_filepath.to_path_buf(),
             designation: Designation::Generic,
             generic_uid: None,
             hash: None,
             fast_hash: None,
-            profile: Profile::from_file(raw_filepath.to_path_buf()),
+            current_profile: BasicProfile::from_file(raw_filepath.to_path_buf()),
         }
     }
 
@@ -88,7 +90,7 @@ impl Generic {
             generic_uid: Some(generic_uid_temp as usize),
             hash: generic_model.file_hash.to_owned(),
             fast_hash: generic_model.fast_file_hash.to_owned(),
-            profile: generic_model.get_profile(),
+            current_profile: generic_model.get_basic_profile(),
         }
     }
 

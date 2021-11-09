@@ -1,6 +1,6 @@
 use super::generic::Generic;
 use super::schema::{episode, generic, show};
-use crate::profile::Profile;
+use crate::profile::{BasicProfile, Profile, ResolutionStandard, convert_i32_to_container, convert_i32_to_resolution_standard};
 
 ///Struct for inserting into the database
 #[derive(Insertable)]
@@ -16,7 +16,7 @@ pub struct NewGeneric {
 
 ///Helper function to set all database fields to none if the profile contains data
 fn profile_is_some_split(
-    profile: Option<Profile>,
+    profile: Option<BasicProfile>,
 ) -> (Option<i32>, Option<i32>, Option<f64>, Option<f64>) {
     match profile {
         Some(profile) => (
@@ -30,7 +30,7 @@ fn profile_is_some_split(
 }
 
 impl NewGeneric {
-    pub fn new(full_path: String, designation: i32, profile: Option<Profile>) -> Self {
+    pub fn new(full_path: String, designation: i32, profile: Option<BasicProfile>) -> Self {
         let temp_profile = profile_is_some_split(profile);
 
         NewGeneric {
@@ -58,45 +58,48 @@ pub struct GenericModel {
     pub framerate: Option<f64>,
     pub length_time: Option<f64>,
     pub fast_file_hash: Option<String>,
+    pub resolution_standard: Option<i32>,//I want this to eventually be a string
+    pub container: Option<i32>,//I want this to eventually be a string
 }
 
 impl GenericModel {
     ///Create an in memory generic from a database one
     pub fn from_generic(generic: Generic) -> GenericModel {
-        if generic.profile.is_some() {
-            GenericModel {
-                generic_uid: generic.generic_uid.unwrap() as i32,
-                full_path: generic.get_full_path(),
-                designation: generic.designation as i32,
-                file_hash: generic.hash,
-                fast_file_hash: generic.fast_hash,
-                width: Some(generic.profile.to_owned().unwrap().width as i32),
-                height: Some(generic.profile.to_owned().unwrap().height as i32),
-                framerate: Some(generic.profile.to_owned().unwrap().framerate),
-                length_time: Some(generic.profile.unwrap().length_time),
-            }
-        } else {
-            GenericModel {
-                generic_uid: generic.generic_uid.unwrap() as i32,
-                full_path: generic.get_full_path(),
-                designation: generic.designation as i32,
-                file_hash: generic.hash,
-                fast_file_hash: generic.fast_hash,
-                width: None,
-                height: None,
-                framerate: None,
-                length_time: None,
-            }
+        let mut temp = GenericModel {
+            generic_uid: generic.generic_uid.unwrap() as i32,
+            full_path: generic.get_full_path(),
+            designation: generic.designation as i32,
+            file_hash: generic.hash,
+            fast_file_hash: generic.fast_hash,
+            resolution_standard: None,
+            container: None,
+            width: None,
+            height: None,
+            framerate: None,
+            length_time: None,
+        };
+        let current_profile = generic.current_profile.to_owned().unwrap();
+        if generic.current_profile.is_some() {
+            temp.width = Some(current_profile.width as i32);
+            temp.height = Some(current_profile.height as i32);
+            temp.framerate = Some(current_profile.framerate);
+            temp.length_time = Some(current_profile.length_time);
+            temp.resolution_standard = Some(current_profile.resolution_standard as i32);
+            temp.container = Some(current_profile.container as i32);
         }
+
+        temp
     }
 
     ///Construct a profile from database fields
-    pub fn get_profile(&self) -> Option<Profile> {
-        Some(Profile {
+    pub fn get_basic_profile(&self) -> Option<BasicProfile> {
+        Some(BasicProfile {
             width: self.width? as u32,
             height: self.height? as u32,
             framerate: self.framerate?,
             length_time: self.length_time?,
+            resolution_standard: convert_i32_to_resolution_standard(self.resolution_standard?),
+            container: convert_i32_to_container(self.container?),
         })
     }
 }

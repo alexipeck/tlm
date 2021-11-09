@@ -1,11 +1,4 @@
-use crate::{
-    config::{Config, Preferences},
-    database::establish_connection,
-    diesel::SaveChangesDsl,
-    generic::Generic,
-    manager::FileManager,
-    model::GenericModel,
-};
+use crate::{config::{Config, Preferences}, database::establish_connection, diesel::SaveChangesDsl, generic::Generic, manager::FileManager, model::GenericModel, profile::Profile};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, warn};
 
@@ -48,15 +41,17 @@ pub struct Encode {
     pub future_filename: String,
     pub encode_options: Vec<String>,
     pub worker: Option<Worker>,
+    pub profile: Profile,
 }
 
 impl Encode {
-    pub fn new(source_path: PathBuf, future_filename: String, encode_options: Vec<String>) -> Self {
+    pub fn new(source_path: PathBuf, future_filename: String, encode_options: Vec<String>, profile: Profile) -> Self {
         Encode {
             source_path,
             future_filename,
             encode_options,
             worker: None,
+            profile,
         }
     }
 

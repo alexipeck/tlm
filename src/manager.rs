@@ -203,7 +203,7 @@ impl FileManager {
             new_generics.push(NewGeneric::new(
                 String::from(generic.full_path.to_str().unwrap()),
                 generic.designation as i32,
-                generic.profile,
+                generic.current_profile,
             ));
         }
 
