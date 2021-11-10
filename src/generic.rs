@@ -14,7 +14,7 @@ use crate::{
     designation::{convert_i32_to_designation, Designation},
     model::*,
 };
-use tracing::error;
+use tracing::{error, warn};
 
 ///Struct containing data that is shared by all file types
 ///can also refer to only a generic media file
@@ -46,6 +46,27 @@ impl Generic {
     pub fn hash(&mut self) {
         self.hash = Some(sea_hash(self.full_path.clone()));
     }
+
+    ///Returns true if hashes match, false if not
+    pub fn verify_hash(&mut self, path: PathBuf) -> bool {
+        if self.hash.is_some() {
+            return self.hash.as_ref().unwrap().as_str() == sea_hash(path).as_str();
+        }else {
+            warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
+            return true
+        }
+    }
+
+    ///Returns true if hashes match, false if not
+    pub fn verify_fast_hash(&mut self, path: PathBuf) -> bool {
+        if self.fast_hash.is_some() {
+            return self.fast_hash.as_ref().unwrap().as_str() == sea_fast_hash(path).as_str();
+        } else {
+            warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
+            return true;
+        }
+    }
+
 
     ///Hash the first 32MB of the file with seahash so we can quickly know
     ///if a file is likely to have changed or is likely to be the same as
