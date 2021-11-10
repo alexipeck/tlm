@@ -26,6 +26,7 @@ static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 #[derive(Clone, Debug)] //, Serialize, Deserialize
 pub struct Worker {
     encode_queue: Arc<Mutex<VecDeque<Encode>>>,
+    //TODO: Store the HashMap/tx
     //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
     //NOTE: If this is running under a Docker container, it may have a random MAC address, so on reboot,
     //    : becoming a new worker will probably mean the old one should be dropped after x amount of time.
