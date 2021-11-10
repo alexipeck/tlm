@@ -59,12 +59,10 @@ async fn handle_web_connection(
         info!("Received a message from {}: {}", addr, message);
 
         match message {
-            "hash" => {
-                tasks
+            "hash" => tasks
                     .write()
                     .unwrap()
-                    .push_back(Task::new(TaskType::Hash(Hash::default())));
-            }
+                    .push_back(Task::new(TaskType::Hash(Hash::default()))),
             "import" => tasks
                 .write()
                 .unwrap()
@@ -72,9 +70,10 @@ async fn handle_web_connection(
             "process" => tasks
                 .write()
                 .unwrap()
-                .push_back(Task::new(TaskType::ProcessNewFiles(
-                    ProcessNewFiles::default(),
-                ))),
+                .push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::default()))),
+            "initialise_worker" => {
+                marker;
+            },
             //TODO: Encode message needs a UID for transcoding a specific generic/episode
             //"encode" => encode_tasks.lock().unwrap().push_back(Task::new(TaskType::Encode(Encode::new())))
             _ => warn!("{} is not a valid input", message),
@@ -154,23 +153,23 @@ pub async fn run_web(port: u16, tasks: Arc<RwLock<VecDeque<Task>>>) -> Result<()
             }
         } else if is_listening_ipv4 {
             tokio::select! {
-            _ = signal::ctrl_c() => {
-                warn!("Ctrl-C recieved, shutting down");
-                break;
-            }
-            Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
-                tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone()));
-            }
+                _ = signal::ctrl_c() => {
+                    warn!("Ctrl-C recieved, shutting down");
+                    break;
+                }
+                Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone()));
+                }
             }
         } else {
             tokio::select! {
-            _ = signal::ctrl_c() => {
-                warn!("Ctrl-C recieved, shutting down");
-                break;
-            }
-            Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone()));
-            }
+                _ = signal::ctrl_c() => {
+                    warn!("Ctrl-C recieved, shutting down");
+                    break;
+                }
+                Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone()));
+                }
             }
         }
     }
