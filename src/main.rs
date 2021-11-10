@@ -11,7 +11,7 @@ use std::collections::VecDeque;
 use std::env;
 use std::io::Error as IoError;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 use std::thread;
 
 use std::io::stdout;
@@ -66,10 +66,10 @@ async fn main() -> Result<(), IoError> {
 
     let config: Config = Config::new(&preferences);
 
-    let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
+    let tasks: Arc<RwLock<VecDeque<Task>>> = Arc::new(RwLock::new(VecDeque::new()));
 
-    let encode_tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
-    let active_workers: Arc<Mutex<VecDeque<Worker>>> = Arc::new(Mutex::new(VecDeque::new()));
+    let encode_tasks: Arc<RwLock<VecDeque<Task>>> = Arc::new(RwLock::new(VecDeque::new()));
+    let active_workers: Arc<RwLock<VecDeque<Worker>>> = Arc::new(RwLock::new(VecDeque::new()));
 
     let stop_scheduler = Arc::new(AtomicBool::new(false));
     let mut scheduler: Scheduler = Scheduler::new(

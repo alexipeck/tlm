@@ -10,7 +10,7 @@ use std::{
     env,
     io::Error as IoError,
     net::SocketAddr,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use futures_channel::mpsc::{unbounded, UnboundedSender};
@@ -21,13 +21,13 @@ use tokio::signal;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 type Tx = UnboundedSender<Message>;
-type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
+type PeerMap = Arc<RwLock<HashMap<SocketAddr, Tx>>>;
 
 async fn handle_web_connection(
     peer_map: PeerMap,
     raw_stream: TcpStream,
     addr: SocketAddr,
-    tasks: Arc<Mutex<VecDeque<Task>>>,
+    tasks: Arc<RwLock<VecDeque<Task>>>,
 ) {
     info!("Incoming TCP connection from: {}", addr);
 
@@ -44,7 +44,7 @@ async fn handle_web_connection(
 
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = unbounded();
-    peer_map.lock().unwrap().insert(addr, tx);
+    peer_map.write().unwrap().insert(addr, tx);
 
     let (outgoing, incoming) = ws_stream.split();
 
@@ -61,16 +61,16 @@ async fn handle_web_connection(
         match message {
             "hash" => {
                 tasks
-                    .lock()
+                    .write()
                     .unwrap()
                     .push_back(Task::new(TaskType::Hash(Hash::default())));
             }
             "import" => tasks
-                .lock()
+                .write()
                 .unwrap()
                 .push_back(Task::new(TaskType::ImportFiles(ImportFiles::default()))),
             "process" => tasks
-                .lock()
+                .write()
                 .unwrap()
                 .push_back(Task::new(TaskType::ProcessNewFiles(
                     ProcessNewFiles::default(),
@@ -89,10 +89,10 @@ async fn handle_web_connection(
     future::select(broadcast_incoming, receive_from_others).await;
 
     info!("{} disconnected", &addr);
-    peer_map.lock().unwrap().remove(&addr);
+    peer_map.write().unwrap().remove(&addr);
 }
 
-pub async fn run_web(port: u16, tasks: Arc<Mutex<VecDeque<Task>>>) -> Result<(), IoError> {
+pub async fn run_web(port: u16, tasks: Arc<RwLock<VecDeque<Task>>>) -> Result<(), IoError> {
     let addr_ipv4 = env::args()
         .nth(1)
         .unwrap_or_else(|| format!("127.0.0.1:{}", port));
@@ -101,7 +101,7 @@ pub async fn run_web(port: u16, tasks: Arc<Mutex<VecDeque<Task>>>) -> Result<(),
         .nth(1)
         .unwrap_or_else(|| format!("[::1]:{}", port));
 
-    let state = PeerMap::new(Mutex::new(HashMap::new()));
+    let state = PeerMap::new(RwLock::new(HashMap::new()));
 
     // Create the event loop and TCP listener
     let try_socket_ipv4 = TcpListener::bind(&addr_ipv4).await;
@@ -182,7 +182,7 @@ async fn handle_worker_connection(
     peer_map: PeerMap,
     raw_stream: TcpStream,
     addr: SocketAddr,
-    tasks: Arc<Mutex<VecDeque<Encode>>>,
+    tasks: Arc<RwLock<VecDeque<Encode>>>,
 ) {
     info!("Incoming TCP connection from: {}", addr);
 
@@ -199,7 +199,7 @@ async fn handle_worker_connection(
 
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = unbounded();
-    peer_map.lock().unwrap().insert(addr, tx);
+    peer_map.write().unwrap().insert(addr, tx);
 
     let (outgoing, incoming) = ws_stream.split();
 
@@ -209,7 +209,7 @@ async fn handle_worker_connection(
 
         match bincode::deserialize::<Encode>(&message) {
             Ok(encode) => {
-                tasks.lock().unwrap().push_back(encode);
+                tasks.write().unwrap().push_back(encode);
             }
             Err(err) => {
                 warn!("Error when deserializing encode from websocket: {}", err);
@@ -225,12 +225,12 @@ async fn handle_worker_connection(
     future::select(broadcast_incoming, receive_from_others).await;
 
     info!("{} disconnected", &addr);
-    peer_map.lock().unwrap().remove(&addr);
+    peer_map.write().unwrap().remove(&addr);
 }
 
 pub async fn run_worker(
     port: u16,
-    transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
+    transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
 ) -> Result<(), IoError> {
     let addr_ipv4 = env::args()
         .nth(1)
@@ -240,7 +240,7 @@ pub async fn run_worker(
         .nth(1)
         .unwrap_or_else(|| format!("[::1]:{}", port));
 
-    let state = PeerMap::new(Mutex::new(HashMap::new()));
+    let state = PeerMap::new(RwLock::new(HashMap::new()));
 
     // Create the event loop and TCP listener
     let try_socket_ipv4 = TcpListener::bind(&addr_ipv4).await;
