@@ -11,12 +11,12 @@ use std::path::PathBuf;
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub enum ResolutionStandard {
     UNKNOWN = 0,
-    ED = 1,         //640
-    SD = 2,         //720
-    HD = 3,         //1280
-    FHD = 4,        //1920
-    WQHD = 5,       //2560
-    UHD = 6,        //3840/4096
+    ED = 1,   //640
+    SD = 2,   //720
+    HD = 3,   //1280
+    FHD = 4,  //1920
+    WQHD = 5, //2560
+    UHD = 6,  //3840/4096
 }
 
 impl ResolutionStandard {
@@ -35,9 +35,9 @@ impl ResolutionStandard {
     #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         match self {
-            ResolutionStandard::ED => "ED".to_string(), 
-            ResolutionStandard::SD => "SD".to_string(), 
-            ResolutionStandard::HD => "HD".to_string(), 
+            ResolutionStandard::ED => "ED".to_string(),
+            ResolutionStandard::SD => "SD".to_string(),
+            ResolutionStandard::HD => "HD".to_string(),
             ResolutionStandard::FHD => "FHD".to_string(),
             ResolutionStandard::WQHD => "WQHD".to_string(),
             ResolutionStandard::UHD => "UHD".to_string(),
@@ -58,8 +58,8 @@ pub fn convert_i32_to_resolution_standard(input: i32) -> ResolutionStandard {
     }
 }
 
-/* impl ToSql<Text, Pg> for ResolutionStandard 
-where 
+/* impl ToSql<Text, Pg> for ResolutionStandard
+where
     Pg: Backend,
     String: ToSql<Text, Pg>,
 {
@@ -91,14 +91,12 @@ pub enum VideoCodec {
     H265,
     //Chromecast:
     //  Ultra:              HEVC / H.265 Main and Main10 Profiles up to level 5.1 (4K/60fps)
-    //  with Google TV:     HEVC / H.265 Main and Main10 Profiles up to level 5.1 (4Kx2K@60fps) 
-
+    //  with Google TV:     HEVC / H.265 Main and Main10 Profiles up to level 5.1 (4Kx2K@60fps)
     VP8,
     //Chromecast:
     //  Gen 1 and 2:        VP8 (720p/60fps or 1080p/30fps)
     //  Gen 3:              VP8 (720p/60fps or 1080p/30fps)
     //  Ultra:              VP8 (4K/30fps)
-
     VP9,
     //Chromecast:
     //  Ultra:              VP9 Profile 0 and Profile 2 up to level 5.1 (4K/60fps)
@@ -127,12 +125,12 @@ pub enum Container {
 
 impl Container {
     pub fn get_container_from_extension(file_extension: String) -> Self {
-        let file_extension = file_extension.to_lowercase();//Hopefully this to_lowercase function is sufficient for the moment
+        let file_extension = file_extension.to_lowercase(); //Hopefully this to_lowercase function is sufficient for the moment
         match file_extension.as_str() {
             "mp4" => Container::MP4,
             "mkv" => Container::MKV,
             "webm" => Container::WEBM,
-            _   => Container::UNKNOWN,
+            _ => Container::UNKNOWN,
         }
     }
 
@@ -158,15 +156,15 @@ pub fn convert_i32_to_container(input: i32) -> Container {
 
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub struct BasicProfile {
-    pub width: u32,                                 //Pixels
-    pub height: u32,                                //Pixels
-    pub framerate: f64,                             //FPS
-    pub length_time: f64,                           //Seconds
-    pub resolution_standard: ResolutionStandard,    //Discounts the height difference, based on width
+    pub width: u32,                              //Pixels
+    pub height: u32,                             //Pixels
+    pub framerate: f64,                          //FPS
+    pub length_time: f64,                        //Seconds
+    pub resolution_standard: ResolutionStandard, //Discounts the height difference, based on width
     //pub aspect_ratio: AspectRatio,                //eg. SixteenByNine is 16:9
-    pub container: Container,                       //Represents the file extension rather than specifically the container, as this may not be the case
-    //TODO: Add current video information
-    //TODO: Add current audio information
+    pub container: Container, //Represents the file extension rather than specifically the container, as this may not be the case
+                              //TODO: Add current video information
+                              //TODO: Add current audio information
 }
 
 impl fmt::Display for BasicProfile {
@@ -194,12 +192,12 @@ impl BasicProfile {
 
         let v: Value = serde_json::from_str(from_utf8(&buffer.stdout).unwrap()).unwrap();
         let width = v["media"]["track"][1]["Width"]
-        .to_string()
-        .strip_prefix('"')?
-        .strip_suffix('"')?
-        .parse::<u32>()
-        .unwrap();
-        
+            .to_string()
+            .strip_prefix('"')?
+            .strip_suffix('"')?
+            .parse::<u32>()
+            .unwrap();
+
         Some(Self {
             width,
             height: v["media"]["track"][1]["Height"]
@@ -221,12 +219,14 @@ impl BasicProfile {
                 .parse::<f64>()
                 .unwrap(),
             resolution_standard: ResolutionStandard::get_resolution_standard_from_width(width),
-            container: Container::get_container_from_extension(v["media"]["track"][0]["FileExtension"]
-                .to_string()
-                .strip_prefix('"')?
-                .strip_suffix('"')?
-                .parse::<String>()
-                .unwrap()),
+            container: Container::get_container_from_extension(
+                v["media"]["track"][0]["FileExtension"]
+                    .to_string()
+                    .strip_prefix('"')?
+                    .strip_suffix('"')?
+                    .parse::<String>()
+                    .unwrap(),
+            ),
         })
     }
 }
@@ -258,7 +258,7 @@ pub struct Profile {
 impl Profile {
     /* pub fn new() -> Self {
         Self {
-            
+
         }
     } */
 }

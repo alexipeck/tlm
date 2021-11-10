@@ -1,4 +1,12 @@
-use crate::{config::{Config, Preferences}, database::establish_connection, diesel::SaveChangesDsl, generic::Generic, manager::FileManager, model::GenericModel, profile::Profile};
+use crate::{
+    config::{Config, Preferences},
+    database::establish_connection,
+    diesel::SaveChangesDsl,
+    generic::Generic,
+    manager::FileManager,
+    model::GenericModel,
+    profile::Profile,
+};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
 
@@ -15,7 +23,7 @@ use std::{
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Clone, Debug)]//, Serialize, Deserialize
+#[derive(Clone, Debug)] //, Serialize, Deserialize
 pub struct Worker {
     encode_queue: Arc<Mutex<VecDeque<Encode>>>,
     //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
@@ -45,7 +53,12 @@ pub struct Encode {
 }
 
 impl Encode {
-    pub fn new(source_path: PathBuf, future_filename: String, encode_options: Vec<String>, profile: Profile) -> Self {
+    pub fn new(
+        source_path: PathBuf,
+        future_filename: String,
+        encode_options: Vec<String>,
+        profile: Profile,
+    ) -> Self {
         Encode {
             source_path,
             future_filename,
@@ -78,7 +91,7 @@ impl Encode {
             .unwrap_or_else(|err| {
                 error!("Failed to execute ffmpeg process. Err: {}", err);
                 panic!();
-        });
+            });
 
         //only uncomment if you want disgusting output
         //should be error, but from ffmpeg, stderr mostly consists of stdout information
@@ -224,7 +237,7 @@ impl Task {
             TaskType::Encode(encode) => {
                 //TODO: Start tracking a the worker that will be assigned to an encode (includes next in queue), if it isn't already
                 //TODO: If the Task is added as the next in line encode for the worker, change it's status to "waiting for encode"
-                //TODO: 
+                //TODO:
                 encode.send_to_worker();
             }
             TaskType::ImportFiles(import_files) => {

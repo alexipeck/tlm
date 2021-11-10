@@ -1,7 +1,11 @@
 extern crate diesel;
 
 use directories::BaseDirs;
-use tlm::{config::{Config, Preferences}, scheduler::{Scheduler, Task, Worker}, ws::run_web};
+use tlm::{
+    config::{Config, Preferences},
+    scheduler::{Scheduler, Task, Worker},
+    ws::run_web,
+};
 
 use std::collections::VecDeque;
 use std::env;
@@ -68,8 +72,13 @@ async fn main() -> Result<(), IoError> {
     let active_workers: Arc<Mutex<VecDeque<Worker>>> = Arc::new(Mutex::new(VecDeque::new()));
 
     let stop_scheduler = Arc::new(AtomicBool::new(false));
-    let mut scheduler: Scheduler =
-        Scheduler::new(config.clone(), tasks.clone(), encode_tasks, active_workers, stop_scheduler.clone());
+    let mut scheduler: Scheduler = Scheduler::new(
+        config.clone(),
+        tasks.clone(),
+        encode_tasks,
+        active_workers,
+        stop_scheduler.clone(),
+    );
 
     let inner_pref = preferences.clone();
     //Start the scheduler in it's own thread and return the scheduler at the end
@@ -87,6 +96,6 @@ async fn main() -> Result<(), IoError> {
 
     //manual shutdown tasks or other manipulation
     let _scheduler = scheduler_handle.join().unwrap();
-    
+
     Ok(())
 }
