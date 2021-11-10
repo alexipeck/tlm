@@ -14,7 +14,7 @@ use crate::{
     designation::{convert_i32_to_designation, Designation},
     model::*,
 };
-use tracing::error;
+use tracing::{error, warn};
 
 ///Struct containing data that is shared by all file types
 ///can also refer to only a generic media file
@@ -44,14 +44,29 @@ impl Generic {
     ///Hash the file with seahash for data integrity purposes so we
     /// know if a file has been replaced and may need to be reprocessed
     pub fn hash(&mut self) {
-        let mut buffer = Box::new(vec![0; 4096]);
-        let mut hasher = seahash::SeaHasher::new();
-        let mut file = File::open(self.full_path.to_str().unwrap()).unwrap();
-        while file.read(&mut buffer).unwrap() != 0 {
-            hasher.write(&buffer);
-        }
-        self.hash = Some(hasher.finish().to_string());
+        self.hash = Some(sea_hash(self.full_path.clone()));
     }
+
+    ///Returns true if hashes match, false if not
+    pub fn verify_hash(&mut self, path: PathBuf) -> bool {
+        if self.hash.is_some() {
+            return self.hash.as_ref().unwrap().as_str() == sea_hash(path).as_str();
+        }else {
+            warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
+            return true
+        }
+    }
+
+    ///Returns true if hashes match, false if not
+    pub fn verify_fast_hash(&mut self, path: PathBuf) -> bool {
+        if self.fast_hash.is_some() {
+            return self.fast_hash.as_ref().unwrap().as_str() == sea_fast_hash(path).as_str();
+        } else {
+            warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
+            return true;
+        }
+    }
+
 
     ///Hash the first 32MB of the file with seahash so we can quickly know
     ///if a file is likely to have changed or is likely to be the same as
@@ -62,17 +77,7 @@ impl Generic {
     ///files that tlm knows about to restore by calculating the fast hash and
     ///then calculating full hashes of matching hashes to save time
     pub fn fast_hash(&mut self) {
-        let mut buffer = Box::new(vec![0; 4096]);
-        let mut hasher = seahash::SeaHasher::new();
-        let mut file = File::open(self.full_path.to_str().unwrap()).unwrap();
-        for _ in 0..8192 {
-            if file.read(&mut buffer).unwrap() != 0 {
-                hasher.write(&buffer);
-            } else {
-                break;
-            }
-        }
-        self.fast_hash = Some(hasher.finish().to_string());
+        self.fast_hash = Some(sea_fast_hash(self.full_path.clone()));
     }
 
     ///Create a new generic from the database equivalent. This is neccesary because
@@ -174,6 +179,45 @@ impl Generic {
     pub fn get_filename_from_pathbuf(pathbuf: PathBuf) -> String {
         return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
+}
+///Hash the file with seahash for data integrity purposes so we
+/// know if a file has been replaced and may need to be reprocessed
+pub fn sea_hash(path: PathBuf) -> String {
+    let mut buffer = Box::new(vec![0; 4096]);
+    let mut hasher = seahash::SeaHasher::new();
+    let mut file = File::open(path.to_str().unwrap()).unwrap_or_else(|err| {
+        error!("Error opening file for hashing. Err: {}", err);
+        panic!();
+    });
+    while file.read(&mut buffer).unwrap() != 0 {
+        hasher.write(&buffer);
+    }
+    hasher.finish().to_string()
+}
+
+///Hash the first 32MB of the file with seahash so we can quickly know
+///if a file is likely to have changed or is likely to be the same as
+///an existing file.
+///
+///For example if we backup all of tlm's information and all files get
+///renamed to something that doesn't make sense we can quickly search for
+///files that tlm knows about to restore by calculating the fast hash and
+///then calculating full hashes of matching hashes to save time
+pub fn sea_fast_hash(path: PathBuf) -> String {
+    let mut buffer = Box::new(vec![0; 4096]);
+    let mut hasher = seahash::SeaHasher::new();
+    let mut file = File::open(path.to_str().unwrap()).unwrap_or_else(|err| {
+        error!("Error opening file for hashing. Err: {}", err);
+        panic!();
+    });
+    for _ in 0..8192 {
+        if file.read(&mut buffer).unwrap() != 0 {
+            hasher.write(&buffer);
+        } else {
+            break;
+        }
+    }
+    hasher.finish().to_string()
 }
 
 impl fmt::Display for Generic {

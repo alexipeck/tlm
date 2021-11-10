@@ -30,14 +30,14 @@ impl Config {
 
         if Path::new(&preferences.config_file_path).exists() {
             let config_toml = match fs::read_to_string(&preferences.config_file_path) {
-                Ok(x) => x,
+                Ok(config_toml) => config_toml,
                 Err(err) => {
                     error!("Failed to read config file: {}", err);
                     panic!();
                 }
             };
             config = match toml::from_str(&config_toml) {
-                Ok(x) => x,
+                Ok(config_toml) => config_toml,
                 Err(err) => {
                     error!("Failed to parse toml: {}", err);
                     panic!();

@@ -1,6 +1,6 @@
 use super::generic::Generic;
 use super::schema::{episode, generic, show};
-use crate::profile::{BasicProfile, convert_i32_to_container, convert_i32_to_resolution_standard};
+use crate::profile::{convert_i32_to_container, convert_i32_to_resolution_standard, BasicProfile};
 
 ///Struct for inserting into the database
 #[derive(Insertable)]
@@ -12,41 +12,32 @@ pub struct NewGeneric {
     pub height: Option<i32>,
     pub framerate: Option<f64>,
     pub length_time: Option<f64>,
-    pub resolution_standard: Option<i32>,//I want this to eventually be a string
-    pub container: Option<i32>,//I want this to eventually be a string
-}
-
-///Helper function to set all database fields to none if the profile contains data
-fn profile_is_some_split(
-    profile: Option<BasicProfile>,
-) -> (Option<i32>, Option<i32>, Option<f64>, Option<f64>, Option<i32>, Option<i32>) {
-    match profile {
-        Some(profile) => (
-            Some(profile.width as i32),
-            Some(profile.height as i32),
-            Some(profile.framerate),
-            Some(profile.length_time),
-            Some(profile.resolution_standard as i32),
-            Some(profile.container as i32),
-        ),
-        None => (None, None, None, None, None, None),
-    }
+    pub resolution_standard: Option<i32>, //I want this to eventually be a string
+    pub container: Option<i32>,           //I want this to eventually be a string
 }
 
 impl NewGeneric {
     pub fn new(full_path: String, designation: i32, profile: Option<BasicProfile>) -> Self {
-        let temp_profile = profile_is_some_split(profile);
-
-        NewGeneric {
+        let mut temp = NewGeneric {
             full_path,
             designation,
-            width: temp_profile.0,
-            height: temp_profile.1,
-            framerate: temp_profile.2,
-            length_time: temp_profile.3,
-            resolution_standard: temp_profile.4,
-            container: temp_profile.5,
+            width: None,
+            height: None,
+            framerate: None,
+            length_time: None,
+            resolution_standard: None,
+            container: None,
+        };
+        
+        if let Some(profile) = profile {
+            temp.width = Some(profile.width as i32);
+            temp.height = Some(profile.height as i32);
+            temp.framerate = Some(profile.framerate);
+            temp.length_time = Some(profile.length_time);
+            temp.resolution_standard = Some(profile.resolution_standard as i32);
+            temp.container = Some(profile.container as i32);
         }
+        temp
     }
 }
 
@@ -64,8 +55,8 @@ pub struct GenericModel {
     pub framerate: Option<f64>,
     pub length_time: Option<f64>,
     pub fast_file_hash: Option<String>,
-    pub resolution_standard: Option<i32>,//I want this to eventually be a string
-    pub container: Option<i32>,//I want this to eventually be a string
+    pub resolution_standard: Option<i32>, //I want this to eventually be a string
+    pub container: Option<i32>,           //I want this to eventually be a string
 }
 
 impl GenericModel {
@@ -84,8 +75,8 @@ impl GenericModel {
             framerate: None,
             length_time: None,
         };
-        let current_profile = generic.current_profile.to_owned().unwrap();
         if generic.current_profile.is_some() {
+            let current_profile = generic.current_profile.to_owned().unwrap();
             temp.width = Some(current_profile.width as i32);
             temp.height = Some(current_profile.height as i32);
             temp.framerate = Some(current_profile.framerate);

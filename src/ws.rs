@@ -39,8 +39,7 @@ async fn handle_web_connection(
                 err
             );
             panic!();
-        }
-    );
+        });
     info!("WebSocket connection established: {}", addr);
 
     // Insert the write part of this peer to the peer map.
@@ -57,7 +56,6 @@ async fn handle_web_connection(
             .or_else(|| msg.to_text().unwrap().strip_suffix('\n'))
             .unwrap_or_else(|| msg.to_text().unwrap());
 
-        
         info!("Received a message from {}: {}", addr, message);
 
         match message {
