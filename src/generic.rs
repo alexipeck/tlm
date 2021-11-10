@@ -51,9 +51,9 @@ impl Generic {
     pub fn verify_hash(&mut self, path: PathBuf) -> bool {
         if self.hash.is_some() {
             return self.hash.as_ref().unwrap().as_str() == sea_hash(path).as_str();
-        }else {
+        } else {
             warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
-            return true
+            return true;
         }
     }
 
@@ -66,7 +66,6 @@ impl Generic {
             return true;
         }
     }
-
 
     ///Hash the first 32MB of the file with seahash so we can quickly know
     ///if a file is likely to have changed or is likely to be the same as

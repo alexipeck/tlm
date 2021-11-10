@@ -28,7 +28,7 @@ impl NewGeneric {
             resolution_standard: None,
             container: None,
         };
-        
+
         if let Some(profile) = profile {
             temp.width = Some(profile.width as i32);
             temp.height = Some(profile.height as i32);
