@@ -15,7 +15,7 @@ use std::{
     path::PathBuf,
     process::Command,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex},
     thread,
     thread::JoinHandle,
     time,
@@ -25,7 +25,7 @@ static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Clone, Debug)] //, Serialize, Deserialize
 pub struct Worker {
-    encode_queue: Arc<RwLock<VecDeque<Encode>>>,
+    encode_queue: Arc<Mutex<VecDeque<Encode>>>,
     //TODO: Store the HashMap/tx
     //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
     //NOTE: If this is running under a Docker container, it may have a random MAC address, so on reboot,
@@ -279,9 +279,9 @@ impl TaskReturnAsync {
 ///Schedules all tasks and contains a queue of tasks that can be modified by other threads
 pub struct Scheduler {
     pub file_manager: FileManager,
-    pub tasks: Arc<RwLock<VecDeque<Task>>>,
-    pub encode_tasks: Arc<RwLock<VecDeque<Task>>>,
-    pub active_workers: Arc<RwLock<VecDeque<Worker>>>,
+    pub tasks: Arc<Mutex<VecDeque<Task>>>,
+    pub encode_tasks: Arc<Mutex<VecDeque<Task>>>,
+    pub active_workers: Arc<Mutex<VecDeque<Worker>>>,
     pub config: Config,
     pub input_completed: Arc<AtomicBool>,
 }
@@ -289,9 +289,9 @@ pub struct Scheduler {
 impl Scheduler {
     pub fn new(
         config: Config,
-        tasks: Arc<RwLock<VecDeque<Task>>>,
-        encode_tasks: Arc<RwLock<VecDeque<Task>>>,
-        active_workers: Arc<RwLock<VecDeque<Worker>>>,
+        tasks: Arc<Mutex<VecDeque<Task>>>,
+        encode_tasks: Arc<Mutex<VecDeque<Task>>>,
+        active_workers: Arc<Mutex<VecDeque<Worker>>>,
         input_completed: Arc<AtomicBool>,
     ) -> Self {
         Scheduler {
@@ -336,7 +336,7 @@ impl Scheduler {
                 handles.remove(i);
             }
             {
-                let mut tasks = self.tasks.write().unwrap();
+                let mut tasks = self.tasks.lock().unwrap();
 
                 //When the queue is empty we wait until another item is added or user input is marked as completed
                 if tasks.len() == 0 {
@@ -348,7 +348,7 @@ impl Scheduler {
                         }
                         break;
                     }
-                    std::mem::drop(tasks); //Unlock the RwLock so we don't block while sleeping
+                    std::mem::drop(tasks); //Unlock the Mutex so we don't block while sleeping
                     thread::sleep(wait_time);
                     continue;
                 }
