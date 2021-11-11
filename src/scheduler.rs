@@ -10,22 +10,14 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
 
-use std::{
-    collections::VecDeque,
-    path::PathBuf,
-    process::Command,
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
-    sync::{Arc, Mutex},
-    thread,
-    thread::JoinHandle,
-    time,
-};
+use std::{collections::VecDeque, net::IpAddr, path::PathBuf, process::Command, sync::atomic::{AtomicBool, AtomicUsize, Ordering}, sync::{Arc, Mutex}, thread, thread::JoinHandle, time};
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Clone, Debug)] //, Serialize, Deserialize
 pub struct Worker {
-    encode_queue: Arc<Mutex<VecDeque<Encode>>>,
+    encode_queue: Arc<Mutex<VecDeque<Task>>>,
+    socket_address: IpAddr,
     //TODO: Store the HashMap/tx
     //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
     //NOTE: If this is running under a Docker container, it may have a random MAC address, so on reboot,
@@ -35,10 +27,20 @@ pub struct Worker {
 }
 
 impl Worker {
+    pub fn new(socket_address: IpAddr, encode_tasks: Arc<Mutex<VecDeque<Task>>>) -> Self {
+        let mut temp = Self {
+            encode_queue: Arc::new(Mutex::new(VecDeque::new())),
+            socket_address,
+        };
+        temp.encode_queue.lock().unwrap().push_back(encode_tasks.lock().unwrap().pop_front().unwrap());
+        temp
+    }
+
     pub fn check_if_active(&mut self) {
         //If the connection is active, do nothing.
         //TODO: If something is wrong with the connection, close the connection server-side, making this worker unavailable, start timeout for removing the work assigned to the worker.
         //    : If there's not enough work for other workers, immediately shift the encodes to other workers (put it back in the encode queue)
+        
     }
 }
 
@@ -139,7 +141,8 @@ impl Default for ProcessNewFiles {
 }
 
 ///Struct to represent a hashing task. This is needed so we can have an enum
-///that contains all types of task
+///that contains all types of task.
+#[derive(Clone, Debug)]
 pub struct Hash {}
 
 impl Hash {
@@ -205,6 +208,7 @@ impl Default for Hash {
 }
 
 ///This enum is required to create a queue of tasks independent of task type
+#[derive(Clone, Debug)]
 pub enum TaskType {
     Encode(Encode),
     ImportFiles(ImportFiles),
@@ -215,6 +219,7 @@ pub enum TaskType {
 ///Task struct that will later be in the database with a real id so that the queue
 ///persists between runs
 #[allow(dead_code)]
+#[derive(Clone, Debug)]
 pub struct Task {
     task_uid: usize,
     task_type: TaskType,
@@ -223,7 +228,7 @@ pub struct Task {
 impl Task {
     pub fn new(task_type: TaskType) -> Self {
         Task {
-            task_uid: TASK_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
+            task_uid: TASK_UID_COUNTER.fetch_add(1, Ordering::SeqCst),//TODO: Store in the database
             task_type,
         }
     }
