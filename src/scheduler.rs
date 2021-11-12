@@ -7,17 +7,20 @@ use crate::{
     model::GenericModel,
     profile::Profile,
 };
+use futures_util::stream::SplitSink;
 use serde::{Deserialize, Serialize};
+use tokio::net::TcpStream;
+use tokio_tungstenite::{WebSocketStream, tungstenite::Message};
 use tracing::{debug, error, info};
 
 use std::{collections::VecDeque, net::IpAddr, path::PathBuf, process::Command, sync::atomic::{AtomicBool, AtomicUsize, Ordering}, sync::{Arc, Mutex}, thread, thread::JoinHandle, time};
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Clone, Debug)] //, Serialize, Deserialize
+#[derive(Debug)] //, Serialize, Deserialize
 pub struct Worker {
     encode_queue: Arc<Mutex<VecDeque<Task>>>,
-    socket_address: IpAddr,
+    ws_tx: SplitSink<WebSocketStream<TcpStream>, Message>,
     //TODO: Store the HashMap/tx
     //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
     //NOTE: If this is running under a Docker container, it may have a random MAC address, so on reboot,
@@ -27,12 +30,14 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(socket_address: IpAddr, encode_tasks: Arc<Mutex<VecDeque<Task>>>) -> Self {
+    pub fn new(ws_tx: SplitSink<WebSocketStream<TcpStream>, Message>, encode_tasks: Arc<Mutex<VecDeque<Task>>>, queue_capacity: u32) -> Self {
         let mut temp = Self {
             encode_queue: Arc::new(Mutex::new(VecDeque::new())),
-            socket_address,
+            ws_tx,
         };
-        temp.encode_queue.lock().unwrap().push_back(encode_tasks.lock().unwrap().pop_front().unwrap());
+        for _ in 0..queue_capacity {
+            temp.encode_queue.lock().unwrap().push_back(encode_tasks.lock().unwrap().pop_front().unwrap());
+        }
         temp
     }
 
@@ -335,8 +340,8 @@ impl Scheduler {
 
             //Take each completed thread and join it
             for i in completed_threads {
-                let handle = handles[i].handle.take();
-                let _res = handle.unwrap().join();
+                let _handle = handles[i].handle.take();
+                _handle.unwrap().join();
                 handles.remove(i);
             }
             {

@@ -14,7 +14,7 @@ use std::{
 };
 
 use futures_channel::mpsc::{unbounded, UnboundedSender};
-use futures_util::{SinkExt, StreamExt, future, pin_mut, stream::TryStreamExt};
+use futures_util::{StreamExt, future, pin_mut, stream::TryStreamExt};
 
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
@@ -73,7 +73,8 @@ async fn handle_web_connection(
                 .unwrap()
                 .push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::default()))),
             "initialise_worker" => {
-                //marker;
+                //TODO: Verify that this is a websocket establishing thingo
+                active_workers.lock().unwrap().push(Worker::new(outgoing, tasks.clone(), 2));
             },
             //TODO: Encode message needs a UID for transcoding a specific generic/episode
             //"encode" => encode_tasks.lock().unwrap().push_back(Task::new(TaskType::Encode(Encode::new())))
