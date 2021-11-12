@@ -149,7 +149,7 @@ pub async fn run_web(port: u16, tasks: Arc<Mutex<VecDeque<Task>>>, active_worker
                     tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), active_workers.clone()));
                 }
                 Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                    //tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), active_workers));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), active_workers.clone()));
                 }
             }
         } else if is_listening_ipv4 {
@@ -159,7 +159,7 @@ pub async fn run_web(port: u16, tasks: Arc<Mutex<VecDeque<Task>>>, active_worker
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
-                    //tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), active_workers));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), active_workers.clone()));
                 }
             }
         } else {
@@ -169,7 +169,7 @@ pub async fn run_web(port: u16, tasks: Arc<Mutex<VecDeque<Task>>>, active_worker
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                    //tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), active_workers));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), active_workers.clone()));
                 }
             }
         }
