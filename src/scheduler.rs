@@ -286,7 +286,7 @@ pub struct Scheduler {
     pub file_manager: FileManager,
     pub tasks: Arc<Mutex<VecDeque<Task>>>,
     pub encode_tasks: Arc<Mutex<VecDeque<Task>>>,
-    pub active_workers: Arc<Mutex<VecDeque<Worker>>>,
+    pub active_workers: Arc<Mutex<Vec<Worker>>>,
     pub config: Config,
     pub input_completed: Arc<AtomicBool>,
 }
@@ -296,10 +296,10 @@ impl Scheduler {
         config: Config,
         tasks: Arc<Mutex<VecDeque<Task>>>,
         encode_tasks: Arc<Mutex<VecDeque<Task>>>,
-        active_workers: Arc<Mutex<VecDeque<Worker>>>,
+        active_workers: Arc<Mutex<Vec<Worker>>>,
         input_completed: Arc<AtomicBool>,
     ) -> Self {
-        Scheduler {
+        Self {
             tasks,
             encode_tasks,
             file_manager: FileManager::new(&config),
@@ -318,7 +318,6 @@ impl Scheduler {
         //The boolean tells the thread to stop and tells the scheduler thread that it has stopped
         //Essentially it just makes it safe to join
         let mut handles: Vec<TaskReturnAsync> = Vec::new();
-
         loop {
             let mut task: Task;
 
@@ -362,7 +361,7 @@ impl Scheduler {
 
             let result = task.handle_task(&mut self.file_manager, preferences);
             if let Some(handle) = result {
-                handles.push(handle)
+                handles.push(handle);
             }
         }
     }

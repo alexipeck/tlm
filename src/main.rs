@@ -69,14 +69,14 @@ async fn main() -> Result<(), IoError> {
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 
     let encode_tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
-    let active_workers: Arc<Mutex<VecDeque<Worker>>> = Arc::new(Mutex::new(VecDeque::new()));
+    let active_workers: Arc<Mutex<Vec<Worker>>> = Arc::new(Mutex::new(Vec::new()));
 
     let stop_scheduler = Arc::new(AtomicBool::new(false));
     let mut scheduler: Scheduler = Scheduler::new(
         config.clone(),
         tasks.clone(),
         encode_tasks,
-        active_workers,
+        active_workers.clone(),
         stop_scheduler.clone(),
     );
 
@@ -89,7 +89,7 @@ async fn main() -> Result<(), IoError> {
     });
 
     if !preferences.disable_input {
-        run_web(config.port, tasks).await?;
+        run_web(config.port, tasks, active_workers).await?;
     }
 
     stop_scheduler.store(true, Ordering::Relaxed);
