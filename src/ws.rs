@@ -49,6 +49,7 @@ async fn handle_web_connection(
 
     let (outgoing, incoming) = ws_stream.split();
 
+    let mut initialise_worker: Arc<bool> = Arc::new(false);
     let broadcast_incoming = incoming.try_for_each(|msg| {
         let message = msg
             .to_text()
@@ -74,7 +75,9 @@ async fn handle_web_connection(
                 .push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::default()))),
             "initialise_worker" => {
                 //TODO: Verify that this is a websocket establishing thingo
-                active_workers.lock().unwrap().push(Worker::new(outgoing, tasks.clone(), 2));
+                if true {
+                    initialise_worker = Arc::new(true);
+                }
             },
             //TODO: Encode message needs a UID for transcoding a specific generic/episode
             //"encode" => encode_tasks.lock().unwrap().push_back(Task::new(TaskType::Encode(Encode::new())))
@@ -83,6 +86,10 @@ async fn handle_web_connection(
 
         future::ok(())
     });
+
+    if initialise_worker.eq(&Arc::new(true)) {
+        active_workers.lock().unwrap().push(Worker::new(outgoing, tasks.clone(), 2));
+    }
 
     let receive_from_others = rx.map(Ok).forward(outgoing);
 
