@@ -3,8 +3,8 @@ extern crate diesel;
 use directories::BaseDirs;
 use tlm::{
     config::{Config, Preferences},
-    scheduler::{Hash, ImportFiles, ProcessNewFiles, Scheduler, Task, TaskType},
-    ws::run,
+    scheduler::{Scheduler, Task, Worker},
+    ws::run_web,
 };
 
 use std::collections::VecDeque;
@@ -29,7 +29,7 @@ async fn main() -> Result<(), IoError> {
             "debug" => Some(Level::DEBUG),
             "warning" | "warn" => Some(Level::WARN),
             "trace" => Some(Level::TRACE),
-            "error" => Some(Level::ERROR),
+            "error" | "err" => Some(Level::ERROR),
             _ => None,
         },
         Err(_) => None,
@@ -68,9 +68,17 @@ async fn main() -> Result<(), IoError> {
 
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 
+    let encode_tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
+    let active_workers: Arc<Mutex<Vec<Worker>>> = Arc::new(Mutex::new(Vec::new()));
+
     let stop_scheduler = Arc::new(AtomicBool::new(false));
-    let mut scheduler: Scheduler =
-        Scheduler::new(config.clone(), tasks.clone(), stop_scheduler.clone());
+    let mut scheduler: Scheduler = Scheduler::new(
+        config.clone(),
+        tasks.clone(),
+        encode_tasks,
+        active_workers.clone(),
+        stop_scheduler.clone(),
+    );
 
     let inner_pref = preferences.clone();
     //Start the scheduler in it's own thread and return the scheduler at the end
@@ -80,30 +88,14 @@ async fn main() -> Result<(), IoError> {
         scheduler
     });
 
-    //Initial setup in own scope so lock drops
-    {
-        let mut tasks_guard = tasks.lock().unwrap(); //TODO: Switch to a fair mutex implementation
-        tasks_guard.push_back(Task::new(TaskType::Hash(Hash::default())));
-        tasks_guard.push_back(Task::new(TaskType::ImportFiles(ImportFiles::default())));
-        tasks_guard.push_back(Task::new(TaskType::ProcessNewFiles(
-            ProcessNewFiles::default(),
-        )));
-    }
-
     if !preferences.disable_input {
-        run(config.port, tasks).await?;
+        run_web(config.port, tasks, active_workers).await?;
     }
 
     stop_scheduler.store(true, Ordering::Relaxed);
 
-    let scheduler = scheduler_handle.join().unwrap();
+    //manual shutdown tasks or other manipulation
+    let _scheduler = scheduler_handle.join().unwrap();
 
-    scheduler.file_manager.print_number_of_generics();
-    scheduler.file_manager.print_number_of_shows();
-    scheduler.file_manager.print_number_of_episodes();
-    scheduler.file_manager.print_shows(&preferences);
-    scheduler.file_manager.print_generics(&preferences);
-    scheduler.file_manager.print_episodes(&preferences);
-    //scheduler.file_manager.print_rejected_files(); //I'm all for it as soon as it's disabled by default
     Ok(())
 }
