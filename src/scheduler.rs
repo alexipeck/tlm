@@ -7,20 +7,27 @@ use crate::{
     model::GenericModel,
     profile::Profile,
 };
-use futures_util::stream::SplitSink;
+use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
-use tokio::net::TcpStream;
-use tokio_tungstenite::{WebSocketStream, tungstenite::Message};
 use tracing::{debug, error, info};
 
-use std::{collections::VecDeque, net::IpAddr, path::PathBuf, process::Command, sync::atomic::{AtomicBool, AtomicUsize, Ordering}, sync::{Arc, Mutex}, thread, thread::JoinHandle, time};
+use std::{
+    collections::VecDeque,
+    path::PathBuf,
+    process::Command,
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    sync::{Arc, Mutex},
+    thread,
+    thread::JoinHandle,
+    time,
+};
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug)] //, Serialize, Deserialize
 pub struct Worker {
     encode_queue: Arc<Mutex<VecDeque<Task>>>,
-    ws_tx: SplitSink<WebSocketStream<TcpStream>, Message>,
+    pub ws_tx: UnboundedSender<tokio_tungstenite::tungstenite::Message>,
     //TODO: Store the HashMap/tx
     //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
     //NOTE: If this is running under a Docker container, it may have a random MAC address, so on reboot,
@@ -30,13 +37,20 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(ws_tx: SplitSink<WebSocketStream<TcpStream>, Message>, encode_tasks: Arc<Mutex<VecDeque<Task>>>, queue_capacity: u32) -> Self {
+    pub fn new(
+        ws_tx: UnboundedSender<tokio_tungstenite::tungstenite::Message>,
+        encode_tasks: Arc<Mutex<VecDeque<Task>>>,
+        queue_capacity: u32,
+    ) -> Self {
         let mut temp = Self {
             encode_queue: Arc::new(Mutex::new(VecDeque::new())),
             ws_tx,
         };
         for _ in 0..queue_capacity {
-            temp.encode_queue.lock().unwrap().push_back(encode_tasks.lock().unwrap().pop_front().unwrap());
+            /*temp.encode_queue
+            .lock()
+            .unwrap()
+            .push_back(encode_tasks.lock().unwrap().pop_front().unwrap());*/
         }
         temp
     }
@@ -45,7 +59,6 @@ impl Worker {
         //If the connection is active, do nothing.
         //TODO: If something is wrong with the connection, close the connection server-side, making this worker unavailable, start timeout for removing the work assigned to the worker.
         //    : If there's not enough work for other workers, immediately shift the encodes to other workers (put it back in the encode queue)
-        
     }
 }
 
@@ -233,7 +246,7 @@ pub struct Task {
 impl Task {
     pub fn new(task_type: TaskType) -> Self {
         Task {
-            task_uid: TASK_UID_COUNTER.fetch_add(1, Ordering::SeqCst),//TODO: Store in the database
+            task_uid: TASK_UID_COUNTER.fetch_add(1, Ordering::SeqCst), //TODO: Store in the database
             task_type,
         }
     }
