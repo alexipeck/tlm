@@ -1,6 +1,6 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
-use std::collections::VecDeque;
+use std::{collections::VecDeque, sync::atomic::{AtomicBool, Ordering}};
 use tracing::{error, info, warn};
 
 use crate::scheduler::{Encode, Hash, ImportFiles, ProcessNewFiles, Task, TaskType, Worker};
@@ -49,7 +49,8 @@ async fn handle_web_connection(
 
     let (outgoing, incoming) = ws_stream.split();
 
-    let mut initialise_worker: Arc<bool> = Arc::new(false);
+    let initialise_worker: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    let mut initialise_worker_inner = initialise_worker.clone();
     let broadcast_incoming = incoming.try_for_each(|msg| {
         let message = msg
             .to_text()
@@ -76,7 +77,7 @@ async fn handle_web_connection(
             "initialise_worker" => {
                 //TODO: Verify that this is a websocket establishing thingo
                 if true {
-                    initialise_worker = Arc::new(true);
+                    initialise_worker_inner = Arc::new(AtomicBool::new(true));
                 }
             },
             //TODO: Encode message needs a UID for transcoding a specific generic/episode
@@ -87,7 +88,7 @@ async fn handle_web_connection(
         future::ok(())
     });
 
-    if initialise_worker.eq(&Arc::new(true)) {
+    if initialise_worker.load(Ordering::Relaxed) {
         active_workers.lock().unwrap().push(Worker::new(outgoing, tasks.clone(), 2));
     }
 
