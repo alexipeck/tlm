@@ -42,15 +42,20 @@ impl Worker {
         encode_tasks: Arc<Mutex<VecDeque<Task>>>,
         queue_capacity: u32,
     ) -> Self {
-        let mut temp = Self {
+        let temp = Self {
             encode_queue: Arc::new(Mutex::new(VecDeque::new())),
             ws_tx,
         };
         for _ in 0..queue_capacity {
-            /*temp.encode_queue
-            .lock()
-            .unwrap()
-            .push_back(encode_tasks.lock().unwrap().pop_front().unwrap());*/
+            match encode_tasks.lock().unwrap().pop_front() {
+                Some(encode_task) => {
+                    temp.encode_queue
+                        .lock()
+                        .unwrap()
+                        .push_back(encode_task);
+                },
+                None => {info!("No encode tasks to send to the worker")},
+            }
         }
         temp
     }
