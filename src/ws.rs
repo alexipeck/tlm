@@ -1,6 +1,9 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
-use std::collections::VecDeque;
+use std::{
+    collections::VecDeque,
+    sync::atomic::{AtomicBool, Ordering},
+};
 use tracing::{error, info, warn};
 
 use crate::scheduler::{Encode, Hash, ImportFiles, ProcessNewFiles, Task, TaskType, Worker};
@@ -14,7 +17,7 @@ use std::{
 };
 
 use futures_channel::mpsc::{unbounded, UnboundedSender};
-use futures_util::{StreamExt, future, pin_mut, stream::TryStreamExt};
+use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
@@ -45,7 +48,7 @@ async fn handle_web_connection(
 
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = unbounded();
-    peer_map.lock().unwrap().insert(addr, tx);
+    peer_map.lock().unwrap().insert(addr, tx.clone());
 
     let (outgoing, incoming) = ws_stream.split();
 
@@ -61,9 +64,9 @@ async fn handle_web_connection(
 
         match message {
             "hash" => tasks
-                    .lock()
-                    .unwrap()
-                    .push_back(Task::new(TaskType::Hash(Hash::default()))),
+                .lock()
+                .unwrap()
+                .push_back(Task::new(TaskType::Hash(Hash::default()))),
             "import" => tasks
                 .lock()
                 .unwrap()
@@ -71,11 +74,24 @@ async fn handle_web_connection(
             "process" => tasks
                 .lock()
                 .unwrap()
-                .push_back(Task::new(TaskType::ProcessNewFiles(ProcessNewFiles::default()))),
+                .push_back(Task::new(TaskType::ProcessNewFiles(
+                    ProcessNewFiles::default(),
+                ))),
             "initialise_worker" => {
                 //TODO: Verify that this is a websocket establishing thingo
-                active_workers.lock().unwrap().push(Worker::new(outgoing, tasks.clone(), 2));
-            },
+                if true {
+                    active_workers
+                        .lock()
+                        .unwrap()
+                        .push(Worker::new(tx.clone(), tasks.clone(), 2));
+                }
+                for worker in &mut active_workers.lock().unwrap().iter_mut() {
+                    worker
+                        .ws_tx
+                        .start_send(Message::Text("Memes".to_string()))
+                        .unwrap_or_else(|err| println!("{}", err));
+                }
+            }
             //TODO: Encode message needs a UID for transcoding a specific generic/episode
             //"encode" => encode_tasks.lock().unwrap().push_back(Task::new(TaskType::Encode(Encode::new())))
             _ => warn!("{} is not a valid input", message),
@@ -93,7 +109,11 @@ async fn handle_web_connection(
     peer_map.lock().unwrap().remove(&addr);
 }
 
-pub async fn run_web(port: u16, tasks: Arc<Mutex<VecDeque<Task>>>, active_workers: Arc<Mutex<Vec<Worker>>>) -> Result<(), IoError> {
+pub async fn run_web(
+    port: u16,
+    tasks: Arc<Mutex<VecDeque<Task>>>,
+    active_workers: Arc<Mutex<Vec<Worker>>>,
+) -> Result<(), IoError> {
     let addr_ipv4 = env::args()
         .nth(1)
         .unwrap_or_else(|| format!("127.0.0.1:{}", port));
@@ -229,9 +249,7 @@ async fn handle_worker_connection(
     peer_map.lock().unwrap().remove(&addr);
 }
 
-pub async fn worker_establishes_connection() {
-    
-}
+pub async fn worker_establishes_connection() {}
 
 pub async fn run_worker(
     port: u16,
