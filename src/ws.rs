@@ -77,7 +77,7 @@ async fn handle_web_connection(
             "initialise_worker" => {
                 //TODO: Verify that this is a websocket establishing thingo
                 if true {
-                    initialise_worker_inner = Arc::new(AtomicBool::new(true));
+                    initialise_worker.store(true, Ordering::Relaxed);
                 }
             },
             //TODO: Encode message needs a UID for transcoding a specific generic/episode
