@@ -31,7 +31,7 @@ async fn main() -> Result<(), IoError> {
             break;
         }
     });
-    run_worker(9999, transcode_queue_inner, rx).await?;
+    run_worker(transcode_queue_inner, rx).await?;
 
     stop_worker.store(true, Ordering::Relaxed);
     let _ = handle.join();

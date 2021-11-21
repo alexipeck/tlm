@@ -247,7 +247,6 @@ async fn handle_worker_connection(
 pub async fn worker_establishes_connection() {}
 
 pub async fn run_worker(
-    port: u16,
     transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
     rx: futures_channel::mpsc::UnboundedReceiver<Message>,
 ) -> Result<(), IoError> {
