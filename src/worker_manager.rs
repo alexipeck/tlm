@@ -1,9 +1,17 @@
-use std::{collections::VecDeque, path::PathBuf, process::Command, sync::{Arc, Mutex, RwLock, atomic::{AtomicUsize, Ordering}}};
+use crate::{generic::Generic, profile::Profile};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
+use std::{
+    collections::VecDeque,
+    path::PathBuf,
+    process::Command,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex, RwLock,
+    },
+};
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{error, info};
-use crate::{generic::Generic, profile::Profile};
 
 static WORKER_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -34,7 +42,7 @@ impl Encode {
     }
 
     pub fn run(&mut self) {
-        println!(
+        info!(
             "Encoding file \'{}\'",
             Generic::get_filename_from_pathbuf(self.source_path.clone())
         );
@@ -43,7 +51,7 @@ impl Encode {
             .args(&self.encode_options.clone())
             .output()
             .unwrap_or_else(|err| {
-                println!("Failed to execute ffmpeg process. Err: {}", err);
+                error!("Failed to execute ffmpeg process. Err: {}", err);
                 panic!();
             });
 
@@ -67,10 +75,7 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(
-        tx: UnboundedSender<Message>,
-        transcode_queue_capacity: usize,
-    ) -> Self {
+    pub fn new(tx: UnboundedSender<Message>, transcode_queue_capacity: usize) -> Self {
         Self {
             uid: WORKER_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
             tx,
@@ -90,35 +95,41 @@ impl Worker {
         for _ in 0..self.spaces_in_queue() {
             match transcode_queue.lock().unwrap().pop_front() {
                 Some(encode) => {
-                    self.transcode_queue
-                        .write()
-                        .unwrap()
-                        .push_back(encode);
-                },
-                None => {info!("No encode tasks to send to the worker")},
+                    self.transcode_queue.write().unwrap().push_back(encode);
+                }
+                None => {
+                    info!("No encode tasks to send to the worker")
+                }
             }
         }
     }
 
     pub fn send_message_to_worker(&mut self, worker_message: WorkerMessage) {
-        self
-            .tx
-            .start_send(Message::Binary(bincode::serialize::<WorkerMessage>(&worker_message).unwrap()))
-            .unwrap_or_else(|err| println!("{}", err));
+        self.tx
+            .start_send(Message::Binary(
+                bincode::serialize::<WorkerMessage>(&worker_message).unwrap(),
+            ))
+            .unwrap_or_else(|err| error!("{}", err));
         //TODO: Have the worker send a message to the server if it can't access the file
     }
 
     pub fn add_to_queue(&mut self, encode: Encode) {
         //share credentials will have to be handled on the worker side
         if !encode.source_path.exists() {
-            error!("source_path is not accessible from the server: {:?}", encode.source_path);
+            error!(
+                "source_path is not accessible from the server: {:?}",
+                encode.source_path
+            );
             //TODO: mark this Encode Task as failed because "file not found", change it to a
             //      state where it can be stored, then manually repaired before being restarted,
             panic!();
         }
 
         //Adds the encode to the workers queue server-side, this should mirror the client-side queue
-        self.transcode_queue.write().unwrap().push_back(encode.clone());
+        self.transcode_queue
+            .write()
+            .unwrap()
+            .push_back(encode.clone());
 
         //Sends the encode to the worker
         self.send_message_to_worker(WorkerMessage::for_encode(encode));
@@ -146,7 +157,9 @@ impl WorkerManager {
 
     pub fn add_worker(&mut self, tx: UnboundedSender<Message>, transcode_queue_capacity: usize) {
         let mut new_worker = Worker::new(tx, transcode_queue_capacity);
-        new_worker.send_message_to_worker(WorkerMessage::text("Worker successfully initialised".to_string()));
+        new_worker.send_message_to_worker(WorkerMessage::text(
+            "Worker successfully initialised".to_string(),
+        ));
         self.workers.push_back(new_worker);
     }
 
@@ -175,17 +188,13 @@ impl WorkerManager {
         self.transcode_queue.lock().unwrap().push_back(encode);
     }
 
-    pub fn send_notification_to_all_workers(&mut self) {
+    pub fn send_notification_to_all_workers(&mut self) {}
 
-    }
-
-    pub fn send_command_to_all_workers(&mut self) {
-
-    }
+    pub fn send_command_to_all_workers(&mut self) {}
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 enum WorkerMessageType {
     Command,
     Notification,
@@ -193,11 +202,11 @@ enum WorkerMessageType {
     Unknown,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerMessage {
     //identifier: String,
-    text: Option<String>,
-    encode: Option<Encode>,
+    pub text: Option<String>,
+    pub encode: Option<Encode>,
     message_type: WorkerMessageType,
 }
 
