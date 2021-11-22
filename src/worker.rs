@@ -4,8 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::{thread::sleep, time::Duration};
-use futures_channel::mpsc::UnboundedSender;
-use tlm::scheduler::Encode;
+use tlm::worker_manager::Encode;
 use tlm::ws::run_worker;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
@@ -26,7 +25,7 @@ async fn main() -> Result<(), IoError> {
         }
         sleep(Duration::new(1, 0));
         println!("Test");
-        tx.start_send(Message::Text("Test".to_string())).unwrap();
+        tx.start_send(Message::Text("test_message".to_string())).unwrap();
 
         if stop_worker_inner.load(Ordering::Relaxed) {
             break;

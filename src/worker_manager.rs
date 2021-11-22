@@ -2,7 +2,7 @@ use std::{collections::VecDeque, path::PathBuf, process::Command, sync::{Arc, Mu
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use tokio_tungstenite::tungstenite::Message;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use crate::{generic::Generic, profile::Profile};
 
 static WORKER_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -145,7 +145,7 @@ impl WorkerManager {
     }
 
     pub fn add_worker(&mut self, tx: UnboundedSender<Message>, transcode_queue_capacity: usize) {
-        let mut new_worker = Worker::new(tx.clone(), transcode_queue_capacity);
+        let mut new_worker = Worker::new(tx, transcode_queue_capacity);
         new_worker.send_message_to_worker(WorkerMessage::text("Worker successfully initialised".to_string()));
         self.workers.push_back(new_worker);
     }
@@ -159,7 +159,7 @@ impl WorkerManager {
         }
     }
 
-    pub fn send_encode_to_specific_worker(&mut self, worker_uid: usize, encode: Encode) {
+    pub fn send_encode_to_specific_worker(&mut self, _worker_uid: usize, _encode: Encode) {
         //TODO
     }
 
@@ -184,6 +184,7 @@ impl WorkerManager {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 enum WorkerMessageType {
     Command,

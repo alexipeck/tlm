@@ -129,7 +129,7 @@ impl CommandWorker {
         }
     }
 
-    pub fn run(&mut self, worker_manager: &mut Arc<Mutex<WorkerManager>>) {}
+    pub fn run(&mut self, _worker_manager: &mut Arc<Mutex<WorkerManager>>) {}
 }
 
 ///This enum is required to create a queue of tasks independent of task type
@@ -258,8 +258,10 @@ impl Scheduler {
 
             //Take each completed thread and join it
             for i in completed_threads {
-                let _handle = handles[i].handle.take();
-                _handle.unwrap().join();
+                let handle = handles[i].handle.take();
+                if let Err(err) = handle.unwrap().join() {
+                    error!("{:?}", err);
+                }
                 handles.remove(i);
             }
             {

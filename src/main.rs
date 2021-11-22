@@ -1,7 +1,7 @@
 extern crate diesel;
 
 use directories::BaseDirs;
-use tlm::{config::{Config, Preferences}, scheduler::{Scheduler, Task, Worker}, worker_manager::WorkerManager, ws::run_web};
+use tlm::{config::{Config, Preferences}, scheduler::{Scheduler, Task}, worker_manager::WorkerManager, ws::run_web};
 
 use std::collections::VecDeque;
 use std::env;

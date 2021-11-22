@@ -1,12 +1,9 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
-use std::{
-    collections::VecDeque,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use std::collections::VecDeque;
 use tracing::{error, info, warn};
 
-use crate::{scheduler::{Encode, Hash, ImportFiles, ProcessNewFiles, Task, TaskType, Worker}, worker_manager::WorkerManager};
+use crate::{scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType}, worker_manager::{Encode, WorkerManager}};
 
 use std::{
     collections::HashMap,
@@ -82,6 +79,9 @@ async fn handle_web_connection(
                 if true {
                     worker_manager.lock().unwrap().add_worker(tx.clone(), 2);
                 }
+            }
+            "test_message" => {
+                info!("Received test message from worker");
             }
             //TODO: Encode message needs a UID for transcoding a specific generic/episode
             //"encode" => encode_tasks.lock().unwrap().push_back(Task::new(TaskType::Encode(Encode::new())))
@@ -189,58 +189,6 @@ pub async fn run_web(
 
     Ok(())
 }
-
-async fn handle_worker_connection(
-    peer_map: PeerMap,
-    raw_stream: TcpStream,
-    addr: SocketAddr,
-    tasks: Arc<Mutex<VecDeque<Encode>>>,
-) {
-    info!("Incoming TCP connection from: {}", addr);
-
-    let ws_stream = tokio_tungstenite::accept_async(raw_stream)
-        .await
-        .unwrap_or_else(|err| {
-            error!(
-                "Error during the websocket handshake occurred. Err: {}",
-                err
-            );
-            panic!();
-        });
-    info!("WebSocket connection established: {}", addr);
-
-    // Insert the write part of this peer to the peer map.
-    let (tx, rx) = unbounded();
-    peer_map.lock().unwrap().insert(addr, tx);
-
-    let (outgoing, incoming) = ws_stream.split();
-
-    let broadcast_incoming = incoming.try_for_each(|msg| {
-        let message = msg.into_data();
-        info!("Received a message from {}", addr);
-
-        match bincode::deserialize::<Encode>(&message) {
-            Ok(encode) => {
-                tasks.lock().unwrap().push_back(encode);
-            }
-            Err(err) => {
-                warn!("Error when deserializing encode from websocket: {}", err);
-            }
-        }
-
-        future::ok(())
-    });
-
-    let receive_from_others = rx.map(Ok).forward(outgoing);
-
-    pin_mut!(broadcast_incoming, receive_from_others);
-    future::select(broadcast_incoming, receive_from_others).await;
-
-    info!("{} disconnected", &addr);
-    peer_map.lock().unwrap().remove(&addr);
-}
-
-pub async fn worker_establishes_connection() {}
 
 pub async fn run_worker(
     transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
