@@ -1,4 +1,12 @@
-use crate::{config::{Config, Preferences}, database::establish_connection, diesel::SaveChangesDsl, file_manager::FileManager, generic::Generic, model::GenericModel, worker_manager::{WorkerManager, WorkerMessage}};
+use crate::{
+    config::{Preferences, ServerConfig},
+    database::establish_connection,
+    diesel::SaveChangesDsl,
+    file_manager::FileManager,
+    generic::Generic,
+    model::GenericModel,
+    worker_manager::{WorkerManager, WorkerMessage},
+};
 use tracing::{debug, error, info};
 
 use std::{
@@ -124,9 +132,7 @@ pub struct CommandWorker {
 
 impl CommandWorker {
     pub fn new(worker_message: WorkerMessage) -> Self {
-        Self {
-            worker_message,
-        }
+        Self { worker_message }
     }
 
     pub fn run(&mut self, worker_manager: &mut Arc<Mutex<WorkerManager>>) {}
@@ -210,13 +216,13 @@ pub struct Scheduler {
     pub tasks: Arc<Mutex<VecDeque<Task>>>,
     pub encode_tasks: Arc<Mutex<VecDeque<Task>>>,
     pub worker_manager: Arc<Mutex<WorkerManager>>,
-    pub config: Config,
+    pub config: ServerConfig,
     pub input_completed: Arc<AtomicBool>,
 }
 
 impl Scheduler {
     pub fn new(
-        config: Config,
+        config: ServerConfig,
         tasks: Arc<Mutex<VecDeque<Task>>>,
         encode_tasks: Arc<Mutex<VecDeque<Task>>>,
         worker_manager: Arc<Mutex<WorkerManager>>,
@@ -284,7 +290,11 @@ impl Scheduler {
                 task = tasks.pop_front().unwrap();
             }
 
-            let result = task.handle_task(&mut self.file_manager, &mut self.worker_manager, preferences);
+            let result = task.handle_task(
+                &mut self.file_manager,
+                &mut self.worker_manager,
+                preferences,
+            );
             if let Some(handle) = result {
                 handles.push(handle);
             }

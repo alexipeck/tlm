@@ -4,6 +4,7 @@ use std::collections::VecDeque;
 use tracing::{debug, error, info, warn};
 
 use crate::{
+    config::WorkerConfig,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
     worker_manager::{Encode, WorkerManager, WorkerMessage},
 };
@@ -196,8 +197,9 @@ pub async fn run_web(
 pub async fn run_worker(
     transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
     rx: futures_channel::mpsc::UnboundedReceiver<Message>,
+    config: WorkerConfig,
 ) -> Result<(), IoError> {
-    let url = url::Url::parse("ws://localhost:8888").unwrap();
+    let url = url::Url::parse(&config.to_string()).unwrap();
 
     let (ws_stream, _) = connect_async(url).await.expect("Failed to connect");
     info!("WebSocket handshake has been successfully completed");

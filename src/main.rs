@@ -2,7 +2,7 @@ extern crate diesel;
 
 use directories::BaseDirs;
 use tlm::{
-    config::{Config, Preferences},
+    config::{Preferences, ServerConfig},
     scheduler::{Scheduler, Task},
     worker_manager::WorkerManager,
     ws::run_web,
@@ -65,7 +65,7 @@ async fn main() -> Result<(), IoError> {
 
     let preferences = Preferences::default();
 
-    let config: Config = Config::new(&preferences);
+    let config: ServerConfig = ServerConfig::new(&preferences);
 
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 

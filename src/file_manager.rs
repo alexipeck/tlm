@@ -1,7 +1,7 @@
 //!A struct for managing all types of media that are stored in ram as well as
 //!Functionality to import files. This is mostly used in the scheduler
 use crate::{
-    config::{Config, Preferences},
+    config::{Preferences, ServerConfig},
     database::*,
     designation::Designation,
     generic::Generic,
@@ -83,7 +83,7 @@ impl fmt::Display for Reason {
 ///a list of rejected files
 pub struct FileManager {
     ///copy of the one in the scheduler
-    pub config: Config,
+    pub config: ServerConfig,
     pub generic_files: Vec<Generic>,
     pub shows: Vec<Show>,
     pub existing_files_hashset: HashSet<PathBuf>,
@@ -93,7 +93,7 @@ pub struct FileManager {
 }
 
 impl FileManager {
-    pub fn new(config: &Config) -> FileManager {
+    pub fn new(config: &ServerConfig) -> FileManager {
         let mut file_manager = FileManager {
             config: config.clone(),
             shows: get_all_shows(),

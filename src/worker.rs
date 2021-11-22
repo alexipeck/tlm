@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::{thread::sleep, time::Duration};
+use tlm::config::WorkerConfig;
 use tlm::worker_manager::Encode;
 use tlm::ws::run_worker;
 use tokio_tungstenite::tungstenite::protocol::Message;
@@ -55,6 +56,8 @@ async fn main() -> Result<(), IoError> {
     let subscriber = Registry::default().with(stdout_layer).with(logfile_layer);
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
+    let config = WorkerConfig::new(base_dirs.config_dir().join("tlm/tlm_worker.config"));
+
     let transcode_queue: Arc<Mutex<VecDeque<Encode>>> = Arc::new(Mutex::new(VecDeque::new()));
     let stop_worker = Arc::new(AtomicBool::new(false));
     let transcode_queue_inner = transcode_queue.clone();
@@ -77,7 +80,7 @@ async fn main() -> Result<(), IoError> {
             break;
         }
     });
-    run_worker(transcode_queue_inner, rx).await?;
+    run_worker(transcode_queue_inner, rx, config).await?;
 
     stop_worker.store(true, Ordering::Relaxed);
     let _ = handle.join();
