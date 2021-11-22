@@ -129,7 +129,7 @@ impl CommandWorker {
         }
     }
 
-    pub fn run(&mut self, _worker_manager: &mut Arc<Mutex<WorkerManager>>) {}
+    pub fn run(&mut self, worker_manager: &mut Arc<Mutex<WorkerManager>>) {}
 }
 
 ///This enum is required to create a queue of tasks independent of task type
