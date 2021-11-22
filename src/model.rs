@@ -18,7 +18,7 @@ pub struct NewGeneric {
 
 impl NewGeneric {
     pub fn new(full_path: String, designation: i32, profile: Option<BasicProfile>) -> Self {
-        let mut temp = NewGeneric {
+        let mut new_generic = NewGeneric {
             full_path,
             designation,
             width: None,
@@ -30,14 +30,14 @@ impl NewGeneric {
         };
 
         if let Some(profile) = profile {
-            temp.width = Some(profile.width as i32);
-            temp.height = Some(profile.height as i32);
-            temp.framerate = Some(profile.framerate);
-            temp.length_time = Some(profile.length_time);
-            temp.resolution_standard = Some(profile.resolution_standard as i32);
-            temp.container = Some(profile.container as i32);
+            new_generic.width = Some(profile.width as i32);
+            new_generic.height = Some(profile.height as i32);
+            new_generic.framerate = Some(profile.framerate);
+            new_generic.length_time = Some(profile.length_time);
+            new_generic.resolution_standard = Some(profile.resolution_standard as i32);
+            new_generic.container = Some(profile.container as i32);
         }
-        temp
+        new_generic
     }
 }
 
@@ -62,7 +62,7 @@ pub struct GenericModel {
 impl GenericModel {
     ///Create an in memory generic from a database one
     pub fn from_generic(generic: Generic) -> GenericModel {
-        let mut temp = GenericModel {
+        let mut generic_model = GenericModel {
             generic_uid: generic.generic_uid.unwrap() as i32,
             full_path: generic.get_full_path(),
             designation: generic.designation as i32,
@@ -77,15 +77,15 @@ impl GenericModel {
         };
         if generic.current_profile.is_some() {
             let current_profile = generic.current_profile.to_owned().unwrap();
-            temp.width = Some(current_profile.width as i32);
-            temp.height = Some(current_profile.height as i32);
-            temp.framerate = Some(current_profile.framerate);
-            temp.length_time = Some(current_profile.length_time);
-            temp.resolution_standard = Some(current_profile.resolution_standard as i32);
-            temp.container = Some(current_profile.container as i32);
+            generic_model.width = Some(current_profile.width as i32);
+            generic_model.height = Some(current_profile.height as i32);
+            generic_model.framerate = Some(current_profile.framerate);
+            generic_model.length_time = Some(current_profile.length_time);
+            generic_model.resolution_standard = Some(current_profile.resolution_standard as i32);
+            generic_model.container = Some(current_profile.container as i32);
         }
 
-        temp
+        generic_model
     }
 
     ///Construct a profile from database fields

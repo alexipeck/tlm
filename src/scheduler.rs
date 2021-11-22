@@ -1,20 +1,8 @@
-use crate::{
-    config::{Config, Preferences},
-    database::establish_connection,
-    diesel::SaveChangesDsl,
-    generic::Generic,
-    manager::FileManager,
-    model::GenericModel,
-    profile::Profile,
-};
-use futures_channel::mpsc::UnboundedSender;
-use serde::{Deserialize, Serialize};
+use crate::{config::{Config, Preferences}, database::establish_connection, diesel::SaveChangesDsl, file_manager::FileManager, generic::Generic, model::GenericModel, worker_manager::{WorkerManager, WorkerMessage}};
 use tracing::{debug, error, info};
 
 use std::{
     collections::VecDeque,
-    path::PathBuf,
-    process::Command,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     sync::{Arc, Mutex},
     thread,
@@ -23,107 +11,6 @@ use std::{
 };
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
-
-#[derive(Debug)] //, Serialize, Deserialize
-pub struct Worker {
-    encode_queue: Arc<Mutex<VecDeque<Task>>>,
-    pub ws_tx: UnboundedSender<tokio_tungstenite::tungstenite::Message>,
-    //TODO: Store the HashMap/tx
-    //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
-    //NOTE: If this is running under a Docker container, it may have a random MAC address, so on reboot,
-    //    : becoming a new worker will probably mean the old one should be dropped after x amount of time.
-
-    //TODO: websocket connection handle
-}
-
-impl Worker {
-    pub fn new(
-        ws_tx: UnboundedSender<tokio_tungstenite::tungstenite::Message>,
-        encode_tasks: Arc<Mutex<VecDeque<Task>>>,
-        queue_capacity: u32,
-    ) -> Self {
-        let temp = Self {
-            encode_queue: Arc::new(Mutex::new(VecDeque::new())),
-            ws_tx,
-        };
-        for _ in 0..queue_capacity {
-            match encode_tasks.lock().unwrap().pop_front() {
-                Some(encode_task) => {
-                    temp.encode_queue
-                        .lock()
-                        .unwrap()
-                        .push_back(encode_task);
-                },
-                None => {info!("No encode tasks to send to the worker")},
-            }
-        }
-        temp
-    }
-
-    pub fn check_if_active(&mut self) {
-        //If the connection is active, do nothing.
-        //TODO: If something is wrong with the connection, close the connection server-side, making this worker unavailable, start timeout for removing the work assigned to the worker.
-        //    : If there's not enough work for other workers, immediately shift the encodes to other workers (put it back in the encode queue)
-    }
-}
-
-///Struct to represent a file encode task. This is needed so we can have an enum
-///that contains all types of task
-///This should probably handle it's current variables without having them passed
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Encode {
-    pub source_path: PathBuf,
-    pub future_filename: String,
-    pub encode_options: Vec<String>,
-    pub profile: Profile,
-}
-
-impl Encode {
-    pub fn new(
-        source_path: PathBuf,
-        future_filename: String,
-        encode_options: Vec<String>,
-        profile: Profile,
-    ) -> Self {
-        Encode {
-            source_path,
-            future_filename,
-            encode_options,
-            profile,
-        }
-    }
-
-    ///Run the encode TODO: Make this task asynchronous, allow offloading to worker machine
-    //TODO: This will need to use the link to the worker
-    pub fn send_to_worker(&mut self) {
-        //share credentials will have to be handled on the worker side
-        if !self.source_path.exists() {
-            //TODO: mark this Encode Task as failed because "file not found", change it to a
-            //      state where it can be stored, then manually fixed before being restarted,
-            return;
-        }
-        //TODO: Have the worker send a message to the server if it can't access the file
-    }
-
-    pub fn run(&mut self) {
-        info!(
-            "Encoding file \'{}\'",
-            Generic::get_filename_from_pathbuf(self.source_path.clone())
-        );
-
-        let _buffer = Command::new("ffmpeg")
-            .args(&self.encode_options.clone())
-            .output()
-            .unwrap_or_else(|err| {
-                error!("Failed to execute ffmpeg process. Err: {}", err);
-                panic!();
-            });
-
-        //only uncomment if you want disgusting output
-        //should be error, but from ffmpeg, stderr mostly consists of stdout information
-        //print(Verbosity::DEBUG, "generic", "encode", format!("{}", String::from_utf8_lossy(&buffer.stderr).to_string()));
-    }
-}
 
 ///Struct to represent a file import task. This is needed so we can have an enum
 ///that contains all types of task
@@ -230,13 +117,28 @@ impl Default for Hash {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct CommandWorker {
+    worker_message: WorkerMessage,
+}
+
+impl CommandWorker {
+    pub fn new(worker_message: WorkerMessage) -> Self {
+        Self {
+            worker_message,
+        }
+    }
+
+    pub fn run(&mut self, worker_manager: &mut Arc<Mutex<WorkerManager>>) {}
+}
+
 ///This enum is required to create a queue of tasks independent of task type
 #[derive(Clone, Debug)]
 pub enum TaskType {
-    Encode(Encode),
     ImportFiles(ImportFiles),
     ProcessNewFiles(ProcessNewFiles),
     Hash(Hash),
+    CommandWorker(CommandWorker),
 }
 
 ///Task struct that will later be in the database with a real id so that the queue
@@ -260,15 +162,10 @@ impl Task {
     pub fn handle_task(
         &mut self,
         file_manager: &mut FileManager,
+        worker_manager: &mut Arc<Mutex<WorkerManager>>,
         preferences: &Preferences,
     ) -> Option<TaskReturnAsync> {
         match &mut self.task_type {
-            TaskType::Encode(encode) => {
-                //TODO: Start tracking a the worker that will be assigned to an encode (includes next in queue), if it isn't already
-                //TODO: If the Task is added as the next in line encode for the worker, change it's status to "waiting for encode"
-                //TODO:
-                encode.send_to_worker();
-            }
             TaskType::ImportFiles(import_files) => {
                 import_files.run(file_manager);
             }
@@ -285,6 +182,9 @@ impl Task {
                     }
                 }
                 return Some(hash.run(current_content));
+            }
+            TaskType::CommandWorker(command_worker) => {
+                command_worker.run(worker_manager);
             }
         }
         None
@@ -309,7 +209,7 @@ pub struct Scheduler {
     pub file_manager: FileManager,
     pub tasks: Arc<Mutex<VecDeque<Task>>>,
     pub encode_tasks: Arc<Mutex<VecDeque<Task>>>,
-    pub active_workers: Arc<Mutex<Vec<Worker>>>,
+    pub worker_manager: Arc<Mutex<WorkerManager>>,
     pub config: Config,
     pub input_completed: Arc<AtomicBool>,
 }
@@ -319,7 +219,7 @@ impl Scheduler {
         config: Config,
         tasks: Arc<Mutex<VecDeque<Task>>>,
         encode_tasks: Arc<Mutex<VecDeque<Task>>>,
-        active_workers: Arc<Mutex<Vec<Worker>>>,
+        worker_manager: Arc<Mutex<WorkerManager>>,
         input_completed: Arc<AtomicBool>,
     ) -> Self {
         Self {
@@ -327,7 +227,7 @@ impl Scheduler {
             encode_tasks,
             file_manager: FileManager::new(&config),
             config,
-            active_workers,
+            worker_manager,
             input_completed,
         }
     }
@@ -358,8 +258,10 @@ impl Scheduler {
 
             //Take each completed thread and join it
             for i in completed_threads {
-                let _handle = handles[i].handle.take();
-                _handle.unwrap().join();
+                let handle = handles[i].handle.take();
+                if let Err(err) = handle.unwrap().join() {
+                    error!("{:?}", err);
+                }
                 handles.remove(i);
             }
             {
@@ -382,7 +284,7 @@ impl Scheduler {
                 task = tasks.pop_front().unwrap();
             }
 
-            let result = task.handle_task(&mut self.file_manager, preferences);
+            let result = task.handle_task(&mut self.file_manager, &mut self.worker_manager, preferences);
             if let Some(handle) = result {
                 handles.push(handle);
             }

@@ -1,6 +1,6 @@
 //!Set of functions and structures to make is easier to handle the config file
 //!and command line arguments
-use crate::manager::TrackedDirectories;
+use crate::file_manager::TrackedDirectories;
 use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
 use directories::BaseDirs;
 use fancy_regex::Regex;

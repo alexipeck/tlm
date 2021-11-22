@@ -53,7 +53,7 @@ impl Generic {
             return self.hash.as_ref().unwrap().as_str() == sea_hash(path).as_str();
         } else {
             warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
-            return true;
+            true
         }
     }
 
@@ -63,7 +63,7 @@ impl Generic {
             return self.fast_hash.as_ref().unwrap().as_str() == sea_fast_hash(path).as_str();
         } else {
             warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
-            return true;
+            true
         }
     }
 
