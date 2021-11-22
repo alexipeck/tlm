@@ -191,6 +191,11 @@ pub async fn run_web(
         }
     }
 
+    //Close all websocket connection gracefully before exit
+    for (_, tx) in &mut *state.lock().unwrap() {
+        tx.start_send(Message::Close(None));
+    }
+
     Ok(())
 }
 
@@ -201,7 +206,11 @@ pub async fn run_worker(
 ) -> Result<(), IoError> {
     let url = url::Url::parse(&config.to_string()).unwrap();
 
-    let (ws_stream, _) = connect_async(url).await.expect("Failed to connect");
+    let ws_stream;
+    match connect_async(url).await {
+        Ok((stream, _)) => ws_stream = stream,
+        Err(_) => return Ok(()),
+    }
     info!("WebSocket handshake has been successfully completed");
 
     let (write, read) = ws_stream.split();
@@ -209,7 +218,12 @@ pub async fn run_worker(
     let ws_to_stdout = {
         read.for_each(|message| async {
             //TODO: Handle inputs (likely shared memory or another mpsc)
-            let data = message.unwrap().into_data();
+            let message = message.unwrap();
+            if message.is_close() {
+                info!("Server has disconnected voluntarily");
+                return;
+            }
+            let data = message.into_data();
             let message_result = bincode::deserialize::<WorkerMessage>(&data);
             match message_result {
                 Ok(message) => {
@@ -218,7 +232,7 @@ pub async fn run_worker(
                     }
                 }
                 Err(err) => {
-                    error!("Recieved malformed message: {}", err);
+                    error!("{}", err);
                 }
             }
         })
