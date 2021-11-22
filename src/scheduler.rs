@@ -1,12 +1,4 @@
-use crate::{
-    config::{Config, Preferences},
-    database::establish_connection,
-    diesel::SaveChangesDsl,
-    generic::Generic,
-    file_manager::FileManager,
-    model::GenericModel,
-    profile::Profile,
-};
+use crate::{config::{Config, Preferences}, database::establish_connection, diesel::SaveChangesDsl, file_manager::FileManager, generic::Generic, model::GenericModel, profile::Profile, worker_manager::{WorkerManager, WorkerMessage}};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
@@ -225,6 +217,21 @@ impl Default for Hash {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct CommandWorker {
+    worker_message: WorkerMessage,
+}
+
+impl CommandWorker {
+    pub fn new(worker_message: WorkerMessage) -> Self {
+        Self {
+            worker_message,
+        }
+    }
+
+    pub fn run(&mut self, worker_manager: &mut Arc<Mutex<WorkerManager>>) {}
+}
+
 ///This enum is required to create a queue of tasks independent of task type
 #[derive(Clone, Debug)]
 pub enum TaskType {
@@ -232,6 +239,7 @@ pub enum TaskType {
     ImportFiles(ImportFiles),
     ProcessNewFiles(ProcessNewFiles),
     Hash(Hash),
+    CommandWorker(CommandWorker),
 }
 
 ///Task struct that will later be in the database with a real id so that the queue
@@ -255,6 +263,7 @@ impl Task {
     pub fn handle_task(
         &mut self,
         file_manager: &mut FileManager,
+        worker_manager: &mut Arc<Mutex<WorkerManager>>,
         preferences: &Preferences,
     ) -> Option<TaskReturnAsync> {
         match &mut self.task_type {
@@ -281,6 +290,9 @@ impl Task {
                 }
                 return Some(hash.run(current_content));
             }
+            TaskType::CommandWorker(command_worker) => {
+                command_worker.run(worker_manager);
+            }
         }
         None
     }
@@ -304,7 +316,7 @@ pub struct Scheduler {
     pub file_manager: FileManager,
     pub tasks: Arc<Mutex<VecDeque<Task>>>,
     pub encode_tasks: Arc<Mutex<VecDeque<Task>>>,
-    pub active_workers: Arc<Mutex<Vec<Worker>>>,
+    pub worker_manager: Arc<Mutex<WorkerManager>>,
     pub config: Config,
     pub input_completed: Arc<AtomicBool>,
 }
@@ -314,7 +326,7 @@ impl Scheduler {
         config: Config,
         tasks: Arc<Mutex<VecDeque<Task>>>,
         encode_tasks: Arc<Mutex<VecDeque<Task>>>,
-        active_workers: Arc<Mutex<Vec<Worker>>>,
+        worker_manager: Arc<Mutex<WorkerManager>>,
         input_completed: Arc<AtomicBool>,
     ) -> Self {
         Self {
@@ -322,7 +334,7 @@ impl Scheduler {
             encode_tasks,
             file_manager: FileManager::new(&config),
             config,
-            active_workers,
+            worker_manager,
             input_completed,
         }
     }
@@ -377,7 +389,7 @@ impl Scheduler {
                 task = tasks.pop_front().unwrap();
             }
 
-            let result = task.handle_task(&mut self.file_manager, preferences);
+            let result = task.handle_task(&mut self.file_manager, &mut self.worker_manager, preferences);
             if let Some(handle) = result {
                 handles.push(handle);
             }
