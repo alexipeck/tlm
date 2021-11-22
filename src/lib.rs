@@ -3,7 +3,7 @@ pub mod config;
 pub mod database;
 pub mod designation;
 pub mod generic;
-pub mod manager;
+pub mod file_manager;
 pub mod model;
 pub mod profile;
 pub mod scheduler;

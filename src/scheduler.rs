@@ -3,7 +3,7 @@ use crate::{
     database::establish_connection,
     diesel::SaveChangesDsl,
     generic::Generic,
-    manager::FileManager,
+    file_manager::FileManager,
     model::GenericModel,
     profile::Profile,
 };
