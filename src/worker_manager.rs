@@ -1,15 +1,10 @@
 use crate::{generic::Generic, profile::Profile};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::VecDeque,
-    path::PathBuf,
-    process::Command,
-    sync::{
+use std::{collections::VecDeque, path::PathBuf, process::{Child, Command}, sync::{
         atomic::{AtomicUsize, Ordering},
         Arc, Mutex, RwLock,
-    },
-};
+    }};
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{error, info};
 
@@ -41,23 +36,13 @@ impl Encode {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(self, handle: Arc<RwLock<Option<Child>>>) {
         info!(
             "Encoding file \'{}\'",
             Generic::get_filename_from_pathbuf(self.source_path.clone())
         );
 
-        let _buffer = Command::new("ffmpeg")
-            .args(&self.encode_options.clone())
-            .output()
-            .unwrap_or_else(|err| {
-                error!("Failed to execute ffmpeg process. Err: {}", err);
-                panic!();
-            });
-
-        //only uncomment if you want disgusting output
-        //should be error, but from ffmpeg, stderr mostly consists of stdout information
-        //print(Verbosity::DEBUG, "generic", "encode", format!("{}", String::from_utf8_lossy(&buffer.stderr).to_string()));
+        let _ = handle.write().unwrap().insert(Command::new("ffmpeg").args(&self.encode_options).spawn().unwrap());
     }
 }
 
@@ -83,6 +68,7 @@ impl Worker {
     }
 
     pub fn spaces_in_queue(&mut self) -> usize {
+        //TODO: Make queue capacity come from the config file
         2 - self.transcode_queue.read().unwrap().len()
     }
 
@@ -144,7 +130,7 @@ impl Worker {
             .push_back(encode.clone());
 
         //Sends the encode to the worker
-        self.send_message_to_worker(WorkerMessage::for_encode(encode));
+        self.send_message_to_worker(WorkerMessage::for_encode(encode, AddEncodeMode::Back));
     }
 
     pub fn check_if_active(&mut self) {
@@ -205,21 +191,166 @@ impl WorkerManager {
     pub fn send_command_to_all_workers(&mut self) {}
 }
 
-#[allow(dead_code)]
+pub struct WorkerTranscodeQueue {
+    pub current_transcode: RwLock<Option<Encode>>,
+    pub current_transcode_handle: Arc<RwLock<Option<Child>>>,
+    pub transcode_queue: RwLock<VecDeque<Encode>>,
+}
+
+impl WorkerTranscodeQueue {
+    pub fn default() -> Self {
+        Self {
+            current_transcode: RwLock::new(None),
+            current_transcode_handle: Arc::new(RwLock::new(None)),
+            transcode_queue: RwLock::new(VecDeque::new()),
+        }
+    }
+
+    //Current handle control
+    ///Kills the currently running encode and removes the handle
+    fn kill_current_transcode_process(&mut self) {
+        let handle = self.current_transcode_handle.write().unwrap().take();
+        if let Some(mut handle) = handle {
+            match handle.kill() {
+                Ok(_) => {
+                    info!("Killed the currently running transcode.");
+                },
+                Err(err) => {
+                    error!("{}", err);
+                },
+            }
+        }
+    }
+
+    fn handle_is_some(&self) -> bool {
+        self.current_transcode_handle.read().unwrap().is_some()
+    }
+
+    fn handle_is_none(&self) -> bool {
+        self.current_transcode_handle.read().unwrap().is_none()
+    }
+
+
+    //Current transcode control
+    fn current_transcode_is_some(&self) -> bool {
+        self.current_transcode.read().unwrap().is_some()
+    }
+
+    fn current_transcode_is_none(&self) -> bool {
+        self.current_transcode.read().unwrap().is_none()
+    }
+
+
+    ///If the queue is at capacity, it will yield an error
+    pub fn check_queue_capacity(&mut self) {
+        if self.transcode_queue.read().unwrap().len() > 2 {
+            error!("The transcode queue is at capacity, an transcode shouldn't have been sent, adding anyway.");
+        }
+    }
+
+    fn start_current_transcode_if_some(&mut self) {
+        if self.current_transcode_is_some() {
+            if self.handle_is_some() {
+                self.kill_current_transcode_process();
+            }
+            self.current_transcode.write().unwrap().clone().unwrap().run(self.current_transcode_handle.clone());
+        } else {
+            println!("There is no transcode available to start.");
+        }
+    }
+
+    pub fn run_transcode(&mut self) {
+        //Check the state of the current encode/handle
+        if self.current_transcode_is_some() {
+            if self.handle_is_some() {
+                error!("There is already an transcode running");
+                return
+            } else {
+                //TODO: Need to check the safety of this
+                println!("There is already an transcode running, but has no handle. This transcode will be overwritten");
+            }
+        }
+
+        //Add a transcode current if there isn't one already there
+        //Assigns current_transcode an 
+        if self.make_transcode_current() {
+            self.start_current_transcode_if_some();
+
+            if self.handle_is_some() {
+                let output = self.current_transcode_handle.clone().write().unwrap().take().unwrap().wait_with_output().unwrap_or_else(|err| {
+                    error!("Failed to execute ffmpeg process. Err: {}", err);
+                    panic!();
+                });
+
+                //only uncomment if you want disgusting output
+                //should be error, but from ffmpeg, stderr mostly consists of stdout information
+                error!("{}", String::from_utf8_lossy(&output.stderr).to_string());
+            }
+        }
+    }
+
+    ///Makes a transcode current if there isn't one already there
+    ///Returns true if there is a transcode ready to go after this function has run
+    fn make_transcode_current(&mut self) -> bool {
+        if self.current_transcode_is_none() {
+            match self.transcode_queue.write().unwrap().pop_front() {
+                Some(encode) => {
+                    let _ = self.current_transcode.write().unwrap().insert(encode);
+                },
+                None => {
+                    println!("There were no transcodes available to make current");
+                }
+            }
+        }
+
+        self.current_transcode_is_some()
+    }
+
+    ///Swaps out passed in encode for the currently running one and moved it to the front of the queue
+    fn replace_current_encode(&mut self, encode: Encode) {
+        if let Some(current_encode) = self.current_transcode.write().unwrap().replace(encode) {
+            self.transcode_queue.write().unwrap().push_front(current_encode);
+        }
+    }
+
+    pub fn add_encode(&mut self, encode: (Encode, AddEncodeMode)) {
+        let (encode, add_encode_mode) = encode;
+        match add_encode_mode {
+            AddEncodeMode::Back => {
+                self.check_queue_capacity();
+                self.transcode_queue.write().unwrap().push_back(encode);
+            },
+            AddEncodeMode::Next => {
+                self.check_queue_capacity();
+                self.transcode_queue.write().unwrap().push_front(encode);
+            },
+            
+            AddEncodeMode::NowBasic => {
+                //Kill currently running encode and remove the handle
+                self.kill_current_transcode_process();
+
+                //Push the currently running encode back to the front of the queue if there is one running
+                self.replace_current_encode(encode);
+
+                //TODO: Trigger encode start
+                //TODO: Store new handle
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-enum WorkerMessageType {
-    Command,
-    Notification,
-    AddEncode,
-    Unknown,
+pub enum AddEncodeMode {
+    Back,
+    Next,
+    NowBasic,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerMessage {
     //identifier: String,
     pub text: Option<String>,
-    pub encode: Option<Encode>,
-    message_type: WorkerMessageType,
+    pub encode: Option<(Encode, AddEncodeMode)>,
 }
 
 impl WorkerMessage {
@@ -227,7 +358,6 @@ impl WorkerMessage {
         Self {
             text: Some(text),
             encode: None,
-            message_type: WorkerMessageType::Unknown,
         }
     }
     //do something else, like shutdown, cancel current encode, flush queue, switch to running a specific encode (regardless of progress)
@@ -237,11 +367,10 @@ impl WorkerMessage {
         WorkerMessage::text(text)
     }
 
-    pub fn for_encode(encode: Encode) -> Self {
+    pub fn for_encode(encode: Encode, encode_add_mode: AddEncodeMode) -> Self {
         Self {
             text: None,
-            encode: Some(encode),
-            message_type: WorkerMessageType::Unknown,
+            encode: Some((encode, encode_add_mode)),
         }
     }
 

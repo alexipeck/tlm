@@ -1,14 +1,12 @@
 use directories::BaseDirs;
-use std::collections::VecDeque;
+use tlm::worker_manager::WorkerTranscodeQueue;
 use std::env;
 use std::io::stdout;
 use std::io::Error as IoError;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}, RwLock};
 use std::thread;
 use std::{thread::sleep, time::Duration};
 use tlm::config::WorkerConfig;
-use tlm::worker_manager::Encode;
 use tlm::ws::run_worker;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tracing::{debug, error, warn, Level};
@@ -59,7 +57,7 @@ async fn main() -> Result<(), IoError> {
     let config = WorkerConfig::new(base_dirs.config_dir().join("tlm/tlm_worker.config"));
 
     loop {
-        let transcode_queue: Arc<Mutex<VecDeque<Encode>>> = Arc::new(Mutex::new(VecDeque::new()));
+        let transcode_queue: Arc<RwLock<WorkerTranscodeQueue>> = Arc::new(RwLock::new(WorkerTranscodeQueue::default()));
         let stop_worker = Arc::new(AtomicBool::new(false));
         let transcode_queue_inner = transcode_queue.clone();
         let stop_worker_inner = stop_worker.clone();
@@ -70,10 +68,7 @@ async fn main() -> Result<(), IoError> {
         //TODO: Don't create this thread until we actually have a websocket established
         //Alternatively, don't worry about it, it isn't really a problem as it is currently
         let handle = thread::spawn(move || loop {
-            let mut current_transcode = transcode_queue.lock().unwrap().pop_front();
-            if current_transcode.is_some() {
-                current_transcode.as_mut().unwrap().run();
-            }
+            transcode_queue.write().unwrap().run_transcode();
             sleep(Duration::new(1, 0));
             if let Err(err) = tx.start_send(Message::Text("test_message".to_string())) {
                 warn!("Failed to send message. Server is likely closed");
@@ -86,9 +81,11 @@ async fn main() -> Result<(), IoError> {
             }
         });
         run_worker(transcode_queue_inner, rx, config.clone()).await?;
-
-        stop_worker.store(true, Ordering::Relaxed);
+        
         let _ = handle.join();
+        if stop_worker.load(Ordering::Relaxed) {
+            break;
+        }
     }
     Ok(())
 }

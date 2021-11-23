@@ -1,13 +1,9 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
-use std::collections::VecDeque;
+use std::{collections::VecDeque, sync::RwLock};
 use tracing::{debug, error, info, warn};
 
-use crate::{
-    config::WorkerConfig,
-    scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
-    worker_manager::{Encode, WorkerManager, WorkerMessage},
-};
+use crate::{config::WorkerConfig, scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType}, worker_manager::{WorkerManager, WorkerMessage, WorkerTranscodeQueue}};
 
 use std::{
     collections::HashMap,
@@ -19,7 +15,7 @@ use std::{
 use tokio_tungstenite::connect_async;
 
 use futures_channel::mpsc::{unbounded, UnboundedSender};
-use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
+use futures_util::{StreamExt, future, pin_mut, stream::TryStreamExt};
 
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
@@ -200,7 +196,7 @@ pub async fn run_web(
 }
 
 pub async fn run_worker(
-    transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
+    transcode_queue: Arc<RwLock<WorkerTranscodeQueue>>,
     rx: futures_channel::mpsc::UnboundedReceiver<Message>,
     config: WorkerConfig,
 ) -> Result<(), IoError> {
@@ -221,13 +217,16 @@ pub async fn run_worker(
             let message = message.unwrap();
             if message.is_close() {
                 info!("Server has disconnected voluntarily");
+                //stop_worker.store(true, Ordering::Relaxed);
                 return;
             }
             let data = message.into_data();
             let message_result = bincode::deserialize::<WorkerMessage>(&data);
             match message_result {
                 Ok(message) => {
-                    if message.text.is_some() {
+                    if message.encode.is_some() {
+                        transcode_queue.write().unwrap().add_encode(message.encode.unwrap())
+                    } else if message.text.is_some() {
                         debug!("{}", message.text.unwrap());
                     }
                 }
