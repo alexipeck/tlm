@@ -1,13 +1,6 @@
 //!A struct for managing all types of media that are stored in ram as well as
 //!Functionality to import files. This is mostly used in the scheduler
-use crate::{
-    config::{Preferences, ServerConfig},
-    database::*,
-    designation::Designation,
-    generic::Generic,
-    model::{NewEpisode, NewGeneric},
-    show::{Episode, Show},
-};
+use crate::{config::{Preferences, ServerConfig}, database::*, designation::Designation, generic::Generic, model::{NewEpisode, NewGeneric}, show::{Episode, Show}};
 extern crate derivative;
 use derivative::Derivative;
 use diesel::pg::PgConnection;
@@ -16,9 +9,10 @@ use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::{hash::{Hash, Hasher}, ops::Index};
 use std::{collections::HashSet, fmt, path::PathBuf};
 use tracing::{debug, info, trace};
+use rand::{Rng, thread_rng};
 
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -93,8 +87,8 @@ pub struct FileManager {
 }
 
 impl FileManager {
-    pub fn new(config: &ServerConfig) -> FileManager {
-        let mut file_manager = FileManager {
+    pub fn new(config: &ServerConfig) -> Self {
+        let mut file_manager = Self {
             config: config.clone(),
             shows: get_all_shows(),
             generic_files: Vec::new(),
@@ -111,6 +105,13 @@ impl FileManager {
         file_manager.add_show_episodes_to_hashset();
 
         file_manager
+    }
+
+    pub fn pick_random_generic(&self) -> Option<Generic> {
+        if !self.generic_files.is_empty() {
+            return Some(self.generic_files.index(thread_rng().gen_range(0..self.generic_files.len())).clone());
+        }
+        None        
     }
 
     ///Takes all loaded episodes and add them to the hashset of
@@ -203,7 +204,7 @@ impl FileManager {
             new_generics.push(NewGeneric::new(
                 String::from(generic.full_path.to_str().unwrap()),
                 generic.designation as i32,
-                generic.current_profile,
+                None,
             ));
         }
 
@@ -333,20 +334,20 @@ impl FileManager {
             }
         }
 
-        if reason.is_none() {
-            if self.existing_files_hashset.insert(path.clone()) {
-                self.new_files_queue.push(path);
+        if let Some(reason) = reason {
+            if store_reasons {
+                trace!(
+                    "Rejected {} for {}",
+                    path.to_str().unwrap(),
+                    reason
+                );
+                self.rejected_files.insert(PathBufReason {
+                    pathbuf: path,
+                    reason,
+                });
             }
-        } else if store_reasons {
-            trace!(
-                "Rejected {} for {}",
-                path.to_str().unwrap(),
-                reason.clone().unwrap()
-            );
-            self.rejected_files.insert(PathBufReason {
-                pathbuf: path,
-                reason: reason.unwrap(),
-            });
+        } else if self.existing_files_hashset.insert(path.clone()) {
+            self.new_files_queue.push(path);
         }
     }
 

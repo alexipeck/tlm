@@ -1,13 +1,9 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
-use std::collections::VecDeque;
+use std::{collections::VecDeque, io::Write, sync::RwLock};
 use tracing::{debug, error, info, warn};
 
-use crate::{
-    config::WorkerConfig,
-    scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
-    worker_manager::{Encode, WorkerManager, WorkerMessage},
-};
+use crate::{config::WorkerConfig, file_manager::FileManager, scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType}, worker_manager::{Encode, WorkerManager, WorkerMessage, WorkerTranscodeQueue}};
 
 use std::{
     collections::HashMap,
@@ -19,7 +15,7 @@ use std::{
 use tokio_tungstenite::connect_async;
 
 use futures_channel::mpsc::{unbounded, UnboundedSender};
-use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
+use futures_util::{StreamExt, future, pin_mut, stream::TryStreamExt};
 
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
@@ -33,6 +29,7 @@ async fn handle_web_connection(
     raw_stream: TcpStream,
     addr: SocketAddr,
     tasks: Arc<Mutex<VecDeque<Task>>>,
+    file_manager: Arc<Mutex<FileManager>>,
     worker_manager: Arc<Mutex<WorkerManager>>,
 ) {
     info!("Incoming TCP connection from: {}", addr);
@@ -81,13 +78,25 @@ async fn handle_web_connection(
                 ))),
             "initialise_worker" => {
                 if true {
-                    worker_manager.lock().unwrap().add_worker(tx.clone(), 2);
+                    worker_manager.lock().unwrap().add_worker(tx.clone());
                 }
             }
             "test_message" => {
-                info!("Received test message from worker");
+                //info!("Received test message from worker");
             }
             //TODO: Encode message needs a UID for transcoding a specific generic/episode
+            "transcode" => {
+                match file_manager.lock().unwrap().pick_random_generic() {
+                    Some(generic) => {
+                        let encode: Encode = Encode::new(generic.full_path.clone(), generic.generate_target_path(), generic.generate_encode_string());
+                        worker_manager.lock().unwrap().send_encode_to_next_available_worker(encode);
+                        info!("Setting up generic for transcode");
+                    },
+                    None => {
+                        info!("No generics available to transcode");
+                    },
+                }
+            }
             //"encode" => encode_tasks.lock().unwrap().push_back(Task::new(TaskType::Encode(Encode::new())))
             _ => warn!("{} is not a valid input", message),
         }
@@ -107,6 +116,7 @@ async fn handle_web_connection(
 pub async fn run_web(
     port: u16,
     tasks: Arc<Mutex<VecDeque<Task>>>,
+    file_manager: Arc<Mutex<FileManager>>,
     worker_manager: Arc<Mutex<WorkerManager>>,
 ) -> Result<(), IoError> {
     let addr_ipv4 = env::args()
@@ -162,10 +172,10 @@ pub async fn run_web(
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_manager.clone()));
                 }
                 Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_manager.clone()));
                 }
             }
         } else if is_listening_ipv4 {
@@ -175,7 +185,7 @@ pub async fn run_web(
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_manager.clone()));
                 }
             }
         } else {
@@ -185,23 +195,32 @@ pub async fn run_web(
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_manager.clone()));
                 }
             }
         }
+    }
+
+    //Close all websocket connection gracefully before exit
+    for (_, tx) in &mut *state.lock().unwrap() {
+        let _ = tx.start_send(Message::Close(None));
     }
 
     Ok(())
 }
 
 pub async fn run_worker(
-    transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
+    transcode_queue: Arc<RwLock<WorkerTranscodeQueue>>,
     rx: futures_channel::mpsc::UnboundedReceiver<Message>,
     config: WorkerConfig,
 ) -> Result<(), IoError> {
     let url = url::Url::parse(&config.to_string()).unwrap();
 
-    let (ws_stream, _) = connect_async(url).await.expect("Failed to connect");
+    let ws_stream;
+    match connect_async(url).await {
+        Ok((stream, _)) => ws_stream = stream,
+        Err(_) => return Ok(()),
+    }
     info!("WebSocket handshake has been successfully completed");
 
     let (write, read) = ws_stream.split();
@@ -209,16 +228,24 @@ pub async fn run_worker(
     let ws_to_stdout = {
         read.for_each(|message| async {
             //TODO: Handle inputs (likely shared memory or another mpsc)
-            let data = message.unwrap().into_data();
+            let message = message.unwrap();
+            if message.is_close() {
+                info!("Server has disconnected voluntarily");
+                //stop_worker.store(true, Ordering::Relaxed);
+                return;
+            }
+            let data = message.into_data();
             let message_result = bincode::deserialize::<WorkerMessage>(&data);
             match message_result {
                 Ok(message) => {
-                    if message.text.is_some() {
+                    if message.encode.is_some() {
+                        transcode_queue.write().unwrap().add_encode(message.encode.unwrap())
+                    } else if message.text.is_some() {
                         debug!("{}", message.text.unwrap());
                     }
                 }
                 Err(err) => {
-                    error!("Recieved malformed message: {}", err);
+                    error!("{}", err);
                 }
             }
         })

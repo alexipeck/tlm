@@ -1,12 +1,7 @@
 extern crate diesel;
 
 use directories::BaseDirs;
-use tlm::{
-    config::{Preferences, ServerConfig},
-    scheduler::{Scheduler, Task},
-    worker_manager::WorkerManager,
-    ws::run_web,
-};
+use tlm::{config::{Preferences, ServerConfig}, file_manager::FileManager, scheduler::{Scheduler, Task}, worker_manager::WorkerManager, ws::run_web};
 
 use std::collections::VecDeque;
 use std::env;
@@ -71,12 +66,14 @@ async fn main() -> Result<(), IoError> {
 
     let encode_tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
     let worker_manager: Arc<Mutex<WorkerManager>> = Arc::new(Mutex::new(WorkerManager::default()));
+    let file_manager: Arc<Mutex<FileManager>> = Arc::new(Mutex::new(FileManager::new(&config)));
 
     let stop_scheduler = Arc::new(AtomicBool::new(false));
     let mut scheduler: Scheduler = Scheduler::new(
         config.clone(),
         tasks.clone(),
         encode_tasks,
+        file_manager.clone(),
         worker_manager.clone(),
         stop_scheduler.clone(),
     );
@@ -90,7 +87,7 @@ async fn main() -> Result<(), IoError> {
     });
 
     if !preferences.disable_input {
-        run_web(config.port, tasks, worker_manager).await?;
+        run_web(config.port, tasks, file_manager, worker_manager).await?;
     }
 
     stop_scheduler.store(true, Ordering::Relaxed);

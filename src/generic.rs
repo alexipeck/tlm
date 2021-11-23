@@ -9,7 +9,8 @@ use std::{
 use std::fmt;
 use std::hash::Hasher;
 
-use crate::profile::BasicProfile;
+use crate::profile::Profile;
+use crate::worker_manager::Encode;
 use crate::{
     designation::{convert_i32_to_designation, Designation},
     model::*,
@@ -25,7 +26,7 @@ pub struct Generic {
     pub designation: Designation,
     pub hash: Option<String>,
     pub fast_hash: Option<String>,
-    pub current_profile: Option<BasicProfile>,
+    pub profile: Option<Profile>,
     //pub profile: Option<Profile>,
 }
 
@@ -37,7 +38,7 @@ impl Generic {
             generic_uid: None,
             hash: None,
             fast_hash: None,
-            current_profile: BasicProfile::from_file(raw_filepath.to_path_buf()),
+            profile: None,
         }
     }
 
@@ -45,6 +46,12 @@ impl Generic {
     /// know if a file has been replaced and may need to be reprocessed
     pub fn hash(&mut self) {
         self.hash = Some(sea_hash(self.full_path.clone()));
+    }
+
+    pub fn generate_basic_profile(&mut self) {
+        if self.profile.is_none() {
+            self.profile = Some(Profile::new(&self.full_path));
+        }
     }
 
     ///Returns true if hashes match, false if not
@@ -65,6 +72,14 @@ impl Generic {
             warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
             true
         }
+    }
+
+    //TODO: have this stored in the DB so it won't have to be regenerated each session
+    pub fn get_profile(&self) -> Profile {
+        if let Some(profile) = self.profile {
+            return profile;
+        }
+        Profile::new(&self.full_path)
     }
 
     ///Hash the first 32MB of the file with seahash so we can quickly know
@@ -93,40 +108,53 @@ impl Generic {
             generic_uid: Some(generic_uid_temp as usize),
             hash: generic_model.file_hash.to_owned(),
             fast_hash: generic_model.fast_file_hash.to_owned(),
-            current_profile: generic_model.get_basic_profile(),
+            profile: generic_model.get_basic_profile(),
+        }
+    }
+
+    pub fn generate_encode(&self) -> Encode {
+        Encode {
+            source_path: self.full_path.clone(),
+            future_filename: self.generate_target_path(),
+            encode_options: self.generate_encode_string(),
         }
     }
 
     ///Returns a vector of ffmpeg arguments for later execution
     ///This has no options currently
-    #[allow(dead_code)]
-    fn generate_encode_string(&self) -> Vec<String> {
-        return vec![
+    pub fn generate_encode_string(&self) -> Vec<String> {
+        let mut encode_string = vec![
             "-i".to_string(),
             self.get_full_path(),
-            "-c:v".to_string(),
-            "libx265".to_string(),
-            "-crf".to_string(),
-            "25".to_string(),
-            "-preset".to_string(),
-            "slower".to_string(),
-            "-profile:v".to_string(),
-            "main".to_string(),
-            "-c:a".to_string(),
-            "aac".to_string(),
-            "-q:a".to_string(),
-            "224k".to_string(),
-            "-y".to_string(),
-            self.generate_target_path(),
         ];
+
+        //Video
+        encode_string.push("-c:v".to_string());
+        encode_string.push("libx265".to_string());
+        encode_string.push("-crf".to_string());
+        encode_string.push("25".to_string());
+        encode_string.push("-preset".to_string());
+        encode_string.push("slower".to_string());
+        encode_string.push("-profile:v".to_string());
+        encode_string.push("main".to_string());
+
+        //Audio
+        encode_string.push("-c:a".to_string());
+        encode_string.push("aac".to_string());
+        encode_string.push("-q:a".to_string());
+        encode_string.push("224k".to_string());
+
+        encode_string.push("-y".to_string());
+        encode_string.push(self.generate_target_path());
+        encode_string
     }
 
     ///Appends a fixed string to differentiate rendered files from original before overwrite
     /// I doubt this will stay as I think a temp directory would be more appropriate.
     /// This function returns that as a string for the ffmpeg arguments
-    fn generate_target_path(&self) -> String {
+    pub fn generate_target_path(&self) -> String {
         return self
-            .get_full_path_with_suffix("_encodeH4U8".to_string())
+            .get_full_path_with_suffix("_temp_test_encode".to_string())
             .to_string_lossy()
             .to_string();
     }

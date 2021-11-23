@@ -4,7 +4,6 @@ use std::fmt;
 use std::process::Command;
 use std::str::from_utf8;
 use tracing::error;
-
 use std::path::PathBuf;
 
 ///Currently unused enum to allow filtering media by resolution standard
@@ -179,7 +178,7 @@ impl fmt::Display for BasicProfile {
 
 impl BasicProfile {
     ///Create profile from a pathbuf
-    pub fn from_file(path: PathBuf) -> Option<Self> {
+    pub fn from_file(path: &PathBuf) -> Option<Self> {
         let buffer;
         //linux & friends
         buffer = Command::new("mediainfo")
@@ -231,7 +230,7 @@ impl BasicProfile {
     }
 }
 
-#[derive(Clone, Debug, Copy, Serialize, Deserialize)]
+/* #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub struct ConversionProfile {
     //Video
     basic_profile: BasicProfile,
@@ -244,6 +243,19 @@ pub struct ConversionProfile {
     audio_samplerate: Option<u32>,
 }
 
+impl ConversionProfile {
+    pub fn new(basic_profile: BasicProfile, full_path: PathBuf) -> Self {
+        Self {
+            basic_profile,
+            video_codec: None,//TODO
+            video_birate: None,//TODO
+            audio_codec: None,//TODO
+            audio_bitrate: None,//TODO
+            audio_samplerate: None,//TODO
+        }
+    }
+} */
+
 ///Struct to store media information collected from media info
 ///which will then be used to filter media and to set ffmpeg flags
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
@@ -252,13 +264,24 @@ pub struct Profile {
     pub current_profile: BasicProfile,
 
     //Future
-    pub future_profile: ConversionProfile,
+    //pub future_profile: Option<ConversionProfile>,
 }
 
 impl Profile {
-    /* pub fn new() -> Self {
-        Self {
+    pub fn new(full_path: &PathBuf) -> Self {
+        if let Some(basic_profile) = BasicProfile::from_file(full_path) {
+            Self {
+                current_profile: basic_profile,
+                //future_profile: ConversionProfile::new(basic_profile, full_path),
+            }
+        } else {
+            panic!();
+        }   
+    }
 
+    pub fn from_basic_profile(basic_profile: BasicProfile) -> Self {
+        Self {
+            current_profile: basic_profile,
         }
-    } */
+    }
 }

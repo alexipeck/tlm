@@ -1,6 +1,6 @@
 use super::generic::Generic;
 use super::schema::{episode, generic, show};
-use crate::profile::{convert_i32_to_container, convert_i32_to_resolution_standard, BasicProfile};
+use crate::profile::{BasicProfile, Profile, convert_i32_to_container, convert_i32_to_resolution_standard};
 
 ///Struct for inserting into the database
 #[derive(Insertable)]
@@ -75,29 +75,29 @@ impl GenericModel {
             framerate: None,
             length_time: None,
         };
-        if generic.current_profile.is_some() {
-            let current_profile = generic.current_profile.to_owned().unwrap();
-            generic_model.width = Some(current_profile.width as i32);
-            generic_model.height = Some(current_profile.height as i32);
-            generic_model.framerate = Some(current_profile.framerate);
-            generic_model.length_time = Some(current_profile.length_time);
-            generic_model.resolution_standard = Some(current_profile.resolution_standard as i32);
-            generic_model.container = Some(current_profile.container as i32);
+        if generic.profile.is_some() {
+            let profile = generic.profile.to_owned().unwrap();
+            generic_model.width = Some(profile.current_profile.width as i32);
+            generic_model.height = Some(profile.current_profile.height as i32);
+            generic_model.framerate = Some(profile.current_profile.framerate);
+            generic_model.length_time = Some(profile.current_profile.length_time);
+            generic_model.resolution_standard = Some(profile.current_profile.resolution_standard as i32);
+            generic_model.container = Some(profile.current_profile.container as i32);
         }
 
         generic_model
     }
 
     ///Construct a profile from database fields
-    pub fn get_basic_profile(&self) -> Option<BasicProfile> {
-        Some(BasicProfile {
+    pub fn get_basic_profile(&self) -> Option<Profile> {
+        Some(Profile::from_basic_profile(BasicProfile {
             width: self.width? as u32,
             height: self.height? as u32,
             framerate: self.framerate?,
             length_time: self.length_time?,
             resolution_standard: convert_i32_to_resolution_standard(self.resolution_standard?),
             container: convert_i32_to_container(self.container?),
-        })
+        }))
     }
 }
 
