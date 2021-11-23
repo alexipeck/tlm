@@ -333,20 +333,20 @@ impl FileManager {
             }
         }
 
-        if reason.is_none() {
-            if self.existing_files_hashset.insert(path.clone()) {
-                self.new_files_queue.push(path);
+        if let Some(reason) = reason {
+            if store_reasons {
+                trace!(
+                    "Rejected {} for {}",
+                    path.to_str().unwrap(),
+                    reason
+                );
+                self.rejected_files.insert(PathBufReason {
+                    pathbuf: path,
+                    reason,
+                });
             }
-        } else if store_reasons {
-            trace!(
-                "Rejected {} for {}",
-                path.to_str().unwrap(),
-                reason.clone().unwrap()
-            );
-            self.rejected_files.insert(PathBufReason {
-                pathbuf: path,
-                reason: reason.unwrap(),
-            });
+        } else if self.existing_files_hashset.insert(path.clone()) {
+            self.new_files_queue.push(path);
         }
     }
 
