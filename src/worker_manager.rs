@@ -88,20 +88,34 @@ impl Worker {
         self.transcode_queue.read().unwrap().len() - self.transcode_queue_capacity
     }
 
-    pub fn fill_transcode_queue(&mut self, transcode_queue: Arc<Mutex<VecDeque<Encode>>>) {
-        if transcode_queue.lock().unwrap().is_empty() {
-            return;
+    ///Returns true if there was no encodes in the queue
+    pub fn add_transcode_to_queue(&mut self, transcode_queue: Arc<Mutex<VecDeque<Encode>>>) -> bool {
+        match transcode_queue.lock().unwrap().pop_front() {
+            Some(encode) => {
+                self.transcode_queue.write().unwrap().push_back(encode);
+            }
+            None => {
+                info!("No encode tasks to send to the worker");
+                return true;
+            }
         }
+        false
+    }
+
+    ///Returns true if there was no encodes in the queue
+    pub fn fill_transcode_queue(&mut self, transcode_queue: Arc<Mutex<VecDeque<Encode>>>) -> bool {
         for _ in 0..self.spaces_in_queue() {
             match transcode_queue.lock().unwrap().pop_front() {
                 Some(encode) => {
                     self.transcode_queue.write().unwrap().push_back(encode);
                 }
                 None => {
-                    info!("No encode tasks to send to the worker")
+                    info!("No encode tasks to send to the worker");
+                    return true;
                 }
             }
         }
+        false
     }
 
     pub fn send_message_to_worker(&mut self, worker_message: WorkerMessage) {
