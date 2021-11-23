@@ -11,7 +11,7 @@ use tlm::config::WorkerConfig;
 use tlm::worker_manager::Encode;
 use tlm::ws::run_worker;
 use tokio_tungstenite::tungstenite::protocol::Message;
-use tracing::{error, warn, Level};
+use tracing::{debug, error, warn, Level};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::registry::Registry;
@@ -70,18 +70,15 @@ async fn main() -> Result<(), IoError> {
         //TODO: Don't create this thread until we actually have a websocket established
         //Alternatively, don't worry about it, it isn't really a problem as it is currently
         let handle = thread::spawn(move || loop {
-            let inner_tx = tx.clone();
             let mut current_transcode = transcode_queue.lock().unwrap().pop_front();
             if current_transcode.is_some() {
                 current_transcode.as_mut().unwrap().run();
             }
             sleep(Duration::new(1, 0));
-            match tx.start_send(Message::Text("test_message".to_string())) {
-                Err(err) => {
-                    warn!("Failed to send message. Server is likely closed");
-                    break;
-                }
-                Ok(_) => {}
+            if let Err(err) = tx.start_send(Message::Text("test_message".to_string())) {
+                warn!("Failed to send message. Server is likely closed");
+                debug!("Send message error was: {}", err);
+                break;
             }
 
             if stop_worker_inner.load(Ordering::Relaxed) {
