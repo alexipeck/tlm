@@ -81,7 +81,7 @@ async fn handle_web_connection(
                 ))),
             "initialise_worker" => {
                 if true {
-                    worker_manager.lock().unwrap().add_worker(tx.clone(), 2);
+                    worker_manager.lock().unwrap().add_worker(tx.clone());
                 }
             }
             "test_message" => {

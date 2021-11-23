@@ -66,7 +66,6 @@ pub struct Worker {
     uid: usize,
     tx: UnboundedSender<Message>,
     transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
-    transcode_queue_capacity: usize,
     //TODO: Time remaining on current episode
     //TODO: Current encode percentage
     //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
@@ -75,17 +74,16 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(tx: UnboundedSender<Message>, transcode_queue_capacity: usize) -> Self {
+    pub fn new(tx: UnboundedSender<Message>) -> Self {
         Self {
             uid: WORKER_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
             tx,
             transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
-            transcode_queue_capacity,
         }
     }
 
     pub fn spaces_in_queue(&mut self) -> usize {
-        self.transcode_queue.read().unwrap().len() - self.transcode_queue_capacity
+        2 - self.transcode_queue.read().unwrap().len()
     }
 
     ///Returns true if there was no encodes in the queue
@@ -169,8 +167,8 @@ impl WorkerManager {
         }
     }
 
-    pub fn add_worker(&mut self, tx: UnboundedSender<Message>, transcode_queue_capacity: usize) {
-        let mut new_worker = Worker::new(tx, transcode_queue_capacity);
+    pub fn add_worker(&mut self, tx: UnboundedSender<Message>) {
+        let mut new_worker = Worker::new(tx);
         new_worker.send_message_to_worker(WorkerMessage::text(
             "Worker successfully initialised".to_string(),
         ));
