@@ -26,9 +26,9 @@ static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 pub struct ImportFiles {}
 
 impl ImportFiles {
-    pub fn run(&mut self, file_manager: &mut FileManager) {
+    pub fn run(&mut self, file_manager: Arc<Mutex<FileManager>>) {
         info!("Started importing new files");
-        file_manager.import_files();
+        file_manager.lock().unwrap().import_files();
         info!("Finished importing new files");
     }
 }
@@ -45,9 +45,9 @@ impl Default for ImportFiles {
 pub struct ProcessNewFiles {}
 
 impl ProcessNewFiles {
-    pub fn run(&mut self, file_manager: &mut FileManager, preferences: &Preferences) {
+    pub fn run(&mut self, file_manager: Arc<Mutex<FileManager>>, preferences: &Preferences) {
         info!("Started processing new files");
-        file_manager.process_new_files(preferences);
+        file_manager.lock().unwrap().process_new_files(preferences);
         info!("Finished processing new files you can now stop the program with Ctrl-c");
     }
 }
@@ -167,7 +167,7 @@ impl Task {
     ///execute the tasks run function
     pub fn handle_task(
         &mut self,
-        file_manager: &mut FileManager,
+        file_manager: Arc<Mutex<FileManager>>,
         worker_manager: &mut Arc<Mutex<WorkerManager>>,
         preferences: &Preferences,
     ) -> Option<TaskReturnAsync> {
@@ -179,8 +179,8 @@ impl Task {
                 process_new_files.run(file_manager, preferences);
             }
             TaskType::Hash(hash) => {
-                let mut current_content = file_manager.generic_files.clone();
-                for show in &file_manager.shows {
+                let mut current_content = file_manager.lock().unwrap().generic_files.clone();
+                for show in &file_manager.lock().unwrap().shows {
                     for season in &show.seasons {
                         for episode in &season.episodes {
                             current_content.push(episode.generic.clone());
@@ -212,7 +212,7 @@ impl TaskReturnAsync {
 
 ///Schedules all tasks and contains a queue of tasks that can be modified by other threads
 pub struct Scheduler {
-    pub file_manager: FileManager,
+    pub file_manager: Arc<Mutex<FileManager>>,
     pub tasks: Arc<Mutex<VecDeque<Task>>>,
     pub encode_tasks: Arc<Mutex<VecDeque<Task>>>,
     pub worker_manager: Arc<Mutex<WorkerManager>>,
@@ -225,13 +225,14 @@ impl Scheduler {
         config: ServerConfig,
         tasks: Arc<Mutex<VecDeque<Task>>>,
         encode_tasks: Arc<Mutex<VecDeque<Task>>>,
+        file_manager: Arc<Mutex<FileManager>>,
         worker_manager: Arc<Mutex<WorkerManager>>,
         input_completed: Arc<AtomicBool>,
     ) -> Self {
         Self {
             tasks,
             encode_tasks,
-            file_manager: FileManager::new(&config),
+            file_manager,
             config,
             worker_manager,
             input_completed,
@@ -291,7 +292,7 @@ impl Scheduler {
             }
 
             let result = task.handle_task(
-                &mut self.file_manager,
+                self.file_manager.clone(),
                 &mut self.worker_manager,
                 preferences,
             );

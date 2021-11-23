@@ -801,6 +801,7 @@ dependencies = [
  "futures-util",
  "jwalk",
  "lazy_static",
+ "rand",
  "rayon",
  "regex",
  "seahash",

@@ -18,7 +18,7 @@ pub struct Encode {
     pub source_path: PathBuf,
     pub future_filename: String,
     pub encode_options: Vec<String>,
-    pub profile: Profile,
+    //pub profile: Profile,
 }
 
 impl Encode {
@@ -26,13 +26,11 @@ impl Encode {
         source_path: PathBuf,
         future_filename: String,
         encode_options: Vec<String>,
-        profile: Profile,
     ) -> Self {
         Self {
             source_path,
             future_filename,
             encode_options,
-            profile,
         }
     }
 
@@ -206,7 +204,7 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    //Current handle control
+    //Current transcode handle control
     ///Kills the currently running encode and removes the handle
     fn kill_current_transcode_process(&mut self) {
         let handle = self.current_transcode_handle.write().unwrap().take();
@@ -232,20 +230,28 @@ impl WorkerTranscodeQueue {
 
 
     //Current transcode control
+    ///Read-only lock
     fn current_transcode_is_some(&self) -> bool {
         self.current_transcode.read().unwrap().is_some()
     }
 
+    ///Read-only lock
     fn current_transcode_is_none(&self) -> bool {
         self.current_transcode.read().unwrap().is_none()
     }
 
-
+    ///Read-only lock
     ///If the queue is at capacity, it will yield an error
-    pub fn check_queue_capacity(&mut self) {
+    pub fn check_queue_capacity(&self) {
         if self.transcode_queue.read().unwrap().len() > 2 {
             error!("The transcode queue is at capacity, an transcode shouldn't have been sent, adding anyway.");
         }
+    }
+
+    fn clear_current_transcode(&mut self) {
+        //Currently goes to the abyss
+        //TODO: Store this somewhere or do something with it as a record that the worker has completed the transcode.
+        let _ = self.current_transcode.write().unwrap().take();
     }
 
     fn start_current_transcode_if_some(&mut self) {
@@ -261,14 +267,9 @@ impl WorkerTranscodeQueue {
 
     pub fn run_transcode(&mut self) {
         //Check the state of the current encode/handle
-        if self.current_transcode_is_some() {
-            if self.handle_is_some() {
-                error!("There is already an transcode running");
-                return
-            } else {
-                //TODO: Need to check the safety of this
-                println!("There is already an transcode running, but has no handle. This transcode will be overwritten");
-            }
+        if self.current_transcode_is_some() && self.handle_is_some()  {
+            error!("There is already an transcode running");
+            return
         }
 
         //Add a transcode current if there isn't one already there
@@ -277,14 +278,20 @@ impl WorkerTranscodeQueue {
             self.start_current_transcode_if_some();
 
             if self.handle_is_some() {
-                let output = self.current_transcode_handle.clone().write().unwrap().take().unwrap().wait_with_output().unwrap_or_else(|err| {
+                let output = self.current_transcode_handle.clone().write().unwrap().take().unwrap().wait_with_output();
+                let ok: bool = output.is_ok();
+                let _ = output.unwrap_or_else(|err| {
                     error!("Failed to execute ffmpeg process. Err: {}", err);
                     panic!();
                 });
 
+                if ok {
+                    self.clear_current_transcode();
+                }
+
                 //only uncomment if you want disgusting output
                 //should be error, but from ffmpeg, stderr mostly consists of stdout information
-                error!("{}", String::from_utf8_lossy(&output.stderr).to_string());
+                
             }
         }
     }

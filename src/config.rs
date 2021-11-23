@@ -106,7 +106,7 @@ impl ServerConfig {
 
             let ignored_paths = vec![String::from(".recycle_bin")];
             let mut tracked_directories = TrackedDirectories::new();
-            tracked_directories.root_directories = vec![String::from(r"D:\Desktop\tlmfiles")]; //these need to change
+            tracked_directories.root_directories = vec![String::from(r"C:\\Users\\Alexi Peck\\Desktop\\tlm\\test_files")]; //these need to change
             config = ServerConfig {
                 port: 8888,
                 allowed_extensions,

@@ -63,8 +63,8 @@ async fn main() -> Result<(), IoError> {
         let stop_worker_inner = stop_worker.clone();
         let (mut tx, rx) = futures_channel::mpsc::unbounded();
 
-        tx.start_send(Message::Text("initialise_worker".to_string()))
-            .unwrap();
+        tx.start_send(Message::Text("initialise_worker".to_string())).unwrap();
+        while tx.is_closed() {}//Not a great long term solution
         //TODO: Don't create this thread until we actually have a websocket established
         //Alternatively, don't worry about it, it isn't really a problem as it is currently
         let handle = thread::spawn(move || loop {
@@ -80,6 +80,7 @@ async fn main() -> Result<(), IoError> {
                 break;
             }
         });
+
         run_worker(transcode_queue_inner, rx, config.clone()).await?;
         
         let _ = handle.join();
