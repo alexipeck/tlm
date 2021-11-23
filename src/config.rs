@@ -5,15 +5,17 @@ use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
 use directories::BaseDirs;
 use fancy_regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
 use tracing::error;
 
 ///This struct contains any system specific data (paths, extensions, etc)
 /// likely will be replaced later with database tables but as we clear data
 /// so often I would prefer this config file for now.
 #[derive(Deserialize, Serialize, Clone)]
-pub struct Config {
+pub struct ServerConfig {
     pub port: u16,
     pub allowed_extensions: Vec<String>,
     pub ignored_paths: Vec<String>,
@@ -22,11 +24,62 @@ pub struct Config {
     pub tracked_directories: TrackedDirectories,
 }
 
-impl Config {
+#[derive(Deserialize, Serialize, Clone)]
+pub struct WorkerConfig {
+    pub server_address: String,
+    pub server_port: u16,
+}
+
+impl fmt::Display for WorkerConfig {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ws://{}:{}", self.server_address, self.server_port)
+    }
+}
+
+impl WorkerConfig {
+    pub fn new(config_path: PathBuf) -> WorkerConfig {
+        let config: WorkerConfig;
+
+        if config_path.exists() {
+            let config_toml = match fs::read_to_string(config_path) {
+                Ok(config_toml) => config_toml,
+                Err(err) => {
+                    error!("Failed to read config file: {}", err);
+                    panic!();
+                }
+            };
+            config = match toml::from_str(&config_toml) {
+                Ok(config_toml) => config_toml,
+                Err(err) => {
+                    error!("Failed to parse toml: {}", err);
+                    panic!();
+                }
+            };
+        } else {
+            //Default config
+            config = WorkerConfig {
+                server_address: "127.0.0.1".to_string(),
+                server_port: 8888,
+            };
+            let toml = toml::to_string(&config).unwrap();
+            if fs::write(config_path.clone(), toml).is_err() {
+                error!(
+                    "Failed to write config file at: {}",
+                    config_path.to_string_lossy()
+                );
+                panic!();
+            }
+        }
+
+        config
+    }
+}
+
+impl ServerConfig {
     ///Config constructor loads the config from the path defined at the cli
     /// or if it doesn't exist creates a default config file
-    pub fn new(preferences: &Preferences) -> Config {
-        let mut config: Config;
+    pub fn new(preferences: &Preferences) -> ServerConfig {
+        let mut config: ServerConfig;
 
         if Path::new(&preferences.config_file_path).exists() {
             let config_toml = match fs::read_to_string(&preferences.config_file_path) {
@@ -54,7 +107,7 @@ impl Config {
             let ignored_paths = vec![String::from(".recycle_bin")];
             let mut tracked_directories = TrackedDirectories::new();
             tracked_directories.root_directories = vec![String::from(r"D:\Desktop\tlmfiles")]; //these need to change
-            config = Config {
+            config = ServerConfig {
                 port: 8888,
                 allowed_extensions,
                 ignored_paths,
@@ -107,7 +160,7 @@ impl Default for Preferences {
             error!("Home directory could not be found");
             panic!();
         });
-        let config_path = base_dirs.config_dir().join("tlm/tlm.config");
+        let config_path = base_dirs.config_dir().join("tlm/tlm_server.config");
         let mut prepare = Preferences {
             default_print: true,
             print_generic: false,

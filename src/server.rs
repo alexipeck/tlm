@@ -1,7 +1,12 @@
 extern crate diesel;
 
 use directories::BaseDirs;
-use tlm::{config::{Config, Preferences}, scheduler::{Scheduler, Task}, worker_manager::WorkerManager, ws::run_web};
+use tlm::{
+    config::{Preferences, ServerConfig},
+    scheduler::{Scheduler, Task},
+    worker_manager::WorkerManager,
+    ws::run_web,
+};
 
 use std::collections::VecDeque;
 use std::env;
@@ -37,7 +42,7 @@ async fn main() -> Result<(), IoError> {
     });
     let log_path = base_dirs.config_dir().join("tlm/logs/");
 
-    let file = tracing_appender::rolling::daily(log_path, "tlm.log");
+    let file = tracing_appender::rolling::daily(log_path, "tlm_server");
     let (stdout_writer, _guard) = tracing_appender::non_blocking(stdout());
     let (file_writer, _guard) = tracing_appender::non_blocking(file);
 
@@ -60,7 +65,7 @@ async fn main() -> Result<(), IoError> {
 
     let preferences = Preferences::default();
 
-    let config: Config = Config::new(&preferences);
+    let config: ServerConfig = ServerConfig::new(&preferences);
 
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 

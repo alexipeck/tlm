@@ -1,9 +1,13 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
 use std::collections::VecDeque;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
-use crate::{scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType}, worker_manager::{Encode, WorkerManager}};
+use crate::{
+    config::WorkerConfig,
+    scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
+    worker_manager::{Encode, WorkerManager, WorkerMessage},
+};
 
 use std::{
     collections::HashMap,
@@ -193,22 +197,30 @@ pub async fn run_web(
 pub async fn run_worker(
     transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
     rx: futures_channel::mpsc::UnboundedReceiver<Message>,
+    config: WorkerConfig,
 ) -> Result<(), IoError> {
-    let url = url::Url::parse("ws://localhost:8888").unwrap();
+    let url = url::Url::parse(&config.to_string()).unwrap();
 
     let (ws_stream, _) = connect_async(url).await.expect("Failed to connect");
-    println!("WebSocket handshake has been successfully completed");
+    info!("WebSocket handshake has been successfully completed");
 
     let (write, read) = ws_stream.split();
     let stdin_to_ws = rx.map(Ok).forward(write);
     let ws_to_stdout = {
         read.for_each(|message| async {
             //TODO: Handle inputs (likely shared memory or another mpsc)
-            let data = message
-                .unwrap()
-                .into_text()
-                .unwrap_or_else(|err| format!("Not text: {}", err));
-            println!("{}", data);
+            let data = message.unwrap().into_data();
+            let message_result = bincode::deserialize::<WorkerMessage>(&data);
+            match message_result {
+                Ok(message) => {
+                    if message.text.is_some() {
+                        debug!("{}", message.text.unwrap());
+                    }
+                }
+                Err(err) => {
+                    error!("Recieved malformed message: {}", err);
+                }
+            }
         })
     };
     pin_mut!(stdin_to_ws, ws_to_stdout);
