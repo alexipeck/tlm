@@ -1,6 +1,8 @@
 use super::generic::Generic;
 use super::schema::{episode, generic, show};
-use crate::profile::{BasicProfile, Profile, convert_i32_to_container, convert_i32_to_resolution_standard};
+use crate::profile::{
+    convert_i32_to_container, convert_i32_to_resolution_standard, BasicProfile, Profile,
+};
 
 ///Struct for inserting into the database
 #[derive(Insertable)]
@@ -81,7 +83,8 @@ impl GenericModel {
             generic_model.height = Some(profile.current_profile.height as i32);
             generic_model.framerate = Some(profile.current_profile.framerate);
             generic_model.length_time = Some(profile.current_profile.length_time);
-            generic_model.resolution_standard = Some(profile.current_profile.resolution_standard as i32);
+            generic_model.resolution_standard =
+                Some(profile.current_profile.resolution_standard as i32);
             generic_model.container = Some(profile.current_profile.container as i32);
         }
 

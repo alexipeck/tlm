@@ -3,7 +3,12 @@
 use std::{collections::VecDeque, io::Write, sync::RwLock};
 use tracing::{debug, error, info, warn};
 
-use crate::{config::WorkerConfig, file_manager::FileManager, scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType}, worker_manager::{Encode, WorkerManager, WorkerMessage, WorkerTranscodeQueue}};
+use crate::{
+    config::WorkerConfig,
+    file_manager::FileManager,
+    scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
+    worker_manager::{Encode, WorkerManager, WorkerMessage, WorkerTranscodeQueue},
+};
 
 use std::{
     collections::HashMap,
@@ -15,14 +20,14 @@ use std::{
 use tokio_tungstenite::connect_async;
 
 use futures_channel::mpsc::{unbounded, UnboundedSender};
-use futures_util::{StreamExt, future, pin_mut, stream::TryStreamExt};
+use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 type Tx = UnboundedSender<Message>;
-type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
+type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<usize>, Tx)>>>;
 
 async fn handle_web_connection(
     peer_map: PeerMap,
@@ -47,8 +52,7 @@ async fn handle_web_connection(
 
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = unbounded();
-    peer_map.lock().unwrap().insert(addr, tx.clone());
-
+    peer_map.lock().unwrap().insert(addr, (None, tx.clone()));
     let (outgoing, incoming) = ws_stream.split();
 
     let broadcast_incoming = incoming.try_for_each(|msg| {
@@ -78,25 +82,31 @@ async fn handle_web_connection(
                 ))),
             "initialise_worker" => {
                 if true {
-                    worker_manager.lock().unwrap().add_worker(tx.clone());
+                    let uid = worker_manager.lock().unwrap().add_worker(tx.clone());
+                    peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = Some(uid);
                 }
             }
             "test_message" => {
                 //info!("Received test message from worker");
             }
             //TODO: Encode message needs a UID for transcoding a specific generic/episode
-            "transcode" => {
-                match file_manager.lock().unwrap().pick_random_generic() {
-                    Some(generic) => {
-                        let encode: Encode = Encode::new(generic.full_path.clone(), generic.generate_target_path(), generic.generate_encode_string());
-                        worker_manager.lock().unwrap().send_encode_to_next_available_worker(encode);
-                        info!("Setting up generic for transcode");
-                    },
-                    None => {
-                        info!("No generics available to transcode");
-                    },
+            "transcode" => match file_manager.lock().unwrap().pick_random_generic() {
+                Some(generic) => {
+                    let encode: Encode = Encode::new(
+                        generic.full_path.clone(),
+                        generic.generate_target_path(),
+                        generic.generate_encode_string(),
+                    );
+                    worker_manager
+                        .lock()
+                        .unwrap()
+                        .send_encode_to_next_available_worker(encode);
+                    info!("Setting up generic for transcode");
                 }
-            }
+                None => {
+                    info!("No generics available to transcode");
+                }
+            },
             //"encode" => encode_tasks.lock().unwrap().push_back(Task::new(TaskType::Encode(Encode::new())))
             _ => warn!("{} is not a valid input", message),
         }
@@ -110,7 +120,13 @@ async fn handle_web_connection(
     future::select(broadcast_incoming, receive_from_others).await;
 
     info!("{} disconnected", &addr);
-    peer_map.lock().unwrap().remove(&addr);
+    let mut lock = peer_map.lock().unwrap();
+    //The worker should always exist for as long as the connection exists
+    if let Some(to_remove) = lock.get(&addr).unwrap().0 {
+        worker_manager.lock().unwrap().remove_worker(to_remove);
+    }
+
+    lock.remove(&addr);
 }
 
 pub async fn run_web(
@@ -202,7 +218,7 @@ pub async fn run_web(
     }
 
     //Close all websocket connection gracefully before exit
-    for (_, tx) in &mut *state.lock().unwrap() {
+    for (_, (_, tx)) in &mut *state.lock().unwrap() {
         let _ = tx.start_send(Message::Close(None));
     }
 
@@ -239,7 +255,10 @@ pub async fn run_worker(
             match message_result {
                 Ok(message) => {
                     if message.encode.is_some() {
-                        transcode_queue.write().unwrap().add_encode(message.encode.unwrap())
+                        transcode_queue
+                            .write()
+                            .unwrap()
+                            .add_encode(message.encode.unwrap())
                     } else if message.text.is_some() {
                         debug!("{}", message.text.unwrap());
                     }

@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt;
+use std::path::PathBuf;
 use std::process::Command;
 use std::str::from_utf8;
 use tracing::error;
-use std::path::PathBuf;
 
 ///Currently unused enum to allow filtering media by resolution standard
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
@@ -262,7 +262,6 @@ impl ConversionProfile {
 pub struct Profile {
     //Current
     pub current_profile: BasicProfile,
-
     //Future
     //pub future_profile: Option<ConversionProfile>,
 }
@@ -276,7 +275,7 @@ impl Profile {
             }
         } else {
             panic!();
-        }   
+        }
     }
 
     pub fn from_basic_profile(basic_profile: BasicProfile) -> Self {

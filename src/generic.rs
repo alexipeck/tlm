@@ -123,10 +123,7 @@ impl Generic {
     ///Returns a vector of ffmpeg arguments for later execution
     ///This has no options currently
     pub fn generate_encode_string(&self) -> Vec<String> {
-        let mut encode_string = vec![
-            "-i".to_string(),
-            self.get_full_path(),
-        ];
+        let mut encode_string = vec!["-i".to_string(), self.get_full_path()];
 
         //Video
         encode_string.push("-c:v".to_string());

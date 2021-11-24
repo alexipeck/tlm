@@ -1,18 +1,28 @@
 //!A struct for managing all types of media that are stored in ram as well as
 //!Functionality to import files. This is mostly used in the scheduler
-use crate::{config::{Preferences, ServerConfig}, database::*, designation::Designation, generic::Generic, model::{NewEpisode, NewGeneric}, show::{Episode, Show}};
+use crate::{
+    config::{Preferences, ServerConfig},
+    database::*,
+    designation::Designation,
+    generic::Generic,
+    model::{NewEpisode, NewGeneric},
+    show::{Episode, Show},
+};
 extern crate derivative;
 use derivative::Derivative;
 use diesel::pg::PgConnection;
 use jwalk::WalkDir;
 use lazy_static::lazy_static;
+use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{hash::{Hash, Hasher}, ops::Index};
 use std::{collections::HashSet, fmt, path::PathBuf};
+use std::{
+    hash::{Hash, Hasher},
+    ops::Index,
+};
 use tracing::{debug, info, trace};
-use rand::{Rng, thread_rng};
 
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -109,9 +119,13 @@ impl FileManager {
 
     pub fn pick_random_generic(&self) -> Option<Generic> {
         if !self.generic_files.is_empty() {
-            return Some(self.generic_files.index(thread_rng().gen_range(0..self.generic_files.len())).clone());
+            return Some(
+                self.generic_files
+                    .index(thread_rng().gen_range(0..self.generic_files.len()))
+                    .clone(),
+            );
         }
-        None        
+        None
     }
 
     ///Takes all loaded episodes and add them to the hashset of
@@ -336,11 +350,7 @@ impl FileManager {
 
         if let Some(reason) = reason {
             if store_reasons {
-                trace!(
-                    "Rejected {} for {}",
-                    path.to_str().unwrap(),
-                    reason
-                );
+                trace!("Rejected {} for {}", path.to_str().unwrap(), reason);
                 self.rejected_files.insert(PathBufReason {
                     pathbuf: path,
                     reason,
