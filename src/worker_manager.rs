@@ -11,7 +11,7 @@ use std::{
     },
 };
 use tokio_tungstenite::tungstenite::Message;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 static WORKER_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -285,7 +285,7 @@ impl WorkerTranscodeQueue {
                 .unwrap()
                 .run(self.current_transcode_handle.clone());
         } else {
-            println!("There is no transcode available to start.");
+            debug!("There is no transcode available to start.");
         }
     }
 
@@ -335,7 +335,7 @@ impl WorkerTranscodeQueue {
                     let _ = self.current_transcode.write().unwrap().insert(encode);
                 }
                 None => {
-                    println!("There were no transcodes available to make current");
+                    debug!("There were no transcodes available to make current");
                 }
             }
         }

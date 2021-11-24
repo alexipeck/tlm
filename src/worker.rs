@@ -67,19 +67,14 @@ async fn main() -> Result<(), IoError> {
         let stop_worker_inner = stop_worker.clone();
         let (mut tx, rx) = futures_channel::mpsc::unbounded();
 
-        tx.start_send(Message::Text("initialise_worker".to_string()))
-            .unwrap();
         while tx.is_closed() {} //Not a great long term solution
                                 //TODO: Don't create this thread until we actually have a websocket established
                                 //Alternatively, don't worry about it, it isn't really a problem as it is currently
+        tx.start_send(Message::Text("initialise_worker".to_string()))
+            .unwrap();
         let handle = thread::spawn(move || loop {
             transcode_queue.write().unwrap().run_transcode();
             sleep(Duration::new(1, 0));
-            if let Err(err) = tx.start_send(Message::Text("test_message".to_string())) {
-                warn!("Failed to send message. Server is likely closed");
-                debug!("Send message error was: {}", err);
-                break;
-            }
 
             if stop_worker_inner.load(Ordering::Relaxed) {
                 break;

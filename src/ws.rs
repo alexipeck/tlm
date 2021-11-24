@@ -86,9 +86,6 @@ async fn handle_web_connection(
                     peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = Some(uid);
                 }
             }
-            "test_message" => {
-                //info!("Received test message from worker");
-            }
             //TODO: Encode message needs a UID for transcoding a specific generic/episode
             "transcode" => match file_manager.lock().unwrap().pick_random_generic() {
                 Some(generic) => {
