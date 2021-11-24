@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt;
-use std::path::PathBuf;
+use std::path::Path;
 use std::process::Command;
 use std::str::from_utf8;
 use tracing::error;
@@ -178,7 +178,7 @@ impl fmt::Display for BasicProfile {
 
 impl BasicProfile {
     ///Create profile from a pathbuf
-    pub fn from_file(path: &PathBuf) -> Option<Self> {
+    pub fn from_file(path: &Path) -> Option<Self> {
         let buffer;
         //linux & friends
         buffer = Command::new("mediainfo")
@@ -267,7 +267,7 @@ pub struct Profile {
 }
 
 impl Profile {
-    pub fn new(full_path: &PathBuf) -> Self {
+    pub fn new(full_path: &Path) -> Self {
         if let Some(basic_profile) = BasicProfile::from_file(full_path) {
             Self {
                 current_profile: basic_profile,

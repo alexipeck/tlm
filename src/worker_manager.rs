@@ -1,4 +1,4 @@
-use crate::{generic::Generic, profile::Profile};
+use crate::generic::Generic;
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -35,6 +35,7 @@ impl Encode {
         }
     }
 
+    ///Write lock
     pub fn run(self, handle: Arc<RwLock<Option<Child>>>) {
         info!(
             "Encoding file \'{}\'",
@@ -71,11 +72,13 @@ impl Worker {
         }
     }
 
+    ///Write lock
     pub fn spaces_in_queue(&mut self) -> usize {
         //TODO: Make queue capacity come from the config file
         2 - self.transcode_queue.read().unwrap().len()
     }
 
+    ///Write lock
     ///Returns true if there was no encodes in the queue
     pub fn add_transcode_to_queue(
         &mut self,
@@ -93,6 +96,7 @@ impl Worker {
         false
     }
 
+    ///Write lock
     ///Returns true if there was no encodes in the queue
     pub fn fill_transcode_queue(&mut self, transcode_queue: Arc<Mutex<VecDeque<Encode>>>) -> bool {
         for _ in 0..self.spaces_in_queue() {
@@ -118,6 +122,7 @@ impl Worker {
         //TODO: Have the worker send a message to the server if it can't access the file
     }
 
+    ///Write lock
     pub fn add_to_queue(&mut self, encode: Encode) {
         //share credentials will have to be handled on the worker side
         if !encode.source_path.exists() {
@@ -225,6 +230,7 @@ impl WorkerTranscodeQueue {
     }
 
     //Current transcode handle control
+    ///Write lock
     ///Kills the currently running encode and removes the handle
     fn kill_current_transcode_process(&mut self) {
         let handle = self.current_transcode_handle.write().unwrap().take();
@@ -240,10 +246,12 @@ impl WorkerTranscodeQueue {
         }
     }
 
+    ///Read-only lock
     fn handle_is_some(&self) -> bool {
         self.current_transcode_handle.read().unwrap().is_some()
     }
 
+    ///Read-only lock
     fn handle_is_none(&self) -> bool {
         self.current_transcode_handle.read().unwrap().is_none()
     }
@@ -267,12 +275,14 @@ impl WorkerTranscodeQueue {
         }
     }
 
+    ///Write lock
     fn clear_current_transcode(&mut self) {
         //Currently goes to the abyss
         //TODO: Store this somewhere or do something with it as a record that the worker has completed the transcode.
         let _ = self.current_transcode.write().unwrap().take();
     }
 
+    ///Write lock
     fn start_current_transcode_if_some(&mut self) {
         if self.current_transcode_is_some() {
             if self.handle_is_some() {
@@ -289,6 +299,7 @@ impl WorkerTranscodeQueue {
         }
     }
 
+    ///Write lock
     pub fn run_transcode(&mut self) {
         //Check the state of the current encode/handle
         if self.current_transcode_is_some() && self.handle_is_some() {
@@ -326,23 +337,20 @@ impl WorkerTranscodeQueue {
         }
     }
 
+    ///Write lock
     ///Makes a transcode current if there isn't one already there
     ///Returns true if there is a transcode ready to go after this function has run
     fn make_transcode_current(&mut self) -> bool {
         if self.current_transcode_is_none() {
-            match self.transcode_queue.write().unwrap().pop_front() {
-                Some(encode) => {
-                    let _ = self.current_transcode.write().unwrap().insert(encode);
-                }
-                None => {
-                    debug!("There were no transcodes available to make current");
-                }
+            if let Some(encode) = self.transcode_queue.write().unwrap().pop_front() {
+                let _ = self.current_transcode.write().unwrap().insert(encode);
             }
         }
 
         self.current_transcode_is_some()
     }
 
+    ///Write lock
     ///Swaps out passed in encode for the currently running one and moved it to the front of the queue
     fn replace_current_encode(&mut self, encode: Encode) {
         if let Some(current_encode) = self.current_transcode.write().unwrap().replace(encode) {
@@ -353,6 +361,7 @@ impl WorkerTranscodeQueue {
         }
     }
 
+    ///Write lock
     pub fn add_encode(&mut self, encode: (Encode, AddEncodeMode)) {
         let (encode, add_encode_mode) = encode;
         match add_encode_mode {

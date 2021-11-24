@@ -1,6 +1,6 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
-use std::{collections::VecDeque, io::Write, sync::RwLock};
+use std::{collections::VecDeque, sync::RwLock};
 use tracing::{debug, error, info, warn};
 
 use crate::{
