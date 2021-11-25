@@ -215,7 +215,7 @@ pub async fn run_web(
     }
 
     //Close all websocket connection gracefully before exit
-    for (_, (_, tx)) in &mut *state.lock().unwrap() {
+    for (_, tx) in (&mut *state.lock().unwrap()).values_mut() {
         let _ = tx.start_send(Message::Close(None));
     }
 
