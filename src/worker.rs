@@ -1,14 +1,17 @@
 use directories::BaseDirs;
-use std::env;
-use std::io::stdout;
-use std::io::Error as IoError;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, RwLock,
 };
 use std::thread;
+use std::{
+    env,
+    io::{stdout, Error as IoError},
+};
 use std::{thread::sleep, time::Duration};
 use tlm::config::WorkerConfig;
+use tlm::worker_manager::generate_session_id;
+use tlm::worker_manager::WorkerMessage;
 use tlm::worker_manager::WorkerTranscodeQueue;
 use tlm::ws::run_worker;
 use tokio_tungstenite::tungstenite::protocol::Message;
@@ -59,6 +62,8 @@ async fn main() -> Result<(), IoError> {
 
     let config = WorkerConfig::new(base_dirs.config_dir().join("tlm/tlm_worker.config"));
 
+    let session_id: Arc<RwLock<String>> = Arc::new(RwLock::new(generate_session_id()));
+
     loop {
         let transcode_queue: Arc<RwLock<WorkerTranscodeQueue>> =
             Arc::new(RwLock::new(WorkerTranscodeQueue::default()));
@@ -67,12 +72,16 @@ async fn main() -> Result<(), IoError> {
         let stop_worker_inner = stop_worker.clone();
         let (mut tx, rx) = futures_channel::mpsc::unbounded();
 
-        tx.start_send(Message::Text("initialise_worker".to_string()))
-            .unwrap();
-        while tx.is_closed() {} //Not a great long term solution
-                                //TODO: Don't create this thread until we actually have a websocket established
-                                //Alternatively, don't worry about it, it isn't really a problem as it is currently
-        
+        tx.start_send(Message::Binary(
+            bincode::serialize::<WorkerMessage>(&WorkerMessage::for_initialisation(
+                session_id.clone().read().unwrap().to_string(),
+            ))
+            .unwrap(),
+        ))
+        .unwrap();
+
+        //TODO: Don't create this thread until we actually have a websocket established
+        //Alternatively, don't worry about it, it isn't really a problem as it is currently
         let handle = thread::spawn(move || loop {
             transcode_queue.write().unwrap().run_transcode();
             sleep(Duration::new(1, 0));
@@ -82,7 +91,13 @@ async fn main() -> Result<(), IoError> {
             }
         });
 
-        run_worker(transcode_queue_inner, rx, config.clone()).await?;
+        run_worker(
+            session_id.clone(),
+            transcode_queue_inner,
+            rx,
+            config.clone(),
+        )
+        .await?;
 
         let _ = handle.join();
         if stop_worker.load(Ordering::Relaxed) {

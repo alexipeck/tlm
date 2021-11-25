@@ -1,7 +1,7 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
 use std::{collections::VecDeque, sync::RwLock};
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 use crate::{
     config::WorkerConfig,
@@ -27,7 +27,7 @@ use tokio::signal;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 type Tx = UnboundedSender<Message>;
-type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<usize>, Tx)>>>;
+type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<String>, Tx)>>>;
 
 async fn handle_web_connection(
     peer_map: PeerMap,
@@ -56,56 +56,65 @@ async fn handle_web_connection(
     let (outgoing, incoming) = ws_stream.split();
 
     let broadcast_incoming = incoming.try_for_each(|msg| {
-        let message = msg
-            .to_text()
-            .unwrap()
-            .strip_suffix("\r\n")
-            .or_else(|| msg.to_text().unwrap().strip_suffix('\n'))
-            .unwrap_or_else(|| msg.to_text().unwrap());
-
-        info!("Received a message from {}: {}", addr, message);
-
-        match message {
-            "hash" => tasks
-                .lock()
+        if msg.is_text() {
+            let message = msg
+                .to_text()
                 .unwrap()
-                .push_back(Task::new(TaskType::Hash(Hash::default()))),
-            "import" => tasks
-                .lock()
-                .unwrap()
-                .push_back(Task::new(TaskType::ImportFiles(ImportFiles::default()))),
-            "process" => tasks
-                .lock()
-                .unwrap()
-                .push_back(Task::new(TaskType::ProcessNewFiles(
-                    ProcessNewFiles::default(),
-                ))),
-            "initialise_worker" => {
-                if true {
-                    let uid = worker_manager.lock().unwrap().add_worker(tx.clone());
-                    peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = Some(uid);
-                }
+                .strip_suffix("\r\n")
+                .or_else(|| msg.to_text().unwrap().strip_suffix('\n'))
+                .unwrap_or_else(|| msg.to_text().unwrap());
+            match message {
+                "hash" => tasks
+                    .lock()
+                    .unwrap()
+                    .push_back(Task::new(TaskType::Hash(Hash::default()))),
+                "import" => tasks
+                    .lock()
+                    .unwrap()
+                    .push_back(Task::new(TaskType::ImportFiles(ImportFiles::default()))),
+                "process" => tasks
+                    .lock()
+                    .unwrap()
+                    .push_back(Task::new(TaskType::ProcessNewFiles(
+                        ProcessNewFiles::default(),
+                    ))),
+                //TODO: Encode message needs a UID for transcoding a specific generic/episode
+                "transcode" => match file_manager.lock().unwrap().pick_random_generic() {
+                    Some(generic) => {
+                        let encode: Encode = Encode::new(
+                            generic.full_path.clone(),
+                            generic.generate_target_path(),
+                            generic.generate_encode_string(),
+                        );
+                        worker_manager
+                            .lock()
+                            .unwrap()
+                            .send_encode_to_next_available_worker(encode);
+                        info!("Setting up generic for transcode");
+                    }
+                    None => {
+                        info!("No generics available to transcode");
+                    }
+                },
+                _ => warn!("{} is not a valid input", message),
             }
-            //TODO: Encode message needs a UID for transcoding a specific generic/episode
-            "transcode" => match file_manager.lock().unwrap().pick_random_generic() {
-                Some(generic) => {
-                    let encode: Encode = Encode::new(
-                        generic.full_path.clone(),
-                        generic.generate_target_path(),
-                        generic.generate_encode_string(),
-                    );
-                    worker_manager
-                        .lock()
-                        .unwrap()
-                        .send_encode_to_next_available_worker(encode);
-                    info!("Setting up generic for transcode");
-                }
-                None => {
-                    info!("No generics available to transcode");
-                }
-            },
-            //"encode" => encode_tasks.lock().unwrap().push_back(Task::new(TaskType::Encode(Encode::new())))
-            _ => warn!("{} is not a valid input", message),
+        } else if msg.is_binary() {
+            let message = bincode::deserialize::<WorkerMessage>(&msg.into_data()).unwrap();
+
+            let text = message.text.unwrap();
+
+            //arm for initialising worker
+            if text.contains("initialise_worker") {
+                //if true {//TODO: authenticate/validate
+                let session_id = message.session_id.unwrap();
+                worker_manager
+                    .lock()
+                    .unwrap()
+                    .add_worker(session_id.clone(), addr, tx.clone());
+                peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = Some(session_id);
+                //}
+            }
+            info!("Received a message from {}: {}", addr, text);
         }
 
         future::ok(())
@@ -119,7 +128,7 @@ async fn handle_web_connection(
     info!("{} disconnected", &addr);
     let mut lock = peer_map.lock().unwrap();
     //The worker should always exist for as long as the connection exists
-    if let Some(to_remove) = lock.get(&addr).unwrap().0 {
+    if let Some(to_remove) = lock.get(&addr).unwrap().0.clone() {
         worker_manager.lock().unwrap().remove_worker(to_remove);
     }
 
@@ -223,6 +232,7 @@ pub async fn run_web(
 }
 
 pub async fn run_worker(
+    session_id: Arc<RwLock<String>>,
     transcode_queue: Arc<RwLock<WorkerTranscodeQueue>>,
     rx: futures_channel::mpsc::UnboundedReceiver<Message>,
     config: WorkerConfig,
@@ -247,8 +257,7 @@ pub async fn run_worker(
                 //stop_worker.store(true, Ordering::Relaxed);
                 return;
             }
-            let data = message.into_data();
-            let message_result = bincode::deserialize::<WorkerMessage>(&data);
+            let message_result = bincode::deserialize::<WorkerMessage>(&message.into_data());
             match message_result {
                 Ok(message) => {
                     if message.encode.is_some() {
@@ -257,7 +266,15 @@ pub async fn run_worker(
                             .unwrap()
                             .add_encode(message.encode.unwrap())
                     } else if message.text.is_some() {
-                        debug!("{}", message.text.unwrap());
+                        match message.text.clone().unwrap().as_str() {
+                            "regenerate_session_id" => {
+                                //session_id.write().unwrap() = generate_session_id();
+                            }
+                            "worker_successfully_initialised" => {
+                                info!("Worker successfully initialised");
+                            }
+                            _ => warn!("{} is not a valid input", message.text.unwrap()),
+                        }
                     }
                 }
                 Err(err) => {
