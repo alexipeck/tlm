@@ -100,18 +100,17 @@ async fn handle_web_connection(
             }
         } else if msg.is_binary() {
             let message = bincode::deserialize::<WorkerMessage>(&msg.into_data()).unwrap();
-
             let text = message.text.unwrap();
 
             //arm for initialising worker
             if text.contains("initialise_worker") {
                 //if true {//TODO: authenticate/validate
-                let session_id = message.session_id.unwrap();
-                worker_manager
-                    .lock()
-                    .unwrap()
-                    .add_worker(session_id.clone(), addr, tx.clone());
-                peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = Some(session_id);
+                    let worker_uid = message.session_id.unwrap();
+                    worker_manager
+                        .lock()
+                        .unwrap()
+                        .add_worker(worker_uid.clone(), addr, tx.clone());
+                    peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = Some(worker_uid);
                 //}
             }
             info!("Received a message from {}: {}", addr, text);
@@ -129,6 +128,7 @@ async fn handle_web_connection(
     let mut lock = peer_map.lock().unwrap();
     //The worker should always exist for as long as the connection exists
     if let Some(to_remove) = lock.get(&addr).unwrap().0.clone() {
+        //TODO: Only have it remove the worker if it hasn't reestablished the connection withing x amount of time
         worker_manager.lock().unwrap().remove_worker(to_remove);
     }
 
@@ -232,7 +232,7 @@ pub async fn run_web(
 }
 
 pub async fn run_worker(
-    session_id: Arc<RwLock<String>>,
+    worker_uid: Arc<RwLock<String>>,
     transcode_queue: Arc<RwLock<WorkerTranscodeQueue>>,
     rx: futures_channel::mpsc::UnboundedReceiver<Message>,
     config: WorkerConfig,
@@ -267,9 +267,6 @@ pub async fn run_worker(
                             .add_encode(message.encode.unwrap())
                     } else if message.text.is_some() {
                         match message.text.clone().unwrap().as_str() {
-                            "regenerate_session_id" => {
-                                //session_id.write().unwrap() = generate_session_id();
-                            }
                             "worker_successfully_initialised" => {
                                 info!("Worker successfully initialised");
                             }

@@ -10,7 +10,7 @@ use std::{
 };
 use std::{thread::sleep, time::Duration};
 use tlm::config::WorkerConfig;
-use tlm::worker_manager::generate_session_id;
+use tlm::worker_manager::generate_uid;
 use tlm::worker_manager::WorkerMessage;
 use tlm::worker_manager::WorkerTranscodeQueue;
 use tlm::ws::run_worker;
@@ -62,7 +62,7 @@ async fn main() -> Result<(), IoError> {
 
     let config = WorkerConfig::new(base_dirs.config_dir().join("tlm/tlm_worker.config"));
 
-    let session_id: Arc<RwLock<String>> = Arc::new(RwLock::new(generate_session_id()));
+    let worker_uid: Arc<RwLock<String>> = Arc::new(RwLock::new(config.uid.clone()));
 
     loop {
         let transcode_queue: Arc<RwLock<WorkerTranscodeQueue>> =
@@ -74,7 +74,7 @@ async fn main() -> Result<(), IoError> {
 
         tx.start_send(Message::Binary(
             bincode::serialize::<WorkerMessage>(&WorkerMessage::for_initialisation(
-                session_id.clone().read().unwrap().to_string(),
+                worker_uid.clone().read().unwrap().to_string(),
             ))
             .unwrap(),
         ))
@@ -92,7 +92,7 @@ async fn main() -> Result<(), IoError> {
         });
 
         run_worker(
-            session_id.clone(),
+            worker_uid.clone(),
             transcode_queue_inner,
             rx,
             config.clone(),

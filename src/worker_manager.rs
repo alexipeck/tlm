@@ -12,11 +12,11 @@ use std::{
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, error, info};
 
-pub fn generate_session_id() -> String {
+pub fn generate_uid() -> String {
     //Generate unique-ish identifier
     const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let mut rng = rand::thread_rng();
-    let session_id: String = {
+    let uid: String = {
         (0..32)
             .map(|_| {
                 let idx = rng.gen_range(0..CHARSET.len());
@@ -24,7 +24,7 @@ pub fn generate_session_id() -> String {
             })
             .collect()
     };
-    session_id
+    uid
 }
 
 ///Struct to represent a file encode task. This is needed so we can have an enum
@@ -65,7 +65,7 @@ impl Encode {
 
 #[derive(Debug)] //, Serialize, Deserialize
 pub struct Worker {
-    session_id: String,
+    uid: String,
     worker_ip_address: SocketAddr,
     tx: UnboundedSender<Message>,
     transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
@@ -78,12 +78,12 @@ pub struct Worker {
 
 impl Worker {
     pub fn new(
-        session_id: String,
+        uid: String,
         worker_ip_address: SocketAddr,
         tx: UnboundedSender<Message>,
     ) -> Self {
         Self {
-            session_id,
+            uid,
             worker_ip_address,
             tx,
             transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
@@ -186,20 +186,20 @@ impl WorkerManager {
     //atm, we only care about the IP address in the SocketAddr, leaving the whole thing because deals with both IPV4 and IPV6
     pub fn add_worker(
         &mut self,
-        session_id: String,
+        worker_uid: String,
         worker_ip_address: SocketAddr,
         tx: UnboundedSender<Message>,
     ) {
-        let mut new_worker = Worker::new(session_id, worker_ip_address, tx);
+        let mut new_worker = Worker::new(worker_uid, worker_ip_address, tx);
         new_worker.send_message_to_worker(WorkerMessage::text(
             "worker_successfully_initialised".to_string(),
         ));
         self.workers.push_back(new_worker);
     }
 
-    pub fn remove_worker(&mut self, session_id: String) {
+    pub fn remove_worker(&mut self, worker_uid: String) {
         for (i, worker) in self.workers.iter().enumerate() {
-            if worker.session_id == session_id {
+            if worker.uid == worker_uid {
                 self.workers.remove(i);
                 break;
             }
@@ -419,9 +419,8 @@ pub enum AddEncodeMode {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerMessage {
-    //identifier: String,
     pub text: Option<String>,
-    pub session_id: Option<String>,
+    pub worker_uid: Option<String>,
     pub encode: Option<(Encode, AddEncodeMode)>,
     basic_message: bool,
 }
@@ -430,7 +429,7 @@ impl WorkerMessage {
     fn text(text: String) -> Self {
         Self {
             text: Some(text),
-            session_id: None,
+            worker_uid: None,
             encode: None,
             basic_message: true,
         }
@@ -445,16 +444,16 @@ impl WorkerMessage {
     pub fn for_encode(encode: Encode, encode_add_mode: AddEncodeMode) -> Self {
         Self {
             text: None,
-            session_id: None,
+            worker_uid: None,
             encode: Some((encode, encode_add_mode)),
             basic_message: false,
         }
     }
 
-    pub fn for_initialisation(session_id: String) -> Self {
+    pub fn for_initialisation(worker_uid: String) -> Self {
         Self {
             text: Some(String::from("initialise_worker")),
-            session_id: Some(session_id),
+            worker_uid: Some(worker_uid),
             encode: None,
             basic_message: false,
         }

@@ -1,6 +1,7 @@
 //!Set of functions and structures to make is easier to handle the config file
 //!and command line arguments
 use crate::file_manager::TrackedDirectories;
+use crate::worker_manager::generate_uid;
 use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
 use directories::BaseDirs;
 use fancy_regex::Regex;
@@ -28,6 +29,7 @@ pub struct ServerConfig {
 pub struct WorkerConfig {
     pub server_address: String,
     pub server_port: u16,
+    pub uid: String,
 }
 
 impl fmt::Display for WorkerConfig {
@@ -60,6 +62,7 @@ impl WorkerConfig {
             config = WorkerConfig {
                 server_address: "127.0.0.1".to_string(),
                 server_port: 8888,
+                uid: generate_uid(),
             };
             let toml = toml::to_string(&config).unwrap();
             if fs::write(config_path.clone(), toml).is_err() {
