@@ -181,7 +181,7 @@ pub async fn run_web(
         if is_listening_ipv4 && is_listening_ipv6 {
             tokio::select! {
                 _ = signal::ctrl_c() => {
-                    warn!("Ctrl-C recieved, shutting down");
+                    warn!("Ctrl-C received, shutting down");
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
@@ -194,7 +194,7 @@ pub async fn run_web(
         } else if is_listening_ipv4 {
             tokio::select! {
                 _ = signal::ctrl_c() => {
-                    warn!("Ctrl-C recieved, shutting down");
+                    warn!("Ctrl-C received, shutting down");
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
@@ -204,7 +204,7 @@ pub async fn run_web(
         } else {
             tokio::select! {
                 _ = signal::ctrl_c() => {
-                    warn!("Ctrl-C recieved, shutting down");
+                    warn!("Ctrl-C received, shutting down");
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
