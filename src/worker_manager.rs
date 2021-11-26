@@ -2,13 +2,7 @@ use crate::generic::Generic;
 use futures_channel::mpsc::UnboundedSender;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::VecDeque,
-    net::SocketAddr,
-    path::PathBuf,
-    process::{Child, Command},
-    sync::{Arc, Mutex, RwLock},
-};
+use std::{collections::VecDeque, net::SocketAddr, path::PathBuf, process::{Child, Command}, sync::{Arc, Mutex, RwLock}, time::Instant};
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, error, info};
 
@@ -69,6 +63,7 @@ pub struct Worker {
     worker_ip_address: SocketAddr,
     tx: UnboundedSender<Message>,
     transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
+    close_time: Option<Instant>,
     //TODO: Time remaining on current episode
     //TODO: Current encode percentage
     //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
@@ -87,6 +82,10 @@ impl Worker {
             worker_ip_address,
             tx,
             transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
+            close_time: None,
+        }
+    }
+
     pub fn update(
         &mut self,
         worker_ip_address: SocketAddr,
@@ -94,6 +93,13 @@ impl Worker {
     ) {
         self.worker_ip_address = worker_ip_address;
         self.tx = tx;
+    }
+
+    pub fn close_time_more_than(&self, timeout_threshold: f64) -> bool {
+        if let Some(close_time) = self.close_time {
+            close_time.elapsed().as_secs_f64() > timeout_threshold
+        } else {
+            panic!();
         }
     }
 
