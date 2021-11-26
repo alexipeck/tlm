@@ -207,11 +207,30 @@ impl WorkerManager {
     }
 
     pub fn fill_worker_transcode_queues(&mut self) {
-        if self.transcode_queue.lock().unwrap().len() > 0 {
+        //TODO: Find out why this condition still went through (minus the ! at the start)
+        if !self.transcode_queue.lock().unwrap().len() > 0 {
             return;
         }
-        for worker in &mut self.workers {
-            worker.fill_transcode_queue(self.transcode_queue.clone());
+        for worker in self.workers.iter_mut() {
+            if worker.fill_transcode_queue(self.transcode_queue.clone()) {
+                break;
+            }
+        }
+    }
+
+    pub fn round_robin_fill_transcode_queues(&mut self) {
+        let transcode_queue_lock = self.transcode_queue.lock().unwrap();
+        if transcode_queue_lock.is_empty() {
+            return;
+        }
+        let mut exit: bool = false;
+        while !transcode_queue_lock.is_empty() || exit {
+            for worker in self.workers.iter_mut() {
+                if worker.add_transcode_to_queue(self.transcode_queue.clone()) {
+                    exit = true;
+                    break;
+                }
+            }
         }
     }
 
