@@ -10,7 +10,6 @@ use std::{
 };
 use std::{thread::sleep, time::Duration};
 use tlm::config::WorkerConfig;
-use tlm::worker_manager::generate_uid;
 use tlm::worker_manager::WorkerMessage;
 use tlm::worker_manager::WorkerTranscodeQueue;
 use tlm::ws::run_worker;
@@ -85,7 +84,7 @@ async fn main() -> Result<(), IoError> {
         let handle = thread::spawn(move || loop {
             transcode_queue.write().unwrap().run_transcode();
             sleep(Duration::new(1, 0));
-
+            
             if stop_worker_inner.load(Ordering::Relaxed) {
                 break;
             }

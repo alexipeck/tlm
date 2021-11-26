@@ -105,11 +105,13 @@ async fn handle_web_connection(
             //arm for initialising worker
             if text.contains("initialise_worker") {
                 //if true {//TODO: authenticate/validate
-                    let worker_uid = message.session_id.unwrap();
-                    worker_manager
-                        .lock()
-                        .unwrap()
-                        .add_worker(worker_uid.clone(), addr, tx.clone());
+                    let worker_uid = message.worker_uid.unwrap();
+                    if !worker_manager.lock().unwrap().reestablish_worker(worker_uid.clone(), addr, tx.clone()) {
+                        worker_manager
+                            .lock()
+                            .unwrap()
+                            .add_worker(worker_uid.clone(), addr, tx.clone());
+                    }
                     peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = Some(worker_uid);
                 //}
             }

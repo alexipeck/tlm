@@ -185,6 +185,7 @@ impl Worker {
 
 pub struct WorkerManager {
     workers: VecDeque<Worker>,
+    worker_icu: VecDeque<Worker>,
     transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
 }
 
@@ -192,6 +193,7 @@ impl WorkerManager {
     pub fn default() -> Self {
         Self {
             workers: VecDeque::new(),
+            worker_icu: VecDeque::new(),
             transcode_queue: Arc::new(Mutex::new(VecDeque::new())),
         }
     }
@@ -226,6 +228,47 @@ impl WorkerManager {
         self.workers.push_back(self.worker_icu.remove(index.unwrap()).unwrap()); //Check if unwrapping .remove() is safe
         info!("Worker successfully re-established");
         true
+    }
+
+    pub fn drop_timed_out_workers(&mut self, timeout_threshold: f64) {
+        let mut indexes: Option<Vec<usize>> = None;
+        for (i, worker) in self.worker_icu.iter().enumerate() {
+            if worker.close_time_more_than(timeout_threshold) {
+                if indexes.is_none() {
+                    indexes = Some(Vec::new());
+                }
+                indexes.as_mut().unwrap().push(i);
+            }
+        }
+        if indexes.is_none() {
+            return;
+        }
+        let mut indexes = indexes.unwrap();
+        indexes.reverse();
+        for index in indexes {
+            if let Some(worker) = self.workers.remove(index) {
+                self.transcode_queue.lock().unwrap().append(&mut worker.transcode_queue.write().unwrap());
+                info!("Worker ID: {} has been dropped. It's queue has been returned to the main queue", worker.uid);
+            }
+        }
+    }
+    
+    pub fn start_worker_timeout(&mut self, worker_uid: String) {
+        let mut index: Option<usize> = None;
+        for (i, worker) in self.workers.iter_mut().enumerate() {
+            if worker.uid == worker_uid {
+                worker.close_time = Some(Instant::now());
+                index = Some(i);
+                break;
+            }
+        }
+        if let Some(index) = index {
+            if let Some(worker) = self.workers.remove(index) {
+                self.worker_icu.push_back(worker);
+                return;
+            };
+        }
+        panic!("The WorkerManager couldn't find a worker associated with this worker_uid: {}", worker_uid);
     }
 
     pub fn remove_worker(&mut self, worker_uid: String) {
@@ -271,7 +314,7 @@ impl WorkerManager {
 
     //TODO: Find better name
     pub fn send_encode_to_next_available_worker(&mut self, encode: Encode) {
-        for worker in &mut self.workers {
+        for worker in self.workers.iter_mut() {
             if worker.spaces_in_queue() > 0 {
                 worker.add_to_queue(encode);
                 return;
