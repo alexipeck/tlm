@@ -2,12 +2,19 @@ use crate::generic::Generic;
 use futures_channel::mpsc::UnboundedSender;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::{collections::VecDeque, net::SocketAddr, path::PathBuf, process::{Child, Command}, sync::{Arc, Mutex, RwLock}, time::Instant};
+use std::{
+    collections::VecDeque,
+    net::SocketAddr,
+    path::PathBuf,
+    process::{Child, Command},
+    sync::{Arc, Mutex, RwLock},
+    time::Instant,
+};
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, error, info};
 
 pub fn generate_uid() -> String {
-    //Generate unique-ish identifier
+    //TODO: Actually unique ID not thoughts and prayers
     const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let mut rng = rand::thread_rng();
     let uid: String = {
@@ -21,9 +28,6 @@ pub fn generate_uid() -> String {
     uid
 }
 
-///Struct to represent a file encode task. This is needed so we can have an enum
-///that contains all types of task
-///This should probably handle it's current variables without having them passed
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Encode {
     pub source_path: PathBuf,
@@ -63,7 +67,7 @@ pub struct Worker {
     worker_ip_address: SocketAddr,
     tx: UnboundedSender<Message>,
     transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
-    close_time: Option<Instant>,
+    pub close_time: Option<Instant>,
     //TODO: Time remaining on current episode
     //TODO: Current encode percentage
     //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
@@ -72,11 +76,7 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(
-        uid: String,
-        worker_ip_address: SocketAddr,
-        tx: UnboundedSender<Message>,
-    ) -> Self {
+    pub fn new(uid: String, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> Self {
         Self {
             uid,
             worker_ip_address,
@@ -86,62 +86,14 @@ impl Worker {
         }
     }
 
-    pub fn update(
-        &mut self,
-        worker_ip_address: SocketAddr,
-        tx: UnboundedSender<Message>,
-    ) {
+    pub fn update(&mut self, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) {
         self.worker_ip_address = worker_ip_address;
         self.tx = tx;
     }
 
-    pub fn close_time_more_than(&self, timeout_threshold: f64) -> bool {
-        if let Some(close_time) = self.close_time {
-            close_time.elapsed().as_secs_f64() > timeout_threshold
-        } else {
-            panic!();
-        }
-    }
-
-    ///Write lock
     pub fn spaces_in_queue(&mut self) -> usize {
         //TODO: Make queue capacity come from the config file
         2 - self.transcode_queue.read().unwrap().len()
-    }
-
-    ///Write lock
-    ///Returns true if there was no encodes in the queue
-    pub fn add_transcode_to_queue(
-        &mut self,
-        transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
-    ) -> bool {
-        match transcode_queue.lock().unwrap().pop_front() {
-            Some(encode) => {
-                self.transcode_queue.write().unwrap().push_back(encode);
-            }
-            None => {
-                info!("No encode tasks to send to the worker");
-                return true;
-            }
-        }
-        false
-    }
-
-    ///Write lock
-    ///Returns true if there was no encodes in the queue
-    pub fn fill_transcode_queue(&mut self, transcode_queue: Arc<Mutex<VecDeque<Encode>>>) -> bool {
-        for _ in 0..self.spaces_in_queue() {
-            match transcode_queue.lock().unwrap().pop_front() {
-                Some(encode) => {
-                    self.transcode_queue.write().unwrap().push_back(encode);
-                }
-                None => {
-                    info!("No encode tasks to send to the worker");
-                    return true;
-                }
-            }
-        }
-        false
     }
 
     pub fn send_message_to_worker(&mut self, worker_message: WorkerMessage) {
@@ -212,7 +164,12 @@ impl WorkerManager {
         self.workers.push_back(new_worker);
     }
 
-    pub fn reestablish_worker(&mut self, worker_uid: String, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> bool {
+    pub fn reestablish_worker(
+        &mut self,
+        worker_uid: String,
+        worker_ip_address: SocketAddr,
+        tx: UnboundedSender<Message>,
+    ) -> bool {
         let mut index: Option<usize> = None;
         for (i, worker) in self.worker_icu.iter_mut().enumerate() {
             if worker.uid == worker_uid {
@@ -225,74 +182,62 @@ impl WorkerManager {
         if index.is_none() {
             return false;
         }
-        self.workers.push_back(self.worker_icu.remove(index.unwrap()).unwrap()); //Check if unwrapping .remove() is safe
+        self.workers
+            .push_back(self.worker_icu.remove(index.unwrap()).unwrap()); //Check if unwrapping .remove() is safe
         info!("Worker successfully re-established");
         true
     }
 
-    pub fn drop_timed_out_workers(&mut self, timeout_threshold: f64) {
-        let mut indexes: Option<Vec<usize>> = None;
+    pub fn drop_timed_out_workers(&mut self, timeout_threshold: u64) {
+        let mut indexes: Vec<usize> = Vec::new();
         for (i, worker) in self.worker_icu.iter().enumerate() {
-            if worker.close_time_more_than(timeout_threshold) {
-                if indexes.is_none() {
-                    indexes = Some(Vec::new());
-                }
-                indexes.as_mut().unwrap().push(i);
+            //Check if worker is timed out
+            if worker.close_time.is_none() {
+                continue;
+            }
+
+            //Mark worker to be removed
+            if worker.close_time.unwrap().elapsed().as_secs() > timeout_threshold {
+                indexes.push(i);
             }
         }
-        if indexes.is_none() {
-            return;
-        }
-        let mut indexes = indexes.unwrap();
         indexes.reverse();
         for index in indexes {
             if let Some(worker) = self.workers.remove(index) {
-                self.transcode_queue.lock().unwrap().append(&mut worker.transcode_queue.write().unwrap());
+                self.transcode_queue
+                    .lock()
+                    .unwrap()
+                    .append(&mut worker.transcode_queue.write().unwrap());
                 info!("Worker ID: {} has been dropped. It's queue has been returned to the main queue", worker.uid);
             }
         }
     }
-    
+
     pub fn start_worker_timeout(&mut self, worker_uid: String) {
-        let mut index: Option<usize> = None;
         for (i, worker) in self.workers.iter_mut().enumerate() {
             if worker.uid == worker_uid {
                 worker.close_time = Some(Instant::now());
-                index = Some(i);
-                break;
-            }
-        }
-        if let Some(index) = index {
-            if let Some(worker) = self.workers.remove(index) {
-                self.worker_icu.push_back(worker);
+                self.worker_icu.push_back(self.workers.remove(i).unwrap());
                 return;
-            };
-        }
-        panic!("The WorkerManager couldn't find a worker associated with this worker_uid: {}", worker_uid);
-    }
-
-    pub fn fill_worker_transcode_queues(&mut self) {
-        //TODO: Find out why this condition still went through (minus the ! at the start)
-        if !self.transcode_queue.lock().unwrap().len() > 0 {
-            return;
-        }
-        for worker in self.workers.iter_mut() {
-            if worker.fill_transcode_queue(self.transcode_queue.clone()) {
-                break;
             }
         }
+        panic!(
+            "The WorkerManager couldn't find a worker associated with this worker_uid: {}",
+            worker_uid
+        );
     }
 
     pub fn round_robin_fill_transcode_queues(&mut self) {
-        let transcode_queue_lock = self.transcode_queue.lock().unwrap();
-        if transcode_queue_lock.is_empty() {
-            return;
-        }
-        let mut exit: bool = false;
-        while !transcode_queue_lock.is_empty() || exit {
-            for worker in self.workers.iter_mut() {
-                if worker.add_transcode_to_queue(self.transcode_queue.clone()) {
-                    exit = true;
+        for worker in self.workers.iter_mut() {
+            if worker.spaces_in_queue() < 1 {
+                continue;
+            }
+            match self.transcode_queue.lock().unwrap().pop_front() {
+                Some(encode) => {
+                    worker.add_to_queue(encode);
+                }
+                None => {
+                    info!("No encode tasks to send to the worker");
                     break;
                 }
             }
