@@ -87,6 +87,13 @@ impl Worker {
             worker_ip_address,
             tx,
             transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
+    pub fn update(
+        &mut self,
+        worker_ip_address: SocketAddr,
+        tx: UnboundedSender<Message>,
+    ) {
+        self.worker_ip_address = worker_ip_address;
+        self.tx = tx;
         }
     }
 
