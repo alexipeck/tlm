@@ -210,6 +210,24 @@ impl WorkerManager {
         self.workers.push_back(new_worker);
     }
 
+    pub fn reestablish_worker(&mut self, worker_uid: String, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> bool {
+        let mut index: Option<usize> = None;
+        for (i, worker) in self.worker_icu.iter_mut().enumerate() {
+            if worker.uid == worker_uid {
+                worker.update(worker_ip_address, tx);
+                worker.close_time = None;
+                index = Some(i);
+                break;
+            }
+        }
+        if index.is_none() {
+            return false;
+        }
+        self.workers.push_back(self.worker_icu.remove(index.unwrap()).unwrap()); //Check if unwrapping .remove() is safe
+        info!("Worker successfully re-established");
+        true
+    }
+
     pub fn remove_worker(&mut self, worker_uid: String) {
         for (i, worker) in self.workers.iter().enumerate() {
             if worker.uid == worker_uid {
