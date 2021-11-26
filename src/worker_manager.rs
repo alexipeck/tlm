@@ -271,15 +271,6 @@ impl WorkerManager {
         panic!("The WorkerManager couldn't find a worker associated with this worker_uid: {}", worker_uid);
     }
 
-    pub fn remove_worker(&mut self, worker_uid: String) {
-        for (i, worker) in self.workers.iter().enumerate() {
-            if worker.uid == worker_uid {
-                self.workers.remove(i);
-                break;
-            }
-        }
-    }
-
     pub fn fill_worker_transcode_queues(&mut self) {
         //TODO: Find out why this condition still went through (minus the ! at the start)
         if !self.transcode_queue.lock().unwrap().len() > 0 {

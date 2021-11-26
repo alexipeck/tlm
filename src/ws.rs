@@ -131,7 +131,7 @@ async fn handle_web_connection(
     //The worker should always exist for as long as the connection exists
     if let Some(to_remove) = lock.get(&addr).unwrap().0.clone() {
         //TODO: Only have it remove the worker if it hasn't reestablished the connection withing x amount of time
-        worker_manager.lock().unwrap().remove_worker(to_remove);
+        worker_manager.lock().unwrap().start_worker_timeout(to_remove);
     }
 
     lock.remove(&addr);

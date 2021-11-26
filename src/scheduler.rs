@@ -241,7 +241,7 @@ impl Scheduler {
 
     pub fn start_scheduler(&mut self, preferences: &Preferences) {
         let wait_time = time::Duration::from_secs(1);
-
+        
         //Take a handle from any async function and a booleans
         //The Handle is in an option so we can take the Handle in order to join it,
         //that is necessary because otherwise it is owned by the vector and joining would destroy it
