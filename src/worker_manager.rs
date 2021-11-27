@@ -45,7 +45,6 @@ impl Encode {
         }
     }
 
-    ///Write lock
     pub fn run(self, handle: Arc<RwLock<Option<Child>>>) {
         info!(
             "Encoding file \'{}\'",
@@ -105,7 +104,6 @@ impl Worker {
         //TODO: Have the worker send a message to the server if it can't access the file
     }
 
-    ///Write lock
     pub fn add_to_queue(&mut self, encode: Encode) {
         //share credentials will have to be handled on the worker side
         if !encode.source_path.exists() {
@@ -281,7 +279,6 @@ impl WorkerTranscodeQueue {
     }
 
     //Current transcode handle control
-    ///Write lock
     ///Kills the currently running encode and removes the handle
     fn kill_current_transcode_process(&mut self) {
         let handle = self.current_transcode_handle.write().unwrap().take();
@@ -298,27 +295,6 @@ impl WorkerTranscodeQueue {
     }
 
     ///Read-only lock
-    fn handle_is_some(&self) -> bool {
-        self.current_transcode_handle.read().unwrap().is_some()
-    }
-
-    ///Read-only lock
-    fn handle_is_none(&self) -> bool {
-        self.current_transcode_handle.read().unwrap().is_none()
-    }
-
-    //Current transcode control
-    ///Read-only lock
-    fn current_transcode_is_some(&self) -> bool {
-        self.current_transcode.read().unwrap().is_some()
-    }
-
-    ///Read-only lock
-    fn current_transcode_is_none(&self) -> bool {
-        self.current_transcode.read().unwrap().is_none()
-    }
-
-    ///Read-only lock
     ///If the queue is at capacity, it will yield an error
     pub fn check_queue_capacity(&self) {
         if self.transcode_queue.read().unwrap().len() > 2 {
@@ -326,19 +302,15 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    ///Write lock
     fn clear_current_transcode(&mut self) {
         //Currently goes to the abyss
         //TODO: Store this somewhere or do something with it as a record that the worker has completed the transcode.
         let _ = self.current_transcode.write().unwrap().take();
     }
 
-    ///Write lock
     fn start_current_transcode_if_some(&mut self) {
-        if self.current_transcode_is_some() {
-            if self.handle_is_some() {
-                self.kill_current_transcode_process();
-            }
+        if self.current_transcode.read().unwrap().is_some() {
+            self.kill_current_transcode_process();
             self.current_transcode
                 .write()
                 .unwrap()
@@ -350,12 +322,15 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    ///Write lock
     pub fn run_transcode(&mut self) {
-        //Check the state of the current encode/handle
-        if self.current_transcode_is_some() && self.handle_is_some() {
-            error!("There is already an transcode running");
-            return;
+        {
+            let transcode_lock = self.current_transcode.read().unwrap();
+            let handle_lock = self.current_transcode_handle.read().unwrap();
+            //Check the state of the current encode/handle
+            if transcode_lock.is_some() && handle_lock.is_some() {
+                error!("There is already an transcode running");
+                return;
+            }
         }
 
         //Add a transcode current if there isn't one already there
@@ -363,7 +338,7 @@ impl WorkerTranscodeQueue {
         if self.make_transcode_current() {
             self.start_current_transcode_if_some();
 
-            if self.handle_is_some() {
+            if self.current_transcode_handle.read().unwrap().is_some() {
                 let output = self
                     .current_transcode_handle
                     .clone()
@@ -381,27 +356,22 @@ impl WorkerTranscodeQueue {
                 if ok {
                     self.clear_current_transcode();
                 }
-
-                //only uncomment if you want disgusting output
-                //should be error, but from ffmpeg, stderr mostly consists of stdout information
             }
         }
     }
 
-    ///Write lock
     ///Makes a transcode current if there isn't one already there
     ///Returns true if there is a transcode ready to go after this function has run
     fn make_transcode_current(&mut self) -> bool {
-        if self.current_transcode_is_none() {
+        if self.current_transcode.read().unwrap().is_some() {
             if let Some(encode) = self.transcode_queue.write().unwrap().pop_front() {
                 let _ = self.current_transcode.write().unwrap().insert(encode);
             }
         }
 
-        self.current_transcode_is_some()
+        self.current_transcode.read().unwrap().is_some()
     }
 
-    ///Write lock
     ///Swaps out passed in encode for the currently running one and moved it to the front of the queue
     fn replace_current_encode(&mut self, encode: Encode) {
         if let Some(current_encode) = self.current_transcode.write().unwrap().replace(encode) {
@@ -412,7 +382,6 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    ///Write lock
     pub fn add_encode(&mut self, encode: (Encode, AddEncodeMode)) {
         let (encode, add_encode_mode) = encode;
         match add_encode_mode {
