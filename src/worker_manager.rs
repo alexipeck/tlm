@@ -238,7 +238,9 @@ impl WorkerTranscodeQueue {
 
     fn start_current_transcode_if_some(&mut self) {
         if self.current_transcode.read().unwrap().is_some() {
-            self.kill_current_transcode_process();
+            if self.current_transcode_handle.read().unwrap().is_some() {
+                self.kill_current_transcode_process();
+            }
             self.current_transcode
                 .write()
                 .unwrap()
@@ -291,7 +293,7 @@ impl WorkerTranscodeQueue {
     ///Makes a transcode current if there isn't one already there
     ///Returns true if there is a transcode ready to go after this function has run
     fn make_transcode_current(&mut self) -> bool {
-        if self.current_transcode.read().unwrap().is_some() {
+        if self.current_transcode.read().unwrap().is_none() {
             if let Some(encode) = self.transcode_queue.write().unwrap().pop_front() {
                 let _ = self.current_transcode.write().unwrap().insert(encode);
             }
