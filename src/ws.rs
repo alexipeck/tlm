@@ -7,7 +7,8 @@ use crate::{
     config::WorkerConfig,
     file_manager::FileManager,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
-    worker_manager::{Encode, WorkerManager, WorkerMessage, WorkerTranscodeQueue},
+    worker::WorkerMessage,
+    worker_manager::{Encode, WorkerManager, WorkerTranscodeQueue},
 };
 
 use std::{
@@ -105,14 +106,18 @@ async fn handle_web_connection(
             //arm for initialising worker
             if text.contains("initialise_worker") {
                 //if true {//TODO: authenticate/validate
-                    let worker_uid = message.worker_uid.unwrap();
-                    if !worker_manager.lock().unwrap().reestablish_worker(worker_uid.clone(), addr, tx.clone()) {
-                        worker_manager
-                            .lock()
-                            .unwrap()
-                            .add_worker(worker_uid.clone(), addr, tx.clone());
-                    }
-                    peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = Some(worker_uid);
+                let worker_uid = message.worker_uid.unwrap();
+                if !worker_manager.lock().unwrap().reestablish_worker(
+                    worker_uid.clone(),
+                    addr,
+                    tx.clone(),
+                ) {
+                    worker_manager
+                        .lock()
+                        .unwrap()
+                        .add_worker(worker_uid.clone(), addr, tx.clone());
+                }
+                peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = Some(worker_uid);
                 //}
             }
             info!("Received a message from {}: {}", addr, text);
@@ -131,7 +136,10 @@ async fn handle_web_connection(
     //The worker should always exist for as long as the connection exists
     if let Some(to_remove) = lock.get(&addr).unwrap().0.clone() {
         //TODO: Only have it remove the worker if it hasn't reestablished the connection withing x amount of time
-        worker_manager.lock().unwrap().start_worker_timeout(to_remove);
+        worker_manager
+            .lock()
+            .unwrap()
+            .start_worker_timeout(to_remove);
     }
 
     lock.remove(&addr);

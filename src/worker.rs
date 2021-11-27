@@ -1,107 +1,136 @@
-use directories::BaseDirs;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc, RwLock,
-};
-use std::thread;
+use futures_channel::mpsc::UnboundedSender;
 use std::{
-    env,
-    io::{stdout, Error as IoError},
+    collections::VecDeque,
+    net::SocketAddr,
+    sync::{Arc, RwLock},
+    time::Instant,
 };
-use std::{thread::sleep, time::Duration};
-use tlm::config::WorkerConfig;
-use tlm::worker_manager::WorkerMessage;
-use tlm::worker_manager::WorkerTranscodeQueue;
-use tlm::ws::run_worker;
-use tokio_tungstenite::tungstenite::protocol::Message;
-use tracing::{error, Level};
-use tracing_subscriber::filter::LevelFilter;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::registry::Registry;
-use tracing_subscriber::Layer;
+use tokio_tungstenite::tungstenite::Message;
+use tracing::{error, info};
 
-#[tokio::main]
-async fn main() -> Result<(), IoError> {
-    let stdout_level = match env::var("TLM_DISPLAYED_LEVEL") {
-        Ok(level_str) => match level_str.to_lowercase().as_str() {
-            "info" => Some(Level::INFO),
-            "debug" => Some(Level::DEBUG),
-            "warning" | "warn" => Some(Level::WARN),
-            "trace" => Some(Level::TRACE),
-            "error" | "err" => Some(Level::ERROR),
-            _ => None,
-        },
-        Err(_) => None,
-    };
+use crate::worker_manager::AddEncodeMode;
+use crate::worker_manager::Encode;
+use serde::{Deserialize, Serialize};
 
-    let base_dirs = BaseDirs::new().unwrap_or_else(|| {
-        error!("Home directory could not be found");
-        panic!();
-    });
-    let log_path = base_dirs.config_dir().join("tlm/logs/");
+#[derive(Debug)]
+pub struct Worker {
+    pub uid: String,
+    worker_ip_address: SocketAddr,
+    tx: UnboundedSender<Message>,
+    pub transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
+    pub close_time: Option<Instant>,
+    //TODO: Time remaining on current episode
+    //TODO: Current encode percentage
+    //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
+    //NOTE: If this is running under a Docker container, it may have a random MAC address, so on reboot,
+    //    : becoming a new worker will probably mean the old one should be dropped after x amount of time.
+}
 
-    let file = tracing_appender::rolling::daily(log_path, "tlm_worker.log");
-    let (stdout_writer, _guard) = tracing_appender::non_blocking(stdout());
-    let (file_writer, _guard) = tracing_appender::non_blocking(file);
-
-    let level_filter;
-    if let Some(level) = stdout_level {
-        level_filter = LevelFilter::from_level(level);
-    } else {
-        level_filter = LevelFilter::from_level(Level::INFO);
-    }
-    let stdout_layer = tracing_subscriber::fmt::layer()
-        .with_writer(stdout_writer)
-        .with_filter(level_filter);
-
-    let logfile_layer = tracing_subscriber::fmt::layer().with_writer(file_writer);
-
-    let subscriber = Registry::default().with(stdout_layer).with(logfile_layer);
-    tracing::subscriber::set_global_default(subscriber).unwrap();
-
-    let config = WorkerConfig::new(base_dirs.config_dir().join("tlm/tlm_worker.config"));
-
-    let worker_uid: Arc<RwLock<String>> = Arc::new(RwLock::new(config.uid.clone()));
-
-    loop {
-        let transcode_queue: Arc<RwLock<WorkerTranscodeQueue>> =
-            Arc::new(RwLock::new(WorkerTranscodeQueue::default()));
-        let stop_worker = Arc::new(AtomicBool::new(false));
-        let transcode_queue_inner = transcode_queue.clone();
-        let stop_worker_inner = stop_worker.clone();
-        let (mut tx, rx) = futures_channel::mpsc::unbounded();
-
-        tx.start_send(Message::Binary(
-            bincode::serialize::<WorkerMessage>(&WorkerMessage::for_initialisation(
-                worker_uid.clone().read().unwrap().to_string(),
-            ))
-            .unwrap(),
-        ))
-        .unwrap();
-
-        //TODO: Don't create this thread until we actually have a websocket established
-        //Alternatively, don't worry about it, it isn't really a problem as it is currently
-        let handle = thread::spawn(move || loop {
-            transcode_queue.write().unwrap().run_transcode();
-            sleep(Duration::new(1, 0));
-            
-            if stop_worker_inner.load(Ordering::Relaxed) {
-                break;
-            }
-        });
-
-        run_worker(
-            worker_uid.clone(),
-            transcode_queue_inner,
-            rx,
-            config.clone(),
-        )
-        .await?;
-
-        let _ = handle.join();
-        if stop_worker.load(Ordering::Relaxed) {
-            break;
+impl Worker {
+    pub fn new(uid: String, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> Self {
+        Self {
+            uid,
+            worker_ip_address,
+            tx,
+            transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
+            close_time: None,
         }
     }
-    Ok(())
+
+    pub fn update(&mut self, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) {
+        self.worker_ip_address = worker_ip_address;
+        self.tx = tx;
+    }
+
+    pub fn spaces_in_queue(&mut self) -> usize {
+        //TODO: Make queue capacity come from the config file
+        2 - self.transcode_queue.read().unwrap().len()
+    }
+
+    pub fn send_message_to_worker(&mut self, worker_message: WorkerMessage) {
+        self.tx
+            .start_send(Message::Binary(
+                bincode::serialize::<WorkerMessage>(&worker_message).unwrap(),
+            ))
+            .unwrap_or_else(|err| error!("{}", err));
+        //TODO: Have the worker send a message to the server if it can't access the file
+    }
+
+    pub fn add_to_queue(&mut self, encode: Encode) {
+        //share credentials will have to be handled on the worker side
+        if !encode.source_path.exists() {
+            error!(
+                "source_path is not accessible from the server: {:?}",
+                encode.source_path
+            );
+            //TODO: mark this Encode Task as failed because "file not found", change it to a
+            //      state where it can be stored, then manually repaired before being restarted,
+            panic!();
+        }
+
+        //Adds the encode to the workers queue server-side, this should mirror the client-side queue
+        self.transcode_queue
+            .write()
+            .unwrap()
+            .push_back(encode.clone());
+
+        //Sends the encode to the worker
+        self.send_message_to_worker(WorkerMessage::for_encode(encode, AddEncodeMode::Back));
+    }
+
+    pub fn check_if_active(&mut self) {
+        //If the connection is active, do nothing.
+        //TODO: If something is wrong with the connection, close the connection server-side, making this worker unavailable, start timeout for removing the work assigned to the worker.
+        //    : If there's not enough work for other workers, immediately shift the encodes to other workers (put it back in the encode queue)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkerMessage {
+    pub text: Option<String>,
+    pub worker_uid: Option<String>,
+    pub encode: Option<(Encode, AddEncodeMode)>,
+    basic_message: bool,
+}
+
+impl WorkerMessage {
+    pub fn text(text: String) -> Self {
+        Self {
+            text: Some(text),
+            worker_uid: None,
+            encode: None,
+            basic_message: true,
+        }
+    }
+    //do something else, like shutdown, cancel current encode, flush queue, switch to running a specific encode (regardless of progress)
+    //many of these actions are destructive, many of them will technically waste CPU time
+    //most functions for a worker will be handled here
+    pub fn for_command(text: String) -> Self {
+        WorkerMessage::text(text)
+    }
+
+    pub fn for_encode(encode: Encode, encode_add_mode: AddEncodeMode) -> Self {
+        Self {
+            text: None,
+            worker_uid: None,
+            encode: Some((encode, encode_add_mode)),
+            basic_message: false,
+        }
+    }
+
+    pub fn for_initialisation(worker_uid: String) -> Self {
+        Self {
+            text: Some(String::from("initialise_worker")),
+            worker_uid: Some(worker_uid),
+            encode: None,
+            basic_message: false,
+        }
+    }
+
+    //this would be used to let the worker know the server will be unavailable for x amount of time and
+    //to continue to establish a websocket connection, but continue working on it's encode queue
+    //or for the server to output to the workers console
+    pub fn announcement(text: String) -> Self {
+        WorkerMessage::text(text)
+    }
 }

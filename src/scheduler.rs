@@ -5,7 +5,6 @@ use crate::{
     file_manager::FileManager,
     generic::Generic,
     model::GenericModel,
-    worker_manager::{WorkerManager, WorkerMessage},
 };
 use tracing::{debug, error, info};
 
@@ -125,26 +124,12 @@ impl Default for Hash {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct CommandWorker {
-    worker_message: WorkerMessage,
-}
-
-impl CommandWorker {
-    pub fn new(worker_message: WorkerMessage) -> Self {
-        Self { worker_message }
-    }
-
-    pub fn run(&mut self, worker_manager: &mut Arc<Mutex<WorkerManager>>) {}
-}
-
 ///This enum is required to create a queue of tasks independent of task type
 #[derive(Clone, Debug)]
 pub enum TaskType {
     ImportFiles(ImportFiles),
     ProcessNewFiles(ProcessNewFiles),
     Hash(Hash),
-    CommandWorker(CommandWorker),
 }
 
 ///Task struct that will later be in the database with a real id so that the queue
@@ -168,7 +153,6 @@ impl Task {
     pub fn handle_task(
         &mut self,
         file_manager: Arc<Mutex<FileManager>>,
-        worker_manager: &mut Arc<Mutex<WorkerManager>>,
         preferences: &Preferences,
     ) -> Option<TaskReturnAsync> {
         match &mut self.task_type {
@@ -188,9 +172,6 @@ impl Task {
                     }
                 }
                 return Some(hash.run(current_content));
-            }
-            TaskType::CommandWorker(command_worker) => {
-                command_worker.run(worker_manager);
             }
         }
         None
@@ -215,7 +196,6 @@ pub struct Scheduler {
     pub file_manager: Arc<Mutex<FileManager>>,
     pub tasks: Arc<Mutex<VecDeque<Task>>>,
     pub encode_tasks: Arc<Mutex<VecDeque<Task>>>,
-    pub worker_manager: Arc<Mutex<WorkerManager>>,
     pub config: ServerConfig,
     pub input_completed: Arc<AtomicBool>,
 }
@@ -226,7 +206,6 @@ impl Scheduler {
         tasks: Arc<Mutex<VecDeque<Task>>>,
         encode_tasks: Arc<Mutex<VecDeque<Task>>>,
         file_manager: Arc<Mutex<FileManager>>,
-        worker_manager: Arc<Mutex<WorkerManager>>,
         input_completed: Arc<AtomicBool>,
     ) -> Self {
         Self {
@@ -234,14 +213,13 @@ impl Scheduler {
             encode_tasks,
             file_manager,
             config,
-            worker_manager,
             input_completed,
         }
     }
 
     pub fn start_scheduler(&mut self, preferences: &Preferences) {
         let wait_time = time::Duration::from_secs(1);
-        
+
         //Take a handle from any async function and a booleans
         //The Handle is in an option so we can take the Handle in order to join it,
         //that is necessary because otherwise it is owned by the vector and joining would destroy it
@@ -291,11 +269,7 @@ impl Scheduler {
                 task = tasks.pop_front().unwrap();
             }
 
-            let result = task.handle_task(
-                self.file_manager.clone(),
-                &mut self.worker_manager,
-                preferences,
-            );
+            let result = task.handle_task(self.file_manager.clone(), preferences);
             if let Some(handle) = result {
                 handles.push(handle);
             }

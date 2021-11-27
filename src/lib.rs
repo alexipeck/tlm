@@ -9,6 +9,7 @@ pub mod profile;
 pub mod scheduler;
 pub mod schema;
 pub mod show;
+pub mod worker;
 pub mod worker_manager;
 pub mod ws;
 
