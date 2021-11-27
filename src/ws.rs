@@ -1,7 +1,7 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
 use std::{collections::VecDeque, sync::RwLock};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     config::WorkerConfig,
@@ -40,7 +40,7 @@ async fn handle_web_connection(
     worker_manager: Arc<Mutex<WorkerManager>>,
 ) {
     info!("Incoming TCP connection from: {}", addr);
-
+    
     let ws_stream = tokio_tungstenite::accept_async(raw_stream)
         .await
         .unwrap_or_else(|err| {
@@ -278,7 +278,10 @@ pub async fn run_worker(
                         match message.text.clone().unwrap().as_str() {
                             "worker_successfully_initialised" => {
                                 info!("Worker successfully initialised");
-                            }
+                            },
+                            "worker_successfully_reestablished" => {
+                                info!("Worker successfully re-established");
+                            },
                             _ => warn!("{} is not a valid input", message.text.unwrap()),
                         }
                     }

@@ -1,14 +1,9 @@
 extern crate diesel;
 
 use directories::BaseDirs;
-use tlm::{
-    config::{Preferences, ServerConfig},
-    file_manager::FileManager,
-    scheduler::{Scheduler, Task},
-    worker_manager::WorkerManager,
-    ws::run_web,
-};
+use tlm::{config::{Preferences, ServerConfig}, file_manager::FileManager, scheduler::{Scheduler, Task}, worker::Worker, worker_manager::{Encode, WorkerManager}, ws::run_web};
 
+use core::time;
 use std::collections::VecDeque;
 use std::env;
 use std::io::Error as IoError;
@@ -17,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use std::io::stdout;
-use tracing::{error, info, Level};
+use tracing::{Level, debug, error, info};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::registry::Registry;
@@ -71,7 +66,10 @@ async fn main() -> Result<(), IoError> {
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 
     let encode_tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
-    let worker_manager: Arc<Mutex<WorkerManager>> = Arc::new(Mutex::new(WorkerManager::default()));
+    let worker_mananger_workers: VecDeque<Worker> = VecDeque::new();
+    let worker_mananger_transcode_queue: Arc<Mutex<VecDeque<Encode>>> = Arc::new(Mutex::new(VecDeque::new()));
+    //NOTE: Once the establish/reestablish functionality has been separated from the WorkerManager, the worker_manager shouldn't need an Arc<Mutex<>>>
+    let worker_manager: Arc<Mutex<WorkerManager>> = Arc::new(Mutex::new(WorkerManager::new(worker_mananger_workers, worker_mananger_transcode_queue.clone(), 600)));
     let file_manager: Arc<Mutex<FileManager>> = Arc::new(Mutex::new(FileManager::new(&config)));
 
     let stop_scheduler = Arc::new(AtomicBool::new(false));
@@ -105,7 +103,7 @@ async fn main() -> Result<(), IoError> {
     });
 
     if !preferences.disable_input {
-        run_web(config.port, tasks, file_manager, worker_manager).await?;
+        run_web(config.port, tasks, file_manager, worker_mananger_transcode_queue, worker_manager).await?;
     }
 
     stop_scheduler.store(true, Ordering::Relaxed);

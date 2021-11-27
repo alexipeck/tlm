@@ -90,6 +90,8 @@ impl WorkerManager {
             "worker_successfully_initialised".to_string(),
         ));
         self.workers.push_back(new_worker);
+    }
+
     pub fn polling_event(&mut self) {
         self.drop_timed_out_workers();
         self.round_robin_fill_transcode_queues();
@@ -113,13 +115,18 @@ impl WorkerManager {
         if index.is_none() {
             return false;
         }
+
+        let mut reestablished_worker = self.closed_workers.remove(index.unwrap()).unwrap();
+        reestablished_worker.send_message_to_worker(WorkerMessage::text(
+            "worker_successfully_reestablished".to_string(),
+        ));
         self.workers
-            .push_back(self.closed_workers.remove(index.unwrap()).unwrap()); //Check if unwrapping .remove() is safe
+            .push_back(reestablished_worker); //Check if unwrapping .remove() is safe
         info!("Worker successfully re-established");
         true
     }
 
-    pub fn drop_timed_out_workers(&mut self, timeout_threshold: u64) {
+    pub fn drop_timed_out_workers(&mut self) {
         let mut indexes: Vec<usize> = Vec::new();
         for (i, worker) in self.closed_workers.iter().enumerate() {
             //Check if worker is timed out
@@ -139,7 +146,7 @@ impl WorkerManager {
                     .lock()
                     .unwrap()
                     .append(&mut worker.transcode_queue.write().unwrap());
-                info!("Worker ID: {} has been dropped. It's queue has been returned to the main queue", worker.uid);
+                info!("Worker with ID: {} has been dropped. It's queue has been returned to the main queue", worker.uid);
             }
         }
     }
@@ -169,7 +176,7 @@ impl WorkerManager {
                     worker.add_to_queue(encode);
                 }
                 None => {
-                    info!("No encode tasks to send to the worker");
+                    info!("No encode tasks available to send to a worker");
                     break;
                 }
             }
@@ -178,18 +185,6 @@ impl WorkerManager {
 
     pub fn send_encode_to_specific_worker(&mut self, _worker_uid: usize, _encode: Encode) {
         //TODO
-    }
-
-    //TODO: Find better name
-    pub fn send_encode_to_next_available_worker(&mut self, encode: Encode) {
-        for worker in self.workers.iter_mut() {
-            if worker.spaces_in_queue() > 0 {
-                worker.add_to_queue(encode);
-                return;
-            }
-        }
-
-        self.transcode_queue.lock().unwrap().push_back(encode);
     }
 
     pub fn send_notification_to_all_workers(&mut self) {}
