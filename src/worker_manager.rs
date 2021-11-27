@@ -155,24 +155,18 @@ impl WorkerManager {
     }
 
     pub fn start_worker_timeout(&mut self, worker_uid: String) {
-        let mut index: Option<usize> = None;
         let mut workers_lock = self.workers.lock().unwrap();
-        for (i, worker) in workers_lock.iter_mut().enumerate() {
+        for (index, worker) in workers_lock.iter_mut().enumerate() {
             if worker.uid == worker_uid {
                 worker.close_time = Some(Instant::now());
-                index = Some(i);
-                break;
+                self.closed_workers.push_back(workers_lock.remove(index).unwrap());
+                return;
             }
         }
-
-        if index.is_none() {
-            panic!(
-                "The WorkerManager couldn't find a worker associated with this worker_uid: {}",
-                worker_uid
-            );
-        }
-
-        self.closed_workers.push_back(workers_lock.remove(index.unwrap()).unwrap());
+        panic!(
+            "The WorkerManager couldn't find a worker associated with this worker_uid: {}",
+            worker_uid
+        );
     }
 
     pub fn round_robin_fill_transcode_queues(&mut self) {
