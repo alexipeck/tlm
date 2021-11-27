@@ -73,7 +73,7 @@ async fn main() -> Result<(), IoError> {
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 
     let encode_tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
-    let worker_mananger_workers: VecDeque<Worker> = VecDeque::new();
+    let worker_mananger_workers: Arc<Mutex<VecDeque<Worker>>> = Arc::new(Mutex::new(VecDeque::new()));
     let worker_mananger_transcode_queue: Arc<Mutex<VecDeque<Encode>>> =
         Arc::new(Mutex::new(VecDeque::new()));
     //NOTE: Once the establish/reestablish functionality has been separated from the WorkerManager, the worker_manager shouldn't need an Arc<Mutex<>>>

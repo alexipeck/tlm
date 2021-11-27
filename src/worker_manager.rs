@@ -62,7 +62,7 @@ impl Encode {
 }
 
 pub struct WorkerManager {
-    workers: VecDeque<Worker>,
+    workers: Arc<Mutex<VecDeque<Worker>>>,
     closed_workers: VecDeque<Worker>,
     transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
     timeout_threshold: u64,
@@ -70,7 +70,7 @@ pub struct WorkerManager {
 
 impl WorkerManager {
     pub fn new(
-        workers: VecDeque<Worker>,
+        workers: Arc<Mutex<VecDeque<Worker>>>,
         transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
         timeout_threshold: u64,
     ) -> Self {
@@ -93,7 +93,7 @@ impl WorkerManager {
         new_worker.send_message_to_worker(WorkerMessage::text(
             "worker_successfully_initialised".to_string(),
         ));
-        self.workers.push_back(new_worker);
+        self.workers.lock().unwrap().push_back(new_worker);
     }
 
     pub fn polling_event(&mut self) {
@@ -124,7 +124,7 @@ impl WorkerManager {
         reestablished_worker.send_message_to_worker(WorkerMessage::text(
             "worker_successfully_reestablished".to_string(),
         ));
-        self.workers.push_back(reestablished_worker); //Check if unwrapping .remove() is safe
+        self.workers.lock().unwrap().push_back(reestablished_worker); //Check if unwrapping .remove() is safe
         info!("Worker successfully re-established");
         true
     }
@@ -155,22 +155,28 @@ impl WorkerManager {
     }
 
     pub fn start_worker_timeout(&mut self, worker_uid: String) {
-        for (i, worker) in self.workers.iter_mut().enumerate() {
+        let mut index: Option<usize> = None;
+        let mut workers_lock = self.workers.lock().unwrap();
+        for (i, worker) in workers_lock.iter_mut().enumerate() {
             if worker.uid == worker_uid {
                 worker.close_time = Some(Instant::now());
-                self.closed_workers
-                    .push_back(self.workers.remove(i).unwrap());
-                return;
+                index = Some(i);
+                break;
             }
         }
-        panic!(
-            "The WorkerManager couldn't find a worker associated with this worker_uid: {}",
-            worker_uid
-        );
+
+        if index.is_none() {
+            panic!(
+                "The WorkerManager couldn't find a worker associated with this worker_uid: {}",
+                worker_uid
+            );
+        }
+
+        self.closed_workers.push_back(workers_lock.remove(index.unwrap()).unwrap());
     }
 
     pub fn round_robin_fill_transcode_queues(&mut self) {
-        for worker in self.workers.iter_mut() {
+        for worker in self.workers.lock().unwrap().iter_mut() {
             if worker.spaces_in_queue() < 1 {
                 continue;
             }
