@@ -6,7 +6,7 @@ use std::{
     time::Instant,
 };
 use tokio_tungstenite::tungstenite::Message;
-use tracing::{error, info};
+use tracing::error;
 
 use crate::worker_manager::AddEncodeMode;
 use crate::worker_manager::Encode;
@@ -49,9 +49,7 @@ impl Worker {
 
     pub fn send_message_to_worker(&mut self, worker_message: WorkerMessage) {
         self.tx
-            .start_send(Message::Binary(
-                bincode::serialize::<WorkerMessage>(&worker_message).unwrap(),
-            ))
+            .start_send(worker_message.as_message())
             .unwrap_or_else(|err| error!("{}", err));
         //TODO: Have the worker send a message to the server if it can't access the file
     }
@@ -94,6 +92,13 @@ pub struct WorkerMessage {
 }
 
 impl WorkerMessage {
+    pub fn as_message(&self) -> Message {
+        let serialised = bincode::serialize(self).unwrap_or_else(|err| {
+            error!("Failed to serialize WorkerMessage: {}", err);
+            panic!();
+        });
+        Message::binary(serialised)
+    }
     pub fn text(text: String) -> Self {
         Self {
             text: Some(text),

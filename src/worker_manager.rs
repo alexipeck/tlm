@@ -63,7 +63,7 @@ impl Encode {
 
 pub struct WorkerManager {
     workers: VecDeque<Worker>,
-    worker_icu: VecDeque<Worker>,
+    closed_workers: VecDeque<Worker>,
     transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
 }
 
@@ -71,7 +71,7 @@ impl WorkerManager {
     pub fn default() -> Self {
         Self {
             workers: VecDeque::new(),
-            worker_icu: VecDeque::new(),
+            closed_workers: VecDeque::new(),
             transcode_queue: Arc::new(Mutex::new(VecDeque::new())),
         }
     }
@@ -97,7 +97,7 @@ impl WorkerManager {
         tx: UnboundedSender<Message>,
     ) -> bool {
         let mut index: Option<usize> = None;
-        for (i, worker) in self.worker_icu.iter_mut().enumerate() {
+        for (i, worker) in self.closed_workers.iter_mut().enumerate() {
             if worker.uid == worker_uid {
                 worker.update(worker_ip_address, tx);
                 worker.close_time = None;
@@ -109,14 +109,14 @@ impl WorkerManager {
             return false;
         }
         self.workers
-            .push_back(self.worker_icu.remove(index.unwrap()).unwrap()); //Check if unwrapping .remove() is safe
+            .push_back(self.closed_workers.remove(index.unwrap()).unwrap()); //Check if unwrapping .remove() is safe
         info!("Worker successfully re-established");
         true
     }
 
     pub fn drop_timed_out_workers(&mut self, timeout_threshold: u64) {
         let mut indexes: Vec<usize> = Vec::new();
-        for (i, worker) in self.worker_icu.iter().enumerate() {
+        for (i, worker) in self.closed_workers.iter().enumerate() {
             //Check if worker is timed out
             if worker.close_time.is_none() {
                 continue;
@@ -143,7 +143,8 @@ impl WorkerManager {
         for (i, worker) in self.workers.iter_mut().enumerate() {
             if worker.uid == worker_uid {
                 worker.close_time = Some(Instant::now());
-                self.worker_icu.push_back(self.workers.remove(i).unwrap());
+                self.closed_workers
+                    .push_back(self.workers.remove(i).unwrap());
                 return;
             }
         }

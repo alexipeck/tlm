@@ -13,8 +13,7 @@ use tlm::config::WorkerConfig;
 use tlm::worker::WorkerMessage;
 use tlm::worker_manager::WorkerTranscodeQueue;
 use tlm::ws::run_worker;
-use tokio_tungstenite::tungstenite::protocol::Message;
-use tracing::{error, info, Level};
+use tracing::{error, Level};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::registry::Registry;
@@ -71,12 +70,10 @@ async fn main() -> Result<(), IoError> {
         let stop_worker_inner = stop_worker.clone();
         let (mut tx, rx) = futures_channel::mpsc::unbounded();
 
-        tx.start_send(Message::Binary(
-            bincode::serialize::<WorkerMessage>(&WorkerMessage::for_initialisation(
-                worker_uid.clone().read().unwrap().to_string(),
-            ))
-            .unwrap(),
-        ))
+        tx.start_send(
+            WorkerMessage::for_initialisation(worker_uid.clone().read().unwrap().to_string())
+                .as_message(),
+        )
         .unwrap();
 
         //TODO: Don't create this thread until we actually have a websocket established
