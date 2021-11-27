@@ -69,7 +69,11 @@ pub struct WorkerManager {
 }
 
 impl WorkerManager {
-    pub fn new(workers: VecDeque<Worker>, transcode_queue: Arc<Mutex<VecDeque<Encode>>>, timeout_threshold: u64) -> Self {
+    pub fn new(
+        workers: VecDeque<Worker>,
+        transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
+        timeout_threshold: u64,
+    ) -> Self {
         Self {
             workers,
             closed_workers: VecDeque::new(),
@@ -120,8 +124,7 @@ impl WorkerManager {
         reestablished_worker.send_message_to_worker(WorkerMessage::text(
             "worker_successfully_reestablished".to_string(),
         ));
-        self.workers
-            .push_back(reestablished_worker); //Check if unwrapping .remove() is safe
+        self.workers.push_back(reestablished_worker); //Check if unwrapping .remove() is safe
         info!("Worker successfully re-established");
         true
     }

@@ -40,7 +40,7 @@ async fn handle_web_connection(
     worker_manager: Arc<Mutex<WorkerManager>>,
 ) {
     info!("Incoming TCP connection from: {}", addr);
-    
+
     let ws_stream = tokio_tungstenite::accept_async(raw_stream)
         .await
         .unwrap_or_else(|err| {
@@ -88,7 +88,10 @@ async fn handle_web_connection(
                             generic.generate_target_path(),
                             generic.generate_encode_string(),
                         );
-                        worker_mananger_transcode_queue.lock().unwrap().push_back(encode);
+                        worker_mananger_transcode_queue
+                            .lock()
+                            .unwrap()
+                            .push_back(encode);
                         info!("Setting up generic for transcode");
                     }
                     None => {
@@ -278,10 +281,10 @@ pub async fn run_worker(
                         match message.text.clone().unwrap().as_str() {
                             "worker_successfully_initialised" => {
                                 info!("Worker successfully initialised");
-                            },
+                            }
                             "worker_successfully_reestablished" => {
                                 info!("Worker successfully re-established");
-                            },
+                            }
                             _ => warn!("{} is not a valid input", message.text.unwrap()),
                         }
                     }
