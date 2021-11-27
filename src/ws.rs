@@ -36,6 +36,7 @@ async fn handle_web_connection(
     addr: SocketAddr,
     tasks: Arc<Mutex<VecDeque<Task>>>,
     file_manager: Arc<Mutex<FileManager>>,
+    worker_mananger_transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
     worker_manager: Arc<Mutex<WorkerManager>>,
 ) {
     info!("Incoming TCP connection from: {}", addr);
@@ -87,10 +88,7 @@ async fn handle_web_connection(
                             generic.generate_target_path(),
                             generic.generate_encode_string(),
                         );
-                        worker_manager
-                            .lock()
-                            .unwrap()
-                            .send_encode_to_next_available_worker(encode);
+                        worker_mananger_transcode_queue.lock().unwrap().push_back(encode);
                         info!("Setting up generic for transcode");
                     }
                     None => {
@@ -149,6 +147,7 @@ pub async fn run_web(
     port: u16,
     tasks: Arc<Mutex<VecDeque<Task>>>,
     file_manager: Arc<Mutex<FileManager>>,
+    worker_mananger_transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
     worker_manager: Arc<Mutex<WorkerManager>>,
 ) -> Result<(), IoError> {
     let addr_ipv4 = env::args()
@@ -204,10 +203,10 @@ pub async fn run_web(
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
                 }
                 Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
                 }
             }
         } else if is_listening_ipv4 {
@@ -217,7 +216,7 @@ pub async fn run_web(
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
                 }
             }
         } else {
@@ -227,7 +226,7 @@ pub async fn run_web(
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
                 }
             }
         }

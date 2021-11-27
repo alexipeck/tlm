@@ -65,18 +65,20 @@ pub struct WorkerManager {
     workers: VecDeque<Worker>,
     closed_workers: VecDeque<Worker>,
     transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
+    timeout_threshold: u64,
 }
 
 impl WorkerManager {
-    pub fn default() -> Self {
+    pub fn new(workers: VecDeque<Worker>, transcode_queue: Arc<Mutex<VecDeque<Encode>>>, timeout_threshold: u64) -> Self {
         Self {
-            workers: VecDeque::new(),
+            workers,
             closed_workers: VecDeque::new(),
-            transcode_queue: Arc::new(Mutex::new(VecDeque::new())),
+            transcode_queue,
+            timeout_threshold,
         }
     }
 
-    //atm, we only care about the IP address in the SocketAddr, leaving the whole thing because deals with both IPV4 and IPV6
+    //atm, we only care about the IP address in the SocketAddr, leaving the whole thing because it deals with both IPV4 and IPV6
     pub fn add_worker(
         &mut self,
         worker_uid: String,
@@ -126,7 +128,7 @@ impl WorkerManager {
             }
 
             //Mark worker to be removed
-            if worker.close_time.unwrap().elapsed().as_secs() > timeout_threshold {
+            if worker.close_time.unwrap().elapsed().as_secs() > self.timeout_threshold {
                 indexes.push(i);
             }
         }
