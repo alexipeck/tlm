@@ -88,6 +88,9 @@ impl WorkerManager {
             "worker_successfully_initialised".to_string(),
         ));
         self.workers.push_back(new_worker);
+    pub fn polling_event(&mut self) {
+        self.drop_timed_out_workers();
+        self.round_robin_fill_transcode_queues();
     }
 
     pub fn reestablish_worker(

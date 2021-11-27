@@ -90,15 +90,30 @@ async fn main() -> Result<(), IoError> {
         scheduler.start_scheduler(&inner_pref);
         scheduler
     });
+    
+    let stop_worker_mananger_polling = Arc::new(AtomicBool::new(false));
+    let inner_stop_worker_manager_polling = stop_worker_mananger_polling.clone();
+    let worker_manager_poll_rate_hz = 0.5;
+    let worker_manager_polling_wait_time = time::Duration::from_secs_f64(1.0 / worker_manager_poll_rate_hz);
+    let inner_worker_manager = worker_manager.clone();
+    let worker_manager_polling_handle = thread::spawn(move || {
+        while !inner_stop_worker_manager_polling.load(Ordering::Relaxed) {
+            inner_worker_manager.lock().unwrap().polling_event();
+            thread::sleep(worker_manager_polling_wait_time);
+        }
+        inner_worker_manager
+    });
 
     if !preferences.disable_input {
         run_web(config.port, tasks, file_manager, worker_manager).await?;
     }
 
     stop_scheduler.store(true, Ordering::Relaxed);
+    stop_worker_mananger_polling.store(true, Ordering::Relaxed);
 
     //manual shutdown tasks or other manipulation
     let _scheduler = scheduler_handle.join().unwrap();
+    let _worker_manager = worker_manager_polling_handle.join().unwrap();
 
     Ok(())
 }
