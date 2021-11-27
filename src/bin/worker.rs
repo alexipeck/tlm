@@ -84,7 +84,6 @@ async fn main() -> Result<(), IoError> {
         let handle = thread::spawn(move || loop {
             transcode_queue.write().unwrap().run_transcode();
             sleep(Duration::new(1, 0));
-            info!("hmm");
             if stop_worker_inner.load(Ordering::Relaxed) {
                 break;
             }
