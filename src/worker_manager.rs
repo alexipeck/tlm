@@ -144,7 +144,7 @@ impl WorkerManager {
         }
         indexes.reverse();
         for index in indexes {
-            if let Some(worker) = self.workers.remove(index) {
+            if let Some(worker) = self.closed_workers.remove(index) {
                 self.transcode_queue
                     .lock()
                     .unwrap()
