@@ -42,9 +42,8 @@ impl Worker {
         self.tx = tx;
     }
 
-    pub fn spaces_in_queue(&mut self) -> usize {
-        //TODO: Make queue capacity come from the config file
-        2 - self.transcode_queue.read().unwrap().len()
+    pub fn spaces_in_queue(&mut self) -> i64 {
+        2 - self.transcode_queue.read().unwrap().len() as i64
     }
 
     pub fn send_message_to_worker(&mut self, worker_message: WorkerMessage) {
