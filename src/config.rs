@@ -1,11 +1,11 @@
 //!Set of functions and structures to make is easier to handle the config file
 //!and command line arguments
 use crate::file_manager::TrackedDirectories;
-use crate::worker_manager::generate_uid;
 use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
 use directories::BaseDirs;
 use fancy_regex::Regex;
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 use std::fmt;
 use std::fs;
 use std::path::Path;
@@ -29,7 +29,8 @@ pub struct ServerConfig {
 pub struct WorkerConfig {
     pub server_address: String,
     pub server_port: u16,
-    pub uid: String,
+    pub uid: Option<usize>,
+    config_path: PathBuf,
 }
 
 impl fmt::Display for WorkerConfig {
@@ -62,7 +63,8 @@ impl WorkerConfig {
             config = WorkerConfig {
                 server_address: "127.0.0.1".to_string(),
                 server_port: 8888,
-                uid: generate_uid(),
+                uid: None,
+                config_path: config_path.clone(),
             };
             let toml = toml::to_string(&config).unwrap();
             if fs::write(config_path.clone(), toml).is_err() {
@@ -73,8 +75,22 @@ impl WorkerConfig {
                 panic!();
             }
         }
-
         config
+    }
+
+    pub fn insert_uid(&mut self, uid: usize) {
+        self.uid = Some(uid);
+    }
+
+    pub fn update_config_on_disk(&self) {
+        let toml = toml::to_string(&self).unwrap();
+        if fs::write(self.config_path.clone(), toml).is_err() {
+            error!(
+                "Failed to write config file at: {}",
+                self.config_path.to_string_lossy()
+            );
+            panic!();
+        }
     }
 }
 

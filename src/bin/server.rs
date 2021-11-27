@@ -17,9 +17,8 @@ use std::io::Error as IoError;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-
 use std::io::stdout;
-use tracing::{debug, error, info, Level};
+use tracing::{error, info, Level};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::registry::Registry;

@@ -1,6 +1,6 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
-use std::{collections::VecDeque, sync::RwLock};
+use std::{collections::VecDeque, sync::{RwLock, atomic::{AtomicUsize, Ordering}}};
 use tracing::{debug, error, info, warn};
 
 use crate::{
@@ -28,7 +28,9 @@ use tokio::signal;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 type Tx = UnboundedSender<Message>;
-type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<String>, Tx)>>>;
+type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<usize>, Tx)>>>;
+
+static WORKER_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 async fn handle_web_connection(
     peer_map: PeerMap,
@@ -107,16 +109,23 @@ async fn handle_web_connection(
             //arm for initialising worker
             if text.contains("initialise_worker") {
                 //if true {//TODO: authenticate/validate
-                let worker_uid = message.worker_uid.unwrap();
+                let worker_uid: usize;
+                if message.worker_uid.is_some() {
+                    worker_uid = message.worker_uid.unwrap();
+                } else {
+                    worker_uid = WORKER_UID_COUNTER.fetch_add(1, Ordering::Relaxed);
+                    info!("Worker was given UID: {}", worker_uid);
+                }
+
                 if !worker_manager.lock().unwrap().reestablish_worker(
-                    worker_uid.clone(),
+                    worker_uid,
                     addr,
                     tx.clone(),
                 ) {
                     worker_manager
                         .lock()
                         .unwrap()
-                        .add_worker(worker_uid.clone(), addr, tx.clone());
+                        .add_worker(worker_uid, addr, tx.clone());
                 }
                 peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = Some(worker_uid);
                 //}
@@ -135,7 +144,7 @@ async fn handle_web_connection(
     info!("{} disconnected", &addr);
     let mut lock = peer_map.lock().unwrap();
     //The worker should always exist for as long as the connection exists
-    if let Some(to_remove) = lock.get(&addr).unwrap().0.clone() {
+    if let Some(to_remove) = lock.get(&addr).unwrap().0 {
         //TODO: Only have it remove the worker if it hasn't reestablished the connection withing x amount of time
         worker_manager
             .lock()
@@ -244,12 +253,11 @@ pub async fn run_web(
 }
 
 pub async fn run_worker(
-    worker_uid: Arc<RwLock<String>>,
     transcode_queue: Arc<RwLock<WorkerTranscodeQueue>>,
     rx: futures_channel::mpsc::UnboundedReceiver<Message>,
-    config: WorkerConfig,
+    config: Arc<RwLock<WorkerConfig>>,
 ) -> Result<(), IoError> {
-    let url = url::Url::parse(&config.to_string()).unwrap();
+    let url = url::Url::parse(&config.read().unwrap().to_string()).unwrap();
 
     let ws_stream;
     match connect_async(url).await {
@@ -277,6 +285,9 @@ pub async fn run_worker(
                             .write()
                             .unwrap()
                             .add_encode(message.encode.unwrap())
+                    } else if message.worker_uid.is_some() {
+                        let _ = config.write().unwrap().insert_uid(message.worker_uid.unwrap());
+                        config.read().unwrap().update_config_on_disk();
                     } else if message.text.is_some() {
                         match message.text.clone().unwrap().as_str() {
                             "worker_successfully_initialised" => {

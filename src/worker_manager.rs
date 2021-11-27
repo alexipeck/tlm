@@ -1,7 +1,6 @@
 use crate::generic::Generic;
 use crate::worker::{Worker, WorkerMessage};
 use futures_channel::mpsc::UnboundedSender;
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
@@ -13,21 +12,6 @@ use std::{
 };
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, error, info};
-
-pub fn generate_uid() -> String {
-    //TODO: Actually unique ID not thoughts and prayers
-    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    let mut rng = rand::thread_rng();
-    let uid: String = {
-        (0..32)
-            .map(|_| {
-                let idx = rng.gen_range(0..CHARSET.len());
-                CHARSET[idx] as char
-            })
-            .collect()
-    };
-    uid
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Encode {
@@ -85,14 +69,13 @@ impl WorkerManager {
     //atm, we only care about the IP address in the SocketAddr, leaving the whole thing because it deals with both IPV4 and IPV6
     pub fn add_worker(
         &mut self,
-        worker_uid: String,
+        worker_uid: usize,
         worker_ip_address: SocketAddr,
         tx: UnboundedSender<Message>,
     ) {
         let mut new_worker = Worker::new(worker_uid, worker_ip_address, tx);
-        new_worker.send_message_to_worker(WorkerMessage::text(
-            "worker_successfully_initialised".to_string(),
-        ));
+        new_worker.send_message_to_worker(WorkerMessage::for_id_return(worker_uid));
+        new_worker.send_message_to_worker(WorkerMessage::text("worker_successfully_initialised".to_string()));
         self.workers.lock().unwrap().push_back(new_worker);
     }
 
@@ -103,7 +86,7 @@ impl WorkerManager {
 
     pub fn reestablish_worker(
         &mut self,
-        worker_uid: String,
+        worker_uid: usize,
         worker_ip_address: SocketAddr,
         tx: UnboundedSender<Message>,
     ) -> bool {
@@ -154,7 +137,7 @@ impl WorkerManager {
         }
     }
 
-    pub fn start_worker_timeout(&mut self, worker_uid: String) {
+    pub fn start_worker_timeout(&mut self, worker_uid: usize) {
         let mut workers_lock = self.workers.lock().unwrap();
         for (index, worker) in workers_lock.iter_mut().enumerate() {
             if worker.uid == worker_uid {

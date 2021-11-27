@@ -1,8 +1,5 @@
 use directories::BaseDirs;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc, RwLock,
-};
+use std::sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, Ordering}};
 use std::thread;
 use std::{
     env,
@@ -58,9 +55,9 @@ async fn main() -> Result<(), IoError> {
     let subscriber = Registry::default().with(stdout_layer).with(logfile_layer);
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
-    let config = WorkerConfig::new(base_dirs.config_dir().join("tlm/tlm_worker.config"));
+    let config = Arc::new(RwLock::new(WorkerConfig::new(base_dirs.config_dir().join("tlm/tlm_worker.config"))));
 
-    let worker_uid: Arc<RwLock<String>> = Arc::new(RwLock::new(config.uid.clone()));
+    let worker_uid: Arc<RwLock<Option<usize>>> = Arc::new(RwLock::new(config.read().unwrap().uid));
 
     loop {
         let transcode_queue: Arc<RwLock<WorkerTranscodeQueue>> =
@@ -69,9 +66,8 @@ async fn main() -> Result<(), IoError> {
         let transcode_queue_inner = transcode_queue.clone();
         let stop_worker_inner = stop_worker.clone();
         let (mut tx, rx) = futures_channel::mpsc::unbounded();
-
         tx.start_send(
-            WorkerMessage::for_initialisation(worker_uid.clone().read().unwrap().to_string())
+            WorkerMessage::for_initialisation(config.clone())
                 .as_message(),
         )
         .unwrap();
@@ -87,7 +83,6 @@ async fn main() -> Result<(), IoError> {
         });
 
         run_worker(
-            worker_uid.clone(),
             transcode_queue_inner,
             rx,
             config.clone(),

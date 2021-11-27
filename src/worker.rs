@@ -1,20 +1,15 @@
 use futures_channel::mpsc::UnboundedSender;
-use std::{
-    collections::VecDeque,
-    net::SocketAddr,
-    sync::{Arc, RwLock},
-    time::Instant,
-};
+use std::{collections::VecDeque, net::SocketAddr, sync::{Arc, Mutex, RwLock}, time::Instant};
 use tokio_tungstenite::tungstenite::Message;
 use tracing::error;
 
-use crate::worker_manager::AddEncodeMode;
+use crate::{config::WorkerConfig, worker_manager::AddEncodeMode};
 use crate::worker_manager::Encode;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub struct Worker {
-    pub uid: String,
+    pub uid: usize,
     worker_ip_address: SocketAddr,
     tx: UnboundedSender<Message>,
     pub transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
@@ -27,7 +22,7 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(uid: String, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> Self {
+    pub fn new(uid: usize, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> Self {
         Self {
             uid,
             worker_ip_address,
@@ -85,7 +80,7 @@ impl Worker {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerMessage {
     pub text: Option<String>,
-    pub worker_uid: Option<String>,
+    pub worker_uid: Option<usize>,
     pub encode: Option<(Encode, AddEncodeMode)>,
     basic_message: bool,
 }
@@ -122,10 +117,19 @@ impl WorkerMessage {
         }
     }
 
-    pub fn for_initialisation(worker_uid: String) -> Self {
+    pub fn for_initialisation(config: Arc<RwLock<WorkerConfig>>) -> Self {
         Self {
             text: Some(String::from("initialise_worker")),
-            worker_uid: Some(worker_uid),
+            worker_uid: config.read().unwrap().uid,
+            encode: None,
+            basic_message: false,
+        }
+    }
+
+    pub fn for_id_return(uid: usize) -> Self {
+        Self {
+            text: None,
+            worker_uid: Some(uid),
             encode: None,
             basic_message: false,
         }
