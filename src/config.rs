@@ -9,7 +9,6 @@ use std::fmt;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use tracing::debug;
 use tracing::error;
 
 ///This struct contains any system specific data (paths, extensions, etc)
