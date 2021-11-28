@@ -295,15 +295,9 @@ pub async fn run_worker(
                         config.write().unwrap().insert_uid(worker_uid);
                         config.read().unwrap().update_config_on_disk();
                     }
-                    WorkerMessage::Text(text) => match text.as_str() {
-                        "worker_successfully_initialised" => {
-                            info!("Worker successfully initialised");
-                        }
-                        "worker_successfully_reestablished" => {
-                            info!("Worker successfully re-established");
-                        }
-                        _ => warn!("{} is not a valid input", text),
-                    },
+                    WorkerMessage::Announce(text) => {
+                        info!("Announcement: {}", text);
+                    }
                     _ => warn!("Worker recieved a message it doesn't know how to handle"),
                 },
                 Err(err) => {

@@ -75,8 +75,8 @@ impl WorkerManager {
     ) {
         let mut new_worker = Worker::new(worker_uid, worker_ip_address, tx);
         new_worker.send_message_to_worker(WorkerMessage::WorkerID(worker_uid));
-        new_worker.send_message_to_worker(WorkerMessage::Text(
-            "worker_successfully_initialised".to_string(),
+        new_worker.send_message_to_worker(WorkerMessage::Announce(
+            "Worker successfully initialised".to_string(),
         ));
         self.workers.lock().unwrap().push_back(new_worker);
     }
@@ -106,8 +106,8 @@ impl WorkerManager {
         }
 
         let mut reestablished_worker = self.closed_workers.remove(index.unwrap()).unwrap();
-        reestablished_worker.send_message_to_worker(WorkerMessage::Text(
-            "worker_successfully_reestablished".to_string(),
+        reestablished_worker.send_message_to_worker(WorkerMessage::Announce(
+            "Worker successfully re-established".to_string(),
         ));
         self.workers.lock().unwrap().push_back(reestablished_worker); //Check if unwrapping .remove() is safe
         info!("Worker successfully re-established");
