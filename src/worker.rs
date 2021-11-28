@@ -82,7 +82,6 @@ impl Worker {
     }
 }
 
-//Enum of possible general commands that don't require
 #[derive(Serialize, Deserialize)]
 pub enum WorkerMessage {
     Encode(Encode, AddEncodeMode),
