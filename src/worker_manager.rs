@@ -69,13 +69,15 @@ impl WorkerManager {
     //atm, we only care about the IP address in the SocketAddr, leaving the whole thing because it deals with both IPV4 and IPV6
     pub fn add_worker(
         &mut self,
-        worker_uid: usize,
+        worker_uid: u32,
         worker_ip_address: SocketAddr,
         tx: UnboundedSender<Message>,
     ) {
         let mut new_worker = Worker::new(worker_uid, worker_ip_address, tx);
-        new_worker.send_message_to_worker(WorkerMessage::for_id_return(worker_uid));
-        new_worker.send_message_to_worker(WorkerMessage::text("worker_successfully_initialised".to_string()));
+        new_worker.send_message_to_worker(WorkerMessage::WorkerID(worker_uid));
+        new_worker.send_message_to_worker(WorkerMessage::Text(
+            "worker_successfully_initialised".to_string(),
+        ));
         self.workers.lock().unwrap().push_back(new_worker);
     }
 
@@ -86,7 +88,7 @@ impl WorkerManager {
 
     pub fn reestablish_worker(
         &mut self,
-        worker_uid: usize,
+        worker_uid: u32,
         worker_ip_address: SocketAddr,
         tx: UnboundedSender<Message>,
     ) -> bool {
@@ -104,7 +106,7 @@ impl WorkerManager {
         }
 
         let mut reestablished_worker = self.closed_workers.remove(index.unwrap()).unwrap();
-        reestablished_worker.send_message_to_worker(WorkerMessage::text(
+        reestablished_worker.send_message_to_worker(WorkerMessage::Text(
             "worker_successfully_reestablished".to_string(),
         ));
         self.workers.lock().unwrap().push_back(reestablished_worker); //Check if unwrapping .remove() is safe
@@ -137,12 +139,13 @@ impl WorkerManager {
         }
     }
 
-    pub fn start_worker_timeout(&mut self, worker_uid: usize) {
+    pub fn start_worker_timeout(&mut self, worker_uid: u32) {
         let mut workers_lock = self.workers.lock().unwrap();
         for (index, worker) in workers_lock.iter_mut().enumerate() {
             if worker.uid == worker_uid {
                 worker.close_time = Some(Instant::now());
-                self.closed_workers.push_back(workers_lock.remove(index).unwrap());
+                self.closed_workers
+                    .push_back(workers_lock.remove(index).unwrap());
                 return;
             }
         }
@@ -299,8 +302,7 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    pub fn add_encode(&mut self, encode: (Encode, AddEncodeMode)) {
-        let (encode, add_encode_mode) = encode;
+    pub fn add_encode(&mut self, encode: Encode, add_encode_mode: AddEncodeMode) {
         match add_encode_mode {
             AddEncodeMode::Back => {
                 self.check_queue_capacity();

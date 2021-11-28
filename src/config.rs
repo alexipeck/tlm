@@ -5,11 +5,11 @@ use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
 use directories::BaseDirs;
 use fancy_regex::Regex;
 use serde::{Deserialize, Serialize};
-use tracing::debug;
 use std::fmt;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
+use tracing::debug;
 use tracing::error;
 
 ///This struct contains any system specific data (paths, extensions, etc)
@@ -29,7 +29,7 @@ pub struct ServerConfig {
 pub struct WorkerConfig {
     pub server_address: String,
     pub server_port: u16,
-    pub uid: Option<usize>,
+    pub uid: Option<u32>,
     config_path: PathBuf,
 }
 
@@ -78,7 +78,7 @@ impl WorkerConfig {
         config
     }
 
-    pub fn insert_uid(&mut self, uid: usize) {
+    pub fn insert_uid(&mut self, uid: u32) {
         self.uid = Some(uid);
     }
 

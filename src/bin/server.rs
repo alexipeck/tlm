@@ -13,11 +13,11 @@ use tlm::{
 use core::time;
 use std::collections::VecDeque;
 use std::env;
+use std::io::stdout;
 use std::io::Error as IoError;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::io::stdout;
 use tracing::{error, info, Level};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -72,7 +72,8 @@ async fn main() -> Result<(), IoError> {
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 
     let encode_tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
-    let worker_mananger_workers: Arc<Mutex<VecDeque<Worker>>> = Arc::new(Mutex::new(VecDeque::new()));
+    let worker_mananger_workers: Arc<Mutex<VecDeque<Worker>>> =
+        Arc::new(Mutex::new(VecDeque::new()));
     let worker_mananger_transcode_queue: Arc<Mutex<VecDeque<Encode>>> =
         Arc::new(Mutex::new(VecDeque::new()));
     //NOTE: Once the establish/reestablish functionality has been separated from the WorkerManager, the worker_manager shouldn't need an Arc<Mutex<>>>

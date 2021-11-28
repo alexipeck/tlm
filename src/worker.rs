@@ -1,15 +1,20 @@
 use futures_channel::mpsc::UnboundedSender;
-use std::{collections::VecDeque, net::SocketAddr, sync::{Arc, Mutex, RwLock}, time::Instant};
+use std::{
+    collections::VecDeque,
+    net::SocketAddr,
+    sync::{Arc, RwLock},
+    time::Instant,
+};
 use tokio_tungstenite::tungstenite::Message;
 use tracing::error;
 
-use crate::{config::WorkerConfig, worker_manager::AddEncodeMode};
+use crate::worker_manager::AddEncodeMode;
 use crate::worker_manager::Encode;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub struct Worker {
-    pub uid: usize,
+    pub uid: u32,
     worker_ip_address: SocketAddr,
     tx: UnboundedSender<Message>,
     pub transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
@@ -22,7 +27,7 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(uid: usize, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> Self {
+    pub fn new(uid: u32, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> Self {
         Self {
             uid,
             worker_ip_address,
@@ -43,7 +48,7 @@ impl Worker {
 
     pub fn send_message_to_worker(&mut self, worker_message: WorkerMessage) {
         self.tx
-            .start_send(worker_message.as_message())
+            .start_send(worker_message.to_message())
             .unwrap_or_else(|err| error!("{}", err));
         //TODO: Have the worker send a message to the server if it can't access the file
     }
@@ -67,7 +72,7 @@ impl Worker {
             .push_back(encode.clone());
 
         //Sends the encode to the worker
-        self.send_message_to_worker(WorkerMessage::for_encode(encode, AddEncodeMode::Back));
+        self.send_message_to_worker(WorkerMessage::Encode(encode, AddEncodeMode::Back));
     }
 
     pub fn check_if_active(&mut self) {
@@ -77,68 +82,22 @@ impl Worker {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WorkerMessage {
-    pub text: Option<String>,
-    pub worker_uid: Option<usize>,
-    pub encode: Option<(Encode, AddEncodeMode)>,
-    basic_message: bool,
+//Enum of possible general commands that don't require
+#[derive(Serialize, Deserialize)]
+pub enum WorkerMessage {
+    Encode(Encode, AddEncodeMode),
+    Initialise(Option<u32>),
+    WorkerID(u32),
+    Announce(String),
+    Text(String),
 }
 
 impl WorkerMessage {
-    pub fn as_message(&self) -> Message {
+    pub fn to_message(&self) -> Message {
         let serialised = bincode::serialize(self).unwrap_or_else(|err| {
-            error!("Failed to serialize WorkerMessage: {}", err);
+            error!("Failed to serialise WorkerMessage: {}", err);
             panic!();
         });
         Message::binary(serialised)
-    }
-    pub fn text(text: String) -> Self {
-        Self {
-            text: Some(text),
-            worker_uid: None,
-            encode: None,
-            basic_message: true,
-        }
-    }
-    //do something else, like shutdown, cancel current encode, flush queue, switch to running a specific encode (regardless of progress)
-    //many of these actions are destructive, many of them will technically waste CPU time
-    //most functions for a worker will be handled here
-    pub fn for_command(text: String) -> Self {
-        WorkerMessage::text(text)
-    }
-
-    pub fn for_encode(encode: Encode, encode_add_mode: AddEncodeMode) -> Self {
-        Self {
-            text: None,
-            worker_uid: None,
-            encode: Some((encode, encode_add_mode)),
-            basic_message: false,
-        }
-    }
-
-    pub fn for_initialisation(config: Arc<RwLock<WorkerConfig>>) -> Self {
-        Self {
-            text: Some(String::from("initialise_worker")),
-            worker_uid: config.read().unwrap().uid,
-            encode: None,
-            basic_message: false,
-        }
-    }
-
-    pub fn for_id_return(uid: usize) -> Self {
-        Self {
-            text: None,
-            worker_uid: Some(uid),
-            encode: None,
-            basic_message: false,
-        }
-    }
-
-    //this would be used to let the worker know the server will be unavailable for x amount of time and
-    //to continue to establish a websocket connection, but continue working on it's encode queue
-    //or for the server to output to the workers console
-    pub fn announcement(text: String) -> Self {
-        WorkerMessage::text(text)
     }
 }

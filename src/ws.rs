@@ -1,6 +1,12 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
-use std::{collections::VecDeque, sync::{RwLock, atomic::{AtomicUsize, Ordering}}};
+use std::{
+    collections::VecDeque,
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        RwLock,
+    },
+};
 use tracing::{debug, error, info, warn};
 
 use crate::{
@@ -28,9 +34,9 @@ use tokio::signal;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 type Tx = UnboundedSender<Message>;
-type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<usize>, Tx)>>>;
+type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<u32>, Tx)>>>;
 
-static WORKER_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+static WORKER_UID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 async fn handle_web_connection(
     peer_map: PeerMap,
@@ -104,33 +110,32 @@ async fn handle_web_connection(
             }
         } else if msg.is_binary() {
             let message = bincode::deserialize::<WorkerMessage>(&msg.into_data()).unwrap();
-            let text = message.text.unwrap();
+            match message {
+                WorkerMessage::Initialise(mut worker_uid) => {
+                    //if true {//TODO: authenticate/validate
+                    if worker_uid.is_none() {
+                        worker_uid = Some(WORKER_UID_COUNTER.fetch_add(1, Ordering::Relaxed));
+                        info!("Worker was given UID: {}", worker_uid.unwrap());
+                    }
 
-            //arm for initialising worker
-            if text.contains("initialise_worker") {
-                //if true {//TODO: authenticate/validate
-                let worker_uid: usize;
-                if message.worker_uid.is_some() {
-                    worker_uid = message.worker_uid.unwrap();
-                } else {
-                    worker_uid = WORKER_UID_COUNTER.fetch_add(1, Ordering::Relaxed);
-                    info!("Worker was given UID: {}", worker_uid);
+                    if !worker_manager.lock().unwrap().reestablish_worker(
+                        worker_uid.unwrap(),
+                        addr,
+                        tx.clone(),
+                    ) {
+                        worker_manager.lock().unwrap().add_worker(
+                            worker_uid.unwrap(),
+                            addr,
+                            tx.clone(),
+                        );
+                    }
+                    peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
+                    //}
                 }
-
-                if !worker_manager.lock().unwrap().reestablish_worker(
-                    worker_uid,
-                    addr,
-                    tx.clone(),
-                ) {
-                    worker_manager
-                        .lock()
-                        .unwrap()
-                        .add_worker(worker_uid, addr, tx.clone());
+                _ => {
+                    warn!("Server recieved a message it doesn't know how to handle");
                 }
-                peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = Some(worker_uid);
-                //}
             }
-            info!("Received a message from {}: {}", addr, text);
         }
 
         future::ok(())
@@ -279,27 +284,28 @@ pub async fn run_worker(
             }
             let message_result = bincode::deserialize::<WorkerMessage>(&message.into_data());
             match message_result {
-                Ok(message) => {
-                    if message.encode.is_some() {
+                Ok(message) => match message {
+                    WorkerMessage::Encode(encode, add_encode_mode) => {
                         transcode_queue
                             .write()
                             .unwrap()
-                            .add_encode(message.encode.unwrap())
-                    } else if message.worker_uid.is_some() {
-                        let _ = config.write().unwrap().insert_uid(message.worker_uid.unwrap());
-                        config.read().unwrap().update_config_on_disk();
-                    } else if message.text.is_some() {
-                        match message.text.clone().unwrap().as_str() {
-                            "worker_successfully_initialised" => {
-                                info!("Worker successfully initialised");
-                            }
-                            "worker_successfully_reestablished" => {
-                                info!("Worker successfully re-established");
-                            }
-                            _ => warn!("{} is not a valid input", message.text.unwrap()),
-                        }
+                            .add_encode(encode, add_encode_mode);
                     }
-                }
+                    WorkerMessage::WorkerID(worker_uid) => {
+                        config.write().unwrap().insert_uid(worker_uid);
+                        config.read().unwrap().update_config_on_disk();
+                    }
+                    WorkerMessage::Text(text) => match text.as_str() {
+                        "worker_successfully_initialised" => {
+                            info!("Worker successfully initialised");
+                        }
+                        "worker_successfully_reestablished" => {
+                            info!("Worker successfully re-established");
+                        }
+                        _ => warn!("{} is not a valid input", text),
+                    },
+                    _ => warn!("Worker recieved a message it doesn't know how to handle"),
+                },
                 Err(err) => {
                     error!("{}", err);
                 }
