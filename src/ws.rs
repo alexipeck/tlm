@@ -109,8 +109,7 @@ async fn handle_web_connection(
                 _ => warn!("{} is not a valid input", message),
             }
         } else if msg.is_binary() {
-            let message = bincode::deserialize::<WorkerMessage>(&msg.into_data()).unwrap();
-            match message {
+            match WorkerMessage::from_message(msg) {
                 WorkerMessage::Initialise(mut worker_uid) => {
                     //if true {//TODO: authenticate/validate
                     if worker_uid.is_none() {
@@ -279,30 +278,23 @@ pub async fn run_worker(
             let message = message.unwrap();
             if message.is_close() {
                 info!("Server has disconnected voluntarily");
-                //stop_worker.store(true, Ordering::Relaxed);
                 return;
             }
-            let message_result = bincode::deserialize::<WorkerMessage>(&message.into_data());
-            match message_result {
-                Ok(message) => match message {
-                    WorkerMessage::Encode(encode, add_encode_mode) => {
-                        transcode_queue
-                            .write()
-                            .unwrap()
-                            .add_encode(encode, add_encode_mode);
-                    }
-                    WorkerMessage::WorkerID(worker_uid) => {
-                        config.write().unwrap().insert_uid(worker_uid);
-                        config.read().unwrap().update_config_on_disk();
-                    }
-                    WorkerMessage::Announce(text) => {
-                        info!("Announcement: {}", text);
-                    }
-                    _ => warn!("Worker recieved a message it doesn't know how to handle"),
-                },
-                Err(err) => {
-                    error!("{}", err);
+            match WorkerMessage::from_message(message) {
+                WorkerMessage::Encode(encode, add_encode_mode) => {
+                    transcode_queue
+                        .write()
+                        .unwrap()
+                        .add_encode(encode, add_encode_mode);
                 }
+                WorkerMessage::WorkerID(worker_uid) => {
+                    config.write().unwrap().insert_uid(worker_uid);
+                    config.read().unwrap().update_config_on_disk();
+                }
+                WorkerMessage::Announce(text) => {
+                    info!("Announcement: {}", text);
+                }
+                _ => warn!("Worker recieved a message it doesn't know how to handle"),
             }
         })
     };

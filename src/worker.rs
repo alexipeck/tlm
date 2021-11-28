@@ -82,6 +82,7 @@ impl Worker {
     }
 }
 
+///Messages to be serialised and sent between the worker and server
 #[derive(Serialize, Deserialize)]
 pub enum WorkerMessage {
     Encode(Encode, AddEncodeMode),
@@ -92,11 +93,19 @@ pub enum WorkerMessage {
 }
 
 impl WorkerMessage {
+    ///Convert WorkerMessage to a tungstenite message for sending over websockets
     pub fn to_message(&self) -> Message {
         let serialised = bincode::serialize(self).unwrap_or_else(|err| {
             error!("Failed to serialise WorkerMessage: {}", err);
             panic!();
         });
         Message::binary(serialised)
+    }
+
+    pub fn from_message(message: Message) -> Self {
+        bincode::deserialize::<WorkerMessage>(&message.into_data()).unwrap_or_else(|err| {
+            error!("Failed to deserialise message: {}", err);
+            panic!();
+        })
     }
 }
