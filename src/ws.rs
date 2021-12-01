@@ -131,6 +131,33 @@ async fn handle_web_connection(
                     peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
                     //}
                 }
+                VersatileMessage::EncodeGeneric(generic_uid, add_encode_mode) => {
+                    match file_manager.lock().unwrap().get_encode_from_generic_uid(generic_uid as usize) {
+                        Some(encode) => {
+                            match add_encode_mode {
+                                AddEncodeMode::Back => {
+                                    worker_mananger_transcode_queue
+                                        .lock()
+                                        .unwrap()
+                                        .push_back(encode);
+                                },
+                                AddEncodeMode::Next => {
+                                    worker_mananger_transcode_queue
+                                        .lock()
+                                        .unwrap()
+                                        .push_front(encode);
+                                },
+                                AddEncodeMode::Now => {
+                                    //TODO: Implement immediate encode
+                                },
+                            }
+                            info!("Setting up generic for transcode");
+                        }
+                        None => {
+                            info!("No generics available to transcode");
+                        }
+                    }
+                },
                 _ => {
                     warn!("Server recieved a message it doesn't know how to handle");
                 }
