@@ -6,7 +6,7 @@ use crate::{
     designation::Designation,
     generic::Generic,
     model::{NewEpisode, NewGeneric},
-    show::{Episode, Show},
+    show::{Episode, Show}, worker_manager::Encode,
 };
 extern crate derivative;
 use derivative::Derivative;
@@ -124,6 +124,20 @@ impl FileManager {
                     .index(thread_rng().gen_range(0..self.generic_files.len()))
                     .clone(),
             );
+        }
+        None
+    }
+
+    pub fn get_encode_from_generic_uid(&self, generic_uid: usize) -> Option<Encode> {
+        for generic in &self.generic_files {
+            if generic.generic_uid.unwrap() == generic_uid {
+                return Some(generic.generate_encode());
+            }
+        }
+        for show in &self.shows {
+            if let Some(encode) = show.get_generic_from_uid(generic_uid) {
+                return Some(encode);
+            }
         }
         None
     }
