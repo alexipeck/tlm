@@ -1,5 +1,5 @@
 use crate::generic::Generic;
-use crate::worker::{Worker, WorkerMessage};
+use crate::worker::{Worker, VersatileMessage};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -74,8 +74,8 @@ impl WorkerManager {
         tx: UnboundedSender<Message>,
     ) {
         let mut new_worker = Worker::new(worker_uid, worker_ip_address, tx);
-        new_worker.send_message_to_worker(WorkerMessage::WorkerID(worker_uid));
-        new_worker.send_message_to_worker(WorkerMessage::Announce(
+        new_worker.send_message_to_worker(VersatileMessage::WorkerID(worker_uid));
+        new_worker.send_message_to_worker(VersatileMessage::Announce(
             "Worker successfully initialised".to_string(),
         ));
         self.workers.lock().unwrap().push_back(new_worker);
@@ -106,7 +106,7 @@ impl WorkerManager {
         }
 
         let mut reestablished_worker = self.closed_workers.remove(index.unwrap()).unwrap();
-        reestablished_worker.send_message_to_worker(WorkerMessage::Announce(
+        reestablished_worker.send_message_to_worker(VersatileMessage::Announce(
             "Worker successfully re-established".to_string(),
         ));
         self.workers.lock().unwrap().push_back(reestablished_worker); //Check if unwrapping .remove() is safe
@@ -313,7 +313,7 @@ impl WorkerTranscodeQueue {
                 self.transcode_queue.write().unwrap().push_front(encode);
             }
 
-            AddEncodeMode::NowBasic => {
+            AddEncodeMode::Now => {
                 //Kill currently running encode and remove the handle
                 self.kill_current_transcode_process();
 
@@ -331,5 +331,5 @@ impl WorkerTranscodeQueue {
 pub enum AddEncodeMode {
     Back,
     Next,
-    NowBasic,
+    Now,
 }

@@ -13,8 +13,8 @@ use crate::{
     config::WorkerConfig,
     file_manager::FileManager,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
-    worker::WorkerMessage,
-    worker_manager::{Encode, WorkerManager, WorkerTranscodeQueue},
+    worker::VersatileMessage,
+    worker_manager::{Encode, WorkerManager, WorkerTranscodeQueue, AddEncodeMode},
 };
 
 use std::{
@@ -109,8 +109,8 @@ async fn handle_web_connection(
                 _ => warn!("{} is not a valid input", message),
             }
         } else if msg.is_binary() {
-            match WorkerMessage::from_message(msg) {
-                WorkerMessage::Initialise(mut worker_uid) => {
+            match VersatileMessage::from_message(msg) {
+                VersatileMessage::Initialise(mut worker_uid) => {
                     //if true {//TODO: authenticate/validate
                     if worker_uid.is_none() {
                         worker_uid = Some(WORKER_UID_COUNTER.fetch_add(1, Ordering::Relaxed));
@@ -280,21 +280,22 @@ pub async fn run_worker(
                 info!("Server has disconnected voluntarily");
                 return;
             }
-            match WorkerMessage::from_message(message) {
-                WorkerMessage::Encode(encode, add_encode_mode) => {
+            match VersatileMessage::from_message(message) {
+                VersatileMessage::Encode(encode, add_encode_mode) => {
                     transcode_queue
                         .write()
                         .unwrap()
                         .add_encode(encode, add_encode_mode);
                 }
-                WorkerMessage::WorkerID(worker_uid) => {
+                VersatileMessage::WorkerID(worker_uid) => {
                     config.write().unwrap().insert_uid(worker_uid);
                     config.read().unwrap().update_config_on_disk();
+                    info!("Worker has been given UID: {}", worker_uid);
                 }
-                WorkerMessage::Announce(text) => {
+                VersatileMessage::Announce(text) => {
                     info!("Announcement: {}", text);
                 }
-                _ => warn!("Worker recieved a message it doesn't know how to handle"),
+                _ => warn!("Worker received a message it doesn't know how to handle"),
             }
         })
     };

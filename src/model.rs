@@ -20,7 +20,7 @@ pub struct NewGeneric {
 
 impl NewGeneric {
     pub fn new(full_path: String, designation: i32, profile: Option<BasicProfile>) -> Self {
-        let mut new_generic = NewGeneric {
+        let mut new_generic = Self {
             full_path,
             designation,
             width: None,
@@ -63,8 +63,8 @@ pub struct GenericModel {
 
 impl GenericModel {
     ///Create an in memory generic from a database one
-    pub fn from_generic(generic: Generic) -> GenericModel {
-        let mut generic_model = GenericModel {
+    pub fn from_generic(generic: Generic) -> Self {
+        let mut generic_model = Self {
             generic_uid: generic.generic_uid.unwrap() as i32,
             full_path: generic.get_full_path(),
             designation: generic.designation as i32,
@@ -123,7 +123,7 @@ impl NewEpisode {
         season_number: usize,
         episode_number: usize,
     ) -> Self {
-        NewEpisode {
+        Self {
             generic_uid: generic_uid as i32,
             show_uid: show_uid as i32,
             episode_title,
