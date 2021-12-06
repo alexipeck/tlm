@@ -165,7 +165,6 @@ impl WorkerManager {
                     worker.add_to_queue(encode);
                 }
                 None => {
-                    info!("No encode tasks available to send to a worker");
                     break;
                 }
             }

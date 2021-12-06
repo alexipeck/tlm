@@ -305,6 +305,10 @@ pub async fn run_worker(
             let message = message.unwrap();
             if message.is_close() {
                 info!("Server has disconnected voluntarily");
+                //TODO: Trigger the worker to start trying to reestablish the connection
+                //      It should continue a running transcode, but ONLY complete the current transcode until the server connection has been established
+                info!("Worker is beginning to try and reestablish a connection to the server");
+                info!("Worker is continuing it's current transcode");
                 return;
             }
             match VersatileMessage::from_message(message) {

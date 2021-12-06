@@ -47,7 +47,7 @@ impl ProcessNewFiles {
     pub fn run(&mut self, file_manager: Arc<Mutex<FileManager>>, preferences: &Preferences) {
         info!("Started processing new files");
         file_manager.lock().unwrap().process_new_files(preferences);
-        info!("Finished processing new files you can now stop the program with Ctrl-c");
+        info!("Finished processing new files");
     }
 }
 

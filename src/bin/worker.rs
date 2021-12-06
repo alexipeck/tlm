@@ -1,8 +1,8 @@
 use directories::BaseDirs;
-use std::sync::{
+use std::{sync::{
     atomic::{AtomicBool, Ordering},
     Arc, RwLock,
-};
+}, thread::JoinHandle};
 use std::thread;
 use std::{
     env,
@@ -63,7 +63,7 @@ async fn main() -> Result<(), IoError> {
     )));
 
     let worker_uid: Arc<RwLock<Option<u32>>> = Arc::new(RwLock::new(config.read().unwrap().uid));
-
+    let mut handle: Option<JoinHandle<()>> = None;
     loop {
         let transcode_queue: Arc<RwLock<WorkerTranscodeQueue>> =
             Arc::new(RwLock::new(WorkerTranscodeQueue::default()));
@@ -76,20 +76,21 @@ async fn main() -> Result<(), IoError> {
 
         //TODO: Don't create this thread until we actually have a websocket established
         //Alternatively, don't worry about it, it isn't really a problem as it is currently
-        let handle = thread::spawn(move || loop {
+        handle = Some(thread::spawn(move || loop {
             transcode_queue.write().unwrap().run_transcode();
-            sleep(Duration::new(1, 0));
             if stop_worker_inner.load(Ordering::Relaxed) {
                 break;
             }
-        });
+        }));
 
         run_worker(transcode_queue_inner, rx, config.clone()).await?;
-
-        let _ = handle.join();
+        
         if stop_worker.load(Ordering::Relaxed) {
             break;
         }
+    }
+    if let Some(handle) = handle {
+        let _ = handle.join();
     }
     Ok(())
 }
