@@ -21,7 +21,7 @@ static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 ///Struct to represent a file import task. This is needed so we can have an enum
 ///that contains all types of task
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ImportFiles {}
 
 impl ImportFiles {
@@ -32,15 +32,9 @@ impl ImportFiles {
     }
 }
 
-impl Default for ImportFiles {
-    fn default() -> Self {
-        ImportFiles {}
-    }
-}
-
 ///Struct to represent a file processing task. This is needed so we can have an enum
 ///that contains all types of task
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ProcessNewFiles {}
 
 impl ProcessNewFiles {
@@ -51,21 +45,15 @@ impl ProcessNewFiles {
     }
 }
 
-impl Default for ProcessNewFiles {
-    fn default() -> Self {
-        ProcessNewFiles {}
-    }
-}
-
 ///Struct to represent a hashing task. This is needed so we can have an enum
 ///that contains all types of task.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Hash {}
 
 impl Hash {
     pub fn run(&self, current_content: Vec<Generic>) -> TaskReturnAsync {
         let is_finished = Arc::new(AtomicBool::new(false));
-
+        
         info!("Started hashing in the background");
         let is_finished_inner = is_finished.clone();
         //Hash files until all other functions are complete
@@ -115,12 +103,6 @@ impl Hash {
         .unwrap();
 
         TaskReturnAsync::new(Some(handle), is_finished)
-    }
-}
-
-impl Default for Hash {
-    fn default() -> Self {
-        Hash {}
     }
 }
 
