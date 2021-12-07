@@ -14,7 +14,7 @@ use crate::{
     file_manager::FileManager,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
     worker::VersatileMessage,
-    worker_manager::{Encode, WorkerManager, WorkerTranscodeQueue, AddEncodeMode},
+    worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue},
 };
 
 use std::{
@@ -132,7 +132,11 @@ async fn handle_web_connection(
                     //}
                 }
                 VersatileMessage::EncodeGeneric(generic_uid, add_encode_mode) => {
-                    match file_manager.lock().unwrap().get_encode_from_generic_uid(generic_uid as usize) {
+                    match file_manager
+                        .lock()
+                        .unwrap()
+                        .get_encode_from_generic_uid(generic_uid as usize)
+                    {
                         Some(encode) => {
                             match add_encode_mode {
                                 AddEncodeMode::Back => {
@@ -140,16 +144,16 @@ async fn handle_web_connection(
                                         .lock()
                                         .unwrap()
                                         .push_back(encode);
-                                },
+                                }
                                 AddEncodeMode::Next => {
                                     worker_mananger_transcode_queue
                                         .lock()
                                         .unwrap()
                                         .push_front(encode);
-                                },
+                                }
                                 AddEncodeMode::Now => {
                                     //TODO: Implement immediate encode
-                                },
+                                }
                             }
                             info!("Setting up generic for transcode");
                         }
@@ -157,7 +161,7 @@ async fn handle_web_connection(
                             info!("No generics available to transcode");
                         }
                     }
-                },
+                }
                 _ => {
                     warn!("Server recieved a message it doesn't know how to handle");
                 }

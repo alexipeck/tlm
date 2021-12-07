@@ -131,7 +131,7 @@ impl Show {
                         if uid == generic_uid {
                             return Some(episode.generic.generate_encode());
                         }
-                    },
+                    }
                     None => {
                         panic!("A generic should already have been inserted into the database and should already have a uid.");
                     }

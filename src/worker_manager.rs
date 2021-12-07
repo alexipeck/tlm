@@ -1,5 +1,5 @@
 use crate::generic::Generic;
-use crate::worker::{Worker, VersatileMessage};
+use crate::worker::{VersatileMessage, Worker};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -169,10 +169,6 @@ impl WorkerManager {
                 }
             }
         }
-    }
-
-    pub fn send_encode_to_specific_worker(&mut self, _worker_uid: usize, _encode: Encode) {
-        //TODO
     }
 
     pub fn send_notification_to_all_workers(&mut self) {}

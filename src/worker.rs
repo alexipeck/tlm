@@ -21,9 +21,6 @@ pub struct Worker {
     pub close_time: Option<Instant>,
     //TODO: Time remaining on current episode
     //TODO: Current encode percentage
-    //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
-    //NOTE: If this is running under a Docker container, it may have a random MAC address, so on reboot,
-    //    : becoming a new worker will probably mean the old one should be dropped after x amount of time.
 }
 
 impl Worker {
@@ -93,7 +90,7 @@ pub enum VersatileMessage {
 
     //WebUI
     EncodeGeneric(u32, AddEncodeMode),
-    
+
     //Generic
     Text(String),
 }

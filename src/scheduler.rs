@@ -53,7 +53,7 @@ pub struct Hash {}
 impl Hash {
     pub fn run(&self, current_content: Vec<Generic>) -> TaskReturnAsync {
         let is_finished = Arc::new(AtomicBool::new(false));
-        
+
         info!("Started hashing in the background");
         let is_finished_inner = is_finished.clone();
         //Hash files until all other functions are complete
