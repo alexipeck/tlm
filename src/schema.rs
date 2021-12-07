@@ -53,6 +53,13 @@ table! {
     }
 }
 
+table! {
+    worker (id) {
+        id -> Int4,
+        worker_ip_address -> Text,
+    }
+}
+
 joinable!(episode -> generic (generic_uid));
 joinable!(episode -> show (show_uid));
 joinable!(job_task_queue -> job_queue (job_uid));

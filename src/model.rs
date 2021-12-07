@@ -1,8 +1,24 @@
 use super::generic::Generic;
-use super::schema::{episode, generic, show};
+use super::schema::{episode, generic, show, worker};
 use crate::profile::{
     convert_i32_to_container, convert_i32_to_resolution_standard, BasicProfile, Profile,
 };
+
+#[derive(Insertable, Queryable)]
+#[table_name = "worker"]
+pub struct WorkerModel {
+    pub id: i32,
+    pub worker_ip_address: String,
+}
+
+impl WorkerModel {
+    pub fn new(id: i32, worker_ip_address: String) -> Self {
+        Self {
+            id,
+            worker_ip_address,
+        }
+    }
+}
 
 ///Struct for inserting into the database
 #[derive(Insertable)]

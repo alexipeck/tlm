@@ -6,7 +6,8 @@ use crate::{
     designation::Designation,
     generic::Generic,
     model::{NewEpisode, NewGeneric},
-    show::{Episode, Show}, worker_manager::Encode,
+    show::{Episode, Show},
+    worker_manager::Encode,
 };
 extern crate derivative;
 use derivative::Derivative;

@@ -1,14 +1,16 @@
 use directories::BaseDirs;
-use std::{sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc, RwLock,
-}, thread::JoinHandle};
 use std::thread;
 use std::{
     env,
     io::{stdout, Error as IoError},
 };
-use std::{thread::sleep, time::Duration};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, RwLock,
+    },
+    thread::JoinHandle,
+};
 use tlm::config::WorkerConfig;
 use tlm::worker::VersatileMessage;
 use tlm::worker_manager::WorkerTranscodeQueue;
@@ -84,7 +86,7 @@ async fn main() -> Result<(), IoError> {
         }));
 
         run_worker(transcode_queue_inner, rx, config.clone()).await?;
-        
+
         if stop_worker.load(Ordering::Relaxed) {
             break;
         }

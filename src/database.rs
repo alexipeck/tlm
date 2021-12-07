@@ -4,6 +4,7 @@ use crate::{
     schema::episode::dsl::episode as episode_db, schema::generic as generic_table,
     schema::generic::dsl::generic as generic_data, schema::show as show_table,
     schema::show::dsl::show as show_db, show::Episode, show::Show,
+    schema::worker as worker_table,
 };
 use diesel::{pg::PgConnection, prelude::*};
 use std::env;
@@ -52,6 +53,16 @@ pub fn create_episodes(conn: &PgConnection, new_episode: Vec<NewEpisode>) -> Vec
         .get_results(conn)
         .unwrap_or_else(|err| {
             error!("Error saving new episode. Err: {}", err);
+            panic!();
+        })
+}
+
+pub fn create_worker(conn: &PgConnection, new_worker: WorkerModel) -> WorkerModel {
+    diesel::insert_into(worker_table::table)
+        .values(&new_worker)
+        .get_result(conn)
+        .unwrap_or_else(|err| {
+            error!("Error saving new worker. Err: {}", err);
             panic!();
         })
 }
