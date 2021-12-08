@@ -3,6 +3,7 @@ use super::schema::{episode, generic, show, worker};
 use crate::profile::{
     convert_i32_to_container, convert_i32_to_resolution_standard, BasicProfile, Profile,
 };
+use crate::worker::Worker;
 
 #[derive(Insertable, Queryable)]
 #[table_name = "worker"]
@@ -16,6 +17,13 @@ impl WorkerModel {
         Self {
             id,
             worker_ip_address,
+        }
+    }
+
+    pub fn from_worker(worker: Worker) -> Self {
+        Self {
+            id: worker.uid as i32,
+            worker_ip_address: worker.worker_ip_address.to_string(),
         }
     }
 }

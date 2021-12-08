@@ -1,4 +1,6 @@
+use crate::database::{create_worker, establish_connection, worker_exists};
 use crate::generic::Generic;
+use crate::model::WorkerModel;
 use crate::worker::{VersatileMessage, Worker};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
@@ -73,11 +75,18 @@ impl WorkerManager {
         worker_ip_address: SocketAddr,
         tx: UnboundedSender<Message>,
     ) {
+        let connection = establish_connection();
         let mut new_worker = Worker::new(worker_uid, worker_ip_address, tx);
         new_worker.send_message_to_worker(VersatileMessage::WorkerID(worker_uid));
         new_worker.send_message_to_worker(VersatileMessage::Announce(
             "Worker successfully initialised".to_string(),
         ));
+        //TODO: If worker uid already exists in the db, update IP address or if new, do what is below
+        if worker_exists(&connection, new_worker.uid as i32) {
+            //TODO: Update IP address
+        } else {
+            create_worker(&connection, WorkerModel::from_worker(new_worker.clone()));
+        }
         self.workers.lock().unwrap().push_back(new_worker);
     }
 

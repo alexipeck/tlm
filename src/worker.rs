@@ -12,10 +12,10 @@ use crate::worker_manager::AddEncodeMode;
 use crate::worker_manager::Encode;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Worker {
     pub uid: u32,
-    worker_ip_address: SocketAddr,
+    pub worker_ip_address: SocketAddr,
     tx: UnboundedSender<Message>,
     pub transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
     pub close_time: Option<Instant>,

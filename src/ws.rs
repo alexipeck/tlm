@@ -14,7 +14,7 @@ use crate::{
     file_manager::FileManager,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
     worker::VersatileMessage,
-    worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue},
+    worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue}, database::print_all_worker_models,
 };
 
 use std::{
@@ -106,6 +106,8 @@ async fn handle_web_connection(
                         info!("No generics available to transcode");
                     }
                 },
+                "display_workers" => print_all_worker_models(),
+                
                 _ => warn!("{} is not a valid input", message),
             }
         } else if msg.is_binary() {
