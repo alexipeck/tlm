@@ -87,6 +87,8 @@ pub enum VersatileMessage {
     Initialise(Option<u32>),
     WorkerID(u32),
     Announce(String),
+    EncodeStarted(usize),
+    EncodeFinished(usize),
 
     //WebUI
     EncodeGeneric(u32, AddEncodeMode),

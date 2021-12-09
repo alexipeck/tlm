@@ -79,7 +79,7 @@ async fn main() -> Result<(), IoError> {
         //TODO: Don't create this thread until we actually have a websocket established
         //Alternatively, don't worry about it, it isn't really a problem as it is currently
         handle = Some(thread::spawn(move || loop {
-            transcode_queue.write().unwrap().run_transcode();
+            transcode_queue.write().unwrap().run_transcode(tx.clone());
             if stop_worker_inner.load(Ordering::Relaxed) {
                 break;
             }

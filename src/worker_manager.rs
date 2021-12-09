@@ -17,6 +17,7 @@ use tracing::{debug, error, info};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Encode {
+    pub generic_uid: usize,
     pub source_path: PathBuf,
     pub future_filename: String,
     pub encode_options: Vec<String>,
@@ -24,8 +25,9 @@ pub struct Encode {
 }
 
 impl Encode {
-    pub fn new(source_path: PathBuf, future_filename: String, encode_options: Vec<String>) -> Self {
+    pub fn new(generic_uid: usize, source_path: PathBuf, future_filename: String, encode_options: Vec<String>) -> Self {
         Self {
+            generic_uid,
             source_path,
             future_filename,
             encode_options,
@@ -246,7 +248,7 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    pub fn run_transcode(&mut self) {
+    pub fn run_transcode(&mut self, tx: UnboundedSender<Message>) {
         {
             let transcode_lock = self.current_transcode.read().unwrap();
             let handle_lock = self.current_transcode_handle.read().unwrap();
@@ -261,7 +263,7 @@ impl WorkerTranscodeQueue {
         //Assigns current_transcode an
         if self.make_transcode_current() {
             self.start_current_transcode_if_some();
-
+            tx.start_send(VersatileMessage::EncodeStarted(self.current_transcode.read().unwrap().unwrap().generic_uid).to_message());
             if self.current_transcode_handle.read().unwrap().is_some() {
                 let output = self
                     .current_transcode_handle
@@ -279,6 +281,8 @@ impl WorkerTranscodeQueue {
 
                 if ok {
                     self.clear_current_transcode();
+                    //TODO: Send message to server that encode has finished.
+                    tx.start_send(VersatileMessage::EncodeFinished(self.current_transcode.read().unwrap().unwrap().generic_uid).to_message());
                 }
             }
         }

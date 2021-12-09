@@ -114,6 +114,7 @@ impl Generic {
 
     pub fn generate_encode(&self) -> Encode {
         Encode {
+            generic_uid: self.generic_uid.unwrap(),//Not sure if this is safe
             source_path: self.full_path.clone(),
             future_filename: self.generate_target_path(),
             encode_options: self.generate_encode_string(),
