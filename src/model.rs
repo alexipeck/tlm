@@ -89,7 +89,7 @@ impl GenericModel {
     ///Create an in memory generic from a database one
     pub fn from_generic(generic: Generic) -> Self {
         let mut generic_model = Self {
-            generic_uid: generic.generic_uid.unwrap() as i32,
+            generic_uid: generic.get_generic_uid() as i32,
             full_path: generic.get_full_path(),
             designation: generic.designation as i32,
             file_hash: generic.hash,

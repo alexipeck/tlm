@@ -126,7 +126,7 @@ impl Show {
     pub fn get_generic_from_uid(&self, generic_uid: usize) -> Option<Encode> {
         for season in &self.seasons {
             for episode in &season.episodes {
-                match episode.generic.generic_uid {
+                match episode.generic.get_generic_uid() {
                     Some(uid) => {
                         if uid == generic_uid {
                             return Some(episode.generic.generate_encode());

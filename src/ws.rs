@@ -92,6 +92,7 @@ async fn handle_web_connection(
                 "transcode" => match file_manager.lock().unwrap().pick_random_generic() {
                     Some(generic) => {
                         let encode: Encode = Encode::new(
+                            generic.get_generic_uid(),
                             generic.full_path.clone(),
                             generic.generate_target_path(),
                             generic.generate_encode_string(),

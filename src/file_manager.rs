@@ -131,7 +131,7 @@ impl FileManager {
 
     pub fn get_encode_from_generic_uid(&self, generic_uid: usize) -> Option<Encode> {
         for generic in &self.generic_files {
-            if generic.generic_uid.unwrap() == generic_uid {
+            if generic.get_generic_uid() == generic_uid {
                 return Some(generic.generate_encode());
             }
         }
