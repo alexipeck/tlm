@@ -70,7 +70,7 @@ pub fn create_worker(conn: &PgConnection, new_worker: WorkerModel) -> WorkerMode
 
 pub fn worker_exists(conn: &PgConnection, uid: i32) -> bool {
     for worker in worker_data
-    .load::<WorkerModel>(&establish_connection())
+    .load::<WorkerModel>(conn)
     .unwrap_or_else(|err| {
         error!("Error loading worker. Err: {}", err);
         panic!();
@@ -79,7 +79,7 @@ pub fn worker_exists(conn: &PgConnection, uid: i32) -> bool {
             return true
         }
     }
-    return false
+    false
 }
 
 pub fn print_all_worker_models() {   
