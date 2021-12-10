@@ -70,6 +70,15 @@ impl WorkerManager {
         }
     }
 
+    pub fn clear_current_transcode_from_worker(&mut self, worker_uid: usize, generic_uid: usize) {
+        let mut worker_lock = self.workers.lock().unwrap();
+        for worker in worker_lock.iter_mut() {
+            if worker.uid == worker_uid as u32 {
+                worker.clear_current_transcode(generic_uid);
+            }
+        }
+    }
+
     //atm, we only care about the IP address in the SocketAddr, leaving the whole thing because it deals with both IPV4 and IPV6
     pub fn add_worker(
         &mut self,
@@ -226,7 +235,7 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    fn clear_current_transcode(&mut self) {
+    pub fn clear_current_transcode(&mut self) {
         //Currently goes to the abyss
         //TODO: Store this somewhere or do something with it as a record that the worker has completed the transcode.
         let _ = self.current_transcode.write().unwrap().take();
@@ -248,7 +257,7 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    pub fn run_transcode(&mut self, tx: UnboundedSender<Message>) {
+    pub fn run_transcode(&mut self, worker_uid: Arc<RwLock<Option<u32>>>, mut tx: UnboundedSender<Message>) {
         {
             let transcode_lock = self.current_transcode.read().unwrap();
             let handle_lock = self.current_transcode_handle.read().unwrap();
@@ -263,7 +272,7 @@ impl WorkerTranscodeQueue {
         //Assigns current_transcode an
         if self.make_transcode_current() {
             self.start_current_transcode_if_some();
-            tx.start_send(VersatileMessage::EncodeStarted(self.current_transcode.read().unwrap().unwrap().generic_uid).to_message());
+            let _ = tx.start_send(VersatileMessage::EncodeStarted(worker_uid.read().unwrap().unwrap() as usize, self.current_transcode.read().unwrap().as_ref().unwrap().generic_uid).to_message());
             if self.current_transcode_handle.read().unwrap().is_some() {
                 let output = self
                     .current_transcode_handle
@@ -282,7 +291,7 @@ impl WorkerTranscodeQueue {
                 if ok {
                     self.clear_current_transcode();
                     //TODO: Send message to server that encode has finished.
-                    tx.start_send(VersatileMessage::EncodeFinished(self.current_transcode.read().unwrap().unwrap().generic_uid).to_message());
+                    let _ = tx.start_send(VersatileMessage::EncodeFinished(worker_uid.read().unwrap().unwrap() as usize, self.current_transcode.read().unwrap().as_ref().unwrap().generic_uid).to_message());
                 }
             }
         }

@@ -33,6 +33,16 @@ impl Worker {
             close_time: None,
         }
     }
+    //TODO: Consolidate server-side worker transcode queue and worker-side transcode queue
+    pub fn clear_current_transcode(&mut self, generic_uid: usize) {
+        let mut transcode_queue_lock = self.transcode_queue.write().unwrap();
+        if !transcode_queue_lock.is_empty() {
+            let transcode = transcode_queue_lock.remove(0).unwrap();
+            if transcode.generic_uid != generic_uid {
+                panic!("Server-side and worker-side transcode queues don't mirror each other.");
+            }
+        }
+    }
 
     pub fn update(&mut self, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) {
         self.worker_ip_address = worker_ip_address;
@@ -87,8 +97,8 @@ pub enum VersatileMessage {
     Initialise(Option<u32>),
     WorkerID(u32),
     Announce(String),
-    EncodeStarted(usize),
-    EncodeFinished(usize),
+    EncodeStarted(usize, usize),
+    EncodeFinished(usize, usize),
 
     //WebUI
     EncodeGeneric(u32, AddEncodeMode),

@@ -1,5 +1,4 @@
 use crate::schema::generic::designation;
-use crate::worker::Worker;
 use crate::{
     designation::Designation, generic::Generic, model::*, schema::episode as episode_table,
     schema::episode::dsl::episode as episode_db, schema::generic as generic_table,

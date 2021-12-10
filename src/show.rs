@@ -126,15 +126,11 @@ impl Show {
     pub fn get_generic_from_uid(&self, generic_uid: usize) -> Option<Encode> {
         for season in &self.seasons {
             for episode in &season.episodes {
-                match episode.generic.get_generic_uid() {
-                    Some(uid) => {
-                        if uid == generic_uid {
-                            return Some(episode.generic.generate_encode());
-                        }
-                    }
-                    None => {
-                        panic!("A generic should already have been inserted into the database and should already have a uid.");
-                    }
+                //NOTE: Instead of panicking inside get_generic_uid(), it might be better to just pass over generic_uid's that are none,
+                //      even though there shouldn't be generics that don't have a UID.
+                //      This is fine for now
+                if episode.generic.get_generic_uid() == generic_uid {
+                    return Some(episode.generic.generate_encode());
                 }
             }
         }

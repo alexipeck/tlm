@@ -165,6 +165,8 @@ async fn handle_web_connection(
                         }
                     }
                 }
+                VersatileMessage::EncodeStarted(worker_uid, generic_uid) => info!("Worker with UID: {} has started transcoding generic with UID: {}", worker_uid, generic_uid),
+                VersatileMessage::EncodeFinished(worker_uid, generic_uid) => worker_manager.lock().unwrap().clear_current_transcode_from_worker(worker_uid, generic_uid),
                 _ => {
                     warn!("Server recieved a message it doesn't know how to handle");
                 }
