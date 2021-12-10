@@ -5,7 +5,7 @@ use crate::profile::{
 };
 use crate::worker::Worker;
 
-#[derive(Insertable, Queryable)]
+#[derive(Insertable, Queryable, Identifiable)]
 #[table_name = "worker"]
 pub struct WorkerModel {
     pub id: i32,
