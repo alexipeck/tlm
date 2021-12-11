@@ -8,6 +8,7 @@ use crate::{
     schema::worker::dsl::worker as worker_data, show::Episode, show::Show,
 };
 use diesel::{pg::PgConnection, prelude::*};
+use std::collections::VecDeque;
 use std::env;
 use tracing::{debug, error};
 
@@ -117,7 +118,7 @@ pub fn worker_exists(uid: i32) -> bool {
     return false;
 }
 
-pub fn get_all_workers() -> Vec<Worker> {
+pub fn get_all_workers() -> VecDeque<Worker> {
     let connection = establish_connection();
 
     let worker_models = worker_data
@@ -127,9 +128,9 @@ pub fn get_all_workers() -> Vec<Worker> {
             panic!();
         });
 
-    let mut workers: Vec<Worker> = Vec::new();
+    let mut workers: VecDeque<Worker> = VecDeque::new();
     for worker_model in worker_models {
-        workers.push(Worker::from_worker_model(worker_model));
+        workers.push_back(Worker::from_worker_model(worker_model));
     }
     workers
 }

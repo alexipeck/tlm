@@ -5,26 +5,15 @@ use crate::profile::{
 };
 use crate::worker::Worker;
 
-#[derive(Insertable, Queryable, Identifiable)]
+#[derive(Insertable)]
 #[table_name = "worker"]
-pub struct WorkerModel {
-    pub id: i32,
+pub struct NewWorker {
     pub worker_ip_address: String,
 }
 
-impl WorkerModel {
-    pub fn new(id: i32, worker_ip_address: String) -> Self {
-        Self {
-            id,
-            worker_ip_address,
-        }
-    }
-
-    pub fn from_worker(worker: Worker) -> Self {
-        Self {
-            id: worker.uid as i32,
-            worker_ip_address: worker.worker_ip_address.to_string(),
-        }
+impl NewWorker {
+    pub fn new(worker_ip_address: String) -> Self {
+        Self { worker_ip_address }
     }
 }
 
@@ -40,6 +29,10 @@ pub struct NewGeneric {
     pub length_time: Option<f64>,
     pub resolution_standard: Option<i32>, //I want this to eventually be a string
     pub container: Option<i32>,           //I want this to eventually be a string
+}
+
+pub fn from_worker(worker: Worker) -> NewWorker {
+    NewWorker::new(worker.worker_ip_address.to_string())
 }
 
 impl NewGeneric {

@@ -15,7 +15,7 @@ use tracing::error;
 
 #[derive(Debug, Clone)]
 pub struct Worker {
-    pub uid: u32,
+    pub uid: Option<i32>,
     pub worker_ip_address: SocketAddr,
     tx: Option<UnboundedSender<Message>>,
     pub transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
@@ -25,7 +25,11 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(uid: u32, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> Self {
+    pub fn new(
+        uid: Option<i32>,
+        worker_ip_address: SocketAddr,
+        tx: UnboundedSender<Message>,
+    ) -> Self {
         Self {
             uid,
             worker_ip_address,
@@ -37,7 +41,7 @@ impl Worker {
 
     pub fn from_worker_model(model: WorkerModel) -> Self {
         Self {
-            uid: model.id as u32,
+            uid: model.id,
             worker_ip_address: SocketAddr::from_str(&model.worker_ip_address).unwrap(),
             tx: None,
             transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
@@ -97,8 +101,8 @@ impl Worker {
 pub enum VersatileMessage {
     //Worker
     Encode(Encode, AddEncodeMode),
-    Initialise(Option<u32>),
-    WorkerID(u32),
+    Initialise(Option<i32>),
+    WorkerID(i32),
     Announce(String),
 
     //WebUI
