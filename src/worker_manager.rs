@@ -17,7 +17,7 @@ use tracing::{debug, error, info};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Encode {
-    pub generic_uid: usize,
+    pub generic_uid: i32,
     pub source_path: PathBuf,
     pub future_filename: String,
     pub encode_options: Vec<String>,
@@ -25,7 +25,7 @@ pub struct Encode {
 }
 
 impl Encode {
-    pub fn new(generic_uid: usize, source_path: PathBuf, future_filename: String, encode_options: Vec<String>) -> Self {
+    pub fn new(generic_uid: i32, source_path: PathBuf, future_filename: String, encode_options: Vec<String>) -> Self {
         Self {
             generic_uid,
             source_path,
@@ -49,6 +49,10 @@ impl Encode {
     }
 }
 
+pub enum WorkerAction {
+    ClearCurrentTranscode(i32),
+}
+
 pub struct WorkerManager {
     workers: Arc<Mutex<VecDeque<Worker>>>,
     closed_workers: VecDeque<Worker>,
@@ -70,10 +74,28 @@ impl WorkerManager {
         }
     }
 
-    pub fn clear_current_transcode_from_worker(&mut self, worker_uid: usize, generic_uid: usize) {
+    pub fn perform_on_worker(&mut self, worker_uid: i32, mut worker_actions: Vec<WorkerAction>) {
+        for worker in self.workers.lock().unwrap().iter_mut() {
+            if worker.uid == worker_uid {
+                while !worker_actions.is_empty() {
+                    if let Some(worker_action) = worker_actions.pop() {
+                        match worker_action {
+                            WorkerAction::ClearCurrentTranscode(generic_uid) => {
+                                worker.clear_current_transcode(generic_uid);
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+        }
+        panic!("Worker with UID: {} was not found", worker_uid);
+    }
+
+    pub fn clear_current_transcode_from_worker(&mut self, worker_uid: i32, generic_uid: i32) {
         let mut worker_lock = self.workers.lock().unwrap();
         for worker in worker_lock.iter_mut() {
-            if worker.uid == worker_uid as u32 {
+            if worker.uid == worker_uid {
                 worker.clear_current_transcode(generic_uid);
             }
         }
@@ -82,7 +104,7 @@ impl WorkerManager {
     //atm, we only care about the IP address in the SocketAddr, leaving the whole thing because it deals with both IPV4 and IPV6
     pub fn add_worker(
         &mut self,
-        worker_uid: u32,
+        worker_uid: i32,
         worker_ip_address: SocketAddr,
         tx: UnboundedSender<Message>,
     ) {
@@ -103,12 +125,12 @@ impl WorkerManager {
 
     pub fn polling_event(&mut self) {
         self.drop_timed_out_workers();
-        self.round_robin_fill_transcode_queues();
+        self.fill_transcode_queues();
     }
 
     pub fn reestablish_worker(
         &mut self,
-        worker_uid: u32,
+        worker_uid: i32,
         worker_ip_address: SocketAddr,
         tx: UnboundedSender<Message>,
     ) -> bool {
@@ -145,7 +167,7 @@ impl WorkerManager {
             //Mark worker to be removed
             if worker.close_time.unwrap().elapsed().as_secs() > self.timeout_threshold {
                 indexes.push(i);
-            }
+            } 
         }
         indexes.reverse();
         for index in indexes {
@@ -159,7 +181,7 @@ impl WorkerManager {
         }
     }
 
-    pub fn start_worker_timeout(&mut self, worker_uid: u32) {
+    pub fn start_worker_timeout(&mut self, worker_uid: i32) {
         let mut workers_lock = self.workers.lock().unwrap();
         for (index, worker) in workers_lock.iter_mut().enumerate() {
             if worker.uid == worker_uid {
@@ -175,7 +197,8 @@ impl WorkerManager {
         );
     }
 
-    pub fn round_robin_fill_transcode_queues(&mut self) {
+    ///Uses Round-robin fill method
+    pub fn fill_transcode_queues(&mut self) {
         for worker in self.workers.lock().unwrap().iter_mut() {
             if worker.spaces_in_queue() < 1 {
                 continue;
@@ -257,7 +280,7 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    pub fn run_transcode(&mut self, worker_uid: Arc<RwLock<Option<u32>>>, mut tx: UnboundedSender<Message>) {
+    pub fn run_transcode(&mut self, worker_uid: Arc<RwLock<Option<i32>>>, mut tx: UnboundedSender<Message>) {
         {
             let transcode_lock = self.current_transcode.read().unwrap();
             let handle_lock = self.current_transcode_handle.read().unwrap();
@@ -272,7 +295,7 @@ impl WorkerTranscodeQueue {
         //Assigns current_transcode an
         if self.make_transcode_current() {
             self.start_current_transcode_if_some();
-            let _ = tx.start_send(VersatileMessage::EncodeStarted(worker_uid.read().unwrap().unwrap() as usize, self.current_transcode.read().unwrap().as_ref().unwrap().generic_uid).to_message());
+            let _ = tx.start_send(VersatileMessage::EncodeStarted(worker_uid.read().unwrap().unwrap(), self.current_transcode.read().unwrap().as_ref().unwrap().generic_uid).to_message());
             if self.current_transcode_handle.read().unwrap().is_some() {
                 let output = self
                     .current_transcode_handle
@@ -291,7 +314,7 @@ impl WorkerTranscodeQueue {
                 if ok {
                     self.clear_current_transcode();
                     //TODO: Send message to server that encode has finished.
-                    let _ = tx.start_send(VersatileMessage::EncodeFinished(worker_uid.read().unwrap().unwrap() as usize, self.current_transcode.read().unwrap().as_ref().unwrap().generic_uid).to_message());
+                    let _ = tx.start_send(VersatileMessage::EncodeFinished(worker_uid.read().unwrap().unwrap(), self.current_transcode.read().unwrap().as_ref().unwrap().generic_uid).to_message());
                 }
             }
         }

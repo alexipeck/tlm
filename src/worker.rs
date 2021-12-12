@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 pub struct Worker {
-    pub uid: u32,
+    pub uid: i32,
     pub worker_ip_address: SocketAddr,
     tx: UnboundedSender<Message>,
     pub transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
@@ -24,7 +24,7 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(uid: u32, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> Self {
+    pub fn new(uid: i32, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> Self {
         Self {
             uid,
             worker_ip_address,
@@ -34,7 +34,7 @@ impl Worker {
         }
     }
     //TODO: Consolidate server-side worker transcode queue and worker-side transcode queue
-    pub fn clear_current_transcode(&mut self, generic_uid: usize) {
+    pub fn clear_current_transcode(&mut self, generic_uid: i32) {
         let mut transcode_queue_lock = self.transcode_queue.write().unwrap();
         if !transcode_queue_lock.is_empty() {
             let transcode = transcode_queue_lock.remove(0).unwrap();
@@ -94,14 +94,14 @@ impl Worker {
 pub enum VersatileMessage {
     //Worker
     Encode(Encode, AddEncodeMode),
-    Initialise(Option<u32>),
-    WorkerID(u32),
+    Initialise(Option<i32>),
+    WorkerID(i32),
     Announce(String),
-    EncodeStarted(usize, usize),
-    EncodeFinished(usize, usize),
+    EncodeStarted(i32, i32),
+    EncodeFinished(i32, i32),
 
     //WebUI
-    EncodeGeneric(u32, AddEncodeMode),
+    EncodeGeneric(i32, AddEncodeMode),
 
     //Generic
     Text(String),

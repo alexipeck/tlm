@@ -144,13 +144,13 @@ pub fn get_all_shows() -> Vec<Show> {
 
     for episode_model in episode_models {
         for generic in &generics {
-            if generic.get_generic_uid() == episode_model.generic_uid as usize {
+            if generic.get_generic_uid() == episode_model.generic_uid {
                 let episode = Episode::new(
                     generic.clone(),
-                    episode_model.show_uid as usize,
+                    episode_model.show_uid,
                     "".to_string(),
-                    episode_model.season_number as usize,
-                    vec![episode_model.episode_number as usize],
+                    episode_model.season_number,
+                    vec![episode_model.episode_number],
                 ); //temporary first episode_number
                 episodes.push(episode);
                 break;

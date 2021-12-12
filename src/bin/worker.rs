@@ -64,7 +64,7 @@ async fn main() -> Result<(), IoError> {
         base_dirs.config_dir().join("tlm/tlm_worker.config"),
     )));
 
-    let worker_uid: Arc<RwLock<Option<u32>>> = Arc::new(RwLock::new(config.read().unwrap().uid));
+    let worker_uid: Arc<RwLock<Option<i32>>> = Arc::new(RwLock::new(config.read().unwrap().uid));
     let mut handle: Option<JoinHandle<()>> = None;
     loop {
         let transcode_queue: Arc<RwLock<WorkerTranscodeQueue>> =

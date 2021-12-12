@@ -28,7 +28,7 @@ pub struct ServerConfig {
 pub struct WorkerConfig {
     pub server_address: String,
     pub server_port: u16,
-    pub uid: Option<u32>,
+    pub uid: Option<i32>,
     config_path: PathBuf,
 }
 
@@ -77,7 +77,7 @@ impl WorkerConfig {
         config
     }
 
-    pub fn insert_uid(&mut self, uid: u32) {
+    pub fn insert_uid(&mut self, uid: i32) {
         self.uid = Some(uid);
     }
 

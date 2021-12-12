@@ -3,7 +3,7 @@
 use std::{
     collections::VecDeque,
     sync::{
-        atomic::{AtomicU32, Ordering},
+        atomic::{Ordering, AtomicI32},
         RwLock,
     },
 };
@@ -34,9 +34,9 @@ use tokio::signal;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 type Tx = UnboundedSender<Message>;
-type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<u32>, Tx)>>>;
+type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<i32>, Tx)>>>;
 
-static WORKER_UID_COUNTER: AtomicU32 = AtomicU32::new(0);
+static WORKER_UID_COUNTER: AtomicI32 = AtomicI32::new(0);
 
 async fn handle_web_connection(
     peer_map: PeerMap,
@@ -138,7 +138,7 @@ async fn handle_web_connection(
                     match file_manager
                         .lock()
                         .unwrap()
-                        .get_encode_from_generic_uid(generic_uid as usize)
+                        .get_encode_from_generic_uid(generic_uid)
                     {
                         Some(encode) => {
                             match add_encode_mode {
@@ -166,7 +166,11 @@ async fn handle_web_connection(
                     }
                 }
                 VersatileMessage::EncodeStarted(worker_uid, generic_uid) => info!("Worker with UID: {} has started transcoding generic with UID: {}", worker_uid, generic_uid),
-                VersatileMessage::EncodeFinished(worker_uid, generic_uid) => worker_manager.lock().unwrap().clear_current_transcode_from_worker(worker_uid, generic_uid),
+                VersatileMessage::EncodeFinished(worker_uid, generic_uid) => {
+                    worker_manager.lock().unwrap().clear_current_transcode_from_worker(worker_uid, generic_uid);
+                    //TODO: Make an enum of actions that could be performed on a Worker, like clear_current_transcode
+                    //TODO: Regenerate basic profile (for now, this is fine), but in the end, I want both the current profile and new one stored
+                }
                 _ => {
                     warn!("Server recieved a message it doesn't know how to handle");
                 }

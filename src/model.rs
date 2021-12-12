@@ -141,18 +141,18 @@ pub struct NewEpisode {
 
 impl NewEpisode {
     pub fn new(
-        generic_uid: usize,
-        show_uid: usize,
+        generic_uid: i32,
+        show_uid: i32,
         episode_title: String,
-        season_number: usize,
-        episode_number: usize,
+        season_number: i32,
+        episode_number: i32,
     ) -> Self {
         Self {
-            generic_uid: generic_uid as i32,
-            show_uid: show_uid as i32,
+            generic_uid: generic_uid,
+            show_uid: show_uid,
             episode_title,
-            season_number: season_number as i32,
-            episode_number: episode_number as i32,
+            season_number: season_number,
+            episode_number: episode_number,
         }
     }
 }

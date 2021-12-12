@@ -129,7 +129,7 @@ impl FileManager {
         None
     }
 
-    pub fn get_encode_from_generic_uid(&self, generic_uid: usize) -> Option<Encode> {
+    pub fn get_encode_from_generic_uid(&self, generic_uid: i32) -> Option<Encode> {
         for generic in &self.generic_files {
             if generic.get_generic_uid() == generic_uid {
                 return Some(generic.generate_encode());
@@ -241,7 +241,7 @@ impl FileManager {
         //Insert the generic and then update the uid's for the full Generic structure
         let generics = create_generics(&connection, new_generics);
         for i in 0..generics.len() {
-            temp_generics[i].generic_uid = Some(generics[i].generic_uid as usize);
+            temp_generics[i].generic_uid = Some(generics[i].generic_uid);
         }
         debug!("Finished inserting generics");
 
@@ -264,11 +264,11 @@ impl FileManager {
             let season_temp = season_episode_iter
                 .next()
                 .unwrap()
-                .parse::<usize>()
+                .parse::<i32>()
                 .unwrap();
-            let mut episodes: Vec<usize> = Vec::new();
+            let mut episodes: Vec<i32> = Vec::new();
             for episode in season_episode_iter.next().unwrap().split('-') {
-                episodes.push(episode.parse::<usize>().unwrap());
+                episodes.push(episode.parse::<i32>().unwrap());
             }
 
             generic.designation = Designation::Episode;
@@ -318,13 +318,13 @@ impl FileManager {
         let mut episodes: Vec<Episode> = Vec::new();
         for episode_model in episode_models {
             for generic in &temp_generics_only_episodes {
-                if generic.get_generic_uid() == episode_model.generic_uid as usize {
+                if generic.get_generic_uid() == episode_model.generic_uid {
                     let episode = Episode::new(
                         generic.clone(),
-                        episode_model.show_uid as usize,
+                        episode_model.show_uid,
                         "".to_string(),
-                        episode_model.season_number as usize,
-                        vec![episode_model.episode_number as usize],
+                        episode_model.season_number,
+                        vec![episode_model.episode_number],
                     ); //temporary first episode_number
                     episodes.push(episode);
                     break;
@@ -432,10 +432,10 @@ impl FileManager {
     }
 
     ///Check if a show exists in ram
-    fn show_exists(&self, show_title: String) -> Option<usize> {
-        for s in &self.shows {
-            if s.show_title == show_title {
-                return Some(s.show_uid);
+    fn show_exists(&self, show_title: String) -> Option<i32> {
+        for show in &self.shows {
+            if show.show_title == show_title {
+                return Some(show.show_uid);
             }
         }
         None
@@ -448,7 +448,7 @@ impl FileManager {
         show_title: String,
         connection: &PgConnection,
         preferences: &Preferences,
-    ) -> usize {
+    ) -> i32 {
         let show_uid = self.show_exists(show_title.clone());
         match show_uid {
             Some(uid) => uid,
@@ -459,7 +459,7 @@ impl FileManager {
 
                 let show_model = create_show(connection, show_title.clone());
 
-                let show_uid = show_model.show_uid as usize;
+                let show_uid = show_model.show_uid;
                 let new_show = Show {
                     show_uid,
                     show_title,

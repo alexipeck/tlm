@@ -21,7 +21,7 @@ use tracing::{error, warn};
 ///can also refer to only a generic media file
 #[derive(Clone, Debug)]
 pub struct Generic {
-    pub generic_uid: Option<usize>,
+    pub generic_uid: Option<i32>,
     pub full_path: PathBuf,
     pub designation: Designation,
     pub hash: Option<String>,
@@ -105,7 +105,7 @@ impl Generic {
         Generic {
             full_path: PathBuf::from(&full_path_temp),
             designation: convert_i32_to_designation(designation_temp), //Designation::Generic
-            generic_uid: Some(generic_uid_temp as usize),
+            generic_uid: Some(generic_uid_temp),
             hash: generic_model.file_hash.to_owned(),
             fast_hash: generic_model.fast_file_hash.to_owned(),
             profile: generic_model.get_basic_profile(),
@@ -192,7 +192,7 @@ impl Generic {
         return self.full_path.as_os_str().to_str().unwrap().to_string();
     }
 
-    pub fn get_generic_uid(&self) -> usize {
+    pub fn get_generic_uid(&self) -> i32 {
         if self.generic_uid.is_some() {
             self.generic_uid.unwrap()
         } else {
