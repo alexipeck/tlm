@@ -103,9 +103,7 @@ async fn main() -> Result<(), IoError> {
 
     let stop_worker_mananger_polling = Arc::new(AtomicBool::new(false));
     let inner_stop_worker_manager_polling = stop_worker_mananger_polling.clone();
-    let worker_manager_poll_rate_hz = 0.5;
-    let worker_manager_polling_wait_time =
-        time::Duration::from_secs_f64(1.0 / worker_manager_poll_rate_hz);
+    let worker_manager_polling_wait_time = time::Duration::from_secs_f64(2.0);
     let inner_worker_manager = worker_manager.clone();
     let worker_manager_polling_handle = thread::spawn(move || {
         while !inner_stop_worker_manager_polling.load(Ordering::Relaxed) {
