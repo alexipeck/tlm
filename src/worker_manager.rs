@@ -79,7 +79,6 @@ impl WorkerManager {
         new_worker.send_message_to_worker(VersatileMessage::Announce(
             "Worker successfully initialised".to_string(),
         ));
-
         self.workers.lock().unwrap().push_back(new_worker);
         return new_id;
     }
