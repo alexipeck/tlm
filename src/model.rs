@@ -15,6 +15,11 @@ impl NewWorker {
     pub fn new(worker_ip_address: String) -> Self {
         Self { worker_ip_address }
     }
+
+    pub fn from_worker(worker: Worker) -> Self {
+        let ip = worker.worker_ip_address.to_string();
+        NewWorker { worker_ip_address: ip }
+    }
 }
 
 ///Struct for inserting into the database
@@ -58,6 +63,14 @@ impl NewGeneric {
         }
         new_generic
     }
+}
+
+#[derive(Queryable, AsChangeset, Identifiable)]
+#[primary_key(id)]
+#[table_name = "worker"]
+pub struct WorkerModel {
+    pub id: i32,
+    pub worker_ip_address: String,
 }
 
 ///Data structure to modify or select an existing Generic in the database

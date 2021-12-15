@@ -14,7 +14,7 @@ use std::{
     time::Instant,
 };
 use tokio_tungstenite::tungstenite::Message;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Encode {
@@ -70,16 +70,18 @@ impl WorkerManager {
     }
 
     //atm, we only care about the IP address in the SocketAddr, leaving the whole thing because it deals with both IPV4 and IPV6
-    pub fn add_worker(&mut self, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) {
+    pub fn add_worker(&mut self, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> i32{
         let connection = establish_connection();
         let mut new_worker = Worker::new(None, worker_ip_address, tx);
-        create_worker(&connection, NewWorker::from_worker(new_worker.clone()));
+        let new_id = create_worker(&connection, NewWorker::from_worker(new_worker.clone()));
+        new_worker.uid = Some(new_id);
         new_worker.send_message_to_worker(VersatileMessage::WorkerID(new_worker.uid.unwrap()));
         new_worker.send_message_to_worker(VersatileMessage::Announce(
             "Worker successfully initialised".to_string(),
         ));
 
         self.workers.lock().unwrap().push_back(new_worker);
+        return new_id;
     }
 
     pub fn polling_event(&mut self) {
@@ -149,7 +151,7 @@ impl WorkerManager {
                 return;
             }
         }
-        panic!(
+        warn!(
             "The WorkerManager couldn't find a worker associated with this worker_uid: {}",
             worker_uid
         );

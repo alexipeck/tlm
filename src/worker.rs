@@ -41,7 +41,7 @@ impl Worker {
 
     pub fn from_worker_model(model: WorkerModel) -> Self {
         Self {
-            uid: model.id,
+            uid: Some(model.id),
             worker_ip_address: SocketAddr::from_str(&model.worker_ip_address).unwrap(),
             tx: None,
             transcode_queue: Arc::new(RwLock::new(VecDeque::new())),

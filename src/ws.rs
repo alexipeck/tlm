@@ -105,7 +105,7 @@ async fn handle_web_connection(
             }
         } else if msg.is_binary() {
             match VersatileMessage::from_message(msg) {
-                VersatileMessage::Initialise(worker_uid) => {
+                VersatileMessage::Initialise(mut worker_uid) => {
                     //if true {//TODO: authenticate/validate
 
                     if !worker_manager.lock().unwrap().reestablish_worker(
@@ -113,7 +113,8 @@ async fn handle_web_connection(
                         addr,
                         tx.clone(),
                     ) {
-                        worker_manager.lock().unwrap().add_worker(addr, tx.clone());
+                        //We need the new uid so we can set it correctly in the peer map
+                        worker_uid = Some(worker_manager.lock().unwrap().add_worker(addr, tx.clone()));
                     }
                     peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
                     //}

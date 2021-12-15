@@ -7,6 +7,7 @@ use crate::{
     schema::show::dsl::show as show_db, schema::worker as worker_table,
     schema::worker::dsl::worker as worker_data, show::Episode, show::Show,
 };
+use crate::model::WorkerModel;
 use diesel::{pg::PgConnection, prelude::*};
 use std::collections::VecDeque;
 use std::env;
@@ -59,14 +60,15 @@ pub fn create_episodes(conn: &PgConnection, new_episode: Vec<NewEpisode>) -> Vec
         })
 }
 
-pub fn create_worker(conn: &PgConnection, new_worker: WorkerModel) -> WorkerModel {
-    diesel::insert_into(worker_table::table)
+pub fn create_worker(conn: &PgConnection, new_worker: NewWorker) -> i32 {
+    let worker: WorkerModel = diesel::insert_into(worker_table::table)
         .values(&new_worker)
         .get_result(conn)
         .unwrap_or_else(|err| {
             error!("Error saving new worker. Err: {}", err);
             panic!();
-        })
+        });
+    return worker.id;
 }
 
 pub fn print_all_worker_models() {
