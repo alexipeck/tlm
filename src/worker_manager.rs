@@ -82,7 +82,7 @@ impl WorkerManager {
             "Worker successfully initialised".to_string(),
         ));
         //TODO: If worker uid already exists in the db, update IP address or if new, do what is below
-        if worker_exists(&connection, new_worker.uid as i32) {
+        if worker_exists(new_worker.uid as i32) {
             //TODO: Update IP address
         } else {
             create_worker(&connection, WorkerModel::from_worker(new_worker.clone()));

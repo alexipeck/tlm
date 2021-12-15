@@ -10,6 +10,7 @@ use std::{
         Arc, RwLock,
     },
     thread::JoinHandle,
+    time
 };
 use tlm::config::WorkerConfig;
 use tlm::worker::VersatileMessage;
@@ -90,6 +91,8 @@ async fn main() -> Result<(), IoError> {
         if stop_worker.load(Ordering::Relaxed) {
             break;
         }
+        let wait_time = time::Duration::from_secs(1);
+        thread::sleep(wait_time);
     }
     if let Some(handle) = handle {
         let _ = handle.join();
