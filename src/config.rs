@@ -29,6 +29,7 @@ pub struct WorkerConfig {
     pub server_address: String,
     pub server_port: u16,
     pub uid: Option<i32>,
+    #[serde(skip)]
     config_path: PathBuf,
 }
 
@@ -40,10 +41,10 @@ impl fmt::Display for WorkerConfig {
 
 impl WorkerConfig {
     pub fn new(config_path: PathBuf) -> WorkerConfig {
-        let config: WorkerConfig;
+        let mut config: WorkerConfig;
 
         if config_path.exists() {
-            let config_toml = match fs::read_to_string(config_path) {
+            let config_toml = match fs::read_to_string(config_path.clone()) {
                 Ok(config_toml) => config_toml,
                 Err(err) => {
                     error!("Failed to read config file: {}", err);
@@ -74,11 +75,8 @@ impl WorkerConfig {
                 panic!();
             }
         }
+        config.config_path = config_path;
         config
-    }
-
-    pub fn insert_uid(&mut self, uid: i32) {
-        self.uid = Some(uid);
     }
 
     pub fn update_config_on_disk(&self) {

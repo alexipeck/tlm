@@ -1,20 +1,15 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
-use std::{
-    collections::VecDeque,
-    sync::{
-        atomic::{Ordering, AtomicI32},
-        RwLock,
-    },
-};
+use std::{collections::VecDeque, sync::RwLock};
 use tracing::{error, info, warn};
 
 use crate::{
     config::WorkerConfig,
+    database::print_all_worker_models,
     file_manager::FileManager,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
     worker::VersatileMessage,
-    worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue}, database::print_all_worker_models,
+    worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue},
 };
 
 use std::{
@@ -35,8 +30,6 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 
 type Tx = UnboundedSender<Message>;
 type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<i32>, Tx)>>>;
-
-static WORKER_UID_COUNTER: AtomicI32 = AtomicI32::new(0);
 
 async fn handle_web_connection(
     peer_map: PeerMap,
@@ -108,28 +101,20 @@ async fn handle_web_connection(
                     }
                 },
                 "display_workers" => print_all_worker_models(),
-                
+
                 _ => warn!("{} is not a valid input", message),
             }
         } else if msg.is_binary() {
             match VersatileMessage::from_message(msg) {
                 VersatileMessage::Initialise(mut worker_uid) => {
                     //if true {//TODO: authenticate/validate
-                    if worker_uid.is_none() {
-                        worker_uid = Some(WORKER_UID_COUNTER.fetch_add(1, Ordering::Relaxed));
-                        info!("Worker was given UID: {}", worker_uid.unwrap());
-                    }
-
                     if !worker_manager.lock().unwrap().reestablish_worker(
-                        worker_uid.unwrap(),
+                        worker_uid,
                         addr,
                         tx.clone(),
                     ) {
-                        worker_manager.lock().unwrap().add_worker(
-                            worker_uid.unwrap(),
-                            addr,
-                            tx.clone(),
-                        );
+                        //We need the new uid so we can set it correctly in the peer map
+                        worker_uid = Some(worker_manager.lock().unwrap().add_worker(addr, tx.clone()));
                     }
                     peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
                     //}
@@ -332,7 +317,7 @@ pub async fn run_worker(
                         .add_encode(encode, add_encode_mode);
                 }
                 VersatileMessage::WorkerID(worker_uid) => {
-                    config.write().unwrap().insert_uid(worker_uid);
+                    config.write().unwrap().uid = Some(worker_uid);
                     config.read().unwrap().update_config_on_disk();
                     info!("Worker has been given UID: {}", worker_uid);
                 }

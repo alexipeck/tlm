@@ -1,4 +1,9 @@
+use crate::model::WorkerModel;
+use crate::worker_manager::AddEncodeMode;
+use crate::worker_manager::Encode;
 use futures_channel::mpsc::UnboundedSender;
+use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use std::{
     collections::VecDeque,
     net::SocketAddr,
@@ -8,15 +13,11 @@ use std::{
 use tokio_tungstenite::tungstenite::Message;
 use tracing::error;
 
-use crate::worker_manager::AddEncodeMode;
-use crate::worker_manager::Encode;
-use serde::{Deserialize, Serialize};
-
 #[derive(Debug, Clone)]
 pub struct Worker {
-    pub uid: i32,
+    pub uid: Option<i32>,
     pub worker_ip_address: SocketAddr,
-    tx: UnboundedSender<Message>,
+    tx: Option<UnboundedSender<Message>>,
     pub transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
     pub close_time: Option<Instant>,
     //TODO: Time remaining on current episode
@@ -24,11 +25,15 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(uid: i32, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> Self {
+    pub fn new(
+        uid: Option<i32>,
+        worker_ip_address: SocketAddr,
+        tx: UnboundedSender<Message>,
+    ) -> Self {
         Self {
             uid,
             worker_ip_address,
-            tx,
+            tx: Some(tx),
             transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
             close_time: None,
         }
@@ -44,9 +49,19 @@ impl Worker {
         }
     }
 
+    pub fn from_worker_model(model: WorkerModel) -> Self {
+        Self {
+            uid: Some(model.id),
+            worker_ip_address: SocketAddr::from_str(&model.worker_ip_address).unwrap(),
+            tx: None,
+            transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
+            close_time: None,
+        }
+    }
+
     pub fn update(&mut self, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) {
         self.worker_ip_address = worker_ip_address;
-        self.tx = tx;
+        self.tx = Some(tx);
     }
 
     pub fn spaces_in_queue(&mut self) -> i64 {
@@ -55,6 +70,8 @@ impl Worker {
 
     pub fn send_message_to_worker(&mut self, worker_message: VersatileMessage) {
         self.tx
+            .clone()
+            .unwrap()
             .start_send(worker_message.to_message())
             .unwrap_or_else(|err| error!("{}", err));
         //TODO: Have the worker send a message to the server if it can't access the file

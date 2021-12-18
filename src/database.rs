@@ -1,14 +1,17 @@
 use crate::schema::generic::designation;
+use crate::worker::Worker;
 use crate::{
     designation::Designation, generic::Generic, model::*, schema::episode as episode_table,
     schema::episode::dsl::episode as episode_db, schema::generic as generic_table,
     schema::generic::dsl::generic as generic_data, schema::show as show_table,
-    schema::worker::dsl::worker as worker_data,
-    schema::show::dsl::show as show_db, schema::worker as worker_table, show::Episode, show::Show,
+    schema::show::dsl::show as show_db, schema::worker as worker_table,
+    schema::worker::dsl::worker as worker_data, show::Episode, show::Show,
 };
+use crate::model::WorkerModel;
 use diesel::{pg::PgConnection, prelude::*};
+use std::collections::VecDeque;
 use std::env;
-use tracing::{error, debug};
+use tracing::{debug, error};
 
 ///Sets up a connection to the database via DATABASE_URL environment variable
 pub fn establish_connection() -> PgConnection {
@@ -57,38 +60,29 @@ pub fn create_episodes(conn: &PgConnection, new_episode: Vec<NewEpisode>) -> Vec
         })
 }
 
-pub fn create_worker(conn: &PgConnection, new_worker: WorkerModel) -> WorkerModel {
-    diesel::insert_into(worker_table::table)
+pub fn create_worker(conn: &PgConnection, new_worker: NewWorker) -> i32 {
+    let worker: WorkerModel = diesel::insert_into(worker_table::table)
         .values(&new_worker)
         .get_result(conn)
         .unwrap_or_else(|err| {
             error!("Error saving new worker. Err: {}", err);
             panic!();
-        })
+        });
+    return worker.id;
 }
 
-pub fn worker_exists(conn: &PgConnection, uid: i32) -> bool {
-    for worker in worker_data
-    .load::<WorkerModel>(conn)
-    .unwrap_or_else(|err| {
-        error!("Error loading worker. Err: {}", err);
-        panic!();
-    }) {
-        if worker.id == uid {
-            return true
-        }
-    }
-    false
-}
-
-pub fn print_all_worker_models() {   
+pub fn print_all_worker_models() {
     for worker_model in worker_data
-    .load::<WorkerModel>(&establish_connection())
-    .unwrap_or_else(|err| {
-        error!("Error loading worker. Err: {}", err);
-        panic!();
-    }) {
-        debug!("UID: {}, Last known IP address: {}", worker_model.id, worker_model.worker_ip_address);
+        .load::<WorkerModel>(&establish_connection())
+        .unwrap_or_else(|err| {
+            error!("Error loading worker. Err: {}", err);
+            panic!();
+        })
+    {
+        debug!(
+            "UID: {}, Last known IP address: {}",
+            worker_model.id, worker_model.worker_ip_address
+        );
     }
 }
 
@@ -109,6 +103,38 @@ pub fn get_all_generics() -> Vec<Generic> {
         generics.push(Generic::from_generic_model(generic_model));
     }
     generics
+}
+
+pub fn worker_exists(uid: i32) -> bool {
+    for worker in worker_data
+        .load::<WorkerModel>(&establish_connection())
+        .unwrap_or_else(|err| {
+            error!("Error loading worker. Err: {}", err);
+            panic!();
+        })
+    {
+        if worker.id == uid {
+            return true;
+        }
+    }
+    return false;
+}
+
+pub fn get_all_workers() -> VecDeque<Worker> {
+    let connection = establish_connection();
+
+    let worker_models = worker_data
+        .load::<WorkerModel>(&connection)
+        .unwrap_or_else(|err| {
+            error!("Error loading generic. Err: {}", err);
+            panic!();
+        });
+
+    let mut workers: VecDeque<Worker> = VecDeque::new();
+    for worker_model in worker_models {
+        workers.push_back(Worker::from_worker_model(worker_model));
+    }
+    workers
 }
 
 pub fn get_all_shows() -> Vec<Show> {

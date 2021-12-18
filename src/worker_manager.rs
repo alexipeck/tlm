@@ -1,6 +1,7 @@
+use crate::database::get_all_workers;
 use crate::database::{create_worker, establish_connection, worker_exists};
 use crate::generic::Generic;
-use crate::model::WorkerModel;
+use crate::model::NewWorker;
 use crate::worker::{VersatileMessage, Worker};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
@@ -13,7 +14,7 @@ use std::{
     time::Instant,
 };
 use tokio_tungstenite::tungstenite::Message;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Encode {
@@ -68,13 +69,16 @@ impl WorkerManager {
     ) -> Self {
         Self {
             workers,
-            closed_workers: VecDeque::new(),
+            closed_workers: get_all_workers(),
             transcode_queue,
             timeout_threshold,
         }
     }
 
-    pub fn perform_on_worker(&mut self, worker_uid: i32, mut worker_actions: Vec<WorkerAction>) {
+    pub fn perform_on_worker(&mut self, worker_uid: Option<i32>, mut worker_actions: Vec<WorkerAction>) {
+        if worker_uid.is_none() {
+            panic!("The server was asked to run actions on an empty worker_uid. | None Option<i32>");
+        }
         for worker in self.workers.lock().unwrap().iter_mut() {
             if worker.uid == worker_uid {
                 while !worker_actions.is_empty() {
@@ -89,10 +93,11 @@ impl WorkerManager {
                 return;
             }
         }
-        panic!("Worker with UID: {} was not found", worker_uid);
+        panic!("Worker with UID: {} was not found", worker_uid.unwrap());
     }
 
     pub fn clear_current_transcode_from_worker(&mut self, worker_uid: i32, generic_uid: i32) {
+        let worker_uid: Option<i32> = Some(worker_uid);
         let mut worker_lock = self.workers.lock().unwrap();
         for worker in worker_lock.iter_mut() {
             if worker.uid == worker_uid {
@@ -104,23 +109,19 @@ impl WorkerManager {
     //atm, we only care about the IP address in the SocketAddr, leaving the whole thing because it deals with both IPV4 and IPV6
     pub fn add_worker(
         &mut self,
-        worker_uid: i32,
         worker_ip_address: SocketAddr,
         tx: UnboundedSender<Message>,
-    ) {
+    ) -> i32 {
         let connection = establish_connection();
-        let mut new_worker = Worker::new(worker_uid, worker_ip_address, tx);
-        new_worker.send_message_to_worker(VersatileMessage::WorkerID(worker_uid));
+        let mut new_worker = Worker::new(None, worker_ip_address, tx);
+        let new_id = create_worker(&connection, NewWorker::from_worker(new_worker.clone()));
+        new_worker.uid = Some(new_id);
+        new_worker.send_message_to_worker(VersatileMessage::WorkerID(new_worker.uid.unwrap()));
         new_worker.send_message_to_worker(VersatileMessage::Announce(
             "Worker successfully initialised".to_string(),
         ));
-        //TODO: If worker uid already exists in the db, update IP address or if new, do what is below
-        if worker_exists(&connection, new_worker.uid as i32) {
-            //TODO: Update IP address
-        } else {
-            create_worker(&connection, WorkerModel::from_worker(new_worker.clone()));
-        }
         self.workers.lock().unwrap().push_back(new_worker);
+        return new_id;
     }
 
     pub fn polling_event(&mut self) {
@@ -130,10 +131,14 @@ impl WorkerManager {
 
     pub fn reestablish_worker(
         &mut self,
-        worker_uid: i32,
+        worker_uid: Option<i32>,
         worker_ip_address: SocketAddr,
         tx: UnboundedSender<Message>,
     ) -> bool {
+        //Worker can't be reestablished if it doesn't have/send a uid
+        if worker_uid.is_none() {
+            return false;
+        };
         let mut index: Option<usize> = None;
         for (i, worker) in self.closed_workers.iter_mut().enumerate() {
             if worker.uid == worker_uid {
@@ -158,25 +163,27 @@ impl WorkerManager {
 
     pub fn drop_timed_out_workers(&mut self) {
         let mut indexes: Vec<usize> = Vec::new();
-        for (i, worker) in self.closed_workers.iter().enumerate() {
-            //Check if worker is timed out
+        for (i, worker) in self.closed_workers.iter_mut().enumerate() {
+            //Check if worker has been timed out
             if worker.close_time.is_none() {
                 continue;
             }
 
-            //Mark worker to be removed
+            //Clear worker queue and add it back to main queue
             if worker.close_time.unwrap().elapsed().as_secs() > self.timeout_threshold {
                 indexes.push(i);
             } 
         }
         indexes.reverse();
         for index in indexes {
-            if let Some(worker) = self.closed_workers.remove(index) {
+            if let Some(mut worker) = self.closed_workers.remove(index) {
                 self.transcode_queue
                     .lock()
                     .unwrap()
                     .append(&mut worker.transcode_queue.write().unwrap());
-                info!("Worker with ID: {} has been dropped. It's queue has been returned to the main queue", worker.uid);
+                //clear the workers queue
+                worker.transcode_queue.write().unwrap().clear();
+                worker.close_time = None;
             }
         }
     }
@@ -184,14 +191,14 @@ impl WorkerManager {
     pub fn start_worker_timeout(&mut self, worker_uid: i32) {
         let mut workers_lock = self.workers.lock().unwrap();
         for (index, worker) in workers_lock.iter_mut().enumerate() {
-            if worker.uid == worker_uid {
+            if worker.uid.unwrap() == worker_uid {
                 worker.close_time = Some(Instant::now());
                 self.closed_workers
                     .push_back(workers_lock.remove(index).unwrap());
                 return;
             }
         }
-        panic!(
+        warn!(
             "The WorkerManager couldn't find a worker associated with this worker_uid: {}",
             worker_uid
         );
