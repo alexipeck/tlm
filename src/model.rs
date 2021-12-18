@@ -1,7 +1,7 @@
 use super::generic::Generic;
 use super::schema::{episode, generic, show, worker};
 use crate::profile::{
-    convert_i32_to_container, convert_i32_to_resolution_standard, BasicProfile, Profile,
+    convert_i32_to_container, convert_i32_to_resolution_standard, Profile,
 };
 use crate::worker::Worker;
 
@@ -41,7 +41,7 @@ pub fn from_worker(worker: Worker) -> NewWorker {
 }
 
 impl NewGeneric {
-    pub fn new(full_path: String, designation: i32, profile: Option<BasicProfile>) -> Self {
+    pub fn new(full_path: String, designation: i32, profile: Option<Profile>) -> Self {
         let mut new_generic = Self {
             full_path,
             designation,
@@ -109,28 +109,28 @@ impl GenericModel {
         };
         if generic.profile.is_some() {
             let profile = generic.profile.to_owned().unwrap();
-            generic_model.width = Some(profile.current_profile.width as i32);
-            generic_model.height = Some(profile.current_profile.height as i32);
-            generic_model.framerate = Some(profile.current_profile.framerate);
-            generic_model.length_time = Some(profile.current_profile.length_time);
+            generic_model.width = Some(profile.width as i32);
+            generic_model.height = Some(profile.height as i32);
+            generic_model.framerate = Some(profile.framerate);
+            generic_model.length_time = Some(profile.length_time);
             generic_model.resolution_standard =
-                Some(profile.current_profile.resolution_standard as i32);
-            generic_model.container = Some(profile.current_profile.container as i32);
+                Some(profile.resolution_standard as i32);
+            generic_model.container = Some(profile.container as i32);
         }
 
         generic_model
     }
 
     ///Construct a profile from database fields
-    pub fn get_basic_profile(&self) -> Option<Profile> {
-        Some(Profile::from_basic_profile(BasicProfile {
-            width: self.width? as u32,
-            height: self.height? as u32,
+    pub fn generate_profile(&self) -> Option<Profile> {
+        Some(Profile {
+            width: self.width?,
+            height: self.height?,
             framerate: self.framerate?,
             length_time: self.length_time?,
             resolution_standard: convert_i32_to_resolution_standard(self.resolution_standard?),
             container: convert_i32_to_container(self.container?),
-        }))
+        })
     }
 }
 
@@ -154,11 +154,11 @@ impl NewEpisode {
         episode_number: i32,
     ) -> Self {
         Self {
-            generic_uid: generic_uid,
-            show_uid: show_uid,
+            generic_uid,
+            show_uid,
             episode_title,
-            season_number: season_number,
-            episode_number: episode_number,
+            season_number,
+            episode_number,
         }
     }
 }

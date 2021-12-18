@@ -27,7 +27,6 @@ pub struct Generic {
     pub hash: Option<String>,
     pub fast_hash: Option<String>,
     pub profile: Option<Profile>,
-    //pub profile: Option<Profile>,
 }
 
 impl Generic {
@@ -48,9 +47,17 @@ impl Generic {
         self.hash = Some(sea_hash(self.full_path.clone()));
     }
 
-    pub fn generate_basic_profile(&mut self) {
+    pub fn generate_profile(&mut self) {
         if self.profile.is_none() {
-            self.profile = Some(Profile::new(&self.full_path));
+            self.profile = Profile::from_file(&self.full_path);
+            if self.profile.is_none() {
+                if let Some(generic_uid) = self.generic_uid {
+                    error!("Failed to generate profile for generic_uid: {}", generic_uid);
+                } else {
+                    error!("Failed to generate profile, profile also has no generic_uid");
+                }
+                
+            }
         }
     }
 
@@ -72,14 +79,6 @@ impl Generic {
             warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
             true
         }
-    }
-
-    //TODO: have this stored in the DB so it won't have to be regenerated each session
-    pub fn get_profile(&self) -> Profile {
-        if let Some(profile) = self.profile {
-            return profile;
-        }
-        Profile::new(&self.full_path)
     }
 
     ///Hash the first 32MB of the file with seahash so we can quickly know
@@ -108,7 +107,7 @@ impl Generic {
             generic_uid: Some(generic_uid_temp),
             hash: generic_model.file_hash.to_owned(),
             fast_hash: generic_model.fast_file_hash.to_owned(),
-            profile: generic_model.get_basic_profile(),
+            profile: generic_model.generate_profile(),
         }
     }
 

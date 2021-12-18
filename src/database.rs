@@ -68,7 +68,7 @@ pub fn create_worker(conn: &PgConnection, new_worker: NewWorker) -> i32 {
             error!("Error saving new worker. Err: {}", err);
             panic!();
         });
-    return worker.id;
+    worker.id
 }
 
 pub fn print_all_worker_models() {
@@ -117,7 +117,7 @@ pub fn worker_exists(uid: i32) -> bool {
             return true;
         }
     }
-    return false;
+    false
 }
 
 pub fn get_all_workers() -> VecDeque<Worker> {

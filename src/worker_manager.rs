@@ -1,5 +1,5 @@
 use crate::database::get_all_workers;
-use crate::database::{create_worker, establish_connection, worker_exists};
+use crate::database::{create_worker, establish_connection};
 use crate::generic::Generic;
 use crate::model::NewWorker;
 use crate::worker::{VersatileMessage, Worker};
@@ -121,7 +121,7 @@ impl WorkerManager {
             "Worker successfully initialised".to_string(),
         ));
         self.workers.lock().unwrap().push_back(new_worker);
-        return new_id;
+        new_id
     }
 
     pub fn polling_event(&mut self) {

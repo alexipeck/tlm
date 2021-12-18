@@ -19,7 +19,7 @@ pub enum ResolutionStandard {
 }
 
 impl ResolutionStandard {
-    pub fn get_resolution_standard_from_width(width: u32) -> Self {
+    pub fn get_resolution_standard_from_width(width: i32) -> Self {
         match width {
             640 => ResolutionStandard::ED,
             720 => ResolutionStandard::SD,
@@ -154,9 +154,9 @@ pub fn convert_i32_to_container(input: i32) -> Container {
 }
 
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
-pub struct BasicProfile {
-    pub width: u32,                              //Pixels
-    pub height: u32,                             //Pixels
+pub struct Profile {
+    pub width: i32,                              //Pixels
+    pub height: i32,                             //Pixels
     pub framerate: f64,                          //FPS
     pub length_time: f64,                        //Seconds
     pub resolution_standard: ResolutionStandard, //Discounts the height difference, based on width
@@ -166,7 +166,20 @@ pub struct BasicProfile {
                               //TODO: Add current audio information
 }
 
-impl fmt::Display for BasicProfile {
+impl Profile {
+    pub fn new(width: i32, height: i32, framerate: f64, length_time: f64, container: Container) -> Self {
+        Self {
+            width,
+            height,
+            framerate,
+            length_time,
+            resolution_standard: ResolutionStandard::get_resolution_standard_from_width(width),
+            container,
+        }
+    }
+}
+
+impl fmt::Display for Profile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -176,9 +189,9 @@ impl fmt::Display for BasicProfile {
     }
 }
 
-impl BasicProfile {
+impl Profile {
     ///Create profile from a pathbuf
-    pub fn from_file(path: &Path) -> Option<Self> {
+    pub fn from_file(path: &Path) -> Option<Profile> {
         let buffer;
         //linux & friends
         buffer = Command::new("mediainfo")
@@ -188,22 +201,22 @@ impl BasicProfile {
                 error!("Failed to execute process for mediainfo. Err: {}", err);
                 panic!();
             });
-
+        
         let v: Value = serde_json::from_str(from_utf8(&buffer.stdout).unwrap()).unwrap();
         let width = v["media"]["track"][1]["Width"]
             .to_string()
             .strip_prefix('"')?
             .strip_suffix('"')?
-            .parse::<u32>()
+            .parse::<i32>()
             .unwrap();
-
+        
         Some(Self {
             width,
             height: v["media"]["track"][1]["Height"]
                 .to_string()
                 .strip_prefix('"')?
                 .strip_suffix('"')?
-                .parse::<u32>()
+                .parse::<i32>()
                 .unwrap(),
             framerate: v["media"]["track"][1]["FrameRate"]
                 .to_string()
@@ -255,32 +268,3 @@ impl ConversionProfile {
         }
     }
 } */
-
-///Struct to store media information collected from media info
-///which will then be used to filter media and to set ffmpeg flags
-#[derive(Clone, Debug, Copy, Serialize, Deserialize)]
-pub struct Profile {
-    //Current
-    pub current_profile: BasicProfile,
-    //Future
-    //pub future_profile: Option<ConversionProfile>,
-}
-
-impl Profile {
-    pub fn new(full_path: &Path) -> Self {
-        if let Some(basic_profile) = BasicProfile::from_file(full_path) {
-            Self {
-                current_profile: basic_profile,
-                //future_profile: ConversionProfile::new(basic_profile, full_path),
-            }
-        } else {
-            panic!();
-        }
-    }
-
-    pub fn from_basic_profile(basic_profile: BasicProfile) -> Self {
-        Self {
-            current_profile: basic_profile,
-        }
-    }
-}
