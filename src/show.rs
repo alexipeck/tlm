@@ -59,7 +59,7 @@ impl Episode {
                 self.show_uid,
                 self.show_season,
                 self.get_episode_string(),
-                self.generic.get_full_path(),
+                self.generic.get_master_full_path(),
                 self.show_title,
         );
     }
@@ -123,14 +123,14 @@ impl Show {
         }
     }
 
-    pub fn get_generic_from_uid(&self, generic_uid: i32) -> Option<Encode> {
+    pub fn get_generic_from_uid(&self, generic_uid: i32) -> Option<Generic> {
         for season in &self.seasons {
             for episode in &season.episodes {
                 //NOTE: Instead of panicking inside get_generic_uid(), it might be better to just pass over generic_uid's that are none,
                 //      even though there shouldn't be generics that don't have a UID.
                 //      This is fine for now
                 if episode.generic.get_generic_uid() == generic_uid {
-                    return Some(episode.generic.generate_encode());
+                    return Some(episode.generic);
                 }
             }
         }

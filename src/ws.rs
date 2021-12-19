@@ -82,7 +82,7 @@ async fn handle_web_connection(
                         ProcessNewFiles::default(),
                     ))),
                 //TODO: Encode message needs a UID for transcoding a specific generic/episode
-                "transcode" => match file_manager.lock().unwrap().pick_random_generic() {
+                /* "transcode" => match file_manager.lock().unwrap().pick_random_generic() {
                     Some(generic) => {
                         let encode: Encode = Encode::new(
                             generic.get_generic_uid(),
@@ -99,7 +99,7 @@ async fn handle_web_connection(
                     None => {
                         info!("No generics available to transcode");
                     }
-                },
+                }, */
                 "display_workers" => print_all_worker_models(),
 
                 _ => warn!("{} is not a valid input", message),
@@ -114,16 +114,17 @@ async fn handle_web_connection(
                         tx.clone(),
                     ) {
                         //We need the new uid so we can set it correctly in the peer map
-                        worker_uid = Some(worker_manager.lock().unwrap().add_worker(addr, tx.clone()));
+                        worker_uid =
+                            Some(worker_manager.lock().unwrap().add_worker(addr, tx.clone()));
                     }
                     peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
                     //}
                 }
-                VersatileMessage::EncodeGeneric(generic_uid, add_encode_mode) => {
+                VersatileMessage::EncodeGeneric(generic_uid, file_version_id, add_encode_mode) => {
                     match file_manager
                         .lock()
                         .unwrap()
-                        .get_encode_from_generic_uid(generic_uid)
+                        .get_encode_from_generic_uid(generic_uid, file_version_id)
                     {
                         Some(encode) => {
                             match add_encode_mode {
@@ -150,9 +151,15 @@ async fn handle_web_connection(
                         }
                     }
                 }
-                VersatileMessage::EncodeStarted(worker_uid, generic_uid) => info!("Worker with UID: {} has started transcoding generic with UID: {}", worker_uid, generic_uid),
+                VersatileMessage::EncodeStarted(worker_uid, generic_uid) => info!(
+                    "Worker with UID: {} has started transcoding generic with UID: {}",
+                    worker_uid, generic_uid
+                ),
                 VersatileMessage::EncodeFinished(worker_uid, generic_uid) => {
-                    worker_manager.lock().unwrap().clear_current_transcode_from_worker(worker_uid, generic_uid);
+                    worker_manager
+                        .lock()
+                        .unwrap()
+                        .clear_current_transcode_from_worker(worker_uid, generic_uid);
                     //TODO: Make an enum of actions that could be performed on a Worker, like clear_current_transcode
                     //TODO: Regenerate basic profile (for now, this is fine), but in the end, I want both the current profile and new one stored
                 }

@@ -10,7 +10,7 @@ use std::{
         Arc, RwLock,
     },
     thread::JoinHandle,
-    time
+    time,
 };
 use tlm::config::WorkerConfig;
 use tlm::worker::VersatileMessage;
@@ -81,7 +81,10 @@ async fn main() -> Result<(), IoError> {
         //Alternatively, don't worry about it, it isn't really a problem as it is currently
         let inner_worker_uid = worker_uid.clone();
         handle = Some(thread::spawn(move || loop {
-            transcode_queue.write().unwrap().run_transcode(inner_worker_uid.clone(), tx.clone());
+            transcode_queue
+                .write()
+                .unwrap()
+                .run_transcode(inner_worker_uid.clone(), tx.clone());
             if stop_worker_inner.load(Ordering::Relaxed) {
                 break;
             }

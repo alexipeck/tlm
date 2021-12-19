@@ -4,8 +4,8 @@ use crate::{
     config::{Preferences, ServerConfig},
     database::*,
     designation::Designation,
-    generic::Generic,
-    model::{NewEpisode, NewGeneric},
+    generic::{FileVersion, Generic},
+    model::{NewEpisode, NewFileVersion, NewGeneric},
     show::{Episode, Show},
     worker_manager::Encode,
 };
@@ -14,15 +14,11 @@ use derivative::Derivative;
 use diesel::pg::PgConnection;
 use jwalk::WalkDir;
 use lazy_static::lazy_static;
-use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 use std::{collections::HashSet, fmt, path::PathBuf};
-use std::{
-    hash::{Hash, Hasher},
-    ops::Index,
-};
 use tracing::{debug, info, trace};
 
 ///Struct to hold all root directories containing media
@@ -118,26 +114,23 @@ impl FileManager {
         file_manager
     }
 
-    pub fn pick_random_generic(&self) -> Option<Generic> {
-        if !self.generic_files.is_empty() {
-            return Some(
-                self.generic_files
-                    .index(thread_rng().gen_range(0..self.generic_files.len()))
-                    .clone(),
-            );
-        }
-        None
-    }
-
-    pub fn get_encode_from_generic_uid(&self, generic_uid: i32) -> Option<Encode> {
+    pub fn get_encode_from_generic_uid(
+        &self,
+        generic_uid: i32,
+        file_version_id: i32,
+    ) -> Option<Encode> {
         for generic in &self.generic_files {
             if generic.get_generic_uid() == generic_uid {
-                return Some(generic.generate_encode());
+                if let Some(file_version) = generic.get_file_version_by_id(file_version_id) {
+                    return Some(file_version.generate_encode());
+                }
             }
         }
         for show in &self.shows {
-            if let Some(encode) = show.get_generic_from_uid(generic_uid) {
-                return Some(encode);
+            if let Some(generic) = show.get_generic_from_uid(generic_uid) {
+                if let Some(file_version) = generic.get_file_version_by_id(file_version_id) {
+                    return Some(file_version.generate_encode());
+                }
             }
         }
         None
@@ -162,8 +155,9 @@ impl FileManager {
     ///files can't be imported twice
     fn add_existing_files_to_hashset(&mut self) {
         for generic in &self.generic_files {
-            self.existing_files_hashset
-                .insert(generic.full_path.clone());
+            for path in generic.get_all_full_paths() {
+                self.existing_files_hashset.insert(path);
+            }
         }
     }
 
@@ -171,8 +165,9 @@ impl FileManager {
     ///that files can't be imported twice
     fn add_all_filenames_to_hashset_from_generics(&mut self, generics: &[Generic]) {
         for generic in generics {
-            self.existing_files_hashset
-                .insert(generic.full_path.clone());
+            for path in generic.get_all_full_paths() {
+                self.existing_files_hashset.insert(path);
+            }
         }
     }
 
@@ -206,50 +201,67 @@ impl FileManager {
         let connection = establish_connection();
         let mut new_episodes = Vec::new();
         let mut new_generics = Vec::new();
+        let mut new_file_versions = Vec::new();
 
         lazy_static! {
             static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
         }
 
-        //Create Content and NewContent that will be added to the database in a batch
-        let mut temp_generics: Vec<Generic> = self
-            .new_files_queue
-            .par_iter()
-            .map(|current| {
-                let mut generic = Generic::new(current);
+        let generics: Vec<Generic> = Vec::new();
+        //Indented so temp_generics drops out of scope earlier
+        {
+            //Create Generic and NewGeneric that will be added to the database in a batch
+            let mut temp_generics_and_paths: Vec<(Generic, String)> = self
+                .new_files_queue
+                .par_iter()
+                .map(|current| {
+                    let mut generic = Generic::default();
+                    let master_file_path =
+                        current.file_name().unwrap().to_str().unwrap().to_string();
+                    //TODO: Why yes this is slower, no I don't care about 100ms right now
+                    match REGEX.find(&master_file_path) {
+                        None => {}
+                        Some(_) => generic.designation = Designation::Episode,
+                    }
+                    trace!("Processed {}", generic);
 
-                //TODO: Why yes this is slower, no I don't care about 100ms right now
-                match REGEX.find(&generic.get_filename()) {
-                    None => {}
-                    Some(_) => generic.designation = Designation::Episode,
-                }
-                trace!("Processed {}", generic);
+                    (generic, master_file_path)
+                })
+                .collect();
+            self.new_files_queue.clear();
+            for (generic, _) in &temp_generics_and_paths {
+                new_generics.push(NewGeneric::new(generic.designation as i32));
+            }
 
-                generic
-            })
-            .collect();
-        self.new_files_queue.clear();
-        for generic in &temp_generics {
-            new_generics.push(NewGeneric::new(
-                String::from(generic.full_path.to_str().unwrap()),
-                generic.designation as i32,
-                None,
-            ));
+            debug!("Start inserting generics");
+            //Insert the generic and then update the uid's for the full Generic structure
+            let generic_models = create_generics(&connection, new_generics);
+            for i in 0..generic_models.len() {
+                temp_generics_and_paths[i].0.generic_uid = Some(generic_models[i].generic_uid);
+            }
+            debug!("Finished inserting generics");
+            for (generic, full_path) in temp_generics_and_paths {
+                new_file_versions
+                    .push(NewFileVersion::new(generic.generic_uid.unwrap(), full_path));
+                generics.push(generic);
+            }
         }
 
-        debug!("Start inserting generics");
-        //Insert the generic and then update the uid's for the full Generic structure
-        let generics = create_generics(&connection, new_generics);
-        for i in 0..generics.len() {
-            temp_generics[i].generic_uid = Some(generics[i].generic_uid);
+        debug!("Start inserting file_versions");
+        //TODO: Insert NewFileVersions into the database and insert a FileVersion into the Generic
+        let file_versions = create_file_versions(&connection, new_file_versions);
+        for (i, generic) in generics.iter_mut().enumerate() {
+            generic
+                .file_versions
+                .push(FileVersion::from_file_version_model(file_versions[i]));
         }
-        debug!("Finished inserting generics");
+        debug!("Finished inserting file_versions");
 
         debug!("Start building episodes");
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
-        for generic in &mut temp_generics {
+        for generic in generics.iter_mut() {
             let episode_string: String;
-            match REGEX.find(&generic.get_filename()) {
+            match REGEX.find(&generic.file_versions[0].get_filename()) {
                 None => continue,
                 Some(val) => {
                     //Removes first character
@@ -261,18 +273,14 @@ impl FileManager {
             }
 
             let mut season_episode_iter = episode_string.split('E');
-            let season_temp = season_episode_iter
-                .next()
-                .unwrap()
-                .parse::<i32>()
-                .unwrap();
+            let season_temp = season_episode_iter.next().unwrap().parse::<i32>().unwrap();
             let mut episodes: Vec<i32> = Vec::new();
             for episode in season_episode_iter.next().unwrap().split('-') {
                 episodes.push(episode.parse::<i32>().unwrap());
             }
 
             generic.designation = Designation::Episode;
-            let show_title = generic
+            let show_title = &generic.file_versions[0]
                 .full_path
                 .parent()
                 .unwrap()
@@ -298,11 +306,11 @@ impl FileManager {
         }
         debug!("Finished building episodes");
 
-        self.add_all_filenames_to_hashset_from_generics(&temp_generics);
+        self.add_all_filenames_to_hashset_from_generics(&generics);
 
         let mut temp_generics_only_episodes: Vec<Generic> = Vec::new();
         let mut temp_generics_only_generics: Vec<Generic> = Vec::new();
-        for generic in &temp_generics {
+        for generic in &generics {
             match generic.designation {
                 Designation::Generic => temp_generics_only_generics.push(generic.clone()),
                 Designation::Episode => temp_generics_only_episodes.push(generic.clone()),

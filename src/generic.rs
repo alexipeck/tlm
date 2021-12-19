@@ -1,10 +1,7 @@
 //!Datatype and associated function for handling Generic video files as well as the generic
 //!information used by all other video file types
 use std::io::prelude::*;
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-};
+use std::{fs::File, path::PathBuf};
 
 use std::fmt;
 use std::hash::Hasher;
@@ -12,32 +9,51 @@ use std::hash::Hasher;
 use crate::profile::Profile;
 use crate::worker_manager::Encode;
 use crate::{
-    designation::{convert_i32_to_designation, Designation},
+    designation::{from_i32, Designation},
     model::*,
 };
 use tracing::{error, warn};
 
-///Struct containing data that is shared by all file types
-///can also refer to only a generic media file
 #[derive(Clone, Debug)]
-pub struct Generic {
-    pub generic_uid: Option<i32>,
+pub struct FileVersion {
+    pub id: i32,
+    pub generic_uid: i32,
     pub full_path: PathBuf,
-    pub designation: Designation,
     pub hash: Option<String>,
     pub fast_hash: Option<String>,
-    pub profile: Option<Profile>,
+    pub profile: Profile,
 }
 
-impl Generic {
-    pub fn new(raw_filepath: &Path) -> Self {
+impl FileVersion {
+    pub fn from_file_version_model(file_version_model: FileVersionModel) -> Self {
+        let profile = Profile::new(
+            file_version_model.width,
+            file_version_model.height,
+            file_version_model.framerate,
+            file_version_model.length_time,
+            file_version_model.resolution_standard,
+            file_version_model.container,
+        );
+
         Self {
-            full_path: raw_filepath.to_path_buf(),
-            designation: Designation::Generic,
-            generic_uid: None,
-            hash: None,
-            fast_hash: None,
-            profile: None,
+            id: file_version_model.id,
+            generic_uid: file_version_model.generic_uid,
+            full_path: PathBuf::from(file_version_model.full_path),
+            hash: file_version_model.file_hash,
+            fast_hash: file_version_model.fast_file_hash,
+            profile,
+        }
+    }
+
+    //Destructive operation, will overwrite previous values
+    pub fn generate_profile(&mut self) {
+        if let Some(profile) = Profile::from_file(&self.full_path) {
+            self.profile = profile;
+        } else {
+            panic!(
+                "Failed to generate profile for generic_uid: {} and file_version_id: {}",
+                self.generic_uid, self.id
+            );
         }
     }
 
@@ -47,34 +63,10 @@ impl Generic {
         self.hash = Some(sea_hash(self.full_path.clone()));
     }
 
-    pub fn generate_profile(&mut self) {
-        if self.profile.is_none() {
-            self.profile = Profile::from_file(&self.full_path);
-            if self.profile.is_none() {
-                if let Some(generic_uid) = self.generic_uid {
-                    error!("Failed to generate profile for generic_uid: {}", generic_uid);
-                } else {
-                    error!("Failed to generate profile, profile also has no generic_uid");
-                }
-                
-            }
-        }
-    }
-
     ///Returns true if hashes match, false if not
     pub fn verify_hash(&mut self, path: PathBuf) -> bool {
         if self.hash.is_some() {
             return self.hash.as_ref().unwrap().as_str() == sea_hash(path).as_str();
-        } else {
-            warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
-            true
-        }
-    }
-
-    ///Returns true if hashes match, false if not
-    pub fn verify_fast_hash(&mut self, path: PathBuf) -> bool {
-        if self.fast_hash.is_some() {
-            return self.fast_hash.as_ref().unwrap().as_str() == sea_fast_hash(path).as_str();
         } else {
             warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
             true
@@ -93,27 +85,19 @@ impl Generic {
         self.fast_hash = Some(sea_fast_hash(self.full_path.clone()));
     }
 
-    ///Create a new generic from the database equivalent. This is neccesary because
-    /// not all fields are stored in the database because they can be so easily recalculated
-    pub fn from_generic_model(generic_model: GenericModel) -> Generic {
-        let generic_uid_temp: i32 = generic_model.generic_uid;
-        let full_path_temp: String = generic_model.full_path.to_owned();
-        let designation_temp: i32 = generic_model.designation;
-
-        //change to have it pull all info out of the db, it currently generates what it can from the filename
-        Generic {
-            full_path: PathBuf::from(&full_path_temp),
-            designation: convert_i32_to_designation(designation_temp), //Designation::Generic
-            generic_uid: Some(generic_uid_temp),
-            hash: generic_model.file_hash.to_owned(),
-            fast_hash: generic_model.fast_file_hash.to_owned(),
-            profile: generic_model.generate_profile(),
+    ///Returns true if hashes match, false if not
+    pub fn verify_fast_hash(&mut self, path: PathBuf) -> bool {
+        if self.fast_hash.is_some() {
+            return self.fast_hash.as_ref().unwrap().as_str() == sea_fast_hash(path).as_str();
+        } else {
+            warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
+            true
         }
     }
 
     pub fn generate_encode(&self) -> Encode {
         Encode {
-            generic_uid: self.generic_uid.unwrap(),//Not sure if this is safe
+            generic_uid: self.generic_uid,
             source_path: self.full_path.clone(),
             future_filename: self.generate_target_path(),
             encode_options: self.generate_encode_string(),
@@ -190,6 +174,65 @@ impl Generic {
     pub fn get_full_path(&self) -> String {
         return self.full_path.as_os_str().to_str().unwrap().to_string();
     }
+}
+
+///Struct containing data that is shared by all file types
+///can also refer to only a generic media file
+#[derive(Clone, Debug)]
+pub struct Generic {
+    pub generic_uid: Option<i32>,
+    pub designation: Designation,
+    pub file_versions: Vec<FileVersion>,
+}
+
+impl Generic {
+    pub fn default() -> Self {
+        Self {
+            generic_uid: None,
+            designation: Designation::Generic,
+            file_versions: Vec::new(),
+        }
+    }
+
+    pub fn get_all_full_paths(&self) -> Vec<PathBuf> {
+        let mut paths: Vec<PathBuf> = Vec::new();
+        for file_version in self.file_versions {
+            paths.push(file_version.full_path);
+        }
+        paths
+    }
+
+    pub fn get_file_version_by_id(&self, file_version_id: i32) -> Option<FileVersion> {
+        for file_version in self.file_versions {
+            if file_version.id == file_version_id {
+                return Some(file_version);
+            }
+        }
+        None
+    }
+
+    pub fn has_hashing_work(&self) -> bool {
+        for file_version in self.file_versions {
+            if file_version.hash.is_none() || file_version.fast_hash.is_none() {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    pub fn get_master_full_path(&self) -> String {
+        String::from(self.file_versions[0].full_path.to_str().unwrap())
+    }
+
+    ///Create a new generic from the database equivalent. This is neccesary because
+    /// not all fields are stored in the database because they can be so easily recalculated
+    pub fn from_generic_model(generic_model: GenericModel) -> Self {
+        Self {
+            generic_uid: Some(generic_model.generic_uid),
+            designation: from_i32(generic_model.designation),
+            file_versions: Vec::new(),
+        }
+    }
 
     pub fn get_generic_uid(&self) -> i32 {
         if self.generic_uid.is_some() {
@@ -198,10 +241,6 @@ impl Generic {
             error!("get_generic_uid was called on a generic that hasn't been inserted into the db yet or hasn't been assigned a generic_uid from the database correctly");
             panic!();
         }
-    }
-
-    pub fn get_filename_from_pathbuf(pathbuf: PathBuf) -> String {
-        return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
     }
 }
 ///Hash the file with seahash for data integrity purposes so we
@@ -246,11 +285,17 @@ pub fn sea_fast_hash(path: PathBuf) -> String {
 
 impl fmt::Display for Generic {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "[designation:'{}'][full_path:'{}']",
-            self.designation as i32,
-            self.get_full_path(),
-        )
+        if self.file_versions.is_empty() {
+            panic!("The server was told to print a generic that has no actual files");
+        }
+        let mut temp: String = String::new();
+        for file_version in self.file_versions {
+            temp.push_str(&format!(
+                "[designation:'{}'][full_path:'{}']",
+                self.designation as i32,
+                file_version.get_full_path(),
+            ));
+        }
+        write!(f, "{}", temp)
     }
 }

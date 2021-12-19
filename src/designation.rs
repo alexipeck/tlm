@@ -7,7 +7,7 @@ pub enum Designation {
     Movie = 3,
 }
 
-pub fn convert_i32_to_designation(input: i32) -> Designation {
+pub fn from_i32(input: i32) -> Designation {
     match input {
         1 => Designation::Generic,
         2 => Designation::Episode,

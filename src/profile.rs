@@ -19,6 +19,18 @@ pub enum ResolutionStandard {
 }
 
 impl ResolutionStandard {
+    pub fn from(input: i32) -> Self {
+        match input {
+            1 => ResolutionStandard::SD,
+            2 => ResolutionStandard::ED,
+            3 => ResolutionStandard::HD,
+            4 => ResolutionStandard::FHD,
+            5 => ResolutionStandard::WQHD,
+            6 => ResolutionStandard::UHD,
+            _ => ResolutionStandard::UNKNOWN,
+        }
+    }
+
     pub fn get_resolution_standard_from_width(width: i32) -> Self {
         match width {
             640 => ResolutionStandard::ED,
@@ -42,18 +54,6 @@ impl ResolutionStandard {
             ResolutionStandard::UHD => "UHD".to_string(),
             ResolutionStandard::UNKNOWN => panic!(),
         }
-    }
-}
-
-pub fn convert_i32_to_resolution_standard(input: i32) -> ResolutionStandard {
-    match input {
-        1 => ResolutionStandard::SD,
-        2 => ResolutionStandard::ED,
-        3 => ResolutionStandard::HD,
-        4 => ResolutionStandard::FHD,
-        5 => ResolutionStandard::WQHD,
-        6 => ResolutionStandard::UHD,
-        _ => ResolutionStandard::UNKNOWN,
     }
 }
 
@@ -123,6 +123,15 @@ pub enum Container {
 }
 
 impl Container {
+    pub fn from(input: i32) -> Self {
+        match input {
+            0 => Container::MP4,
+            1 => Container::MKV,
+            2 => Container::WEBM,
+            _ => Container::UNKNOWN,
+        }
+    }
+
     pub fn get_container_from_extension(file_extension: String) -> Self {
         let file_extension = file_extension.to_lowercase(); //Hopefully this to_lowercase function is sufficient for the moment
         match file_extension.as_str() {
@@ -144,36 +153,47 @@ impl Container {
     }
 }
 
-pub fn convert_i32_to_container(input: i32) -> Container {
-    match input {
-        0 => Container::MP4,
-        1 => Container::MKV,
-        2 => Container::WEBM,
-        _ => Container::UNKNOWN,
-    }
-}
-
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub struct Profile {
-    pub width: i32,                              //Pixels
-    pub height: i32,                             //Pixels
-    pub framerate: f64,                          //FPS
-    pub length_time: f64,                        //Seconds
-    pub resolution_standard: ResolutionStandard, //Discounts the height difference, based on width
-    //pub aspect_ratio: AspectRatio,                //eg. SixteenByNine is 16:9
-    pub container: Container, //Represents the file extension rather than specifically the container, as this may not be the case
-                              //TODO: Add current video information
-                              //TODO: Add current audio information
+    pub width: Option<i32>,                              //Pixels
+    pub height: Option<i32>,                             //Pixels
+    pub framerate: Option<f64>,                          //FPS
+    pub length_time: Option<f64>,                        //Seconds
+    pub resolution_standard: Option<ResolutionStandard>, //Discounts the height difference, based on width
+    //pub aspect_ratio: AspectRatio,                            //eg. SixteenByNine is 16:9
+    pub container: Option<Container>, //Represents the file extension rather than specifically the container, as this may not be the case
+                                      //TODO: Add current video information
+                                      //TODO: Add current audio information
 }
 
 impl Profile {
-    pub fn new(width: i32, height: i32, framerate: f64, length_time: f64, container: Container) -> Self {
+    pub fn new(
+        width: Option<i32>,
+        height: Option<i32>,
+        framerate: Option<f64>,
+        length_time: Option<f64>,
+        resolution_standard: Option<i32>,
+        container: Option<i32>,
+    ) -> Self {
+        let resolution_standard_i32: Option<i32> = resolution_standard;
+        let mut resolution_standard: Option<ResolutionStandard> = None;
+        let container_i32 = container;
+        let mut container: Option<Container> = None;
+
+        if resolution_standard_i32.is_some() {
+            resolution_standard = Some(ResolutionStandard::from(resolution_standard_i32.unwrap()));
+        }
+
+        if container_i32.is_some() {
+            container = Some(Container::from(container_i32.unwrap()));
+        }
+
         Self {
             width,
             height,
             framerate,
             length_time,
-            resolution_standard: ResolutionStandard::get_resolution_standard_from_width(width),
+            resolution_standard,
             container,
         }
     }
@@ -181,10 +201,19 @@ impl Profile {
 
 impl fmt::Display for Profile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.width.is_none()
+            || self.height.is_none()
+            || self.framerate.is_none()
+            || self.length_time.is_none()
+            || self.resolution_standard.is_none()
+            || self.container.is_none()
+        {
+            panic!("Tried to print empty profiles, don't really want to deal with this right now");
+        }
         write!(
             f,
             "Width: {}, Height: {}, Framerate: {}, Length: {}, ResolutionStandard: {}, Container: {}",
-            self.width, self.height, self.framerate, self.length_time, self.resolution_standard as i32, self.container as i32,
+            self.width.unwrap(), self.height.unwrap(), self.framerate.unwrap(), self.length_time.unwrap(), self.resolution_standard.unwrap() as i32, self.container.unwrap() as i32,
         )
     }
 }
@@ -201,7 +230,7 @@ impl Profile {
                 error!("Failed to execute process for mediainfo. Err: {}", err);
                 panic!();
             });
-        
+
         let v: Value = serde_json::from_str(from_utf8(&buffer.stdout).unwrap()).unwrap();
         let width = v["media"]["track"][1]["Width"]
             .to_string()
@@ -209,36 +238,44 @@ impl Profile {
             .strip_suffix('"')?
             .parse::<i32>()
             .unwrap();
-        
+
         Some(Self {
-            width,
-            height: v["media"]["track"][1]["Height"]
-                .to_string()
-                .strip_prefix('"')?
-                .strip_suffix('"')?
-                .parse::<i32>()
-                .unwrap(),
-            framerate: v["media"]["track"][1]["FrameRate"]
-                .to_string()
-                .strip_prefix('"')?
-                .strip_suffix('"')?
-                .parse::<f64>()
-                .unwrap(),
-            length_time: v["media"]["track"][0]["Duration"]
-                .to_string()
-                .strip_prefix('"')?
-                .strip_suffix('"')?
-                .parse::<f64>()
-                .unwrap(),
-            resolution_standard: ResolutionStandard::get_resolution_standard_from_width(width),
-            container: Container::get_container_from_extension(
+            width: Some(width),
+            height: Some(
+                v["media"]["track"][1]["Height"]
+                    .to_string()
+                    .strip_prefix('"')?
+                    .strip_suffix('"')?
+                    .parse::<i32>()
+                    .unwrap(),
+            ),
+            framerate: Some(
+                v["media"]["track"][1]["FrameRate"]
+                    .to_string()
+                    .strip_prefix('"')?
+                    .strip_suffix('"')?
+                    .parse::<f64>()
+                    .unwrap(),
+            ),
+            length_time: Some(
+                v["media"]["track"][0]["Duration"]
+                    .to_string()
+                    .strip_prefix('"')?
+                    .strip_suffix('"')?
+                    .parse::<f64>()
+                    .unwrap(),
+            ),
+            resolution_standard: Some(ResolutionStandard::get_resolution_standard_from_width(
+                width,
+            )),
+            container: Some(Container::get_container_from_extension(
                 v["media"]["track"][0]["FileExtension"]
                     .to_string()
                     .strip_prefix('"')?
                     .strip_suffix('"')?
                     .parse::<String>()
                     .unwrap(),
-            ),
+            )),
         })
     }
 }

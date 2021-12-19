@@ -1,13 +1,14 @@
+use crate::model::WorkerModel;
 use crate::schema::generic::designation;
 use crate::worker::Worker;
 use crate::{
     designation::Designation, generic::Generic, model::*, schema::episode as episode_table,
-    schema::episode::dsl::episode as episode_db, schema::generic as generic_table,
+    schema::episode::dsl::episode as episode_db, schema::file_version as file_version_table,
+    schema::file_version::dls::file_version as file_version_data, schema::generic as generic_table,
     schema::generic::dsl::generic as generic_data, schema::show as show_table,
     schema::show::dsl::show as show_db, schema::worker as worker_table,
     schema::worker::dsl::worker as worker_data, show::Episode, show::Show,
 };
-use crate::model::WorkerModel;
 use diesel::{pg::PgConnection, prelude::*};
 use std::collections::VecDeque;
 use std::env;
@@ -32,6 +33,20 @@ pub fn create_generics(conn: &PgConnection, new_generics: Vec<NewGeneric>) -> Ve
         .get_results(conn)
         .unwrap_or_else(|err| {
             error!("Error saving new generics. Err: {}", err);
+            panic!();
+        })
+}
+
+///Inserts file_version data into the database
+pub fn create_file_versions(
+    conn: &PgConnection,
+    new_file_versions: Vec<NewFileVersion>,
+) -> Vec<FileVersionModel> {
+    diesel::insert_into(file_version_table::table)
+        .values(&new_file_versions)
+        .get_results(conn)
+        .unwrap_or_else(|err| {
+            error!("Error saving new file_versions. Err: {}", err);
             panic!();
         })
 }

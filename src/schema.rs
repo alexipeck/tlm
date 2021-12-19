@@ -9,18 +9,26 @@ table! {
 }
 
 table! {
-    generic (generic_uid) {
+    file_version (id) {
+        id -> Int4,
         generic_uid -> Int4,
         full_path -> Text,
-        designation -> Int4,
+        master_file -> Bool,
         file_hash -> Nullable<Varchar>,
+        fast_file_hash -> Nullable<Varchar>,
         width -> Nullable<Int4>,
         height -> Nullable<Int4>,
         framerate -> Nullable<Float8>,
         length_time -> Nullable<Float8>,
-        fast_file_hash -> Nullable<Varchar>,
         resolution_standard -> Nullable<Int4>,
         container -> Nullable<Int4>,
+    }
+}
+
+table! {
+    generic (generic_uid) {
+        generic_uid -> Int4,
+        designation -> Int4,
     }
 }
 
@@ -62,10 +70,12 @@ table! {
 
 joinable!(episode -> generic (generic_uid));
 joinable!(episode -> show (show_uid));
+joinable!(file_version -> generic (generic_uid));
 joinable!(job_task_queue -> job_queue (job_uid));
 
 allow_tables_to_appear_in_same_query!(
     episode,
+    file_version,
     generic,
     job_queue,
     job_task_queue,

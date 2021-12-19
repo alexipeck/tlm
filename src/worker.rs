@@ -118,7 +118,7 @@ pub enum VersatileMessage {
     EncodeFinished(i32, i32),
 
     //WebUI
-    EncodeGeneric(i32, AddEncodeMode),
+    EncodeGeneric(i32, i32, AddEncodeMode),
 
     //Generic
     Text(String),

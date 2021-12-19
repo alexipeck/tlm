@@ -1,6 +1,6 @@
 use crate::database::get_all_workers;
 use crate::database::{create_worker, establish_connection};
-use crate::generic::Generic;
+use crate::get_filename_from_pathbuf;
 use crate::model::NewWorker;
 use crate::worker::{VersatileMessage, Worker};
 use futures_channel::mpsc::UnboundedSender;
@@ -26,7 +26,12 @@ pub struct Encode {
 }
 
 impl Encode {
-    pub fn new(generic_uid: i32, source_path: PathBuf, future_filename: String, encode_options: Vec<String>) -> Self {
+    pub fn new(
+        generic_uid: i32,
+        source_path: PathBuf,
+        future_filename: String,
+        encode_options: Vec<String>,
+    ) -> Self {
         Self {
             generic_uid,
             source_path,
@@ -38,7 +43,7 @@ impl Encode {
     pub fn run(self, handle: Arc<RwLock<Option<Child>>>) {
         info!(
             "Encoding file \'{}\'",
-            Generic::get_filename_from_pathbuf(self.source_path.clone())
+            get_filename_from_pathbuf(self.source_path.clone())
         );
 
         let _ = handle.write().unwrap().insert(
@@ -75,9 +80,15 @@ impl WorkerManager {
         }
     }
 
-    pub fn perform_on_worker(&mut self, worker_uid: Option<i32>, mut worker_actions: Vec<WorkerAction>) {
+    pub fn perform_on_worker(
+        &mut self,
+        worker_uid: Option<i32>,
+        mut worker_actions: Vec<WorkerAction>,
+    ) {
         if worker_uid.is_none() {
-            panic!("The server was asked to run actions on an empty worker_uid. | None Option<i32>");
+            panic!(
+                "The server was asked to run actions on an empty worker_uid. | None Option<i32>"
+            );
         }
         for worker in self.workers.lock().unwrap().iter_mut() {
             if worker.uid == worker_uid {
@@ -172,7 +183,7 @@ impl WorkerManager {
             //Clear worker queue and add it back to main queue
             if worker.close_time.unwrap().elapsed().as_secs() > self.timeout_threshold {
                 indexes.push(i);
-            } 
+            }
         }
         indexes.reverse();
         for index in indexes {
@@ -287,7 +298,11 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    pub fn run_transcode(&mut self, worker_uid: Arc<RwLock<Option<i32>>>, mut tx: UnboundedSender<Message>) {
+    pub fn run_transcode(
+        &mut self,
+        worker_uid: Arc<RwLock<Option<i32>>>,
+        mut tx: UnboundedSender<Message>,
+    ) {
         {
             let transcode_lock = self.current_transcode.read().unwrap();
             let handle_lock = self.current_transcode_handle.read().unwrap();
@@ -302,7 +317,18 @@ impl WorkerTranscodeQueue {
         //Assigns current_transcode an
         if self.make_transcode_current() {
             self.start_current_transcode_if_some();
-            let _ = tx.start_send(VersatileMessage::EncodeStarted(worker_uid.read().unwrap().unwrap(), self.current_transcode.read().unwrap().as_ref().unwrap().generic_uid).to_message());
+            let _ = tx.start_send(
+                VersatileMessage::EncodeStarted(
+                    worker_uid.read().unwrap().unwrap(),
+                    self.current_transcode
+                        .read()
+                        .unwrap()
+                        .as_ref()
+                        .unwrap()
+                        .generic_uid,
+                )
+                .to_message(),
+            );
             if self.current_transcode_handle.read().unwrap().is_some() {
                 let output = self
                     .current_transcode_handle
@@ -321,7 +347,18 @@ impl WorkerTranscodeQueue {
                 if ok {
                     self.clear_current_transcode();
                     //TODO: Send message to server that encode has finished.
-                    let _ = tx.start_send(VersatileMessage::EncodeFinished(worker_uid.read().unwrap().unwrap(), self.current_transcode.read().unwrap().as_ref().unwrap().generic_uid).to_message());
+                    let _ = tx.start_send(
+                        VersatileMessage::EncodeFinished(
+                            worker_uid.read().unwrap().unwrap(),
+                            self.current_transcode
+                                .read()
+                                .unwrap()
+                                .as_ref()
+                                .unwrap()
+                                .generic_uid,
+                        )
+                        .to_message(),
+                    );
                 }
             }
         }

@@ -59,38 +59,40 @@ impl Hash {
         //Hash files until all other functions are complete
         let handle = Some(thread::spawn(move || {
             let mut current_content = current_content;
-            current_content.retain(|elem| elem.hash.is_none() || elem.fast_hash.is_none());
+            current_content.retain(|generic| generic.has_hashing_work());
             let length = current_content.len();
             let connection = establish_connection();
             let mut did_finish = true;
-            for (i, content) in current_content.iter_mut().enumerate() {
-                if content.hash.is_none() {
-                    content.hash();
-                    debug!(
-                        "Hashed[{} of {}]: {}",
-                        i + 1,
-                        length,
-                        content.full_path.to_str().unwrap()
-                    );
-                    content.fast_hash();
-                    if GenericModel::from_generic(content.clone())
-                        .save_changes::<GenericModel>(&connection)
-                        .is_err()
-                    {
-                        error!("Failed to update hash in database");
+            for (i, generic) in current_content.iter_mut().enumerate() {
+                for file_version in generic.file_versions {
+                    if file_version.hash.is_none() {
+                        file_version.hash();
+                        debug!(
+                            "Hashed[{} of {}]: {}",
+                            i + 1,
+                            length,
+                            file_version.get_full_path(),
+                        );
+                        file_version.fast_hash();
+                        if GenericModel::from_generic(generic.clone())
+                            .save_changes::<GenericModel>(&connection)
+                            .is_err()
+                        {
+                            error!("Failed to update hash in database");
+                        }
+                    } else if file_version.fast_hash.is_none() {
+                        file_version.fast_hash();
+                        if GenericModel::from_generic(generic.clone())
+                            .save_changes::<GenericModel>(&connection)
+                            .is_err()
+                        {
+                            error!("Failed to update hash in database");
+                        }
                     }
-                } else if content.fast_hash.is_none() {
-                    content.fast_hash();
-                    if GenericModel::from_generic(content.clone())
-                        .save_changes::<GenericModel>(&connection)
-                        .is_err()
-                    {
-                        error!("Failed to update hash in database");
+                    if is_finished_inner.load(Ordering::Relaxed) {
+                        did_finish = false;
+                        break;
                     }
-                }
-                if is_finished_inner.load(Ordering::Relaxed) {
-                    did_finish = false;
-                    break;
                 }
             }
             is_finished_inner.store(true, Ordering::Relaxed);
