@@ -49,8 +49,7 @@ pub fn create_file_versions(
         .unwrap_or_else(|err| {
             error!("Error saving new file_versions. Err: {}", err);
             panic!();
-        }
-    )
+        })
 }
 
 ///Inserts show data into the database

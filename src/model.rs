@@ -45,9 +45,7 @@ pub struct NewGeneric {
 
 impl NewGeneric {
     pub fn new(designation: i32) -> Self {
-        Self {
-            designation,
-        }
+        Self { designation }
     }
 }
 

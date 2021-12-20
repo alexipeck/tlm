@@ -239,8 +239,11 @@ impl FileManager {
             }
             debug!("Finished inserting generics");
             for (generic, full_path) in temp_generics_and_paths {
-                new_file_versions
-                    .push(NewFileVersion::new(generic.generic_uid.unwrap(), full_path, true));
+                new_file_versions.push(NewFileVersion::new(
+                    generic.generic_uid.unwrap(),
+                    full_path,
+                    true,
+                ));
                 generics.push(generic);
             }
         }
@@ -251,7 +254,9 @@ impl FileManager {
         for (i, generic) in generics.iter_mut().enumerate() {
             generic
                 .file_versions
-                .push(FileVersion::from_file_version_model(file_versions[i].clone()));
+                .push(FileVersion::from_file_version_model(
+                    file_versions[i].clone(),
+                ));
             trace!("Processed {}", generic);
         }
         debug!("Finished inserting file_versions");
@@ -279,7 +284,14 @@ impl FileManager {
             }
 
             generic.designation = Designation::Episode;
-            debug!("{}", generic.file_versions[0].full_path.as_os_str().to_str().unwrap());
+            debug!(
+                "{}",
+                generic.file_versions[0]
+                    .full_path
+                    .as_os_str()
+                    .to_str()
+                    .unwrap()
+            );
             let show_title = &generic.file_versions[0]
                 .full_path
                 .parent()

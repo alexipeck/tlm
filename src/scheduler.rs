@@ -65,12 +65,7 @@ impl Hash {
             let mut did_finish = true;
             for (i, generic) in current_content.iter_mut().enumerate() {
                 for full_path in generic.hash_file_versions() {
-                    debug!(
-                        "Hashed[{} of {}]: {}",
-                        i + 1,
-                        length,
-                        full_path,
-                    );
+                    debug!("Hashed[{} of {}]: {}", i + 1, length, full_path,);
                 }
                 if GenericModel::from_generic(generic.clone())
                     .save_changes::<GenericModel>(&connection)
