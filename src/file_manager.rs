@@ -216,14 +216,12 @@ impl FileManager {
                 .par_iter()
                 .map(|current| {
                     let mut generic = Generic::default();
-                    let master_file_path =
-                        current.file_name().unwrap().to_str().unwrap().to_string();
+                    let master_file_path = current.to_str().unwrap().to_string();
                     //TODO: Why yes this is slower, no I don't care about 100ms right now
                     match REGEX.find(&master_file_path) {
                         None => {}
                         Some(_) => generic.designation = Designation::Episode,
                     }
-                    trace!("Processed {}", generic);
 
                     (generic, master_file_path)
                 })
@@ -254,6 +252,7 @@ impl FileManager {
             generic
                 .file_versions
                 .push(FileVersion::from_file_version_model(file_versions[i].clone()));
+            trace!("Processed {}", generic);
         }
         debug!("Finished inserting file_versions");
 
@@ -280,6 +279,7 @@ impl FileManager {
             }
 
             generic.designation = Designation::Episode;
+            debug!("{}", generic.file_versions[0].full_path.as_os_str().to_str().unwrap());
             let show_title = &generic.file_versions[0]
                 .full_path
                 .parent()
