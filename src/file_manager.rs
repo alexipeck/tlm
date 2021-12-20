@@ -207,7 +207,7 @@ impl FileManager {
             static ref REGEX: Regex = Regex::new(r"S[0-9]*E[0-9\-]*").unwrap();
         }
 
-        let generics: Vec<Generic> = Vec::new();
+        let mut generics: Vec<Generic> = Vec::new();
         //Indented so temp_generics drops out of scope earlier
         {
             //Create Generic and NewGeneric that will be added to the database in a batch
@@ -242,7 +242,7 @@ impl FileManager {
             debug!("Finished inserting generics");
             for (generic, full_path) in temp_generics_and_paths {
                 new_file_versions
-                    .push(NewFileVersion::new(generic.generic_uid.unwrap(), full_path));
+                    .push(NewFileVersion::new(generic.generic_uid.unwrap(), full_path, true));
                 generics.push(generic);
             }
         }
@@ -253,7 +253,7 @@ impl FileManager {
         for (i, generic) in generics.iter_mut().enumerate() {
             generic
                 .file_versions
-                .push(FileVersion::from_file_version_model(file_versions[i]));
+                .push(FileVersion::from_file_version_model(file_versions[i].clone()));
         }
         debug!("Finished inserting file_versions");
 

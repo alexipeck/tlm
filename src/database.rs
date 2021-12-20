@@ -1,10 +1,11 @@
+use crate::generic::FileVersion;
 use crate::model::WorkerModel;
 use crate::schema::generic::designation;
 use crate::worker::Worker;
 use crate::{
     designation::Designation, generic::Generic, model::*, schema::episode as episode_table,
     schema::episode::dsl::episode as episode_db, schema::file_version as file_version_table,
-    schema::file_version::dls::file_version as file_version_data, schema::generic as generic_table,
+    schema::file_version::dsl::file_version as file_version_data, schema::generic as generic_table,
     schema::generic::dsl::generic as generic_data, schema::show as show_table,
     schema::show::dsl::show as show_db, schema::worker as worker_table,
     schema::worker::dsl::worker as worker_data, show::Episode, show::Show,
@@ -48,7 +49,8 @@ pub fn create_file_versions(
         .unwrap_or_else(|err| {
             error!("Error saving new file_versions. Err: {}", err);
             panic!();
-        })
+        }
+    )
 }
 
 ///Inserts show data into the database
@@ -99,6 +101,23 @@ pub fn print_all_worker_models() {
             worker_model.id, worker_model.worker_ip_address
         );
     }
+}
+
+pub fn get_all_file_versions() -> Vec<FileVersion> {
+    let connection = establish_connection();
+
+    let file_version_models = file_version_data
+        .load::<FileVersionModel>(&connection)
+        .unwrap_or_else(|err| {
+            error!("Error loading file_version. Err: {}", err);
+            panic!();
+        });
+
+    let mut file_versions: Vec<FileVersion> = Vec::new();
+    for file_version in file_version_models {
+        file_versions.push(FileVersion::from_file_version_model(file_version));
+    }
+    file_versions
 }
 
 ///Get all generic from the database

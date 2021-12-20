@@ -180,12 +180,12 @@ impl Profile {
         let container_i32 = container;
         let mut container: Option<Container> = None;
 
-        if resolution_standard_i32.is_some() {
-            resolution_standard = Some(ResolutionStandard::from(resolution_standard_i32.unwrap()));
+        if let Some(resolution_standard_i32) = resolution_standard_i32 {
+            resolution_standard = Some(ResolutionStandard::from(resolution_standard_i32));
         }
 
-        if container_i32.is_some() {
-            container = Some(Container::from(container_i32.unwrap()));
+        if let Some(container_i32) = container_i32 {
+            container = Some(Container::from(container_i32));
         }
 
         Self {

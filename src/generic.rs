@@ -19,6 +19,7 @@ pub struct FileVersion {
     pub id: i32,
     pub generic_uid: i32,
     pub full_path: PathBuf,
+    pub master_file: bool,
     pub hash: Option<String>,
     pub fast_hash: Option<String>,
     pub profile: Profile,
@@ -39,6 +40,7 @@ impl FileVersion {
             id: file_version_model.id,
             generic_uid: file_version_model.generic_uid,
             full_path: PathBuf::from(file_version_model.full_path),
+            master_file: file_version_model.master_file,
             hash: file_version_model.file_hash,
             fast_hash: file_version_model.fast_file_hash,
             profile,
@@ -194,30 +196,44 @@ impl Generic {
         }
     }
 
+    pub fn hash_file_versions(&mut self) -> Vec<String> {
+        let mut full_paths: Vec<String> = Vec::new();
+        for file_version in self.file_versions.iter_mut() {
+            if file_version.hash.is_none() {
+                file_version.hash();
+            }
+            if file_version.fast_hash.is_none() {
+                file_version.fast_hash();
+            }
+            full_paths.push(file_version.get_full_path());
+        }
+        full_paths
+    }
+
     pub fn get_all_full_paths(&self) -> Vec<PathBuf> {
         let mut paths: Vec<PathBuf> = Vec::new();
-        for file_version in self.file_versions {
-            paths.push(file_version.full_path);
+        for file_version in &self.file_versions {
+            paths.push(file_version.full_path.clone());
         }
         paths
     }
 
     pub fn get_file_version_by_id(&self, file_version_id: i32) -> Option<FileVersion> {
-        for file_version in self.file_versions {
+        for file_version in &self.file_versions {
             if file_version.id == file_version_id {
-                return Some(file_version);
+                return Some(file_version.clone());
             }
         }
         None
     }
 
     pub fn has_hashing_work(&self) -> bool {
-        for file_version in self.file_versions {
+        for file_version in &self.file_versions {
             if file_version.hash.is_none() || file_version.fast_hash.is_none() {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     pub fn get_master_full_path(&self) -> String {
@@ -289,7 +305,7 @@ impl fmt::Display for Generic {
             panic!("The server was told to print a generic that has no actual files");
         }
         let mut temp: String = String::new();
-        for file_version in self.file_versions {
+        for file_version in &self.file_versions {
             temp.push_str(&format!(
                 "[designation:'{}'][full_path:'{}']",
                 self.designation as i32,

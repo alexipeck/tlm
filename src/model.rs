@@ -41,35 +41,13 @@ pub struct WorkerModel {
 #[table_name = "generic"]
 pub struct NewGeneric {
     pub designation: i32,
-    //pub width: Option<i32>,
-    //pub height: Option<i32>,
-    //pub framerate: Option<f64>,
-    //pub length_time: Option<f64>,
-    //pub resolution_standard: Option<i32>, //I want this to eventually be a string
-    //pub container: Option<i32>,           //I want this to eventually be a string
 }
 
 impl NewGeneric {
     pub fn new(designation: i32) -> Self {
         Self {
             designation,
-            //width: None,
-            //height: None,
-            //framerate: None,
-            //length_time: None,
-            //resolution_standard: None,
-            //container: None,
         }
-
-        //if let Some(profile) = profile {
-        //    new_generic.width = Some(profile.width as i32);
-        //    new_generic.height = Some(profile.height as i32);
-        //    new_generic.framerate = Some(profile.framerate);
-        //    new_generic.length_time = Some(profile.length_time);
-        //    new_generic.resolution_standard = Some(profile.resolution_standard as i32);
-        //    new_generic.container = Some(profile.container as i32);
-        //}
-        //new_generic
     }
 }
 
@@ -97,6 +75,7 @@ impl GenericModel {
 pub struct NewFileVersion {
     generic_uid: i32,
     full_path: String,
+    master_file: bool,
     file_hash: Option<String>,
     fast_file_hash: Option<String>,
     width: Option<i32>,
@@ -108,10 +87,11 @@ pub struct NewFileVersion {
 }
 
 impl NewFileVersion {
-    pub fn new(generic_uid: i32, full_path: String) -> Self {
+    pub fn new(generic_uid: i32, full_path: String, master_file: bool) -> Self {
         Self {
             generic_uid,
             full_path,
+            master_file,
             file_hash: None,
             fast_file_hash: None,
             width: None,
@@ -124,13 +104,14 @@ impl NewFileVersion {
     }
 }
 
-#[derive(Queryable, AsChangeset, Identifiable)]
+#[derive(Queryable, AsChangeset, Identifiable, Clone)]
 #[primary_key(id)]
 #[table_name = "file_version"]
 pub struct FileVersionModel {
     pub id: i32,
     pub generic_uid: i32,
     pub full_path: String,
+    pub master_file: bool,
     pub file_hash: Option<String>,
     pub fast_file_hash: Option<String>,
     pub width: Option<i32>,
@@ -158,6 +139,7 @@ impl FileVersionModel {
             generic_uid: file_version.generic_uid,
             full_path: file_version.get_full_path(),
             file_hash: file_version.hash,
+            master_file: file_version.master_file,
             fast_file_hash: file_version.fast_hash,
             width: file_version.profile.width,
             height: file_version.profile.height,

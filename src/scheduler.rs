@@ -64,35 +64,23 @@ impl Hash {
             let connection = establish_connection();
             let mut did_finish = true;
             for (i, generic) in current_content.iter_mut().enumerate() {
-                for file_version in generic.file_versions {
-                    if file_version.hash.is_none() {
-                        file_version.hash();
-                        debug!(
-                            "Hashed[{} of {}]: {}",
-                            i + 1,
-                            length,
-                            file_version.get_full_path(),
-                        );
-                        file_version.fast_hash();
-                        if GenericModel::from_generic(generic.clone())
-                            .save_changes::<GenericModel>(&connection)
-                            .is_err()
-                        {
-                            error!("Failed to update hash in database");
-                        }
-                    } else if file_version.fast_hash.is_none() {
-                        file_version.fast_hash();
-                        if GenericModel::from_generic(generic.clone())
-                            .save_changes::<GenericModel>(&connection)
-                            .is_err()
-                        {
-                            error!("Failed to update hash in database");
-                        }
-                    }
-                    if is_finished_inner.load(Ordering::Relaxed) {
-                        did_finish = false;
-                        break;
-                    }
+                for full_path in generic.hash_file_versions() {
+                    debug!(
+                        "Hashed[{} of {}]: {}",
+                        i + 1,
+                        length,
+                        full_path,
+                    );
+                }
+                if GenericModel::from_generic(generic.clone())
+                    .save_changes::<GenericModel>(&connection)
+                    .is_err()
+                {
+                    error!("Failed to update hash in database");
+                }
+                if is_finished_inner.load(Ordering::Relaxed) {
+                    did_finish = false;
+                    break;
                 }
             }
             is_finished_inner.store(true, Ordering::Relaxed);

@@ -1,5 +1,5 @@
 //!Module containing all structures used to represent a show
-use crate::{config::Preferences, generic::Generic, model::*, worker_manager::Encode};
+use crate::{config::Preferences, generic::Generic, model::*};
 use tracing::{debug, error};
 
 ///Structure contains all episode specific data as well as the underlying
@@ -130,7 +130,7 @@ impl Show {
                 //      even though there shouldn't be generics that don't have a UID.
                 //      This is fine for now
                 if episode.generic.get_generic_uid() == generic_uid {
-                    return Some(episode.generic);
+                    return Some(episode.generic.clone());
                 }
             }
         }
