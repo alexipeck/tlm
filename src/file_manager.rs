@@ -21,7 +21,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 use std::{collections::HashSet, fmt, path::PathBuf};
-use tracing::{debug, info, trace, error};
+use tracing::{debug, error, info, trace};
 
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -124,7 +124,7 @@ impl FileManager {
                 return true;
             }
         }
-        
+
         for show in self.shows.iter_mut() {
             if show.insert_file_version(file_version) {
                 return true;

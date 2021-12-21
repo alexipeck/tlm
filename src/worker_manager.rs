@@ -2,7 +2,7 @@ use crate::database::get_all_workers;
 use crate::database::{create_worker, establish_connection};
 use crate::model::NewWorker;
 use crate::pathbuf_file_name_to_string;
-use crate::worker::{WorkerMessage, Worker};
+use crate::worker::{Worker, WorkerMessage};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -354,7 +354,13 @@ impl WorkerTranscodeQueue {
                                 .as_ref()
                                 .unwrap()
                                 .generic_uid,
-                            self.current_transcode.read().unwrap().as_ref().unwrap().target_path.clone(),
+                            self.current_transcode
+                                .read()
+                                .unwrap()
+                                .as_ref()
+                                .unwrap()
+                                .target_path
+                                .clone(),
                         )
                         .to_message(),
                     );

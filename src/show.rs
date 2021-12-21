@@ -1,5 +1,9 @@
 //!Module containing all structures used to represent a show
-use crate::{config::Preferences, generic::{Generic, FileVersion}, model::*};
+use crate::{
+    config::Preferences,
+    generic::{FileVersion, Generic},
+    model::*,
+};
 use tracing::{debug, error};
 
 ///Structure contains all episode specific data as well as the underlying

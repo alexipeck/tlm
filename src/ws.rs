@@ -5,11 +5,14 @@ use tracing::{error, info, warn};
 
 use crate::{
     config::WorkerConfig,
-    database::{print_all_worker_models, create_file_version, establish_connection},
+    database::{create_file_version, establish_connection, print_all_worker_models},
     file_manager::FileManager,
+    generic::FileVersion,
+    model::NewFileVersion,
+    pathbuf_to_string,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
     worker::WorkerMessage,
-    worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue}, model::NewFileVersion, pathbuf_to_string, generic::FileVersion,
+    worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue},
 };
 
 use std::{
@@ -141,14 +144,11 @@ async fn handle_web_connection(
                         .lock()
                         .unwrap()
                         .clear_current_transcode_from_worker(worker_uid, generic_uid);
-                    
                     if !file_manager.lock().unwrap().insert_file_version(&FileVersion::from_file_version_model(create_file_version(&establish_connection(), NewFileVersion::new(generic_uid, pathbuf_to_string(&full_path), false)))) {
                         error!("This should've found a generic to insert it into, this shouldn't have happened.");
                         panic!();
                     }
-                    
                     //TODO: Make an enum of actions that could be performed on a Worker, like clear_current_transcode
-                    //TODO: Regenerate basic profile (for now, this is fine), but in the end, I want both the current profile and new one stored
                 }
                 _ => {
                     warn!("Server recieved a message it doesn't know how to handle");

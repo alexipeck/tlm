@@ -60,8 +60,7 @@ pub fn pathbuf_file_stem_to_string(path: &Path) -> String {
 }
 
 pub fn get_show_title_from_pathbuf(path: &Path) -> String {
-    path
-        .parent()
+    path.parent()
         .unwrap()
         .parent()
         .unwrap()

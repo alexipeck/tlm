@@ -48,7 +48,7 @@ impl FileVersion {
             profile,
         }
     }
-    
+
     //Destructive operation, will overwrite previous values
     pub fn generate_profile(&mut self) {
         if let Some(profile) = Profile::from_file(&self.full_path) {
@@ -100,7 +100,12 @@ impl FileVersion {
     }
 
     pub fn generate_encode(&self) -> Encode {
-        Encode::new(self.generic_uid, self.full_path.clone(), self.generate_target_path(), self.generate_encode_string())
+        Encode::new(
+            self.generic_uid,
+            self.full_path.clone(),
+            self.generate_target_path(),
+            self.generate_encode_string(),
+        )
     }
 
     ///Returns a vector of ffmpeg arguments for later execution
@@ -133,7 +138,10 @@ impl FileVersion {
     /// I doubt this will stay as I think a temp directory would be more appropriate.
     /// This function returns that as a string for the ffmpeg arguments
     pub fn generate_target_path(&self) -> PathBuf {
-        self.get_full_path_with_suffix_as_pathbuf(format!("_temp_test_encode{}", rand::thread_rng().gen::<i32>()))
+        self.get_full_path_with_suffix_as_pathbuf(format!(
+            "_temp_test_encode{}",
+            rand::thread_rng().gen::<i32>()
+        ))
     }
 
     pub fn get_filename(&self) -> String {
