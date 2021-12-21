@@ -5,9 +5,11 @@ use crate::{
     database::*,
     designation::Designation,
     generic::{FileVersion, Generic},
+    get_show_title_from_pathbuf,
     model::{NewEpisode, NewFileVersion, NewGeneric},
+    pathbuf_extension_to_string, pathbuf_to_string,
     show::{Episode, Show},
-    worker_manager::Encode, pathbuf_to_string, pathbuf_extension_to_string, get_show_title_from_pathbuf,
+    worker_manager::Encode,
 };
 extern crate derivative;
 use derivative::Derivative;
@@ -284,12 +286,8 @@ impl FileManager {
             }
 
             generic.designation = Designation::Episode;
-            debug!(
-                "{}",
-                pathbuf_to_string(&generic.file_versions[0].full_path)
-            );
-            let show_title = get_show_title_from_pathbuf(&generic.file_versions[0]
-                .full_path);
+            debug!("{}", pathbuf_to_string(&generic.file_versions[0].full_path));
+            let show_title = get_show_title_from_pathbuf(&generic.file_versions[0].full_path);
 
             let show_uid = self.ensure_show_exists(show_title.clone(), &connection, preferences);
             let season_number = season_temp;
@@ -350,7 +348,10 @@ impl FileManager {
         let mut reason = None;
         //rejects if the path contains any element of an ignored path
         for ignored_path in &self.config.ignored_paths_regex {
-            if ignored_path.is_match(&pathbuf_to_string(&full_path)).unwrap() {
+            if ignored_path
+                .is_match(&pathbuf_to_string(&full_path))
+                .unwrap()
+            {
                 reason = Some(Reason::PathContainsIgnoredPath);
             }
         }

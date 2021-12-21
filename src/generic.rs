@@ -6,13 +6,13 @@ use std::{fs::File, path::PathBuf};
 use std::fmt;
 use std::hash::Hasher;
 
-use crate::{pathbuf_file_name_to_string, pathbuf_to_string, pathbuf_to_string_with_suffix};
 use crate::profile::Profile;
 use crate::worker_manager::Encode;
 use crate::{
     designation::{from_i32, Designation},
     model::*,
 };
+use crate::{pathbuf_file_name_to_string, pathbuf_to_string, pathbuf_to_string_with_suffix};
 use tracing::{error, warn};
 
 #[derive(Clone, Debug)]

@@ -54,5 +54,13 @@ pub fn pathbuf_file_stem_to_string(pathbuf: &Path) -> String {
 }
 
 pub fn get_show_title_from_pathbuf(pathbuf: &Path) -> String {
-    pathbuf.parent().unwrap().parent().unwrap().file_name().unwrap().to_string_lossy().to_string()
+    pathbuf
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .to_string()
 }
