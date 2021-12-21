@@ -53,10 +53,9 @@ pub fn create_file_versions(
 }
 
 pub fn create_file_version(
-    connection: &PgConnection,
     new_file_version: NewFileVersion,
 ) -> FileVersionModel {
-    create_file_versions(&connection, vec![new_file_version])[0].to_owned()
+    create_file_versions(&establish_connection(), vec![new_file_version])[0].to_owned()
 }
 
 ///Inserts show data into the database

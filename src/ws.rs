@@ -144,7 +144,7 @@ async fn handle_web_connection(
                         .lock()
                         .unwrap()
                         .clear_current_transcode_from_worker(worker_uid, generic_uid);
-                    if !file_manager.lock().unwrap().insert_file_version(&FileVersion::from_file_version_model(create_file_version(&establish_connection(), NewFileVersion::new(generic_uid, pathbuf_to_string(&full_path), false)))) {
+                    if !file_manager.lock().unwrap().insert_file_version(&FileVersion::from_file_version_model(create_file_version(NewFileVersion::new(generic_uid, pathbuf_to_string(&full_path), false)))) {
                         error!("This should've found a generic to insert it into, this shouldn't have happened.");
                         panic!();
                     }

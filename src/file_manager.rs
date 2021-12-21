@@ -107,6 +107,69 @@ impl FileManager {
 
         //add generic_files and generics from their respective episodes to the existing_files_hashset
         file_manager.generic_files = get_all_generics();
+
+        //This would be faster as a hashmap, I can't be bothered right now
+        //TODO: Make this a hashmap
+        let mut generic_uid_tracker: Vec<i32> = Vec::new();
+        let mut collected_file_versions: Vec<(i32, Vec<FileVersion>)> = Vec::new();
+        {
+            for file_version in get_all_file_versions() {
+                if !generic_uid_tracker.contains(&file_version.generic_uid) {
+                    generic_uid_tracker.push(file_version.generic_uid);
+                    collected_file_versions.push((file_version.generic_uid, vec![file_version]));
+                } else {
+                    for (generic_uid, file_versions) in collected_file_versions.iter_mut() {
+                        if file_version.generic_uid == *generic_uid {
+                            file_versions.push(file_version.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        for (_, file_versions) in collected_file_versions.iter_mut() {
+            if !file_versions[0].master_file {
+                let mut index: Option<usize> = None;
+                for (i, t) in file_versions.iter().enumerate() {
+                    if t.master_file {
+                        index = Some(i);
+                    }
+                }
+                if index.is_none() {
+                    error!("It should've found a master file, this generic's collected files doesn't contain a master");
+                    panic!();
+                }
+                file_versions.swap(index.unwrap(), 0)
+            }
+        }
+
+        for generic in file_manager.generic_files.iter_mut() {
+            if generic.generic_uid.is_none() {
+                error!("This generic doesn't have a generic_uid, this shouldn't happen.");
+                panic!();
+            }
+            let generic_uid = generic.generic_uid.unwrap();
+            
+            let mut index: Option<usize> = None;
+            for (i, generic_uid_marker) in generic_uid_tracker.iter().enumerate() {
+                if generic_uid == *generic_uid_marker {
+                    index = Some(i);
+                }
+            }
+            
+            if let Some(index) = index {
+                let _ = generic_uid_tracker.remove(index);
+                let (_, file_versions) = collected_file_versions.remove(index);
+
+                //Moves the file_versions into the generic
+                for file_version in file_versions {
+                    generic.file_versions.push(file_version);
+                }
+            }
+        }
+        
+        //TODO: Do the same thing, but for Shows instead. 
+
         file_manager.add_existing_files_to_hashset();
         file_manager.add_show_episodes_to_hashset();
         file_manager
@@ -383,7 +446,7 @@ impl FileManager {
                 if !self
                     .config
                     .allowed_extensions
-                    .contains(&pathbuf_extension_to_string(&full_path))
+                    .contains(&pathbuf_extension_to_string(&full_path).to_lowercase())
                 {
                     reason = Some(Reason::ExtensionDisallowed);
                 }

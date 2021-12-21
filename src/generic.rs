@@ -175,7 +175,7 @@ impl Generic {
         }
     }
 
-    pub fn insert_new_file_version(&mut self, file_version: FileVersion) {
+    pub fn insert_file_version(&mut self, file_version: FileVersion) {
         self.file_versions.push(file_version)
     }
 
