@@ -1,8 +1,8 @@
 use crate::database::get_all_workers;
-use crate::database::{create_worker, establish_connection, worker_exists};
-use crate::generic::Generic;
+use crate::database::{create_worker, establish_connection};
 use crate::model::NewWorker;
-use crate::worker::{VersatileMessage, Worker};
+use crate::pathbuf_file_name_to_string;
+use crate::worker::{Worker, WorkerMessage};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -18,17 +18,23 @@ use tracing::{debug, error, info, warn};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Encode {
+    pub generic_uid: i32,
     pub source_path: PathBuf,
-    pub future_filename: String,
+    pub target_path: PathBuf,
     pub encode_options: Vec<String>,
-    //pub profile: Profile,
 }
 
 impl Encode {
-    pub fn new(source_path: PathBuf, future_filename: String, encode_options: Vec<String>) -> Self {
+    pub fn new(
+        generic_uid: i32,
+        source_path: PathBuf,
+        target_path: PathBuf,
+        encode_options: Vec<String>,
+    ) -> Self {
         Self {
+            generic_uid,
             source_path,
-            future_filename,
+            target_path,
             encode_options,
         }
     }
@@ -36,7 +42,7 @@ impl Encode {
     pub fn run(self, handle: Arc<RwLock<Option<Child>>>) {
         info!(
             "Encoding file \'{}\'",
-            Generic::get_filename_from_pathbuf(self.source_path.clone())
+            pathbuf_file_name_to_string(&self.source_path)
         );
 
         let _ = handle.write().unwrap().insert(
@@ -46,6 +52,10 @@ impl Encode {
                 .unwrap(),
         );
     }
+}
+
+pub enum WorkerAction {
+    ClearCurrentTranscode(i32),
 }
 
 pub struct WorkerManager {
@@ -69,23 +79,64 @@ impl WorkerManager {
         }
     }
 
+    pub fn perform_on_worker(
+        &mut self,
+        worker_uid: Option<i32>,
+        mut worker_actions: Vec<WorkerAction>,
+    ) {
+        if worker_uid.is_none() {
+            panic!(
+                "The server was asked to run actions on an empty worker_uid. | None Option<i32>"
+            );
+        }
+        for worker in self.workers.lock().unwrap().iter_mut() {
+            if worker.uid == worker_uid {
+                while !worker_actions.is_empty() {
+                    if let Some(worker_action) = worker_actions.pop() {
+                        match worker_action {
+                            WorkerAction::ClearCurrentTranscode(generic_uid) => {
+                                worker.clear_current_transcode(generic_uid);
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+        }
+        panic!("Worker with UID: {} was not found", worker_uid.unwrap());
+    }
+
+    pub fn clear_current_transcode_from_worker(&mut self, worker_uid: i32, generic_uid: i32) {
+        let worker_uid: Option<i32> = Some(worker_uid);
+        let mut worker_lock = self.workers.lock().unwrap();
+        for worker in worker_lock.iter_mut() {
+            if worker.uid == worker_uid {
+                worker.clear_current_transcode(generic_uid);
+            }
+        }
+    }
+
     //atm, we only care about the IP address in the SocketAddr, leaving the whole thing because it deals with both IPV4 and IPV6
-    pub fn add_worker(&mut self, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) -> i32{
+    pub fn add_worker(
+        &mut self,
+        worker_ip_address: SocketAddr,
+        tx: UnboundedSender<Message>,
+    ) -> i32 {
         let connection = establish_connection();
         let mut new_worker = Worker::new(None, worker_ip_address, tx);
         let new_id = create_worker(&connection, NewWorker::from_worker(new_worker.clone()));
         new_worker.uid = Some(new_id);
-        new_worker.send_message_to_worker(VersatileMessage::WorkerID(new_worker.uid.unwrap()));
-        new_worker.send_message_to_worker(VersatileMessage::Announce(
+        new_worker.send_message_to_worker(WorkerMessage::WorkerID(new_worker.uid.unwrap()));
+        new_worker.send_message_to_worker(WorkerMessage::Announce(
             "Worker successfully initialised".to_string(),
         ));
         self.workers.lock().unwrap().push_back(new_worker);
-        return new_id;
+        new_id
     }
 
     pub fn polling_event(&mut self) {
         self.drop_timed_out_workers();
-        self.round_robin_fill_transcode_queues();
+        self.fill_transcode_queues();
     }
 
     pub fn reestablish_worker(
@@ -112,7 +163,7 @@ impl WorkerManager {
         }
 
         let mut reestablished_worker = self.closed_workers.remove(index.unwrap()).unwrap();
-        reestablished_worker.send_message_to_worker(VersatileMessage::Announce(
+        reestablished_worker.send_message_to_worker(WorkerMessage::Announce(
             "Worker successfully re-established".to_string(),
         ));
         self.workers.lock().unwrap().push_back(reestablished_worker); //Check if unwrapping .remove() is safe
@@ -121,7 +172,8 @@ impl WorkerManager {
     }
 
     pub fn drop_timed_out_workers(&mut self) {
-        for worker in self.closed_workers.iter_mut() {
+        let mut indexes: Vec<usize> = Vec::new();
+        for (i, worker) in self.closed_workers.iter_mut().enumerate() {
             //Check if worker has been timed out
             if worker.close_time.is_none() {
                 continue;
@@ -129,6 +181,12 @@ impl WorkerManager {
 
             //Clear worker queue and add it back to main queue
             if worker.close_time.unwrap().elapsed().as_secs() > self.timeout_threshold {
+                indexes.push(i);
+            }
+        }
+        indexes.reverse();
+        for index in indexes {
+            if let Some(mut worker) = self.closed_workers.remove(index) {
                 self.transcode_queue
                     .lock()
                     .unwrap()
@@ -156,7 +214,8 @@ impl WorkerManager {
         );
     }
 
-    pub fn round_robin_fill_transcode_queues(&mut self) {
+    ///Uses Round-robin fill method
+    pub fn fill_transcode_queues(&mut self) {
         for worker in self.workers.lock().unwrap().iter_mut() {
             if worker.spaces_in_queue() < 1 {
                 continue;
@@ -216,7 +275,7 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    fn clear_current_transcode(&mut self) {
+    pub fn clear_current_transcode(&mut self) {
         //Currently goes to the abyss
         //TODO: Store this somewhere or do something with it as a record that the worker has completed the transcode.
         let _ = self.current_transcode.write().unwrap().take();
@@ -238,7 +297,11 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    pub fn run_transcode(&mut self) {
+    pub fn run_transcode(
+        &mut self,
+        worker_uid: Arc<RwLock<Option<i32>>>,
+        mut tx: UnboundedSender<Message>,
+    ) {
         {
             let transcode_lock = self.current_transcode.read().unwrap();
             let handle_lock = self.current_transcode_handle.read().unwrap();
@@ -253,7 +316,18 @@ impl WorkerTranscodeQueue {
         //Assigns current_transcode an
         if self.make_transcode_current() {
             self.start_current_transcode_if_some();
-
+            let _ = tx.start_send(
+                WorkerMessage::EncodeStarted(
+                    worker_uid.read().unwrap().unwrap(),
+                    self.current_transcode
+                        .read()
+                        .unwrap()
+                        .as_ref()
+                        .unwrap()
+                        .generic_uid,
+                )
+                .to_message(),
+            );
             if self.current_transcode_handle.read().unwrap().is_some() {
                 let output = self
                     .current_transcode_handle
@@ -271,6 +345,25 @@ impl WorkerTranscodeQueue {
 
                 if ok {
                     self.clear_current_transcode();
+                    let _ = tx.start_send(
+                        WorkerMessage::EncodeFinished(
+                            worker_uid.read().unwrap().unwrap(),
+                            self.current_transcode
+                                .read()
+                                .unwrap()
+                                .as_ref()
+                                .unwrap()
+                                .generic_uid,
+                            self.current_transcode
+                                .read()
+                                .unwrap()
+                                .as_ref()
+                                .unwrap()
+                                .target_path
+                                .clone(),
+                        )
+                        .to_message(),
+                    );
                 }
             }
         }

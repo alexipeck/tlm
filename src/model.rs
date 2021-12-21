@@ -1,10 +1,9 @@
 use super::generic::Generic;
-use super::schema::{episode, generic, show, worker};
-use crate::profile::{
-    convert_i32_to_container, convert_i32_to_resolution_standard, BasicProfile, Profile,
-};
+use super::schema::{episode, file_version, generic, show, worker};
+use crate::generic::FileVersion;
 use crate::worker::Worker;
 
+//Workers
 #[derive(Insertable)]
 #[table_name = "worker"]
 pub struct NewWorker {
@@ -18,51 +17,14 @@ impl NewWorker {
 
     pub fn from_worker(worker: Worker) -> Self {
         let ip = worker.worker_ip_address.to_string();
-        NewWorker { worker_ip_address: ip }
+        NewWorker {
+            worker_ip_address: ip,
+        }
     }
-}
-
-///Struct for inserting into the database
-#[derive(Insertable)]
-#[table_name = "generic"]
-pub struct NewGeneric {
-    pub full_path: String,
-    pub designation: i32,
-    pub width: Option<i32>,
-    pub height: Option<i32>,
-    pub framerate: Option<f64>,
-    pub length_time: Option<f64>,
-    pub resolution_standard: Option<i32>, //I want this to eventually be a string
-    pub container: Option<i32>,           //I want this to eventually be a string
 }
 
 pub fn from_worker(worker: Worker) -> NewWorker {
     NewWorker::new(worker.worker_ip_address.to_string())
-}
-
-impl NewGeneric {
-    pub fn new(full_path: String, designation: i32, profile: Option<BasicProfile>) -> Self {
-        let mut new_generic = Self {
-            full_path,
-            designation,
-            width: None,
-            height: None,
-            framerate: None,
-            length_time: None,
-            resolution_standard: None,
-            container: None,
-        };
-
-        if let Some(profile) = profile {
-            new_generic.width = Some(profile.width as i32);
-            new_generic.height = Some(profile.height as i32);
-            new_generic.framerate = Some(profile.framerate);
-            new_generic.length_time = Some(profile.length_time);
-            new_generic.resolution_standard = Some(profile.resolution_standard as i32);
-            new_generic.container = Some(profile.container as i32);
-        }
-        new_generic
-    }
 }
 
 #[derive(Queryable, AsChangeset, Identifiable)]
@@ -73,67 +35,121 @@ pub struct WorkerModel {
     pub worker_ip_address: String,
 }
 
+//Generic
+///Struct for inserting into the database
+#[derive(Insertable)]
+#[table_name = "generic"]
+pub struct NewGeneric {
+    pub designation: i32,
+}
+
+impl NewGeneric {
+    pub fn new(designation: i32) -> Self {
+        Self { designation }
+    }
+}
+
 ///Data structure to modify or select an existing Generic in the database
 #[derive(Queryable, AsChangeset, Identifiable)]
 #[primary_key(generic_uid)]
 #[table_name = "generic"]
 pub struct GenericModel {
     pub generic_uid: i32,
-    pub full_path: String,
     pub designation: i32,
-    pub file_hash: Option<String>,
-    pub width: Option<i32>,
-    pub height: Option<i32>,
-    pub framerate: Option<f64>,
-    pub length_time: Option<f64>,
-    pub fast_file_hash: Option<String>,
-    pub resolution_standard: Option<i32>, //I want this to eventually be a string
-    pub container: Option<i32>,           //I want this to eventually be a string
 }
 
 impl GenericModel {
-    ///Create an in memory generic from a database one
     pub fn from_generic(generic: Generic) -> Self {
-        let mut generic_model = Self {
-            generic_uid: generic.generic_uid.unwrap() as i32,
-            full_path: generic.get_full_path(),
+        Self {
+            generic_uid: generic.get_generic_uid(),
             designation: generic.designation as i32,
-            file_hash: generic.hash,
-            fast_file_hash: generic.fast_hash,
-            resolution_standard: None,
-            container: None,
+        }
+    }
+}
+
+//FileVersion
+#[derive(Insertable)]
+#[table_name = "file_version"]
+pub struct NewFileVersion {
+    generic_uid: i32,
+    full_path: String,
+    master_file: bool,
+    file_hash: Option<String>,
+    fast_file_hash: Option<String>,
+    width: Option<i32>,
+    height: Option<i32>,
+    framerate: Option<f64>,
+    length_time: Option<f64>,
+    resolution_standard: Option<i32>,
+    container: Option<i32>,
+}
+
+impl NewFileVersion {
+    pub fn new(generic_uid: i32, full_path: String, master_file: bool) -> Self {
+        Self {
+            generic_uid,
+            full_path,
+            master_file,
+            file_hash: None,
+            fast_file_hash: None,
             width: None,
             height: None,
             framerate: None,
             length_time: None,
-        };
-        if generic.profile.is_some() {
-            let profile = generic.profile.to_owned().unwrap();
-            generic_model.width = Some(profile.current_profile.width as i32);
-            generic_model.height = Some(profile.current_profile.height as i32);
-            generic_model.framerate = Some(profile.current_profile.framerate);
-            generic_model.length_time = Some(profile.current_profile.length_time);
-            generic_model.resolution_standard =
-                Some(profile.current_profile.resolution_standard as i32);
-            generic_model.container = Some(profile.current_profile.container as i32);
+            resolution_standard: None,
+            container: None,
         }
-
-        generic_model
-    }
-
-    ///Construct a profile from database fields
-    pub fn get_basic_profile(&self) -> Option<Profile> {
-        Some(Profile::from_basic_profile(BasicProfile {
-            width: self.width? as u32,
-            height: self.height? as u32,
-            framerate: self.framerate?,
-            length_time: self.length_time?,
-            resolution_standard: convert_i32_to_resolution_standard(self.resolution_standard?),
-            container: convert_i32_to_container(self.container?),
-        }))
     }
 }
 
+#[derive(Queryable, AsChangeset, Identifiable, Clone)]
+#[primary_key(id)]
+#[table_name = "file_version"]
+pub struct FileVersionModel {
+    pub id: i32,
+    pub generic_uid: i32,
+    pub full_path: String,
+    pub master_file: bool,
+    pub file_hash: Option<String>,
+    pub fast_file_hash: Option<String>,
+    pub width: Option<i32>,
+    pub height: Option<i32>,
+    pub framerate: Option<f64>,
+    pub length_time: Option<f64>,
+    pub resolution_standard: Option<i32>,
+    pub container: Option<i32>,
+}
+
+impl FileVersionModel {
+    pub fn from_file_version(file_version: FileVersion) -> Self {
+        let mut resolution_standard: Option<i32> = None;
+        if file_version.profile.resolution_standard.is_some() {
+            resolution_standard = Some(file_version.profile.resolution_standard.unwrap() as i32);
+        }
+
+        let mut container: Option<i32> = None;
+        if file_version.profile.container.is_some() {
+            container = Some(file_version.profile.container.unwrap() as i32);
+        }
+
+        Self {
+            id: file_version.id,
+            generic_uid: file_version.generic_uid,
+            full_path: file_version.get_full_path(),
+            file_hash: file_version.hash,
+            master_file: file_version.master_file,
+            fast_file_hash: file_version.fast_hash,
+            width: file_version.profile.width,
+            height: file_version.profile.height,
+            framerate: file_version.profile.framerate,
+            length_time: file_version.profile.length_time,
+            resolution_standard,
+            container,
+        }
+    }
+}
+
+//Episode
 ///Structure for inserting an episode into the database
 #[derive(Insertable)]
 #[table_name = "episode"]
@@ -147,18 +163,18 @@ pub struct NewEpisode {
 
 impl NewEpisode {
     pub fn new(
-        generic_uid: usize,
-        show_uid: usize,
+        generic_uid: i32,
+        show_uid: i32,
         episode_title: String,
-        season_number: usize,
-        episode_number: usize,
+        season_number: i32,
+        episode_number: i32,
     ) -> Self {
         Self {
-            generic_uid: generic_uid as i32,
-            show_uid: show_uid as i32,
+            generic_uid,
+            show_uid,
             episode_title,
-            season_number: season_number as i32,
-            episode_number: episode_number as i32,
+            season_number,
+            episode_number,
         }
     }
 }
@@ -173,26 +189,7 @@ pub struct EpisodeModel {
     pub episode_number: i32,
 }
 
-#[derive(Queryable)]
-pub struct JobQueueModel {
-    pub job_uid: i32,
-    pub source_path: String,
-    pub encode_path: String,
-    pub cache_directory: String,
-    pub encode_string: String,
-    pub status_underway: bool,
-    pub status_completed: bool,
-    pub worker_uid: i32,
-    pub worker_string_id: String,
-}
-
-#[derive(Queryable)]
-pub struct JobTaskQueueModel {
-    pub id: i32,
-    pub job_uid: i32,
-    pub task_id: i32,
-}
-
+//Show
 ///Struct to insert shows into the database
 #[derive(Insertable)]
 #[table_name = "show"]

@@ -1,10 +1,7 @@
 //!Datatype and associated function for handling Generic video files as well as the generic
 //!information used by all other video file types
 use std::io::prelude::*;
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-};
+use std::{fs::File, path::PathBuf};
 
 use std::fmt;
 use std::hash::Hasher;
@@ -12,33 +9,55 @@ use std::hash::Hasher;
 use crate::profile::Profile;
 use crate::worker_manager::Encode;
 use crate::{
-    designation::{convert_i32_to_designation, Designation},
+    designation::{from_i32, Designation},
     model::*,
 };
+use crate::{pathbuf_file_name_to_string, pathbuf_to_string, pathbuf_with_suffix};
+use rand::Rng;
 use tracing::{error, warn};
 
-///Struct containing data that is shared by all file types
-///can also refer to only a generic media file
 #[derive(Clone, Debug)]
-pub struct Generic {
-    pub generic_uid: Option<usize>,
+pub struct FileVersion {
+    pub id: i32,
+    pub generic_uid: i32,
     pub full_path: PathBuf,
-    pub designation: Designation,
+    pub master_file: bool,
     pub hash: Option<String>,
     pub fast_hash: Option<String>,
-    pub profile: Option<Profile>,
-    //pub profile: Option<Profile>,
+    pub profile: Profile,
 }
 
-impl Generic {
-    pub fn new(raw_filepath: &Path) -> Self {
+impl FileVersion {
+    pub fn from_file_version_model(file_version_model: FileVersionModel) -> Self {
+        let profile = Profile::new(
+            file_version_model.width,
+            file_version_model.height,
+            file_version_model.framerate,
+            file_version_model.length_time,
+            file_version_model.resolution_standard,
+            file_version_model.container,
+        );
+
         Self {
-            full_path: raw_filepath.to_path_buf(),
-            designation: Designation::Generic,
-            generic_uid: None,
-            hash: None,
-            fast_hash: None,
-            profile: None,
+            id: file_version_model.id,
+            generic_uid: file_version_model.generic_uid,
+            full_path: PathBuf::from(file_version_model.full_path),
+            master_file: file_version_model.master_file,
+            hash: file_version_model.file_hash,
+            fast_hash: file_version_model.fast_file_hash,
+            profile,
+        }
+    }
+
+    //Destructive operation, will overwrite previous values
+    pub fn generate_profile(&mut self) {
+        if let Some(profile) = Profile::from_file(&self.full_path) {
+            self.profile = profile;
+        } else {
+            panic!(
+                "Failed to generate profile for generic_uid: {} and file_version_id: {}",
+                self.generic_uid, self.id
+            );
         }
     }
 
@@ -46,12 +65,6 @@ impl Generic {
     /// know if a file has been replaced and may need to be reprocessed
     pub fn hash(&mut self) {
         self.hash = Some(sea_hash(self.full_path.clone()));
-    }
-
-    pub fn generate_basic_profile(&mut self) {
-        if self.profile.is_none() {
-            self.profile = Some(Profile::new(&self.full_path));
-        }
     }
 
     ///Returns true if hashes match, false if not
@@ -62,24 +75,6 @@ impl Generic {
             warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
             true
         }
-    }
-
-    ///Returns true if hashes match, false if not
-    pub fn verify_fast_hash(&mut self, path: PathBuf) -> bool {
-        if self.fast_hash.is_some() {
-            return self.fast_hash.as_ref().unwrap().as_str() == sea_fast_hash(path).as_str();
-        } else {
-            warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
-            true
-        }
-    }
-
-    //TODO: have this stored in the DB so it won't have to be regenerated each session
-    pub fn get_profile(&self) -> Profile {
-        if let Some(profile) = self.profile {
-            return profile;
-        }
-        Profile::new(&self.full_path)
     }
 
     ///Hash the first 32MB of the file with seahash so we can quickly know
@@ -94,30 +89,23 @@ impl Generic {
         self.fast_hash = Some(sea_fast_hash(self.full_path.clone()));
     }
 
-    ///Create a new generic from the database equivalent. This is neccesary because
-    /// not all fields are stored in the database because they can be so easily recalculated
-    pub fn from_generic_model(generic_model: GenericModel) -> Generic {
-        let generic_uid_temp: i32 = generic_model.generic_uid;
-        let full_path_temp: String = generic_model.full_path.to_owned();
-        let designation_temp: i32 = generic_model.designation;
-
-        //change to have it pull all info out of the db, it currently generates what it can from the filename
-        Generic {
-            full_path: PathBuf::from(&full_path_temp),
-            designation: convert_i32_to_designation(designation_temp), //Designation::Generic
-            generic_uid: Some(generic_uid_temp as usize),
-            hash: generic_model.file_hash.to_owned(),
-            fast_hash: generic_model.fast_file_hash.to_owned(),
-            profile: generic_model.get_basic_profile(),
+    ///Returns true if hashes match, false if not
+    pub fn verify_fast_hash(&mut self, path: PathBuf) -> bool {
+        if self.fast_hash.is_some() {
+            return self.fast_hash.as_ref().unwrap().as_str() == sea_fast_hash(path).as_str();
+        } else {
+            warn!("Fast hash verification was run on a file without a hash. Continuing with the assumption that this is intentional");
+            true
         }
     }
 
     pub fn generate_encode(&self) -> Encode {
-        Encode {
-            source_path: self.full_path.clone(),
-            future_filename: self.generate_target_path(),
-            encode_options: self.generate_encode_string(),
-        }
+        Encode::new(
+            self.generic_uid,
+            self.full_path.clone(),
+            self.generate_target_path(),
+            self.generate_encode_string(),
+        )
     }
 
     ///Returns a vector of ffmpeg arguments for later execution
@@ -142,56 +130,110 @@ impl Generic {
         encode_string.push("224k".to_string());
 
         encode_string.push("-y".to_string());
-        encode_string.push(self.generate_target_path());
+        encode_string.push(pathbuf_to_string(&self.generate_target_path()));
         encode_string
     }
 
     ///Appends a fixed string to differentiate rendered files from original before overwrite
     /// I doubt this will stay as I think a temp directory would be more appropriate.
     /// This function returns that as a string for the ffmpeg arguments
-    pub fn generate_target_path(&self) -> String {
-        return self
-            .get_full_path_with_suffix("_temp_test_encode".to_string())
-            .to_string_lossy()
-            .to_string();
+    pub fn generate_target_path(&self) -> PathBuf {
+        self.get_full_path_with_suffix_as_pathbuf(format!(
+            "_temp_test_encode{}",
+            rand::thread_rng().gen::<i32>()
+        ))
     }
 
     pub fn get_filename(&self) -> String {
-        return self
-            .full_path
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string();
+        pathbuf_file_name_to_string(&self.full_path)
     }
 
-    fn get_full_path_with_suffix(&self, suffix: String) -> PathBuf {
-        //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
-        //.push(self.full_path.extension().unwrap())
-        //bad way of doing it
-        let new_filename = format!(
-            "{}{}.{}",
-            self.full_path
-                .file_stem()
-                .unwrap()
-                .to_string_lossy()
-                .to_string(),
-            &suffix,
-            self.full_path
-                .extension()
-                .unwrap()
-                .to_string_lossy()
-                .to_string(),
-        );
-        return self.full_path.parent().unwrap().join(new_filename);
+    fn get_full_path_with_suffix_as_pathbuf(&self, suffix: String) -> PathBuf {
+        pathbuf_with_suffix(&self.full_path, suffix)
     }
 
     pub fn get_full_path(&self) -> String {
-        return self.full_path.as_os_str().to_str().unwrap().to_string();
+        pathbuf_to_string(&self.full_path)
+    }
+}
+
+///Struct containing data that is shared by all file types
+///can also refer to only a generic media file
+#[derive(Clone, Debug)]
+pub struct Generic {
+    pub generic_uid: Option<i32>,
+    pub designation: Designation,
+    pub file_versions: Vec<FileVersion>,
+}
+
+impl Generic {
+    pub fn default() -> Self {
+        Self {
+            generic_uid: None,
+            designation: Designation::Generic,
+            file_versions: Vec::new(),
+        }
     }
 
-    pub fn get_generic_uid(&self) -> usize {
+    pub fn insert_new_file_version(&mut self, file_version: FileVersion) {
+        self.file_versions.push(file_version)
+    }
+
+    pub fn hash_file_versions(&mut self) -> Vec<String> {
+        let mut full_paths: Vec<String> = Vec::new();
+        for file_version in self.file_versions.iter_mut() {
+            if file_version.hash.is_none() {
+                file_version.hash();
+            }
+            if file_version.fast_hash.is_none() {
+                file_version.fast_hash();
+            }
+            full_paths.push(file_version.get_full_path());
+        }
+        full_paths
+    }
+
+    pub fn get_all_full_paths(&self) -> Vec<PathBuf> {
+        let mut paths: Vec<PathBuf> = Vec::new();
+        for file_version in &self.file_versions {
+            paths.push(file_version.full_path.clone());
+        }
+        paths
+    }
+
+    pub fn get_file_version_by_id(&self, file_version_id: i32) -> Option<FileVersion> {
+        for file_version in &self.file_versions {
+            if file_version.id == file_version_id {
+                return Some(file_version.clone());
+            }
+        }
+        None
+    }
+
+    pub fn has_hashing_work(&self) -> bool {
+        for file_version in &self.file_versions {
+            if file_version.hash.is_none() || file_version.fast_hash.is_none() {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn get_master_full_path(&self) -> String {
+        pathbuf_to_string(&self.file_versions[0].full_path)
+    }
+
+    ///Create a new generic from the database equivalent. This is neccesary because
+    /// not all fields are stored in the database because they can be so easily recalculated
+    pub fn from_generic_model(generic_model: GenericModel) -> Self {
+        Self {
+            generic_uid: Some(generic_model.generic_uid),
+            designation: from_i32(generic_model.designation),
+            file_versions: Vec::new(),
+        }
+    }
+
+    pub fn get_generic_uid(&self) -> i32 {
         if self.generic_uid.is_some() {
             self.generic_uid.unwrap()
         } else {
@@ -199,17 +241,13 @@ impl Generic {
             panic!();
         }
     }
-
-    pub fn get_filename_from_pathbuf(pathbuf: PathBuf) -> String {
-        return pathbuf.file_name().unwrap().to_str().unwrap().to_string();
-    }
 }
 ///Hash the file with seahash for data integrity purposes so we
 /// know if a file has been replaced and may need to be reprocessed
-pub fn sea_hash(path: PathBuf) -> String {
+pub fn sea_hash(full_path: PathBuf) -> String {
     let mut buffer = Box::new(vec![0; 4096]);
     let mut hasher = seahash::SeaHasher::new();
-    let mut file = File::open(path.to_str().unwrap()).unwrap_or_else(|err| {
+    let mut file = File::open(pathbuf_to_string(&full_path)).unwrap_or_else(|err| {
         error!("Error opening file for hashing. Err: {}", err);
         panic!();
     });
@@ -227,10 +265,10 @@ pub fn sea_hash(path: PathBuf) -> String {
 ///renamed to something that doesn't make sense we can quickly search for
 ///files that tlm knows about to restore by calculating the fast hash and
 ///then calculating full hashes of matching hashes to save time
-pub fn sea_fast_hash(path: PathBuf) -> String {
+pub fn sea_fast_hash(full_path: PathBuf) -> String {
     let mut buffer = Box::new(vec![0; 4096]);
     let mut hasher = seahash::SeaHasher::new();
-    let mut file = File::open(path.to_str().unwrap()).unwrap_or_else(|err| {
+    let mut file = File::open(pathbuf_to_string(&full_path)).unwrap_or_else(|err| {
         error!("Error opening file for hashing. Err: {}", err);
         panic!();
     });
@@ -246,11 +284,17 @@ pub fn sea_fast_hash(path: PathBuf) -> String {
 
 impl fmt::Display for Generic {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "[designation:'{}'][full_path:'{}']",
-            self.designation as i32,
-            self.get_full_path(),
-        )
+        if self.file_versions.is_empty() {
+            panic!("The server was told to print a generic that has no actual files");
+        }
+        let mut temp: String = String::new();
+        for file_version in &self.file_versions {
+            temp.push_str(&format!(
+                "[designation:'{}'][full_path:'{}']",
+                self.designation as i32,
+                file_version.get_full_path(),
+            ));
+        }
+        write!(f, "{}", temp)
     }
 }

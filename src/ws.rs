@@ -5,10 +5,13 @@ use tracing::{error, info, warn};
 
 use crate::{
     config::WorkerConfig,
-    database::print_all_worker_models,
+    database::{create_file_version, establish_connection, print_all_worker_models},
     file_manager::FileManager,
+    generic::FileVersion,
+    model::NewFileVersion,
+    pathbuf_to_string,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
-    worker::VersatileMessage,
+    worker::WorkerMessage,
     worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue},
 };
 
@@ -81,49 +84,31 @@ async fn handle_web_connection(
                     .push_back(Task::new(TaskType::ProcessNewFiles(
                         ProcessNewFiles::default(),
                     ))),
-                //TODO: Encode message needs a UID for transcoding a specific generic/episode
-                "transcode" => match file_manager.lock().unwrap().pick_random_generic() {
-                    Some(generic) => {
-                        let encode: Encode = Encode::new(
-                            generic.full_path.clone(),
-                            generic.generate_target_path(),
-                            generic.generate_encode_string(),
-                        );
-                        worker_mananger_transcode_queue
-                            .lock()
-                            .unwrap()
-                            .push_back(encode);
-                        info!("Setting up generic for transcode");
-                    }
-                    None => {
-                        info!("No generics available to transcode");
-                    }
-                },
                 "display_workers" => print_all_worker_models(),
 
                 _ => warn!("{} is not a valid input", message),
             }
         } else if msg.is_binary() {
-            match VersatileMessage::from_message(msg) {
-                VersatileMessage::Initialise(mut worker_uid) => {
+            match WorkerMessage::from_message(msg) {
+                WorkerMessage::Initialise(mut worker_uid) => {
                     //if true {//TODO: authenticate/validate
-
                     if !worker_manager.lock().unwrap().reestablish_worker(
                         worker_uid,
                         addr,
                         tx.clone(),
                     ) {
                         //We need the new uid so we can set it correctly in the peer map
-                        worker_uid = Some(worker_manager.lock().unwrap().add_worker(addr, tx.clone()));
+                        worker_uid =
+                            Some(worker_manager.lock().unwrap().add_worker(addr, tx.clone()));
                     }
                     peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
                     //}
                 }
-                VersatileMessage::EncodeGeneric(generic_uid, add_encode_mode) => {
+                WorkerMessage::EncodeGeneric(generic_uid, file_version_id, add_encode_mode) => {
                     match file_manager
                         .lock()
                         .unwrap()
-                        .get_encode_from_generic_uid(generic_uid as usize)
+                        .get_encode_from_generic_uid(generic_uid, file_version_id)
                     {
                         Some(encode) => {
                             match add_encode_mode {
@@ -149,6 +134,21 @@ async fn handle_web_connection(
                             info!("No generics available to transcode");
                         }
                     }
+                }
+                WorkerMessage::EncodeStarted(worker_uid, generic_uid) => info!(
+                    "Worker with UID: {} has started transcoding generic with UID: {}",
+                    worker_uid, generic_uid
+                ),
+                WorkerMessage::EncodeFinished(worker_uid, generic_uid, full_path) => {
+                    worker_manager
+                        .lock()
+                        .unwrap()
+                        .clear_current_transcode_from_worker(worker_uid, generic_uid);
+                    if !file_manager.lock().unwrap().insert_file_version(&FileVersion::from_file_version_model(create_file_version(&establish_connection(), NewFileVersion::new(generic_uid, pathbuf_to_string(&full_path), false)))) {
+                        error!("This should've found a generic to insert it into, this shouldn't have happened.");
+                        panic!();
+                    }
+                    //TODO: Make an enum of actions that could be performed on a Worker, like clear_current_transcode
                 }
                 _ => {
                     warn!("Server recieved a message it doesn't know how to handle");
@@ -303,19 +303,19 @@ pub async fn run_worker(
                 info!("Worker is continuing it's current transcode");
                 return;
             }
-            match VersatileMessage::from_message(message) {
-                VersatileMessage::Encode(encode, add_encode_mode) => {
+            match WorkerMessage::from_message(message) {
+                WorkerMessage::Encode(encode, add_encode_mode) => {
                     transcode_queue
                         .write()
                         .unwrap()
                         .add_encode(encode, add_encode_mode);
                 }
-                VersatileMessage::WorkerID(worker_uid) => {
+                WorkerMessage::WorkerID(worker_uid) => {
                     config.write().unwrap().uid = Some(worker_uid);
                     config.read().unwrap().update_config_on_disk();
                     info!("Worker has been given UID: {}", worker_uid);
                 }
-                VersatileMessage::Announce(text) => {
+                WorkerMessage::Announce(text) => {
                     info!("Announcement: {}", text);
                 }
                 _ => warn!("Worker received a message it doesn't know how to handle"),

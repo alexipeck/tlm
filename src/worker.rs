@@ -3,6 +3,7 @@ use crate::worker_manager::AddEncodeMode;
 use crate::worker_manager::Encode;
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::{
     collections::VecDeque,
@@ -38,6 +39,16 @@ impl Worker {
             close_time: None,
         }
     }
+    //TODO: Consolidate server-side worker transcode queue and worker-side transcode queue
+    pub fn clear_current_transcode(&mut self, generic_uid: i32) {
+        let mut transcode_queue_lock = self.transcode_queue.write().unwrap();
+        if !transcode_queue_lock.is_empty() {
+            let transcode = transcode_queue_lock.remove(0).unwrap();
+            if transcode.generic_uid != generic_uid {
+                panic!("Server-side and worker-side transcode queues don't mirror each other.");
+            }
+        }
+    }
 
     pub fn from_worker_model(model: WorkerModel) -> Self {
         Self {
@@ -58,7 +69,7 @@ impl Worker {
         2 - self.transcode_queue.read().unwrap().len() as i64
     }
 
-    pub fn send_message_to_worker(&mut self, worker_message: VersatileMessage) {
+    pub fn send_message_to_worker(&mut self, worker_message: WorkerMessage) {
         self.tx
             .clone()
             .unwrap()
@@ -86,7 +97,7 @@ impl Worker {
             .push_back(encode.clone());
 
         //Sends the encode to the worker
-        self.send_message_to_worker(VersatileMessage::Encode(encode, AddEncodeMode::Back));
+        self.send_message_to_worker(WorkerMessage::Encode(encode, AddEncodeMode::Back));
     }
 
     pub fn check_if_active(&mut self) {
@@ -98,21 +109,23 @@ impl Worker {
 
 ///Messages to be serialised and sent between the worker and server
 #[derive(Serialize, Deserialize)]
-pub enum VersatileMessage {
+pub enum WorkerMessage {
     //Worker
     Encode(Encode, AddEncodeMode),
     Initialise(Option<i32>),
     WorkerID(i32),
     Announce(String),
+    EncodeStarted(i32, i32),
+    EncodeFinished(i32, i32, PathBuf),
 
     //WebUI
-    EncodeGeneric(u32, AddEncodeMode),
+    EncodeGeneric(i32, i32, AddEncodeMode),
 
     //Generic
     Text(String),
 }
 
-impl VersatileMessage {
+impl WorkerMessage {
     ///Convert WorkerMessage to a tungstenite message for sending over websockets
     pub fn to_message(&self) -> Message {
         let serialised = bincode::serialize(self).unwrap_or_else(|err| {
@@ -123,7 +136,7 @@ impl VersatileMessage {
     }
 
     pub fn from_message(message: Message) -> Self {
-        bincode::deserialize::<VersatileMessage>(&message.into_data()).unwrap_or_else(|err| {
+        bincode::deserialize::<WorkerMessage>(&message.into_data()).unwrap_or_else(|err| {
             error!("Failed to deserialise message: {}", err);
             panic!();
         })
