@@ -1,5 +1,5 @@
 //!Module containing all structures used to represent a show
-use crate::{config::Preferences, generic::Generic, model::*};
+use crate::{config::Preferences, generic::{Generic, FileVersion}, model::*};
 use tracing::{debug, error};
 
 ///Structure contains all episode specific data as well as the underlying
@@ -79,6 +79,21 @@ impl Season {
             episodes: Vec::new(),
         }
     }
+
+    //Returns true if successful
+    pub fn insert_file_version(&mut self, file_version: &FileVersion) -> bool {
+        for episode in self.episodes.iter_mut() {
+            if episode.generic.generic_uid.is_none() {
+                error!("This Episode's generic has no generic_uid, this shouldn't happen.");
+                panic!();
+            }
+            if episode.generic.generic_uid.unwrap() == file_version.generic_uid {
+                episode.generic.file_versions.push(file_version.to_owned());
+                return true;
+            }
+        }
+        false
+    }
 }
 
 ///Structure to represent a show containing seasons and the name of the show
@@ -121,6 +136,16 @@ impl Show {
             season.episodes.push(episode);
             break;
         }
+    }
+
+    //Returns true if successful
+    pub fn insert_file_version(&mut self, file_version: &FileVersion) -> bool {
+        for season in self.seasons.iter_mut() {
+            if season.insert_file_version(file_version) {
+                return true;
+            }
+        }
+        false
     }
 
     pub fn get_generic_from_uid(&self, generic_uid: i32) -> Option<Generic> {

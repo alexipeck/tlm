@@ -3,6 +3,7 @@ use crate::worker_manager::AddEncodeMode;
 use crate::worker_manager::Encode;
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::{
     collections::VecDeque,
@@ -115,7 +116,7 @@ pub enum WorkerMessage {
     WorkerID(i32),
     Announce(String),
     EncodeStarted(i32, i32),
-    EncodeFinished(i32, i32),
+    EncodeFinished(i32, i32, PathBuf),
 
     //WebUI
     EncodeGeneric(i32, i32, AddEncodeMode),

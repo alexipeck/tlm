@@ -20,22 +20,21 @@ use tracing::{debug, error, info, warn};
 pub struct Encode {
     pub generic_uid: i32,
     pub source_path: PathBuf,
-    pub future_filename: String,
+    pub target_path: PathBuf,
     pub encode_options: Vec<String>,
-    //pub profile: Profile,
 }
 
 impl Encode {
     pub fn new(
         generic_uid: i32,
         source_path: PathBuf,
-        future_filename: String,
+        target_path: PathBuf,
         encode_options: Vec<String>,
     ) -> Self {
         Self {
             generic_uid,
             source_path,
-            future_filename,
+            target_path,
             encode_options,
         }
     }
@@ -346,7 +345,6 @@ impl WorkerTranscodeQueue {
 
                 if ok {
                     self.clear_current_transcode();
-                    //TODO: Send message to server that encode has finished.
                     let _ = tx.start_send(
                         WorkerMessage::EncodeFinished(
                             worker_uid.read().unwrap().unwrap(),
@@ -356,6 +354,7 @@ impl WorkerTranscodeQueue {
                                 .as_ref()
                                 .unwrap()
                                 .generic_uid,
+                            self.current_transcode.read().unwrap().as_ref().unwrap().target_path.clone(),
                         )
                         .to_message(),
                     );

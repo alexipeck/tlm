@@ -6,7 +6,7 @@ use std::process::Command;
 use std::str::from_utf8;
 use tracing::error;
 
-use crate::path_to_string;
+use crate::pathbuf_to_string;
 
 ///Currently unused enum to allow filtering media by resolution standard
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
@@ -226,7 +226,7 @@ impl Profile {
         let buffer;
         //linux & friends
         buffer = Command::new("mediainfo")
-            .args(&["--output=JSON", &path_to_string(full_path)])
+            .args(&["--output=JSON", &pathbuf_to_string(full_path)])
             .output()
             .unwrap_or_else(|err| {
                 error!("Failed to execute process for mediainfo. Err: {}", err);

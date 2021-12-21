@@ -40,25 +40,32 @@ pub fn create_generics(conn: &PgConnection, new_generics: Vec<NewGeneric>) -> Ve
 
 ///Inserts file_version data into the database
 pub fn create_file_versions(
-    conn: &PgConnection,
+    connection: &PgConnection,
     new_file_versions: Vec<NewFileVersion>,
 ) -> Vec<FileVersionModel> {
     diesel::insert_into(file_version_table::table)
         .values(&new_file_versions)
-        .get_results(conn)
+        .get_results(connection)
         .unwrap_or_else(|err| {
             error!("Error saving new file_versions. Err: {}", err);
             panic!();
         })
 }
 
+pub fn create_file_version(
+    connection: &PgConnection,
+    new_file_version: NewFileVersion,
+) -> FileVersionModel {
+    create_file_versions(&connection, vec![new_file_version])[0].to_owned()
+}
+
 ///Inserts show data into the database
-pub fn create_show(conn: &PgConnection, show_title: String) -> ShowModel {
+pub fn create_show(connection: &PgConnection, show_title: String) -> ShowModel {
     let new_show = NewShow { show_title };
 
     diesel::insert_into(show_table::table)
         .values(&new_show)
-        .get_result(conn)
+        .get_result(connection)
         .unwrap_or_else(|err| {
             error!("Error saving new show. Err: {}", err);
             panic!();

@@ -5,11 +5,11 @@ use tracing::{error, info, warn};
 
 use crate::{
     config::WorkerConfig,
-    database::print_all_worker_models,
+    database::{print_all_worker_models, create_file_version, establish_connection},
     file_manager::FileManager,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
     worker::WorkerMessage,
-    worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue},
+    worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue}, model::NewFileVersion, pathbuf_to_string, generic::FileVersion,
 };
 
 use std::{
@@ -81,25 +81,6 @@ async fn handle_web_connection(
                     .push_back(Task::new(TaskType::ProcessNewFiles(
                         ProcessNewFiles::default(),
                     ))),
-                //TODO: Encode message needs a UID for transcoding a specific generic/episode
-                /* "transcode" => match file_manager.lock().unwrap().pick_random_generic() {
-                    Some(generic) => {
-                        let encode: Encode = Encode::new(
-                            generic.get_generic_uid(),
-                            generic.full_path.clone(),
-                            generic.generate_target_path(),
-                            generic.generate_encode_string(),
-                        );
-                        worker_mananger_transcode_queue
-                            .lock()
-                            .unwrap()
-                            .push_back(encode);
-                        info!("Setting up generic for transcode");
-                    }
-                    None => {
-                        info!("No generics available to transcode");
-                    }
-                }, */
                 "display_workers" => print_all_worker_models(),
 
                 _ => warn!("{} is not a valid input", message),
@@ -155,11 +136,17 @@ async fn handle_web_connection(
                     "Worker with UID: {} has started transcoding generic with UID: {}",
                     worker_uid, generic_uid
                 ),
-                WorkerMessage::EncodeFinished(worker_uid, generic_uid) => {
+                WorkerMessage::EncodeFinished(worker_uid, generic_uid, full_path) => {
                     worker_manager
                         .lock()
                         .unwrap()
                         .clear_current_transcode_from_worker(worker_uid, generic_uid);
+                    
+                    if !file_manager.lock().unwrap().insert_file_version(&FileVersion::from_file_version_model(create_file_version(&establish_connection(), NewFileVersion::new(generic_uid, pathbuf_to_string(&full_path), false)))) {
+                        error!("This should've found a generic to insert it into, this shouldn't have happened.");
+                        panic!();
+                    }
+                    
                     //TODO: Make an enum of actions that could be performed on a Worker, like clear_current_transcode
                     //TODO: Regenerate basic profile (for now, this is fine), but in the end, I want both the current profile and new one stored
                 }

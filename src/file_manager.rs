@@ -21,7 +21,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 use std::{collections::HashSet, fmt, path::PathBuf};
-use tracing::{debug, info, trace};
+use tracing::{debug, info, trace, error};
 
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -91,7 +91,6 @@ pub struct FileManager {
     pub shows: Vec<Show>,
     pub existing_files_hashset: HashSet<PathBuf>,
     pub new_files_queue: Vec<PathBuf>,
-
     rejected_files: HashSet<PathBufReason>,
 }
 
@@ -103,17 +102,35 @@ impl FileManager {
             generic_files: Vec::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
-
             rejected_files: HashSet::new(),
         };
 
         //add generic_files and generics from their respective episodes to the existing_files_hashset
         file_manager.generic_files = get_all_generics();
-
         file_manager.add_existing_files_to_hashset();
         file_manager.add_show_episodes_to_hashset();
-
         file_manager
+    }
+
+    //Returns true if successful
+    pub fn insert_file_version(&mut self, file_version: &FileVersion) -> bool {
+        for generic in self.generic_files.iter_mut() {
+            if generic.generic_uid.is_none() {
+                error!("An action was taken on a generic that doesn't have a generic_uid, this shouldn't happen.");
+                panic!();
+            }
+            if generic.generic_uid.unwrap() == file_version.generic_uid {
+                generic.file_versions.push(file_version.clone());
+                return true;
+            }
+        }
+        
+        for show in self.shows.iter_mut() {
+            if show.insert_file_version(file_version) {
+                return true;
+            }
+        }
+        false
     }
 
     pub fn get_encode_from_generic_uid(
@@ -210,7 +227,7 @@ impl FileManager {
         }
 
         let mut generics: Vec<Generic> = Vec::new();
-        //Indented so temp_generics drops out of scope earlier
+        //Indented so temp_generics_and_paths drops out of scope earlier
         {
             //Create Generic and NewGeneric that will be added to the database in a batch
             let mut temp_generics_and_paths: Vec<(Generic, String)> = self
@@ -240,6 +257,7 @@ impl FileManager {
                 temp_generics_and_paths[i].0.generic_uid = Some(generic_models[i].generic_uid);
             }
             debug!("Finished inserting generics");
+
             for (generic, full_path) in temp_generics_and_paths {
                 new_file_versions.push(NewFileVersion::new(
                     generic.generic_uid.unwrap(),

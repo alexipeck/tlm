@@ -12,7 +12,8 @@ use crate::{
     designation::{from_i32, Designation},
     model::*,
 };
-use crate::{pathbuf_file_name_to_string, pathbuf_to_string, pathbuf_to_string_with_suffix};
+use crate::{pathbuf_file_name_to_string, pathbuf_to_string, pathbuf_with_suffix};
+use rand::Rng;
 use tracing::{error, warn};
 
 #[derive(Clone, Debug)]
@@ -47,7 +48,7 @@ impl FileVersion {
             profile,
         }
     }
-
+    
     //Destructive operation, will overwrite previous values
     pub fn generate_profile(&mut self) {
         if let Some(profile) = Profile::from_file(&self.full_path) {
@@ -99,12 +100,7 @@ impl FileVersion {
     }
 
     pub fn generate_encode(&self) -> Encode {
-        Encode {
-            generic_uid: self.generic_uid,
-            source_path: self.full_path.clone(),
-            future_filename: self.generate_target_path(),
-            encode_options: self.generate_encode_string(),
-        }
+        Encode::new(self.generic_uid, self.full_path.clone(), self.generate_target_path(), self.generate_encode_string())
     }
 
     ///Returns a vector of ffmpeg arguments for later execution
@@ -129,26 +125,23 @@ impl FileVersion {
         encode_string.push("224k".to_string());
 
         encode_string.push("-y".to_string());
-        encode_string.push(self.generate_target_path());
+        encode_string.push(pathbuf_to_string(&self.generate_target_path()));
         encode_string
     }
 
     ///Appends a fixed string to differentiate rendered files from original before overwrite
     /// I doubt this will stay as I think a temp directory would be more appropriate.
     /// This function returns that as a string for the ffmpeg arguments
-    pub fn generate_target_path(&self) -> String {
-        self.get_full_path_with_suffix("_temp_test_encode".to_string())
+    pub fn generate_target_path(&self) -> PathBuf {
+        self.get_full_path_with_suffix_as_pathbuf(format!("_temp_test_encode{}", rand::thread_rng().gen::<i32>()))
     }
 
     pub fn get_filename(&self) -> String {
         pathbuf_file_name_to_string(&self.full_path)
     }
 
-    fn get_full_path_with_suffix(&self, suffix: String) -> String {
-        //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
-        //.push(self.full_path.extension().unwrap())
-        //bad way of doing it
-        pathbuf_to_string_with_suffix(&self.full_path, suffix)
+    fn get_full_path_with_suffix_as_pathbuf(&self, suffix: String) -> PathBuf {
+        pathbuf_with_suffix(&self.full_path, suffix)
     }
 
     pub fn get_full_path(&self) -> String {
@@ -172,6 +165,10 @@ impl Generic {
             designation: Designation::Generic,
             file_versions: Vec::new(),
         }
+    }
+
+    pub fn insert_new_file_version(&mut self, file_version: FileVersion) {
+        self.file_versions.push(file_version)
     }
 
     pub fn hash_file_versions(&mut self) -> Vec<String> {
