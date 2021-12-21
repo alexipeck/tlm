@@ -1,6 +1,7 @@
 //!Set of functions and structures to make is easier to handle the config file
 //!and command line arguments
 use crate::file_manager::TrackedDirectories;
+use crate::pathbuf_to_string;
 use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
 use directories::BaseDirs;
 use fancy_regex::Regex;
@@ -185,7 +186,7 @@ impl Default for Preferences {
             print_shows: false,
             print_episode: false,
             print_general: false,
-            config_file_path: String::from(config_path.to_str().unwrap()),
+            config_file_path: pathbuf_to_string(&config_path),
             timing_enabled: false,
             timing_threshold: 0,
             port: None,

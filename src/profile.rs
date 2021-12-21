@@ -6,6 +6,8 @@ use std::process::Command;
 use std::str::from_utf8;
 use tracing::error;
 
+use crate::path_to_string;
+
 ///Currently unused enum to allow filtering media by resolution standard
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub enum ResolutionStandard {
@@ -220,11 +222,11 @@ impl fmt::Display for Profile {
 
 impl Profile {
     ///Create profile from a pathbuf
-    pub fn from_file(path: &Path) -> Option<Profile> {
+    pub fn from_file(full_path: &Path) -> Option<Profile> {
         let buffer;
         //linux & friends
         buffer = Command::new("mediainfo")
-            .args(&["--output=JSON", path.to_str().unwrap()])
+            .args(&["--output=JSON", &path_to_string(full_path)])
             .output()
             .unwrap_or_else(|err| {
                 error!("Failed to execute process for mediainfo. Err: {}", err);

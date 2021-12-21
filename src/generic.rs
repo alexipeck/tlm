@@ -6,6 +6,7 @@ use std::{fs::File, path::PathBuf};
 use std::fmt;
 use std::hash::Hasher;
 
+use crate::{pathbuf_file_name_to_string, pathbuf_to_string, pathbuf_to_string_with_suffix};
 use crate::profile::Profile;
 use crate::worker_manager::Encode;
 use crate::{
@@ -136,45 +137,22 @@ impl FileVersion {
     /// I doubt this will stay as I think a temp directory would be more appropriate.
     /// This function returns that as a string for the ffmpeg arguments
     pub fn generate_target_path(&self) -> String {
-        return self
-            .get_full_path_with_suffix("_temp_test_encode".to_string())
-            .to_string_lossy()
-            .to_string();
+        self.get_full_path_with_suffix("_temp_test_encode".to_string())
     }
 
     pub fn get_filename(&self) -> String {
-        return self
-            .full_path
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string();
+        pathbuf_file_name_to_string(&self.full_path)
     }
 
-    fn get_full_path_with_suffix(&self, suffix: String) -> PathBuf {
+    fn get_full_path_with_suffix(&self, suffix: String) -> String {
         //C:\Users\Alexi Peck\Desktop\tlm\test_files\episodes\Test Show\Season 3\Test Show - S03E02 - tf8.mp4\_encodeH4U8\mp4
         //.push(self.full_path.extension().unwrap())
         //bad way of doing it
-        let new_filename = format!(
-            "{}{}.{}",
-            self.full_path
-                .file_stem()
-                .unwrap()
-                .to_string_lossy()
-                .to_string(),
-            &suffix,
-            self.full_path
-                .extension()
-                .unwrap()
-                .to_string_lossy()
-                .to_string(),
-        );
-        return self.full_path.parent().unwrap().join(new_filename);
+        pathbuf_to_string_with_suffix(&self.full_path, suffix)
     }
 
     pub fn get_full_path(&self) -> String {
-        return self.full_path.as_os_str().to_str().unwrap().to_string();
+        pathbuf_to_string(&self.full_path)
     }
 }
 
@@ -237,7 +215,7 @@ impl Generic {
     }
 
     pub fn get_master_full_path(&self) -> String {
-        String::from(self.file_versions[0].full_path.to_str().unwrap())
+        pathbuf_to_string(&self.file_versions[0].full_path)
     }
 
     ///Create a new generic from the database equivalent. This is neccesary because
@@ -261,10 +239,10 @@ impl Generic {
 }
 ///Hash the file with seahash for data integrity purposes so we
 /// know if a file has been replaced and may need to be reprocessed
-pub fn sea_hash(path: PathBuf) -> String {
+pub fn sea_hash(full_path: PathBuf) -> String {
     let mut buffer = Box::new(vec![0; 4096]);
     let mut hasher = seahash::SeaHasher::new();
-    let mut file = File::open(path.to_str().unwrap()).unwrap_or_else(|err| {
+    let mut file = File::open(pathbuf_to_string(&full_path)).unwrap_or_else(|err| {
         error!("Error opening file for hashing. Err: {}", err);
         panic!();
     });
@@ -282,10 +260,10 @@ pub fn sea_hash(path: PathBuf) -> String {
 ///renamed to something that doesn't make sense we can quickly search for
 ///files that tlm knows about to restore by calculating the fast hash and
 ///then calculating full hashes of matching hashes to save time
-pub fn sea_fast_hash(path: PathBuf) -> String {
+pub fn sea_fast_hash(full_path: PathBuf) -> String {
     let mut buffer = Box::new(vec![0; 4096]);
     let mut hasher = seahash::SeaHasher::new();
-    let mut file = File::open(path.to_str().unwrap()).unwrap_or_else(|err| {
+    let mut file = File::open(pathbuf_to_string(&full_path)).unwrap_or_else(|err| {
         error!("Error opening file for hashing. Err: {}", err);
         panic!();
     });

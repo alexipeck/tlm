@@ -7,7 +7,7 @@ use crate::{
     generic::{FileVersion, Generic},
     model::{NewEpisode, NewFileVersion, NewGeneric},
     show::{Episode, Show},
-    worker_manager::Encode,
+    worker_manager::Encode, pathbuf_to_string, pathbuf_extension_to_string, get_show_title_from_pathbuf,
 };
 extern crate derivative;
 use derivative::Derivative;
@@ -216,7 +216,7 @@ impl FileManager {
                 .par_iter()
                 .map(|current| {
                     let mut generic = Generic::default();
-                    let master_file_path = current.to_str().unwrap().to_string();
+                    let master_file_path = pathbuf_to_string(current);
                     //TODO: Why yes this is slower, no I don't care about 100ms right now
                     match REGEX.find(&master_file_path) {
                         None => {}
@@ -286,22 +286,10 @@ impl FileManager {
             generic.designation = Designation::Episode;
             debug!(
                 "{}",
-                generic.file_versions[0]
-                    .full_path
-                    .as_os_str()
-                    .to_str()
-                    .unwrap()
+                pathbuf_to_string(&generic.file_versions[0].full_path)
             );
-            let show_title = &generic.file_versions[0]
-                .full_path
-                .parent()
-                .unwrap()
-                .parent()
-                .unwrap()
-                .file_name()
-                .unwrap()
-                .to_string_lossy()
-                .to_string();
+            let show_title = get_show_title_from_pathbuf(&generic.file_versions[0]
+                .full_path);
 
             let show_uid = self.ensure_show_exists(show_title.clone(), &connection, preferences);
             let season_number = season_temp;
@@ -358,25 +346,25 @@ impl FileManager {
     }
 
     ///returns none when a file is rejected because is accepted, or already exists in the existing_files_hashset
-    fn accept_or_reject_file(&mut self, path: PathBuf, store_reasons: bool) {
+    fn accept_or_reject_file(&mut self, full_path: PathBuf, store_reasons: bool) {
         let mut reason = None;
         //rejects if the path contains any element of an ignored path
         for ignored_path in &self.config.ignored_paths_regex {
-            if ignored_path.is_match(path.to_str().unwrap()).unwrap() {
+            if ignored_path.is_match(&pathbuf_to_string(&full_path)).unwrap() {
                 reason = Some(Reason::PathContainsIgnoredPath);
             }
         }
 
         //rejects if the path doesn't have an extension
         if reason.is_none() {
-            if path.extension().is_none() {
+            if full_path.extension().is_none() {
                 reason = Some(Reason::ExtensionMissing);
             } else {
                 //rejects if the file doesn't have an allowed extension
                 if !self
                     .config
                     .allowed_extensions
-                    .contains(&path.extension().unwrap().to_str().unwrap().to_lowercase())
+                    .contains(&pathbuf_extension_to_string(&full_path))
                 {
                     reason = Some(Reason::ExtensionDisallowed);
                 }
@@ -385,14 +373,14 @@ impl FileManager {
 
         if let Some(reason) = reason {
             if store_reasons {
-                trace!("Rejected {} for {}", path.to_str().unwrap(), reason);
+                trace!("Rejected {} for {}", pathbuf_to_string(&full_path), reason);
                 self.rejected_files.insert(PathBufReason {
-                    pathbuf: path,
+                    pathbuf: full_path,
                     reason,
                 });
             }
-        } else if self.existing_files_hashset.insert(path.clone()) {
-            self.new_files_queue.push(path);
+        } else if self.existing_files_hashset.insert(full_path.clone()) {
+            self.new_files_queue.push(full_path);
         }
     }
 
@@ -512,7 +500,7 @@ impl FileManager {
         for file in &self.rejected_files {
             info!(
                 "Path: '{}' disallowed because {}",
-                String::from(file.pathbuf.to_str().unwrap()),
+                pathbuf_to_string(&file.pathbuf),
                 file.reason
             );
         }

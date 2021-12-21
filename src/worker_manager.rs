@@ -1,7 +1,7 @@
 use crate::database::get_all_workers;
 use crate::database::{create_worker, establish_connection};
-use crate::get_filename_from_pathbuf;
 use crate::model::NewWorker;
+use crate::pathbuf_file_name_to_string;
 use crate::worker::{VersatileMessage, Worker};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
@@ -43,7 +43,7 @@ impl Encode {
     pub fn run(self, handle: Arc<RwLock<Option<Child>>>) {
         info!(
             "Encoding file \'{}\'",
-            get_filename_from_pathbuf(self.source_path.clone())
+            pathbuf_file_name_to_string(&self.source_path)
         );
 
         let _ = handle.write().unwrap().insert(
