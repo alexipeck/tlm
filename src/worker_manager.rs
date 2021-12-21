@@ -2,7 +2,7 @@ use crate::database::get_all_workers;
 use crate::database::{create_worker, establish_connection};
 use crate::model::NewWorker;
 use crate::pathbuf_file_name_to_string;
-use crate::worker::{VersatileMessage, Worker};
+use crate::worker::{WorkerMessage, Worker};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -127,8 +127,8 @@ impl WorkerManager {
         let mut new_worker = Worker::new(None, worker_ip_address, tx);
         let new_id = create_worker(&connection, NewWorker::from_worker(new_worker.clone()));
         new_worker.uid = Some(new_id);
-        new_worker.send_message_to_worker(VersatileMessage::WorkerID(new_worker.uid.unwrap()));
-        new_worker.send_message_to_worker(VersatileMessage::Announce(
+        new_worker.send_message_to_worker(WorkerMessage::WorkerID(new_worker.uid.unwrap()));
+        new_worker.send_message_to_worker(WorkerMessage::Announce(
             "Worker successfully initialised".to_string(),
         ));
         self.workers.lock().unwrap().push_back(new_worker);
@@ -164,7 +164,7 @@ impl WorkerManager {
         }
 
         let mut reestablished_worker = self.closed_workers.remove(index.unwrap()).unwrap();
-        reestablished_worker.send_message_to_worker(VersatileMessage::Announce(
+        reestablished_worker.send_message_to_worker(WorkerMessage::Announce(
             "Worker successfully re-established".to_string(),
         ));
         self.workers.lock().unwrap().push_back(reestablished_worker); //Check if unwrapping .remove() is safe
@@ -318,7 +318,7 @@ impl WorkerTranscodeQueue {
         if self.make_transcode_current() {
             self.start_current_transcode_if_some();
             let _ = tx.start_send(
-                VersatileMessage::EncodeStarted(
+                WorkerMessage::EncodeStarted(
                     worker_uid.read().unwrap().unwrap(),
                     self.current_transcode
                         .read()
@@ -348,7 +348,7 @@ impl WorkerTranscodeQueue {
                     self.clear_current_transcode();
                     //TODO: Send message to server that encode has finished.
                     let _ = tx.start_send(
-                        VersatileMessage::EncodeFinished(
+                        WorkerMessage::EncodeFinished(
                             worker_uid.read().unwrap().unwrap(),
                             self.current_transcode
                                 .read()

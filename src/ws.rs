@@ -8,7 +8,7 @@ use crate::{
     database::print_all_worker_models,
     file_manager::FileManager,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
-    worker::VersatileMessage,
+    worker::WorkerMessage,
     worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue},
 };
 
@@ -105,8 +105,8 @@ async fn handle_web_connection(
                 _ => warn!("{} is not a valid input", message),
             }
         } else if msg.is_binary() {
-            match VersatileMessage::from_message(msg) {
-                VersatileMessage::Initialise(mut worker_uid) => {
+            match WorkerMessage::from_message(msg) {
+                WorkerMessage::Initialise(mut worker_uid) => {
                     //if true {//TODO: authenticate/validate
                     if !worker_manager.lock().unwrap().reestablish_worker(
                         worker_uid,
@@ -120,7 +120,7 @@ async fn handle_web_connection(
                     peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
                     //}
                 }
-                VersatileMessage::EncodeGeneric(generic_uid, file_version_id, add_encode_mode) => {
+                WorkerMessage::EncodeGeneric(generic_uid, file_version_id, add_encode_mode) => {
                     match file_manager
                         .lock()
                         .unwrap()
@@ -151,11 +151,11 @@ async fn handle_web_connection(
                         }
                     }
                 }
-                VersatileMessage::EncodeStarted(worker_uid, generic_uid) => info!(
+                WorkerMessage::EncodeStarted(worker_uid, generic_uid) => info!(
                     "Worker with UID: {} has started transcoding generic with UID: {}",
                     worker_uid, generic_uid
                 ),
-                VersatileMessage::EncodeFinished(worker_uid, generic_uid) => {
+                WorkerMessage::EncodeFinished(worker_uid, generic_uid) => {
                     worker_manager
                         .lock()
                         .unwrap()
@@ -316,19 +316,19 @@ pub async fn run_worker(
                 info!("Worker is continuing it's current transcode");
                 return;
             }
-            match VersatileMessage::from_message(message) {
-                VersatileMessage::Encode(encode, add_encode_mode) => {
+            match WorkerMessage::from_message(message) {
+                WorkerMessage::Encode(encode, add_encode_mode) => {
                     transcode_queue
                         .write()
                         .unwrap()
                         .add_encode(encode, add_encode_mode);
                 }
-                VersatileMessage::WorkerID(worker_uid) => {
+                WorkerMessage::WorkerID(worker_uid) => {
                     config.write().unwrap().uid = Some(worker_uid);
                     config.read().unwrap().update_config_on_disk();
                     info!("Worker has been given UID: {}", worker_uid);
                 }
-                VersatileMessage::Announce(text) => {
+                WorkerMessage::Announce(text) => {
                     info!("Announcement: {}", text);
                 }
                 _ => warn!("Worker received a message it doesn't know how to handle"),

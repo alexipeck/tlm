@@ -68,7 +68,7 @@ impl Worker {
         2 - self.transcode_queue.read().unwrap().len() as i64
     }
 
-    pub fn send_message_to_worker(&mut self, worker_message: VersatileMessage) {
+    pub fn send_message_to_worker(&mut self, worker_message: WorkerMessage) {
         self.tx
             .clone()
             .unwrap()
@@ -96,7 +96,7 @@ impl Worker {
             .push_back(encode.clone());
 
         //Sends the encode to the worker
-        self.send_message_to_worker(VersatileMessage::Encode(encode, AddEncodeMode::Back));
+        self.send_message_to_worker(WorkerMessage::Encode(encode, AddEncodeMode::Back));
     }
 
     pub fn check_if_active(&mut self) {
@@ -108,7 +108,7 @@ impl Worker {
 
 ///Messages to be serialised and sent between the worker and server
 #[derive(Serialize, Deserialize)]
-pub enum VersatileMessage {
+pub enum WorkerMessage {
     //Worker
     Encode(Encode, AddEncodeMode),
     Initialise(Option<i32>),
@@ -124,7 +124,7 @@ pub enum VersatileMessage {
     Text(String),
 }
 
-impl VersatileMessage {
+impl WorkerMessage {
     ///Convert WorkerMessage to a tungstenite message for sending over websockets
     pub fn to_message(&self) -> Message {
         let serialised = bincode::serialize(self).unwrap_or_else(|err| {
@@ -135,7 +135,7 @@ impl VersatileMessage {
     }
 
     pub fn from_message(message: Message) -> Self {
-        bincode::deserialize::<VersatileMessage>(&message.into_data()).unwrap_or_else(|err| {
+        bincode::deserialize::<WorkerMessage>(&message.into_data()).unwrap_or_else(|err| {
             error!("Failed to deserialise message: {}", err);
             panic!();
         })

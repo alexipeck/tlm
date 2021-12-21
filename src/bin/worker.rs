@@ -13,7 +13,7 @@ use std::{
     time,
 };
 use tlm::config::WorkerConfig;
-use tlm::worker::VersatileMessage;
+use tlm::worker::WorkerMessage;
 use tlm::worker_manager::WorkerTranscodeQueue;
 use tlm::ws::run_worker;
 use tracing::{error, Level};
@@ -74,7 +74,7 @@ async fn main() -> Result<(), IoError> {
         let transcode_queue_inner = transcode_queue.clone();
         let stop_worker_inner = stop_worker.clone();
         let (mut tx, rx) = futures_channel::mpsc::unbounded();
-        tx.start_send(VersatileMessage::Initialise(config.read().unwrap().uid).to_message())
+        tx.start_send(WorkerMessage::Initialise(config.read().unwrap().uid).to_message())
             .unwrap();
 
         //TODO: Don't create this thread until we actually have a websocket established
