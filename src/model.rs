@@ -28,7 +28,6 @@ pub fn from_worker(worker: Worker) -> NewWorker {
 }
 
 #[derive(Queryable, AsChangeset, Identifiable)]
-#[primary_key(id)]
 #[table_name = "worker"]
 pub struct WorkerModel {
     pub id: i32,
@@ -103,7 +102,6 @@ impl NewFileVersion {
 }
 
 #[derive(Queryable, AsChangeset, Identifiable, Clone)]
-#[primary_key(id)]
 #[table_name = "file_version"]
 pub struct FileVersionModel {
     pub id: i32,
@@ -121,28 +119,28 @@ pub struct FileVersionModel {
 }
 
 impl FileVersionModel {
-    pub fn from_file_version(file_version: FileVersion) -> Self {
+    pub fn from_file_version(file_version: &FileVersion) -> Self {
         let mut resolution_standard: Option<i32> = None;
-        if file_version.profile.resolution_standard.is_some() {
-            resolution_standard = Some(file_version.profile.resolution_standard.unwrap() as i32);
+        if file_version.resolution_standard.is_some() {
+            resolution_standard = Some(file_version.resolution_standard.unwrap() as i32);
         }
 
         let mut container: Option<i32> = None;
-        if file_version.profile.container.is_some() {
-            container = Some(file_version.profile.container.unwrap() as i32);
+        if file_version.container.is_some() {
+            container = Some(file_version.container.unwrap() as i32);
         }
 
         Self {
             id: file_version.id,
             generic_uid: file_version.generic_uid,
             full_path: file_version.get_full_path(),
-            file_hash: file_version.hash,
+            file_hash: file_version.hash.clone(),
             master_file: file_version.master_file,
-            fast_file_hash: file_version.fast_hash,
-            width: file_version.profile.width,
-            height: file_version.profile.height,
-            framerate: file_version.profile.framerate,
-            length_time: file_version.profile.length_time,
+            fast_file_hash: file_version.fast_hash.clone(),
+            width: file_version.width,
+            height: file_version.height,
+            framerate: file_version.framerate,
+            length_time: file_version.length_time,
             resolution_standard,
             container,
         }

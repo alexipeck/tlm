@@ -6,7 +6,8 @@ use std::{fs::File, path::PathBuf};
 use std::fmt;
 use std::hash::Hasher;
 
-use crate::profile::Profile;
+use crate::database::update_file_version;
+use crate::profile::{Profile, ResolutionStandard, Container};
 use crate::worker_manager::Encode;
 use crate::{
     designation::{from_i32, Designation},
@@ -24,20 +25,16 @@ pub struct FileVersion {
     pub master_file: bool,
     pub hash: Option<String>,
     pub fast_hash: Option<String>,
-    pub profile: Profile,
+    pub width: Option<i32>,
+    pub height: Option<i32>,
+    pub framerate: Option<f64>,
+    pub length_time: Option<f64>,
+    pub resolution_standard: Option<ResolutionStandard>,
+    pub container: Option<Container>,
 }
 
 impl FileVersion {
     pub fn from_file_version_model(file_version_model: FileVersionModel) -> Self {
-        let profile = Profile::new(
-            file_version_model.width,
-            file_version_model.height,
-            file_version_model.framerate,
-            file_version_model.length_time,
-            file_version_model.resolution_standard,
-            file_version_model.container,
-        );
-
         Self {
             id: file_version_model.id,
             generic_uid: file_version_model.generic_uid,
@@ -45,14 +42,37 @@ impl FileVersion {
             master_file: file_version_model.master_file,
             hash: file_version_model.file_hash,
             fast_hash: file_version_model.fast_file_hash,
-            profile,
+            width: file_version_model.width,
+            height: file_version_model.height,
+            framerate: file_version_model.framerate,
+            length_time: file_version_model.length_time,
+            resolution_standard: ResolutionStandard::from_wrapped(file_version_model.resolution_standard),
+            container: Container::from_wrapped(file_version_model.container),
+        }
+    }
+
+    //TODO: Add reporting
+    //Destructive operation, will overwrite previous values
+    pub fn generate_profile_if_none(&mut self) {
+        if self.width.is_none()
+            || self.height.is_none()
+            || self.framerate.is_none()
+            || self.length_time.is_none()
+            || self.resolution_standard.is_none()
+            || self.container.is_none() {
+                self.generate_profile();
         }
     }
 
     //Destructive operation, will overwrite previous values
     pub fn generate_profile(&mut self) {
         if let Some(profile) = Profile::from_file(&self.full_path) {
-            self.profile = profile;
+            self.width = profile.width;
+            self.height = profile.height;
+            self.framerate = profile.framerate;
+            self.length_time = profile.length_time;
+            self.resolution_standard = profile.resolution_standard;
+            update_file_version(self);
         } else {
             panic!(
                 "Failed to generate profile for generic_uid: {} and file_version_id: {}",
@@ -175,6 +195,12 @@ impl Generic {
         }
     }
 
+    pub fn generate_file_version_profiles_if_none(&mut self) {
+        for file_version in self.file_versions.iter_mut() {
+            file_version.generate_profile_if_none()
+        }
+    }
+
     pub fn insert_file_version(&mut self, file_version: FileVersion) {
         self.file_versions.push(file_version)
     }
@@ -188,7 +214,7 @@ impl Generic {
             if file_version.fast_hash.is_none() {
                 file_version.fast_hash();
             }
-            debug!("Hashed[[{} of {}][{:2} of {:2}]]: {}", i + 1, length, generics_iter_progress, file_version_count, pathbuf_to_string(&file_version.full_path));
+            debug!("Hashed[[{} of {}][{:2} of {:2}]]: {}", i + 1, length, generics_iter_progress + 1, file_version_count, pathbuf_to_string(&file_version.full_path));
             
         }
     }

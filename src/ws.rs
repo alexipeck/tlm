@@ -10,7 +10,7 @@ use crate::{
     generic::FileVersion,
     model::NewFileVersion,
     pathbuf_to_string,
-    scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
+    scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType, GenerateProfiles},
     worker::WorkerMessage,
     worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue},
 };
@@ -83,6 +83,12 @@ async fn handle_web_connection(
                     .unwrap()
                     .push_back(Task::new(TaskType::ProcessNewFiles(
                         ProcessNewFiles::default(),
+                    ))),
+                "generate_profiles" => tasks
+                    .lock()
+                    .unwrap()
+                    .push_back(Task::new(TaskType::GenerateProfiles(
+                        GenerateProfiles::default(),
                     ))),
                 "display_workers" => print_all_worker_models(),
 

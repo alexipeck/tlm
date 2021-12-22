@@ -27,6 +27,20 @@ pub fn establish_connection() -> PgConnection {
     })
 }
 
+pub fn update_file_version(file_version: &FileVersion) {
+    let file_version_model = FileVersionModel::from_file_version(file_version);
+    match diesel::update(file_version_data).set(&file_version_model).execute(&establish_connection()) {
+        Err(err) => {
+            error!("Something oopsied with the database. {}", err);
+            panic!();
+        },
+        Ok(_) => {
+            //Do nothing right now
+            //TODO: Make this do something
+        },
+    }
+}
+
 ///Inserts generic data into the database
 pub fn create_generics(conn: &PgConnection, new_generics: Vec<NewGeneric>) -> Vec<GenericModel> {
     diesel::insert_into(generic_table::table)

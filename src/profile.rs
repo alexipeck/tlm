@@ -4,7 +4,7 @@ use std::fmt;
 use std::path::Path;
 use std::process::Command;
 use std::str::from_utf8;
-use tracing::error;
+use tracing::{error, debug};
 
 use crate::pathbuf_to_string;
 
@@ -33,6 +33,13 @@ impl ResolutionStandard {
         }
     }
 
+    pub fn from_wrapped(input: Option<i32>) -> Option<Self> {
+        if let Some(input) = input {
+            return Some(ResolutionStandard::from(input));
+        }
+        None
+    }
+
     pub fn get_resolution_standard_from_width(width: i32) -> Self {
         match width {
             640 => ResolutionStandard::ED,
@@ -58,23 +65,6 @@ impl ResolutionStandard {
         }
     }
 }
-
-/* impl ToSql<Text, Pg> for ResolutionStandard
-where
-    Pg: Backend,
-    String: ToSql<Text, Pg>,
-{
-    fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
-        match *self {
-            ResolutionStandard::SD => String::from("SD").to_sql(out),
-            ResolutionStandard::ED => String::from("ED").to_sql(out),
-            ResolutionStandard::HD => String::from("HD").to_sql(out),
-            ResolutionStandard::FHD => String::from("FHD").to_sql(out),
-            ResolutionStandard::WQHD => String::from("WQHD").to_sql(out),
-            ResolutionStandard::UHD => String::from("UHD").to_sql(out),
-        }
-    }
-} */
 
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub enum AspectRatio {
@@ -132,6 +122,13 @@ impl Container {
             2 => Container::WEBM,
             _ => Container::UNKNOWN,
         }
+    }
+
+    pub fn from_wrapped(input: Option<i32>) -> Option<Self> {
+        if let Some(input) = input {
+            return Some(Self::from(input));
+        }
+        None
     }
 
     pub fn get_container_from_extension(file_extension: String) -> Self {
@@ -200,6 +197,69 @@ impl Profile {
             container,
         }
     }
+
+    ///Create profile from a pathbuf
+    pub fn from_file(full_path: &Path) -> Option<Profile> {
+        let buffer;
+        //linux & friends
+        buffer = Command::new("mediainfo")
+            .args(&["--output=JSON", &pathbuf_to_string(full_path)])
+            .output()
+            .unwrap_or_else(|err| {
+                error!("Failed to execute process for mediainfo. Err: {}", err);
+                panic!();
+            });
+        let temp= serde_json::from_str(from_utf8(&buffer.stdout).unwrap());
+        if temp.is_ok() {
+            let value: Value = temp.unwrap();
+            let width = value["media"]["track"][1]["Width"]
+            .to_string()
+            .strip_prefix('"')?
+            .strip_suffix('"')?
+            .parse::<i32>()
+            .unwrap();
+            return Some(Self {
+                width: Some(width),
+                height: Some(
+                    value["media"]["track"][1]["Height"]
+                        .to_string()
+                        .strip_prefix('"')?
+                        .strip_suffix('"')?
+                        .parse::<i32>()
+                        .unwrap(),
+                ),
+                framerate: Some(
+                    value["media"]["track"][1]["FrameRate"]
+                        .to_string()
+                        .strip_prefix('"')?
+                        .strip_suffix('"')?
+                        .parse::<f64>()
+                        .unwrap(),
+                ),
+                length_time: Some(
+                    value["media"]["track"][0]["Duration"]
+                        .to_string()
+                        .strip_prefix('"')?
+                        .strip_suffix('"')?
+                        .parse::<f64>()
+                        .unwrap(),
+                ),
+                resolution_standard: Some(ResolutionStandard::get_resolution_standard_from_width(
+                    width,
+                )),
+                container: Some(Container::get_container_from_extension(
+                    value["media"]["track"][0]["FileExtension"]
+                        .to_string()
+                        .strip_prefix('"')?
+                        .strip_suffix('"')?
+                        .parse::<String>()
+                        .unwrap(),
+                )),
+            });
+        } else {
+            return None;
+        }
+    }
 }
 
 impl fmt::Display for Profile {
@@ -218,68 +278,6 @@ impl fmt::Display for Profile {
             "Width: {}, Height: {}, Framerate: {}, Length: {}, ResolutionStandard: {}, Container: {}",
             self.width.unwrap(), self.height.unwrap(), self.framerate.unwrap(), self.length_time.unwrap(), self.resolution_standard.unwrap() as i32, self.container.unwrap() as i32,
         )
-    }
-}
-
-impl Profile {
-    ///Create profile from a pathbuf
-    pub fn from_file(full_path: &Path) -> Option<Profile> {
-        let buffer;
-        //linux & friends
-        buffer = Command::new("mediainfo")
-            .args(&["--output=JSON", &pathbuf_to_string(full_path)])
-            .output()
-            .unwrap_or_else(|err| {
-                error!("Failed to execute process for mediainfo. Err: {}", err);
-                panic!();
-            });
-
-        let v: Value = serde_json::from_str(from_utf8(&buffer.stdout).unwrap()).unwrap();
-        let width = v["media"]["track"][1]["Width"]
-            .to_string()
-            .strip_prefix('"')?
-            .strip_suffix('"')?
-            .parse::<i32>()
-            .unwrap();
-
-        Some(Self {
-            width: Some(width),
-            height: Some(
-                v["media"]["track"][1]["Height"]
-                    .to_string()
-                    .strip_prefix('"')?
-                    .strip_suffix('"')?
-                    .parse::<i32>()
-                    .unwrap(),
-            ),
-            framerate: Some(
-                v["media"]["track"][1]["FrameRate"]
-                    .to_string()
-                    .strip_prefix('"')?
-                    .strip_suffix('"')?
-                    .parse::<f64>()
-                    .unwrap(),
-            ),
-            length_time: Some(
-                v["media"]["track"][0]["Duration"]
-                    .to_string()
-                    .strip_prefix('"')?
-                    .strip_suffix('"')?
-                    .parse::<f64>()
-                    .unwrap(),
-            ),
-            resolution_standard: Some(ResolutionStandard::get_resolution_standard_from_width(
-                width,
-            )),
-            container: Some(Container::get_container_from_extension(
-                v["media"]["track"][0]["FileExtension"]
-                    .to_string()
-                    .strip_prefix('"')?
-                    .strip_suffix('"')?
-                    .parse::<String>()
-                    .unwrap(),
-            )),
-        })
     }
 }
 

@@ -320,14 +320,11 @@ impl FileManager {
         }
 
         debug!("Start inserting file_versions");
-        //TODO: Insert NewFileVersions into the database and insert a FileVersion into the Generic
         let file_versions = create_file_versions(&connection, new_file_versions);
         for (i, generic) in generics.iter_mut().enumerate() {
             generic
                 .file_versions
-                .push(FileVersion::from_file_version_model(
-                    file_versions[i].clone(),
-                ));
+                .push(FileVersion::from_file_version_model(file_versions[i].clone()));
             trace!("Processed {}", generic);
         }
         debug!("Finished inserting file_versions");
@@ -408,6 +405,20 @@ impl FileManager {
         debug!("Start filling shows");
         self.insert_episodes(episodes);
         debug!("Finished filling shows");
+    }
+
+    pub fn generate_profiles(&mut self) {
+        for generic in self.generic_files.iter_mut() {
+            generic.generate_file_version_profiles_if_none();
+        }
+
+        for show in self.shows.iter_mut() {
+            for season in show.seasons.iter_mut() {
+                for episode in season.episodes.iter_mut() {
+                    episode.generic.generate_file_version_profiles_if_none();
+                }
+            }
+        }
     }
 
     ///returns none when a file is rejected because is accepted, or already exists in the existing_files_hashset

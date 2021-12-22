@@ -45,6 +45,19 @@ impl ProcessNewFiles {
     }
 }
 
+///Struct to represent a file processing task. This is needed so we can have an enum
+///that contains all types of task
+#[derive(Clone, Debug, Default)]
+pub struct GenerateProfiles {}
+
+impl GenerateProfiles {
+    pub fn run(&mut self, file_manager: Arc<Mutex<FileManager>>) {
+        info!("Started generating profiles");
+        file_manager.lock().unwrap().generate_profiles();
+        info!("Finished generating profiles");
+    }
+}
+
 ///Struct to represent a hashing task. This is needed so we can have an enum
 ///that contains all types of task.
 #[derive(Clone, Debug, Default)]
@@ -100,6 +113,7 @@ impl Hash {
 pub enum TaskType {
     ImportFiles(ImportFiles),
     ProcessNewFiles(ProcessNewFiles),
+    GenerateProfiles(GenerateProfiles),
     Hash(Hash),
 }
 
@@ -143,6 +157,9 @@ impl Task {
                     }
                 }
                 return Some(hash.run(current_content));
+            }
+            TaskType::GenerateProfiles(generate_profiles) => {
+                generate_profiles.run(file_manager);
             }
         }
         None
