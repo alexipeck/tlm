@@ -177,15 +177,16 @@ impl Profile {
         resolution_standard: Option<i32>,
         container: Option<i32>,
     ) -> Self {
+        //resolution_standard
         let resolution_standard_i32: Option<i32> = resolution_standard;
         let mut resolution_standard: Option<ResolutionStandard> = None;
-        let container_i32 = container;
-        let mut container: Option<Container> = None;
-
         if let Some(resolution_standard_i32) = resolution_standard_i32 {
             resolution_standard = Some(ResolutionStandard::from(resolution_standard_i32));
         }
 
+        //container
+        let container_i32: Option<i32> = container;
+        let mut container: Option<Container> = None;
         if let Some(container_i32) = container_i32 {
             container = Some(Container::from(container_i32));
         }
