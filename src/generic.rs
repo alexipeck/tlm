@@ -14,7 +14,7 @@ use crate::{
 };
 use crate::{pathbuf_file_name_to_string, pathbuf_to_string, pathbuf_with_suffix};
 use rand::Rng;
-use tracing::{error, warn};
+use tracing::{error, warn, debug};
 
 #[derive(Clone, Debug)]
 pub struct FileVersion {
@@ -179,18 +179,18 @@ impl Generic {
         self.file_versions.push(file_version)
     }
 
-    pub fn hash_file_versions(&mut self) -> Vec<String> {
-        let mut full_paths: Vec<String> = Vec::new();
-        for file_version in self.file_versions.iter_mut() {
+    pub fn hash_file_versions(&mut self, file_version_count: usize, generics_iter_progress: usize) {
+        let length: usize = self.file_versions.len();
+        for (i, file_version) in self.file_versions.iter_mut().enumerate() {
             if file_version.hash.is_none() {
                 file_version.hash();
             }
             if file_version.fast_hash.is_none() {
                 file_version.fast_hash();
             }
-            full_paths.push(file_version.get_full_path());
+            debug!("Hashed[[{} of {}][{:2} of {:2}]]: {}", i + 1, length, generics_iter_progress, file_version_count, pathbuf_to_string(&file_version.full_path));
+            
         }
-        full_paths
     }
 
     pub fn get_all_full_paths(&self) -> Vec<PathBuf> {

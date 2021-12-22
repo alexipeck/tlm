@@ -167,11 +167,9 @@ impl FileManager {
                 }
             }
         }
-        
-        //TODO: Do the same thing, but for Shows instead. 
 
         file_manager.add_existing_files_to_hashset();
-        file_manager.add_show_episodes_to_hashset();
+        file_manager.add_show_episode_file_versions_to_hashset();
         file_manager
     }
 
@@ -218,35 +216,25 @@ impl FileManager {
         None
     }
 
-    ///Takes all loaded episodes and add them to the hashset of
-    ///existing files to ensure that files don't get imported twice
-    fn add_show_episodes_to_hashset(&mut self) {
-        let mut generics: Vec<Generic> = Vec::new();
+    ///Takes all loaded episodes and adds their all their file_versions to the hashset
+    ///of existing files to ensure that files don't get imported twice
+    fn add_show_episode_file_versions_to_hashset(&mut self) {
         for show in &self.shows {
             for season in &show.seasons {
                 for episode in &season.episodes {
-                    generics.push(episode.generic.clone());
+                    let generic = &episode.generic;
+                    for file_version in &generic.file_versions {
+                        self.existing_files_hashset.insert(file_version.full_path.clone());
+                    }
                 }
             }
         }
-
-        self.add_all_filenames_to_hashset_from_generics(&generics);
     }
 
     ///Adds all generics that exist in the file manager to the hashset to ensure that
     ///files can't be imported twice
     fn add_existing_files_to_hashset(&mut self) {
         for generic in &self.generic_files {
-            for path in generic.get_all_full_paths() {
-                self.existing_files_hashset.insert(path);
-            }
-        }
-    }
-
-    ///Add a collection of generics to the hashset of generics to ensure
-    ///that files can't be imported twice
-    fn add_all_filenames_to_hashset_from_generics(&mut self, generics: &[Generic]) {
-        for generic in generics {
             for path in generic.get_all_full_paths() {
                 self.existing_files_hashset.insert(path);
             }
@@ -384,8 +372,6 @@ impl FileManager {
             new_episodes.push(new_episode);
         }
         debug!("Finished building episodes");
-
-        self.add_all_filenames_to_hashset_from_generics(&generics);
 
         let mut temp_generics_only_episodes: Vec<Generic> = Vec::new();
         let mut temp_generics_only_generics: Vec<Generic> = Vec::new();

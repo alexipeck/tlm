@@ -6,7 +6,7 @@ use crate::{
     generic::Generic,
     model::GenericModel,
 };
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use std::{
     collections::VecDeque,
@@ -51,22 +51,26 @@ impl ProcessNewFiles {
 pub struct Hash {}
 
 impl Hash {
-    pub fn run(&self, current_content: Vec<Generic>) -> TaskReturnAsync {
+    pub fn run(&self, generics: Vec<Generic>) -> TaskReturnAsync {
         let is_finished = Arc::new(AtomicBool::new(false));
 
         info!("Started hashing in the background");
         let is_finished_inner = is_finished.clone();
         //Hash files until all other functions are complete
         let handle = Some(thread::spawn(move || {
-            let mut current_content = current_content;
-            current_content.retain(|generic| generic.has_hashing_work());
-            let length = current_content.len();
-            let connection = establish_connection();
+            let mut generics = generics;
+            generics.retain(|generic| generic.has_hashing_work());
+
+            //This is kinda a waste of time, it literally only gives progress for debug output
+            let mut file_version_count: usize = 0;
+            for generic in &generics {
+                file_version_count += generic.file_versions.len()
+            }
+
             let mut did_finish = true;
-            for (i, generic) in current_content.iter_mut().enumerate() {
-                for full_path in generic.hash_file_versions() {
-                    debug!("Hashed[{} of {}]: {}", i + 1, length, full_path,);
-                }
+            let connection = establish_connection();
+            for (i, generic) in generics.iter_mut().enumerate() {
+                generic.hash_file_versions(file_version_count, i);
                 if GenericModel::from_generic(generic.clone())
                     .save_changes::<GenericModel>(&connection)
                     .is_err()

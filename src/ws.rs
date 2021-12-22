@@ -5,7 +5,7 @@ use tracing::{error, info, warn};
 
 use crate::{
     config::WorkerConfig,
-    database::{create_file_version, establish_connection, print_all_worker_models},
+    database::{create_file_version, print_all_worker_models},
     file_manager::FileManager,
     generic::FileVersion,
     model::NewFileVersion,
