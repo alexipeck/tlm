@@ -45,7 +45,7 @@ async fn main() -> Result<(), IoError> {
     let file = tracing_appender::rolling::daily(log_path, "tlm_worker.log");
     let (stdout_writer, _guard) = tracing_appender::non_blocking(stdout());
     let (file_writer, _guard) = tracing_appender::non_blocking(file);
-
+    
     let level_filter;
     if let Some(level) = stdout_level {
         level_filter = LevelFilter::from_level(level);

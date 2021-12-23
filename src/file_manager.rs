@@ -310,6 +310,7 @@ impl FileManager {
             debug!("Finished inserting generics");
 
             for (generic, full_path) in temp_generics_and_paths {
+                debug!("{}", full_path);
                 new_file_versions.push(NewFileVersion::new(
                     generic.generic_uid.unwrap(),
                     full_path,
@@ -408,14 +409,15 @@ impl FileManager {
     }
 
     pub fn generate_profiles(&mut self) {
+        let connection = &establish_connection();
         for generic in self.generic_files.iter_mut() {
-            generic.generate_file_version_profiles_if_none();
+            generic.generate_file_version_profiles_if_none(connection);
         }
 
         for show in self.shows.iter_mut() {
             for season in show.seasons.iter_mut() {
                 for episode in season.episodes.iter_mut() {
-                    episode.generic.generate_file_version_profiles_if_none();
+                    episode.generic.generate_file_version_profiles_if_none(connection);
                 }
             }
         }

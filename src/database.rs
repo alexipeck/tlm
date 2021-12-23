@@ -27,17 +27,10 @@ pub fn establish_connection() -> PgConnection {
     })
 }
 
-pub fn update_file_version(file_version: &FileVersion) {
-    let file_version_model = FileVersionModel::from_file_version(file_version);
-    match diesel::update(file_version_data).set(&file_version_model).execute(&establish_connection()) {
-        Err(err) => {
-            error!("Something oopsied with the database. {}", err);
-            panic!();
-        },
-        Ok(_) => {
-            //Do nothing right now
-            //TODO: Make this do something
-        },
+pub fn update_file_version(file_version: &FileVersion, connection: &PgConnection) {
+    if FileVersionModel::from_file_version(file_version).save_changes::<FileVersionModel>(connection).is_err() {
+        error!("Failed to update file_version in database");
+        panic!();
     }
 }
 

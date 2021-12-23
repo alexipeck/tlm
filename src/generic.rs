@@ -14,6 +14,7 @@ use crate::{
     model::*,
 };
 use crate::{pathbuf_file_name_to_string, pathbuf_to_string, pathbuf_with_suffix};
+use diesel::PgConnection;
 use rand::Rng;
 use tracing::{error, warn, debug};
 
@@ -62,21 +63,21 @@ impl FileVersion {
 
     //TODO: Add reporting
     //Destructive operation, will overwrite previous values
-    pub fn generate_profile_if_none(&mut self) {
+    pub fn generate_profile_if_none(&mut self, connection: &PgConnection) {
         if self.profile_is_none() {
-                self.generate_profile();
+                self.generate_profile(connection);
         }
     }
 
     //Destructive operation, will overwrite previous values
-    pub fn generate_profile(&mut self) {
+    pub fn generate_profile(&mut self, connection: &PgConnection) {
         if let Some(profile) = Profile::from_file(&self.full_path) {
             self.width = profile.width;
             self.height = profile.height;
             self.framerate = profile.framerate;
             self.length_time = profile.length_time;
             self.resolution_standard = profile.resolution_standard;
-            update_file_version(self);
+            update_file_version(self, connection);
         } else {
             panic!(
                 "Failed to generate profile for generic_uid: {} and file_version_id: {}",
@@ -199,9 +200,9 @@ impl Generic {
         }
     }
 
-    pub fn generate_file_version_profiles_if_none(&mut self) {
+    pub fn generate_file_version_profiles_if_none(&mut self, connection: &PgConnection) {
         for file_version in self.file_versions.iter_mut() {
-            file_version.generate_profile_if_none()
+            file_version.generate_profile_if_none(connection)
         }
     }
 
@@ -209,7 +210,7 @@ impl Generic {
         self.file_versions.push(file_version)
     }
 
-    pub fn hash_file_versions(&mut self, file_version_count: usize, generics_iter_progress: usize) {
+    pub fn hash_file_versions(&mut self, file_version_count: usize, generics_iter_progress: usize, connection: &PgConnection) {
         let length: usize = self.file_versions.len();
         for (i, file_version) in self.file_versions.iter_mut().enumerate() {
             if file_version.hash.is_none() {
@@ -219,7 +220,7 @@ impl Generic {
                 file_version.fast_hash();
             }
             debug!("Hashed[[{} of {}][{:2} of {:2}]]: {}", i + 1, length, generics_iter_progress + 1, file_version_count, pathbuf_to_string(&file_version.full_path));
-            
+            update_file_version(&file_version, connection);
         }
     }
 

@@ -1,10 +1,8 @@
 use crate::{
     config::{Preferences, ServerConfig},
     database::establish_connection,
-    diesel::SaveChangesDsl,
     file_manager::FileManager,
     generic::Generic,
-    model::GenericModel,
 };
 use tracing::{error, info};
 
@@ -83,13 +81,7 @@ impl Hash {
             let mut did_finish = true;
             let connection = establish_connection();
             for (i, generic) in generics.iter_mut().enumerate() {
-                generic.hash_file_versions(file_version_count, i);
-                if GenericModel::from_generic(generic.clone())
-                    .save_changes::<GenericModel>(&connection)
-                    .is_err()
-                {
-                    error!("Failed to update hash in database");
-                }
+                generic.hash_file_versions(file_version_count, i, &connection);
                 if is_finished_inner.load(Ordering::Relaxed) {
                     did_finish = false;
                     break;
