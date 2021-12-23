@@ -51,15 +51,19 @@ impl FileVersion {
         }
     }
 
+    pub fn profile_is_none(&self) -> bool {
+        self.width.is_none()
+        || self.height.is_none()
+        || self.framerate.is_none()
+        || self.length_time.is_none()
+        || self.resolution_standard.is_none()
+        || self.container.is_none()
+    }
+
     //TODO: Add reporting
     //Destructive operation, will overwrite previous values
     pub fn generate_profile_if_none(&mut self) {
-        if self.width.is_none()
-            || self.height.is_none()
-            || self.framerate.is_none()
-            || self.length_time.is_none()
-            || self.resolution_standard.is_none()
-            || self.container.is_none() {
+        if self.profile_is_none() {
                 self.generate_profile();
         }
     }

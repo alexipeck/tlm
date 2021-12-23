@@ -257,27 +257,8 @@ impl Profile {
                 )),
             });
         } else {
-            return None;
+            None
         }
-    }
-}
-
-impl fmt::Display for Profile {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.width.is_none()
-            || self.height.is_none()
-            || self.framerate.is_none()
-            || self.length_time.is_none()
-            || self.resolution_standard.is_none()
-            || self.container.is_none()
-        {
-            panic!("Tried to print empty profiles, don't really want to deal with this right now");
-        }
-        write!(
-            f,
-            "Width: {}, Height: {}, Framerate: {}, Length: {}, ResolutionStandard: {}, Container: {}",
-            self.width.unwrap(), self.height.unwrap(), self.framerate.unwrap(), self.length_time.unwrap(), self.resolution_standard.unwrap() as i32, self.container.unwrap() as i32,
-        )
     }
 }
 
