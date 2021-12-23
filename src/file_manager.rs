@@ -107,9 +107,7 @@ impl FileManager {
 
         //add generic_files and generics from their respective episodes to the existing_files_hashset
         file_manager.generic_files = get_all_generics();
-
-        //This would be faster as a hashmap, I can't be bothered right now
-        //TODO: Make this a hashmap
+        
         let mut generic_uid_tracker: Vec<i32> = Vec::new();
         let mut collected_file_versions: Vec<(i32, Vec<FileVersion>)> = Vec::new();
         {
@@ -310,7 +308,6 @@ impl FileManager {
             debug!("Finished inserting generics");
 
             for (generic, full_path) in temp_generics_and_paths {
-                debug!("{}", full_path);
                 new_file_versions.push(NewFileVersion::new(
                     generic.generic_uid.unwrap(),
                     full_path,

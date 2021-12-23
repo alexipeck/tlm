@@ -1,10 +1,9 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::fmt;
+use serde_json::{Value, Error};
 use std::path::Path;
 use std::process::Command;
 use std::str::from_utf8;
-use tracing::{error, debug};
+use tracing::{error};
 
 use crate::pathbuf_to_string;
 
@@ -209,9 +208,8 @@ impl Profile {
                 error!("Failed to execute process for mediainfo. Err: {}", err);
                 panic!();
             });
-        let temp= serde_json::from_str(from_utf8(&buffer.stdout).unwrap());
-        if temp.is_ok() {
-            let value: Value = temp.unwrap();
+        let temp: Result<Value, Error> = serde_json::from_str(from_utf8(&buffer.stdout).unwrap());
+        if let Ok(value) = temp {
             let width = value["media"]["track"][1]["Width"]
             .to_string()
             .strip_prefix('"')?

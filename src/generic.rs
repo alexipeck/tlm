@@ -78,11 +78,6 @@ impl FileVersion {
             self.length_time = profile.length_time;
             self.resolution_standard = profile.resolution_standard;
             update_file_version(self, connection);
-        } else {
-            panic!(
-                "Failed to generate profile for generic_uid: {} and file_version_id: {}",
-                self.generic_uid, self.id
-            );
         }
     }
 
