@@ -1,13 +1,13 @@
 use crate::{
     config::{Preferences, ServerConfig},
-    database::establish_connection,
+    database::{establish_connection, update_file_version},
     file_manager::FileManager,
-    generic::Generic,
+    generic::FileVersion, pathbuf_to_string,
 };
-use tracing::{error, info};
+use tracing::{error, info, debug};
 
 use std::{
-    collections::VecDeque,
+    collections::{VecDeque, HashMap},
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     sync::{Arc, Mutex},
     thread,
@@ -79,30 +79,53 @@ if GenericModel::from_generic(content.clone())
 */
 
 impl Hash {
-    pub fn run(&self, mut generics: Vec<Generic>, mut episode_generics: Vec<Generic>, file_manager: Arc<Mutex<FileManager>>) -> TaskReturnAsync {
+    pub fn run(&self, file_manager: Arc<Mutex<FileManager>>) -> TaskReturnAsync {
         let is_finished = Arc::new(AtomicBool::new(false));
+        let mut file_version_count: usize = 0;
+        let mut generic_file_versions: HashMap<i32, Vec<FileVersion>> = HashMap::new();
+        for generic in file_manager.lock().unwrap().generic_files.iter() {
+            if generic.has_hashing_work() {
+                generic_file_versions.insert(generic.get_generic_uid(), generic.file_versions.clone());
+                file_version_count += generic.file_versions.len();
+            }
+        }
+
+        let mut episode_file_versions: HashMap<i32, Vec<FileVersion>> = HashMap::new();
+        for show in &file_manager.lock().unwrap().shows {
+            for season in &show.seasons {
+                for episode in &season.episodes {
+                    if episode.generic.has_hashing_work() {
+                        episode_file_versions.insert(episode.generic.get_generic_uid(), episode.generic.file_versions.clone());
+                        file_version_count += episode.generic.file_versions.len();
+                    }
+                }
+            }
+        }
 
         info!("Started hashing in the background");
         let is_finished_inner = is_finished.clone();
         //Hash files until all other functions are complete
         let handle = Some(thread::spawn(move || {
-            //Gets the total count of generics that will be operated on
-            let mut file_version_count: usize = 0;
-            for generic in generics.iter() {
-                file_version_count += generic.file_versions.len()
-            }
-            for generic in episode_generics.iter() {
-                file_version_count += generic.file_versions.len();
-            }
-
             let mut did_finish = true;
             let connection = establish_connection();
-            for (i, generic) in generics.iter_mut().enumerate() {
-                generic.hash_file_versions(file_version_count, i, &connection);
+
+            //Generics
+            for (i, (generic_uid, file_versions)) in generic_file_versions.iter_mut().enumerate() {
+                let length: usize = file_versions.len();
+                for (j, file_version) in file_versions.iter_mut().enumerate() {
+                    if file_version.hash.is_none() {
+                        file_version.hash();
+                    }
+                    if file_version.fast_hash.is_none() {
+                        file_version.fast_hash();
+                    }
+                    debug!("Hashed[[{} of {}][{:2} of {:2}]]: {}", j + 1, length, i + 1, file_version_count, pathbuf_to_string(&file_version.full_path));
+                    update_file_version(&file_version, &connection);
+                }
                 let mut found_generic = false;
                 for live_generic in file_manager.lock().unwrap().generic_files.iter_mut() {
-                    if live_generic.generic_uid == generic.generic_uid {
-                        live_generic.update_hashes_from_file_versions(&generic.file_versions);
+                    if live_generic.generic_uid == Some(*generic_uid) {
+                        live_generic.update_hashes_from_file_versions(&file_versions);
                         found_generic = true;
                         break;
                     }
@@ -116,7 +139,41 @@ impl Hash {
                     break;
                 }
             }
-            //TODO: Do the same for the episode_generics vector as has been for generics
+
+            for (i, (generic_uid, file_versions)) in episode_file_versions.iter_mut().enumerate() {
+                let length: usize = file_versions.len();
+                for (j, file_version) in file_versions.iter_mut().enumerate() {
+                    if file_version.hash.is_none() {
+                        file_version.hash();
+                    }
+                    if file_version.fast_hash.is_none() {
+                        file_version.fast_hash();
+                    }
+                    debug!("Hashed[[{} of {}][{:2} of {:2}]]: {}", j + 1, length, i + 1, file_version_count, pathbuf_to_string(&file_version.full_path));
+                    update_file_version(&file_version, &connection);
+                }
+                let mut found_generic = false;
+                for show in file_manager.lock().unwrap().shows.iter_mut() {
+                    for season in show.seasons.iter_mut() {
+                        for episode in season.episodes.iter_mut() {
+                            if episode.generic.generic_uid == Some(*generic_uid) {
+                                episode.generic.update_hashes_from_file_versions(&file_versions);
+                                found_generic = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if !found_generic {
+                    error!("Couldn't find Episode->Generic to update the hash of in memory");
+                    panic!();
+                }
+                if is_finished_inner.load(Ordering::Relaxed) {
+                    did_finish = false;
+                    break;
+                }
+            }
+            
             is_finished_inner.store(true, Ordering::Relaxed);
             if did_finish {
                 info!("Finished hashing");
@@ -170,23 +227,7 @@ impl Task {
                 process_new_files.run(file_manager, preferences);
             }
             TaskType::Hash(hash) => {
-                let mut generics: Vec<Generic> = Vec::new();
-                for generic in file_manager.lock().unwrap().generic_files.iter() {
-                    if generic.has_hashing_work() {
-                        generics.push(generic.clone());
-                    }
-                }
-                let mut episode_generics: Vec<Generic> = Vec::new();
-                for show in &file_manager.lock().unwrap().shows {
-                    for season in &show.seasons {
-                        for episode in &season.episodes {
-                            if episode.generic.has_hashing_work() {
-                                episode_generics.push(episode.generic.clone());
-                            }
-                        }
-                    }
-                }
-                return Some(hash.run(generics, episode_generics, file_manager));
+                return Some(hash.run(file_manager));
             }
             TaskType::GenerateProfiles(generate_profiles) => {
                 generate_profiles.run(file_manager);
