@@ -219,6 +219,14 @@ impl Generic {
         }
     }
 
+    //TODO: Guarantee that the hashes are being written to the correct structure
+    pub fn update_hashes_from_file_versions(&mut self, file_versions: &[FileVersion]) {
+        for (i, file_version) in self.file_versions.iter_mut().enumerate() {
+            file_version.fast_hash = file_versions[i].fast_hash.clone();
+            file_version.hash = file_versions[i].hash.clone();
+        }
+    }
+
     pub fn get_all_full_paths(&self) -> Vec<PathBuf> {
         let mut paths: Vec<PathBuf> = Vec::new();
         for file_version in &self.file_versions {

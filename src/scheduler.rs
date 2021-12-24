@@ -61,32 +61,62 @@ impl GenerateProfiles {
 #[derive(Clone, Debug, Default)]
 pub struct Hash {}
 
+/*
+if GenericModel::from_generic(content.clone())
+                        .save_changes::<GenericModel>(&connection)
+                        .is_err()
+                    {
+                        error!("Failed to update hash in database");
+                    }
+                } else if content.fast_hash.is_none() {
+                    content.fast_hash();
+                    if GenericModel::from_generic(content.clone())
+                        .save_changes::<GenericModel>(&connection)
+                        .is_err()
+                    {
+                        error!("Failed to update hash in database");
+                    }
+*/
+
 impl Hash {
-    pub fn run(&self, generics: Vec<Generic>) -> TaskReturnAsync {
+    pub fn run(&self, mut generics: Vec<Generic>, mut episode_generics: Vec<Generic>, file_manager: Arc<Mutex<FileManager>>) -> TaskReturnAsync {
         let is_finished = Arc::new(AtomicBool::new(false));
 
         info!("Started hashing in the background");
         let is_finished_inner = is_finished.clone();
         //Hash files until all other functions are complete
         let handle = Some(thread::spawn(move || {
-            let mut generics = generics;
-            generics.retain(|generic| generic.has_hashing_work());
-
-            //This is kinda a waste of time, it literally only gives progress for debug output
+            //Gets the total count of generics that will be operated on
             let mut file_version_count: usize = 0;
-            for generic in &generics {
+            for generic in generics.iter() {
                 file_version_count += generic.file_versions.len()
+            }
+            for generic in episode_generics.iter() {
+                file_version_count += generic.file_versions.len();
             }
 
             let mut did_finish = true;
             let connection = establish_connection();
             for (i, generic) in generics.iter_mut().enumerate() {
                 generic.hash_file_versions(file_version_count, i, &connection);
+                let mut found_generic = false;
+                for live_generic in file_manager.lock().unwrap().generic_files.iter_mut() {
+                    if live_generic.generic_uid == generic.generic_uid {
+                        live_generic.update_hashes_from_file_versions(&generic.file_versions);
+                        found_generic = true;
+                        break;
+                    }
+                }
+                if !found_generic {
+                    error!("Couldn't find Generic to update the hash of in memory");
+                    panic!();
+                }
                 if is_finished_inner.load(Ordering::Relaxed) {
                     did_finish = false;
                     break;
                 }
             }
+            //TODO: Do the same for the episode_generics vector as has been for generics
             is_finished_inner.store(true, Ordering::Relaxed);
             if did_finish {
                 info!("Finished hashing");
@@ -140,15 +170,23 @@ impl Task {
                 process_new_files.run(file_manager, preferences);
             }
             TaskType::Hash(hash) => {
-                let mut current_content = file_manager.lock().unwrap().generic_files.clone();
+                let mut generics: Vec<Generic> = Vec::new();
+                for generic in file_manager.lock().unwrap().generic_files.iter() {
+                    if generic.has_hashing_work() {
+                        generics.push(generic.clone());
+                    }
+                }
+                let mut episode_generics: Vec<Generic> = Vec::new();
                 for show in &file_manager.lock().unwrap().shows {
                     for season in &show.seasons {
                         for episode in &season.episodes {
-                            current_content.push(episode.generic.clone());
+                            if episode.generic.has_hashing_work() {
+                                episode_generics.push(episode.generic.clone());
+                            }
                         }
                     }
                 }
-                return Some(hash.run(current_content));
+                return Some(hash.run(generics, episode_generics, file_manager));
             }
             TaskType::GenerateProfiles(generate_profiles) => {
                 generate_profiles.run(file_manager);
