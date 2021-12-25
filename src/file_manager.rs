@@ -19,9 +19,10 @@ use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::{collections::HashSet, fmt, path::PathBuf};
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -107,37 +108,38 @@ impl FileManager {
 
         //add generic_files and generics from their respective episodes to the existing_files_hashset
         file_manager.generic_files = get_all_generics();
-        
-        let mut generic_uid_tracker: Vec<i32> = Vec::new();
-        let mut collected_file_versions: Vec<(i32, Vec<FileVersion>)> = Vec::new();
+        let mut collected_file_versions: HashMap<i32, Vec<FileVersion>> = HashMap::new();
         {
             for file_version in get_all_file_versions() {
-                if !generic_uid_tracker.contains(&file_version.generic_uid) {
-                    generic_uid_tracker.push(file_version.generic_uid);
-                    collected_file_versions.push((file_version.generic_uid, vec![file_version]));
-                } else {
-                    for (generic_uid, file_versions) in collected_file_versions.iter_mut() {
-                        if file_version.generic_uid == *generic_uid {
-                            file_versions.push(file_version.clone());
-                        }
+                match collected_file_versions.get_mut(&file_version.generic_uid) {
+                    Some(value) => {
+                        value.push(file_version.clone());
+                    }
+                    None => {
+                        collected_file_versions
+                            .insert(file_version.generic_uid, vec![file_version.clone()]);
                     }
                 }
             }
         }
 
-        for (_, file_versions) in collected_file_versions.iter_mut() {
+        //Make sure the master file is first in the list if it isn't already, if none exist set it as the first by default with a warning
+        for (generic_id, file_versions) in collected_file_versions.iter_mut() {
             if !file_versions[0].master_file {
-                let mut index: Option<usize> = None;
+                let mut master_index_found = false;
                 for (i, t) in file_versions.iter().enumerate() {
                     if t.master_file {
-                        index = Some(i);
+                        file_versions.swap(i, 0);
+                        master_index_found = true;
+                        break;
                     }
                 }
-                if index.is_none() {
-                    error!("It should've found a master file, this generic's collected files doesn't contain a master");
-                    panic!();
+
+                //Default to first file in list if none is found but warn the user about it
+                if !master_index_found {
+                    warn!("No master file found for generic with id: {}. Defaulting to first file in list with id: {}", generic_id, file_versions[0].id);
+                    file_versions[0].master_file = true;
                 }
-                file_versions.swap(index.unwrap(), 0)
             }
         }
 
@@ -147,22 +149,9 @@ impl FileManager {
                 panic!();
             }
             let generic_uid = generic.generic_uid.unwrap();
-            
-            let mut index: Option<usize> = None;
-            for (i, generic_uid_marker) in generic_uid_tracker.iter().enumerate() {
-                if generic_uid == *generic_uid_marker {
-                    index = Some(i);
-                }
-            }
-            
-            if let Some(index) = index {
-                let _ = generic_uid_tracker.remove(index);
-                let (_, file_versions) = collected_file_versions.remove(index);
 
-                //Moves the file_versions into the generic
-                for file_version in file_versions {
-                    generic.file_versions.push(file_version);
-                }
+            if let Some(file_versions) = collected_file_versions.get(&generic_uid) {
+                generic.file_versions = file_versions.to_owned();
             }
         }
 
@@ -222,7 +211,8 @@ impl FileManager {
                 for episode in &season.episodes {
                     let generic = &episode.generic;
                     for file_version in &generic.file_versions {
-                        self.existing_files_hashset.insert(file_version.full_path.clone());
+                        self.existing_files_hashset
+                            .insert(file_version.full_path.clone());
                     }
                 }
             }
@@ -322,7 +312,9 @@ impl FileManager {
         for (i, generic) in generics.iter_mut().enumerate() {
             generic
                 .file_versions
-                .push(FileVersion::from_file_version_model(file_versions[i].clone()));
+                .push(FileVersion::from_file_version_model(
+                    file_versions[i].clone(),
+                ));
             trace!("Processed {}", generic);
         }
         debug!("Finished inserting file_versions");
@@ -414,7 +406,9 @@ impl FileManager {
         for show in self.shows.iter_mut() {
             for season in show.seasons.iter_mut() {
                 for episode in season.episodes.iter_mut() {
-                    episode.generic.generate_file_version_profiles_if_none(connection);
+                    episode
+                        .generic
+                        .generate_file_version_profiles_if_none(connection);
                 }
             }
         }
