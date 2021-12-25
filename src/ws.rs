@@ -1,7 +1,7 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
 use std::{collections::VecDeque, sync::RwLock};
-use tracing::{error, info, warn};
+use tracing::{error, info, warn, debug};
 
 use crate::{
     config::WorkerConfig,
@@ -91,6 +91,67 @@ async fn handle_web_connection(
                         GenerateProfiles::default(),
                     ))),
                 "display_workers" => print_all_worker_models(),
+                "run_completeness_check" => {
+                    debug!("Fuck");
+                    fn bool_to_char(bool: bool) -> char {
+                        if bool {
+                            'T'
+                        } else {
+                            'Y'
+                        }
+                    }
+                    fn line_output(file_version: &FileVersion) {
+                        let hash = file_version.hash.is_some();
+                        let fast_hash = file_version.fast_hash.is_some();
+                        let width = file_version.width.is_some();
+                        let height = file_version.height.is_some();
+                        let framerate = file_version.framerate.is_some();
+                        let length_time = file_version.length_time.is_some();
+                        let resolution_standard = file_version.resolution_standard.is_some();
+                        let container = file_version.container.is_some();
+                        if !hash || !fast_hash || !width || !height || !framerate || !length_time || !resolution_standard || !container {
+                            debug!(
+                                "hash: {}, fast_hash: {}, width: {}, height: {}, framerate: {}, length_time: {}, resolution_standard: {}, container: {}",
+                                bool_to_char(hash),
+                                bool_to_char(fast_hash),
+                                bool_to_char(width),
+                                bool_to_char(height),
+                                bool_to_char(framerate),
+                                bool_to_char(length_time),
+                                bool_to_char(resolution_standard),
+                                bool_to_char(container),
+                            );
+                        }
+                        
+                    }
+                    let file_manager_lock = file_manager.lock().unwrap();
+
+                    debug!("Generics: {}", file_manager_lock.generic_files.len());
+                    let mut t = 0;
+                    for show in file_manager_lock.shows.iter() {
+                        for season in show.seasons.iter() {
+                            for episode in season.episodes.iter() {
+                                t += episode.generic.file_versions.len();
+                            }
+                        }
+                    }
+                    debug!("Episodes: {}", t);
+
+                    for generic in file_manager_lock.generic_files.iter() {
+                        for file_version in generic.file_versions.iter() {
+                            line_output(file_version);
+                        }
+                    }
+                    for show in file_manager_lock.shows.iter() {
+                        for season in show.seasons.iter() {
+                            for episode in season.episodes.iter() {
+                                for file_version in episode.generic.file_versions.iter() {
+                                    line_output(file_version);
+                                }
+                            }
+                        }
+                    }
+                },
 
                 _ => warn!("{} is not a valid input", message),
             }
