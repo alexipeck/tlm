@@ -61,23 +61,6 @@ impl GenerateProfiles {
 #[derive(Clone, Debug, Default)]
 pub struct Hash {}
 
-/*
-if GenericModel::from_generic(content.clone())
-                        .save_changes::<GenericModel>(&connection)
-                        .is_err()
-                    {
-                        error!("Failed to update hash in database");
-                    }
-                } else if content.fast_hash.is_none() {
-                    content.fast_hash();
-                    if GenericModel::from_generic(content.clone())
-                        .save_changes::<GenericModel>(&connection)
-                        .is_err()
-                    {
-                        error!("Failed to update hash in database");
-                    }
-*/
-
 impl Hash {
     pub fn run(&self, file_manager: Arc<Mutex<FileManager>>) -> TaskReturnAsync {
         let is_finished = Arc::new(AtomicBool::new(false));
@@ -139,7 +122,22 @@ impl Hash {
                     break;
                 }
             }
-
+/*
+pub fn hash_file_versions(&mut self, file_version_count: usize, generics_iter_progress: usize, connection: &PgConnection) {
+        let length: usize = self.file_versions.len();
+        for (i, file_version) in self.file_versions.iter_mut().enumerate() {
+            if file_version.hash.is_none() {
+                file_version.hash();
+            }
+            if file_version.fast_hash.is_none() {
+                file_version.fast_hash();
+            }
+            debug!("Hashed[[{} of {}][{:2} of {:2}]]: {}", i + 1, length, generics_iter_progress + 1, file_version_count, pathbuf_to_string(&file_version.full_path));
+            update_file_version(&file_version, connection);
+        }
+    }
+*/
+            //Episodes
             for (i, (generic_uid, file_versions)) in episode_file_versions.iter_mut().enumerate() {
                 let length: usize = file_versions.len();
                 for (j, file_version) in file_versions.iter_mut().enumerate() {

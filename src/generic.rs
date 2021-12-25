@@ -205,20 +205,6 @@ impl Generic {
         self.file_versions.push(file_version)
     }
 
-    pub fn hash_file_versions(&mut self, file_version_count: usize, generics_iter_progress: usize, connection: &PgConnection) {
-        let length: usize = self.file_versions.len();
-        for (i, file_version) in self.file_versions.iter_mut().enumerate() {
-            if file_version.hash.is_none() {
-                file_version.hash();
-            }
-            if file_version.fast_hash.is_none() {
-                file_version.fast_hash();
-            }
-            debug!("Hashed[[{} of {}][{:2} of {:2}]]: {}", i + 1, length, generics_iter_progress + 1, file_version_count, pathbuf_to_string(&file_version.full_path));
-            update_file_version(&file_version, connection);
-        }
-    }
-
     //TODO: Guarantee that the hashes are being written to the correct structure
     pub fn update_hashes_from_file_versions(&mut self, file_versions: &[FileVersion]) {
         for (i, file_version) in self.file_versions.iter_mut().enumerate() {
