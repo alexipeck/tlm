@@ -7,7 +7,7 @@ use std::fmt;
 use std::hash::Hasher;
 
 use crate::database::update_file_version;
-use crate::profile::{Profile, ResolutionStandard, Container};
+use crate::profile::{Container, Profile, ResolutionStandard};
 use crate::worker_manager::Encode;
 use crate::{
     designation::{from_i32, Designation},
@@ -16,7 +16,7 @@ use crate::{
 use crate::{pathbuf_file_name_to_string, pathbuf_to_string, pathbuf_with_suffix};
 use diesel::PgConnection;
 use rand::Rng;
-use tracing::{error, warn, debug};
+use tracing::{debug, error, warn};
 
 #[derive(Clone, Debug)]
 pub struct FileVersion {
@@ -47,25 +47,27 @@ impl FileVersion {
             height: file_version_model.height,
             framerate: file_version_model.framerate,
             length_time: file_version_model.length_time,
-            resolution_standard: ResolutionStandard::from_wrapped(file_version_model.resolution_standard),
+            resolution_standard: ResolutionStandard::from_wrapped(
+                file_version_model.resolution_standard,
+            ),
             container: Container::from_wrapped(file_version_model.container),
         }
     }
 
     pub fn profile_is_none(&self) -> bool {
         self.width.is_none()
-        || self.height.is_none()
-        || self.framerate.is_none()
-        || self.length_time.is_none()
-        || self.resolution_standard.is_none()
-        || self.container.is_none()
+            || self.height.is_none()
+            || self.framerate.is_none()
+            || self.length_time.is_none()
+            || self.resolution_standard.is_none()
+            || self.container.is_none()
     }
 
     //TODO: Add reporting
     //Destructive operation, will overwrite previous values
     pub fn generate_profile_if_none(&mut self, connection: &PgConnection) {
         if self.profile_is_none() {
-                self.generate_profile(connection);
+            self.generate_profile(connection);
         }
     }
 
@@ -205,11 +207,14 @@ impl Generic {
         self.file_versions.push(file_version)
     }
 
-    //TODO: Guarantee that the hashes are being written to the correct structure
     pub fn update_hashes_from_file_versions(&mut self, file_versions: &[FileVersion]) {
-        for (i, file_version) in self.file_versions.iter_mut().enumerate() {
-            file_version.fast_hash = file_versions[i].fast_hash.clone();
-            file_version.hash = file_versions[i].hash.clone();
+        for file_version in self.file_versions.iter_mut() {
+            for new_file_version in file_versions {
+                if new_file_version.id == file_version.id {
+                    file_version.fast_hash = new_file_version.fast_hash.clone();
+                    file_version.hash = new_file_version.hash.clone();
+                }
+            }
         }
     }
 
