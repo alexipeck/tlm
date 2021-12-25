@@ -28,7 +28,10 @@ pub fn establish_connection() -> PgConnection {
 }
 
 pub fn update_file_version(file_version: &FileVersion, connection: &PgConnection) {
-    if FileVersionModel::from_file_version(file_version).save_changes::<FileVersionModel>(connection).is_err() {
+    if FileVersionModel::from_file_version(file_version)
+        .save_changes::<FileVersionModel>(connection)
+        .is_err()
+    {
         error!("Failed to update file_version in database");
         panic!();
     }
@@ -59,9 +62,7 @@ pub fn create_file_versions(
         })
 }
 
-pub fn create_file_version(
-    new_file_version: NewFileVersion,
-) -> FileVersionModel {
+pub fn create_file_version(new_file_version: NewFileVersion) -> FileVersionModel {
     create_file_versions(&establish_connection(), vec![new_file_version])[0].to_owned()
 }
 
@@ -149,21 +150,6 @@ pub fn get_all_generics() -> Vec<Generic> {
         generics.push(Generic::from_generic_model(generic_model));
     }
     generics
-}
-
-pub fn worker_exists(uid: i32) -> bool {
-    for worker in worker_data
-        .load::<WorkerModel>(&establish_connection())
-        .unwrap_or_else(|err| {
-            error!("Error loading worker. Err: {}", err);
-            panic!();
-        })
-    {
-        if worker.id == uid {
-            return true;
-        }
-    }
-    false
 }
 
 pub fn get_all_workers() -> VecDeque<Worker> {
