@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt;
+use std::path::Path;
 use std::process::Command;
 use std::str::from_utf8;
 use tracing::error;
-use std::path::PathBuf;
 
 ///Currently unused enum to allow filtering media by resolution standard
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
@@ -178,7 +178,7 @@ impl fmt::Display for BasicProfile {
 
 impl BasicProfile {
     ///Create profile from a pathbuf
-    pub fn from_file(path: &PathBuf) -> Option<Self> {
+    pub fn from_file(path: &Path) -> Option<Self> {
         let buffer;
         //linux & friends
         buffer = Command::new("mediainfo")
@@ -262,13 +262,12 @@ impl ConversionProfile {
 pub struct Profile {
     //Current
     pub current_profile: BasicProfile,
-
     //Future
     //pub future_profile: Option<ConversionProfile>,
 }
 
 impl Profile {
-    pub fn new(full_path: &PathBuf) -> Self {
+    pub fn new(full_path: &Path) -> Self {
         if let Some(basic_profile) = BasicProfile::from_file(full_path) {
             Self {
                 current_profile: basic_profile,
@@ -276,7 +275,7 @@ impl Profile {
             }
         } else {
             panic!();
-        }   
+        }
     }
 
     pub fn from_basic_profile(basic_profile: BasicProfile) -> Self {
