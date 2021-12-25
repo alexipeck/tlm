@@ -1,6 +1,7 @@
 //!Set of functions and structures to make is easier to handle the config file
 //!and command line arguments
 use crate::file_manager::TrackedDirectories;
+use crate::pathbuf_to_string;
 use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
 use directories::BaseDirs;
 use fancy_regex::Regex;
@@ -28,6 +29,9 @@ pub struct ServerConfig {
 pub struct WorkerConfig {
     pub server_address: String,
     pub server_port: u16,
+    pub uid: Option<i32>,
+    #[serde(skip)]
+    config_path: PathBuf,
 }
 
 impl fmt::Display for WorkerConfig {
@@ -38,10 +42,10 @@ impl fmt::Display for WorkerConfig {
 
 impl WorkerConfig {
     pub fn new(config_path: PathBuf) -> WorkerConfig {
-        let config: WorkerConfig;
+        let mut config: WorkerConfig;
 
         if config_path.exists() {
-            let config_toml = match fs::read_to_string(config_path) {
+            let config_toml = match fs::read_to_string(config_path.clone()) {
                 Ok(config_toml) => config_toml,
                 Err(err) => {
                     error!("Failed to read config file: {}", err);
@@ -60,6 +64,8 @@ impl WorkerConfig {
             config = WorkerConfig {
                 server_address: "127.0.0.1".to_string(),
                 server_port: 8888,
+                uid: None,
+                config_path: config_path.clone(),
             };
             let toml = toml::to_string(&config).unwrap();
             if fs::write(config_path.clone(), toml).is_err() {
@@ -70,8 +76,19 @@ impl WorkerConfig {
                 panic!();
             }
         }
-
+        config.config_path = config_path;
         config
+    }
+
+    pub fn update_config_on_disk(&self) {
+        let toml = toml::to_string(&self).unwrap();
+        if fs::write(self.config_path.clone(), toml).is_err() {
+            error!(
+                "Failed to write config file at: {}",
+                self.config_path.to_string_lossy()
+            );
+            panic!();
+        }
     }
 }
 
@@ -169,7 +186,7 @@ impl Default for Preferences {
             print_shows: false,
             print_episode: false,
             print_general: false,
-            config_file_path: String::from(config_path.to_str().unwrap()),
+            config_file_path: pathbuf_to_string(&config_path),
             timing_enabled: false,
             timing_threshold: 0,
             port: None,

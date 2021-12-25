@@ -1,45 +1,48 @@
-use crate::generic::Generic;
+use crate::database::get_all_workers;
+use crate::database::{create_worker, establish_connection};
+use crate::model::NewWorker;
+use crate::pathbuf_file_name_to_string;
+use crate::worker::{Worker, WorkerMessage};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
+    net::SocketAddr,
     path::PathBuf,
     process::{Child, Command},
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc, Mutex, RwLock,
-    },
+    sync::{Arc, Mutex, RwLock},
+    time::Instant,
 };
 use tokio_tungstenite::tungstenite::Message;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
-static WORKER_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
-
-///Struct to represent a file encode task. This is needed so we can have an enum
-///that contains all types of task
-///This should probably handle it's current variables without having them passed
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Encode {
+    pub generic_uid: i32,
     pub source_path: PathBuf,
-    pub future_filename: String,
+    pub target_path: PathBuf,
     pub encode_options: Vec<String>,
-    //pub profile: Profile,
 }
 
 impl Encode {
-    pub fn new(source_path: PathBuf, future_filename: String, encode_options: Vec<String>) -> Self {
+    pub fn new(
+        generic_uid: i32,
+        source_path: PathBuf,
+        target_path: PathBuf,
+        encode_options: Vec<String>,
+    ) -> Self {
         Self {
+            generic_uid,
             source_path,
-            future_filename,
+            target_path,
             encode_options,
         }
     }
 
-    ///Write lock
     pub fn run(self, handle: Arc<RwLock<Option<Child>>>) {
         info!(
             "Encoding file \'{}\'",
-            Generic::get_filename_from_pathbuf(self.source_path.clone())
+            pathbuf_file_name_to_string(&self.source_path)
         );
 
         let _ = handle.write().unwrap().insert(
@@ -51,162 +54,181 @@ impl Encode {
     }
 }
 
-#[derive(Debug)] //, Serialize, Deserialize
-pub struct Worker {
-    uid: usize,
-    tx: UnboundedSender<Message>,
-    transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
-    //TODO: Time remaining on current episode
-    //TODO: Current encode percentage
-    //TODO: Worker UID, should be based on some hardware identifier, so it can be regenerated
-    //NOTE: If this is running under a Docker container, it may have a random MAC address, so on reboot,
-    //    : becoming a new worker will probably mean the old one should be dropped after x amount of time.
-}
-
-impl Worker {
-    pub fn new(tx: UnboundedSender<Message>) -> Self {
-        Self {
-            uid: WORKER_UID_COUNTER.fetch_add(1, Ordering::SeqCst),
-            tx,
-            transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
-        }
-    }
-
-    ///Write lock
-    pub fn spaces_in_queue(&mut self) -> usize {
-        //TODO: Make queue capacity come from the config file
-        2 - self.transcode_queue.read().unwrap().len()
-    }
-
-    ///Write lock
-    ///Returns true if there was no encodes in the queue
-    pub fn add_transcode_to_queue(
-        &mut self,
-        transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
-    ) -> bool {
-        match transcode_queue.lock().unwrap().pop_front() {
-            Some(encode) => {
-                self.transcode_queue.write().unwrap().push_back(encode);
-            }
-            None => {
-                info!("No encode tasks to send to the worker");
-                return true;
-            }
-        }
-        false
-    }
-
-    ///Write lock
-    ///Returns true if there was no encodes in the queue
-    pub fn fill_transcode_queue(&mut self, transcode_queue: Arc<Mutex<VecDeque<Encode>>>) -> bool {
-        for _ in 0..self.spaces_in_queue() {
-            match transcode_queue.lock().unwrap().pop_front() {
-                Some(encode) => {
-                    self.transcode_queue.write().unwrap().push_back(encode);
-                }
-                None => {
-                    info!("No encode tasks to send to the worker");
-                    return true;
-                }
-            }
-        }
-        false
-    }
-
-    pub fn send_message_to_worker(&mut self, worker_message: WorkerMessage) {
-        self.tx
-            .start_send(Message::Binary(
-                bincode::serialize::<WorkerMessage>(&worker_message).unwrap(),
-            ))
-            .unwrap_or_else(|err| error!("{}", err));
-        //TODO: Have the worker send a message to the server if it can't access the file
-    }
-
-    ///Write lock
-    pub fn add_to_queue(&mut self, encode: Encode) {
-        //share credentials will have to be handled on the worker side
-        if !encode.source_path.exists() {
-            error!(
-                "source_path is not accessible from the server: {:?}",
-                encode.source_path
-            );
-            //TODO: mark this Encode Task as failed because "file not found", change it to a
-            //      state where it can be stored, then manually repaired before being restarted,
-            panic!();
-        }
-
-        //Adds the encode to the workers queue server-side, this should mirror the client-side queue
-        self.transcode_queue
-            .write()
-            .unwrap()
-            .push_back(encode.clone());
-
-        //Sends the encode to the worker
-        self.send_message_to_worker(WorkerMessage::for_encode(encode, AddEncodeMode::Back));
-    }
-
-    pub fn check_if_active(&mut self) {
-        //If the connection is active, do nothing.
-        //TODO: If something is wrong with the connection, close the connection server-side, making this worker unavailable, start timeout for removing the work assigned to the worker.
-        //    : If there's not enough work for other workers, immediately shift the encodes to other workers (put it back in the encode queue)
-    }
+pub enum WorkerAction {
+    ClearCurrentTranscode(i32),
 }
 
 pub struct WorkerManager {
-    workers: VecDeque<Worker>,
+    workers: Arc<Mutex<VecDeque<Worker>>>,
+    closed_workers: VecDeque<Worker>,
     transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
+    timeout_threshold: u64,
 }
 
 impl WorkerManager {
-    pub fn default() -> Self {
+    pub fn new(
+        workers: Arc<Mutex<VecDeque<Worker>>>,
+        transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
+        timeout_threshold: u64,
+    ) -> Self {
         Self {
-            workers: VecDeque::new(),
-            transcode_queue: Arc::new(Mutex::new(VecDeque::new())),
+            workers,
+            closed_workers: get_all_workers(),
+            transcode_queue,
+            timeout_threshold,
         }
     }
 
-    pub fn add_worker(&mut self, tx: UnboundedSender<Message>) -> usize {
-        let mut new_worker = Worker::new(tx);
-        let uid = new_worker.uid;
-        new_worker.send_message_to_worker(WorkerMessage::text(
-            "Worker successfully initialised".to_string(),
-        ));
-        self.workers.push_back(new_worker);
-        uid
-    }
-
-    pub fn remove_worker(&mut self, uid: usize) {
-        for (i, worker) in self.workers.iter().enumerate() {
-            if worker.uid == uid {
-                self.workers.remove(i);
-                break;
-            }
+    pub fn perform_on_worker(
+        &mut self,
+        worker_uid: Option<i32>,
+        mut worker_actions: Vec<WorkerAction>,
+    ) {
+        if worker_uid.is_none() {
+            panic!(
+                "The server was asked to run actions on an empty worker_uid. | None Option<i32>"
+            );
         }
-    }
-
-    pub fn fill_worker_transcode_queues(&mut self) {
-        if self.transcode_queue.lock().unwrap().len() > 0 {
-            return;
-        }
-        for worker in &mut self.workers {
-            worker.fill_transcode_queue(self.transcode_queue.clone());
-        }
-    }
-
-    pub fn send_encode_to_specific_worker(&mut self, _worker_uid: usize, _encode: Encode) {
-        //TODO
-    }
-
-    //TODO: Find better name
-    pub fn send_encode_to_next_available_worker(&mut self, encode: Encode) {
-        for worker in &mut self.workers {
-            if worker.spaces_in_queue() > 0 {
-                worker.add_to_queue(encode);
+        for worker in self.workers.lock().unwrap().iter_mut() {
+            if worker.uid == worker_uid {
+                while !worker_actions.is_empty() {
+                    if let Some(worker_action) = worker_actions.pop() {
+                        match worker_action {
+                            WorkerAction::ClearCurrentTranscode(generic_uid) => {
+                                worker.clear_current_transcode(generic_uid);
+                            }
+                        }
+                    }
+                }
                 return;
             }
         }
+        panic!("Worker with UID: {} was not found", worker_uid.unwrap());
+    }
 
-        self.transcode_queue.lock().unwrap().push_back(encode);
+    pub fn clear_current_transcode_from_worker(&mut self, worker_uid: i32, generic_uid: i32) {
+        let worker_uid: Option<i32> = Some(worker_uid);
+        let mut worker_lock = self.workers.lock().unwrap();
+        for worker in worker_lock.iter_mut() {
+            if worker.uid == worker_uid {
+                worker.clear_current_transcode(generic_uid);
+            }
+        }
+    }
+
+    //atm, we only care about the IP address in the SocketAddr, leaving the whole thing because it deals with both IPV4 and IPV6
+    pub fn add_worker(
+        &mut self,
+        worker_ip_address: SocketAddr,
+        tx: UnboundedSender<Message>,
+    ) -> i32 {
+        let connection = establish_connection();
+        let mut new_worker = Worker::new(None, worker_ip_address, tx);
+        let new_id = create_worker(&connection, NewWorker::from_worker(new_worker.clone()));
+        new_worker.uid = Some(new_id);
+        new_worker.send_message_to_worker(WorkerMessage::WorkerID(new_worker.uid.unwrap()));
+        new_worker.send_message_to_worker(WorkerMessage::Announce(
+            "Worker successfully initialised".to_string(),
+        ));
+        self.workers.lock().unwrap().push_back(new_worker);
+        new_id
+    }
+
+    pub fn polling_event(&mut self) {
+        self.drop_timed_out_workers();
+        self.fill_transcode_queues();
+    }
+
+    pub fn reestablish_worker(
+        &mut self,
+        worker_uid: Option<i32>,
+        worker_ip_address: SocketAddr,
+        tx: UnboundedSender<Message>,
+    ) -> bool {
+        //Worker can't be reestablished if it doesn't have/send a uid
+        if worker_uid.is_none() {
+            return false;
+        };
+        let mut index: Option<usize> = None;
+        for (i, worker) in self.closed_workers.iter_mut().enumerate() {
+            if worker.uid == worker_uid {
+                worker.update(worker_ip_address, tx);
+                worker.close_time = None;
+                index = Some(i);
+                break;
+            }
+        }
+        if index.is_none() {
+            return false;
+        }
+
+        let mut reestablished_worker = self.closed_workers.remove(index.unwrap()).unwrap();
+        reestablished_worker.send_message_to_worker(WorkerMessage::Announce(
+            "Worker successfully re-established".to_string(),
+        ));
+        self.workers.lock().unwrap().push_back(reestablished_worker); //Check if unwrapping .remove() is safe
+        info!("Worker successfully re-established");
+        true
+    }
+
+    pub fn drop_timed_out_workers(&mut self) {
+        let mut indexes: Vec<usize> = Vec::new();
+        for (i, worker) in self.closed_workers.iter_mut().enumerate() {
+            //Check if worker has been timed out
+            if worker.close_time.is_none() {
+                continue;
+            }
+
+            //Clear worker queue and add it back to main queue
+            if worker.close_time.unwrap().elapsed().as_secs() > self.timeout_threshold {
+                indexes.push(i);
+            }
+        }
+        indexes.reverse();
+        for index in indexes {
+            if let Some(mut worker) = self.closed_workers.remove(index) {
+                self.transcode_queue
+                    .lock()
+                    .unwrap()
+                    .append(&mut worker.transcode_queue.write().unwrap());
+                //clear the workers queue
+                worker.transcode_queue.write().unwrap().clear();
+                worker.close_time = None;
+            }
+        }
+    }
+
+    pub fn start_worker_timeout(&mut self, worker_uid: i32) {
+        let mut workers_lock = self.workers.lock().unwrap();
+        for (index, worker) in workers_lock.iter_mut().enumerate() {
+            if worker.uid.unwrap() == worker_uid {
+                worker.close_time = Some(Instant::now());
+                self.closed_workers
+                    .push_back(workers_lock.remove(index).unwrap());
+                return;
+            }
+        }
+        warn!(
+            "The WorkerManager couldn't find a worker associated with this worker_uid: {}",
+            worker_uid
+        );
+    }
+
+    ///Uses Round-robin fill method
+    pub fn fill_transcode_queues(&mut self) {
+        for worker in self.workers.lock().unwrap().iter_mut() {
+            if worker.spaces_in_queue() < 1 {
+                continue;
+            }
+            match self.transcode_queue.lock().unwrap().pop_front() {
+                Some(encode) => {
+                    worker.add_to_queue(encode);
+                }
+                None => {
+                    break;
+                }
+            }
+        }
     }
 
     pub fn send_notification_to_all_workers(&mut self) {}
@@ -230,7 +252,6 @@ impl WorkerTranscodeQueue {
     }
 
     //Current transcode handle control
-    ///Write lock
     ///Kills the currently running encode and removes the handle
     fn kill_current_transcode_process(&mut self) {
         let handle = self.current_transcode_handle.write().unwrap().take();
@@ -247,27 +268,6 @@ impl WorkerTranscodeQueue {
     }
 
     ///Read-only lock
-    fn handle_is_some(&self) -> bool {
-        self.current_transcode_handle.read().unwrap().is_some()
-    }
-
-    ///Read-only lock
-    fn handle_is_none(&self) -> bool {
-        self.current_transcode_handle.read().unwrap().is_none()
-    }
-
-    //Current transcode control
-    ///Read-only lock
-    fn current_transcode_is_some(&self) -> bool {
-        self.current_transcode.read().unwrap().is_some()
-    }
-
-    ///Read-only lock
-    fn current_transcode_is_none(&self) -> bool {
-        self.current_transcode.read().unwrap().is_none()
-    }
-
-    ///Read-only lock
     ///If the queue is at capacity, it will yield an error
     pub fn check_queue_capacity(&self) {
         if self.transcode_queue.read().unwrap().len() > 2 {
@@ -275,17 +275,15 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    ///Write lock
-    fn clear_current_transcode(&mut self) {
+    pub fn clear_current_transcode(&mut self) {
         //Currently goes to the abyss
         //TODO: Store this somewhere or do something with it as a record that the worker has completed the transcode.
         let _ = self.current_transcode.write().unwrap().take();
     }
 
-    ///Write lock
     fn start_current_transcode_if_some(&mut self) {
-        if self.current_transcode_is_some() {
-            if self.handle_is_some() {
+        if self.current_transcode.read().unwrap().is_some() {
+            if self.current_transcode_handle.read().unwrap().is_some() {
                 self.kill_current_transcode_process();
             }
             self.current_transcode
@@ -299,20 +297,38 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    ///Write lock
-    pub fn run_transcode(&mut self) {
-        //Check the state of the current encode/handle
-        if self.current_transcode_is_some() && self.handle_is_some() {
-            error!("There is already an transcode running");
-            return;
+    pub fn run_transcode(
+        &mut self,
+        worker_uid: Arc<RwLock<Option<i32>>>,
+        mut tx: UnboundedSender<Message>,
+    ) {
+        {
+            let transcode_lock = self.current_transcode.read().unwrap();
+            let handle_lock = self.current_transcode_handle.read().unwrap();
+            //Check the state of the current encode/handle
+            if transcode_lock.is_some() && handle_lock.is_some() {
+                error!("There is already an transcode running");
+                return;
+            }
         }
 
         //Add a transcode current if there isn't one already there
         //Assigns current_transcode an
         if self.make_transcode_current() {
             self.start_current_transcode_if_some();
-
-            if self.handle_is_some() {
+            let _ = tx.start_send(
+                WorkerMessage::EncodeStarted(
+                    worker_uid.read().unwrap().unwrap(),
+                    self.current_transcode
+                        .read()
+                        .unwrap()
+                        .as_ref()
+                        .unwrap()
+                        .generic_uid,
+                )
+                .to_message(),
+            );
+            if self.current_transcode_handle.read().unwrap().is_some() {
                 let output = self
                     .current_transcode_handle
                     .clone()
@@ -329,28 +345,42 @@ impl WorkerTranscodeQueue {
 
                 if ok {
                     self.clear_current_transcode();
+                    let _ = tx.start_send(
+                        WorkerMessage::EncodeFinished(
+                            worker_uid.read().unwrap().unwrap(),
+                            self.current_transcode
+                                .read()
+                                .unwrap()
+                                .as_ref()
+                                .unwrap()
+                                .generic_uid,
+                            self.current_transcode
+                                .read()
+                                .unwrap()
+                                .as_ref()
+                                .unwrap()
+                                .target_path
+                                .clone(),
+                        )
+                        .to_message(),
+                    );
                 }
-
-                //only uncomment if you want disgusting output
-                //should be error, but from ffmpeg, stderr mostly consists of stdout information
             }
         }
     }
 
-    ///Write lock
     ///Makes a transcode current if there isn't one already there
     ///Returns true if there is a transcode ready to go after this function has run
     fn make_transcode_current(&mut self) -> bool {
-        if self.current_transcode_is_none() {
+        if self.current_transcode.read().unwrap().is_none() {
             if let Some(encode) = self.transcode_queue.write().unwrap().pop_front() {
                 let _ = self.current_transcode.write().unwrap().insert(encode);
             }
         }
 
-        self.current_transcode_is_some()
+        self.current_transcode.read().unwrap().is_some()
     }
 
-    ///Write lock
     ///Swaps out passed in encode for the currently running one and moved it to the front of the queue
     fn replace_current_encode(&mut self, encode: Encode) {
         if let Some(current_encode) = self.current_transcode.write().unwrap().replace(encode) {
@@ -361,9 +391,7 @@ impl WorkerTranscodeQueue {
         }
     }
 
-    ///Write lock
-    pub fn add_encode(&mut self, encode: (Encode, AddEncodeMode)) {
-        let (encode, add_encode_mode) = encode;
+    pub fn add_encode(&mut self, encode: Encode, add_encode_mode: AddEncodeMode) {
         match add_encode_mode {
             AddEncodeMode::Back => {
                 self.check_queue_capacity();
@@ -374,7 +402,7 @@ impl WorkerTranscodeQueue {
                 self.transcode_queue.write().unwrap().push_front(encode);
             }
 
-            AddEncodeMode::NowBasic => {
+            AddEncodeMode::Now => {
                 //Kill currently running encode and remove the handle
                 self.kill_current_transcode_process();
 
@@ -392,41 +420,5 @@ impl WorkerTranscodeQueue {
 pub enum AddEncodeMode {
     Back,
     Next,
-    NowBasic,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WorkerMessage {
-    //identifier: String,
-    pub text: Option<String>,
-    pub encode: Option<(Encode, AddEncodeMode)>,
-}
-
-impl WorkerMessage {
-    fn text(text: String) -> Self {
-        Self {
-            text: Some(text),
-            encode: None,
-        }
-    }
-    //do something else, like shutdown, cancel current encode, flush queue, switch to running a specific encode (regardless of progress)
-    //many of these actions are destructive, many of them will technically waste CPU time
-    //most functions for a worker will be handled here
-    pub fn for_command(text: String) -> Self {
-        WorkerMessage::text(text)
-    }
-
-    pub fn for_encode(encode: Encode, encode_add_mode: AddEncodeMode) -> Self {
-        Self {
-            text: None,
-            encode: Some((encode, encode_add_mode)),
-        }
-    }
-
-    //this would be used to let the worker know the server will be unavailable for x amount of time and
-    //to continue to establish a websocket connection, but continue working on it's encode queue
-    //or for the server to output to the workers console
-    pub fn announcement(text: String) -> Self {
-        WorkerMessage::text(text)
-    }
+    Now,
 }

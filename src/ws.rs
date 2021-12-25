@@ -1,13 +1,18 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
 use std::{collections::VecDeque, sync::RwLock};
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 use crate::{
     config::WorkerConfig,
+    database::{create_file_version, print_all_worker_models},
     file_manager::FileManager,
-    scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
-    worker_manager::{Encode, WorkerManager, WorkerMessage, WorkerTranscodeQueue},
+    generic::FileVersion,
+    model::NewFileVersion,
+    pathbuf_to_string,
+    scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType, GenerateProfiles},
+    worker::WorkerMessage,
+    worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue},
 };
 
 use std::{
@@ -27,7 +32,7 @@ use tokio::signal;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 type Tx = UnboundedSender<Message>;
-type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<usize>, Tx)>>>;
+type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<i32>, Tx)>>>;
 
 async fn handle_web_connection(
     peer_map: PeerMap,
@@ -35,6 +40,7 @@ async fn handle_web_connection(
     addr: SocketAddr,
     tasks: Arc<Mutex<VecDeque<Task>>>,
     file_manager: Arc<Mutex<FileManager>>,
+    worker_mananger_transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
     worker_manager: Arc<Mutex<WorkerManager>>,
 ) {
     info!("Incoming TCP connection from: {}", addr);
@@ -56,56 +62,104 @@ async fn handle_web_connection(
     let (outgoing, incoming) = ws_stream.split();
 
     let broadcast_incoming = incoming.try_for_each(|msg| {
-        let message = msg
-            .to_text()
-            .unwrap()
-            .strip_suffix("\r\n")
-            .or_else(|| msg.to_text().unwrap().strip_suffix('\n'))
-            .unwrap_or_else(|| msg.to_text().unwrap());
+        if msg.is_text() {
+            let message = msg
+                .to_text()
+                .unwrap()
+                .strip_suffix("\r\n")
+                .or_else(|| msg.to_text().unwrap().strip_suffix('\n'))
+                .unwrap_or_else(|| msg.to_text().unwrap());
+            match message {
+                "hash" => tasks
+                    .lock()
+                    .unwrap()
+                    .push_back(Task::new(TaskType::Hash(Hash::default()))),
+                "import" => tasks
+                    .lock()
+                    .unwrap()
+                    .push_back(Task::new(TaskType::ImportFiles(ImportFiles::default()))),
+                "process" => tasks
+                    .lock()
+                    .unwrap()
+                    .push_back(Task::new(TaskType::ProcessNewFiles(
+                        ProcessNewFiles::default(),
+                    ))),
+                "generate_profiles" => tasks
+                    .lock()
+                    .unwrap()
+                    .push_back(Task::new(TaskType::GenerateProfiles(
+                        GenerateProfiles::default(),
+                    ))),
+                "display_workers" => print_all_worker_models(),
 
-        info!("Received a message from {}: {}", addr, message);
-
-        match message {
-            "hash" => tasks
-                .lock()
-                .unwrap()
-                .push_back(Task::new(TaskType::Hash(Hash::default()))),
-            "import" => tasks
-                .lock()
-                .unwrap()
-                .push_back(Task::new(TaskType::ImportFiles(ImportFiles::default()))),
-            "process" => tasks
-                .lock()
-                .unwrap()
-                .push_back(Task::new(TaskType::ProcessNewFiles(
-                    ProcessNewFiles::default(),
-                ))),
-            "initialise_worker" => {
-                if true {
-                    let uid = worker_manager.lock().unwrap().add_worker(tx.clone());
-                    peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = Some(uid);
-                }
+                _ => warn!("{} is not a valid input", message),
             }
-            //TODO: Encode message needs a UID for transcoding a specific generic/episode
-            "transcode" => match file_manager.lock().unwrap().pick_random_generic() {
-                Some(generic) => {
-                    let encode: Encode = Encode::new(
-                        generic.full_path.clone(),
-                        generic.generate_target_path(),
-                        generic.generate_encode_string(),
-                    );
+        } else if msg.is_binary() {
+            match WorkerMessage::from_message(msg) {
+                WorkerMessage::Initialise(mut worker_uid) => {
+                    //if true {//TODO: authenticate/validate
+                    if !worker_manager.lock().unwrap().reestablish_worker(
+                        worker_uid,
+                        addr,
+                        tx.clone(),
+                    ) {
+                        //We need the new uid so we can set it correctly in the peer map
+                        worker_uid =
+                            Some(worker_manager.lock().unwrap().add_worker(addr, tx.clone()));
+                    }
+                    peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
+                    //}
+                }
+                WorkerMessage::EncodeGeneric(generic_uid, file_version_id, add_encode_mode) => {
+                    match file_manager
+                        .lock()
+                        .unwrap()
+                        .get_encode_from_generic_uid(generic_uid, file_version_id)
+                    {
+                        Some(encode) => {
+                            match add_encode_mode {
+                                AddEncodeMode::Back => {
+                                    worker_mananger_transcode_queue
+                                        .lock()
+                                        .unwrap()
+                                        .push_back(encode);
+                                }
+                                AddEncodeMode::Next => {
+                                    worker_mananger_transcode_queue
+                                        .lock()
+                                        .unwrap()
+                                        .push_front(encode);
+                                }
+                                AddEncodeMode::Now => {
+                                    //TODO: Implement immediate encode
+                                }
+                            }
+                            info!("Setting up generic for transcode");
+                        }
+                        None => {
+                            info!("No generics available to transcode");
+                        }
+                    }
+                }
+                WorkerMessage::EncodeStarted(worker_uid, generic_uid) => info!(
+                    "Worker with UID: {} has started transcoding generic with UID: {}",
+                    worker_uid, generic_uid
+                ),
+                WorkerMessage::EncodeFinished(worker_uid, generic_uid, full_path) => {
                     worker_manager
                         .lock()
                         .unwrap()
-                        .send_encode_to_next_available_worker(encode);
-                    info!("Setting up generic for transcode");
+                        .clear_current_transcode_from_worker(worker_uid, generic_uid);
+                    if !file_manager.lock().unwrap().insert_file_version(&FileVersion::from_file_version_model(create_file_version(NewFileVersion::new(generic_uid, pathbuf_to_string(&full_path), false)))) {
+                        error!("This should've found a generic to insert it into, this shouldn't have happened.");
+                        panic!();
+                    }
+                    //TODO: Make an enum of actions that could be performed on a Worker, like clear_current_transcode
                 }
-                None => {
-                    info!("No generics available to transcode");
+                _ => {
+                    warn!("Server recieved a message it doesn't know how to handle");
                 }
-            },
-            //"encode" => encode_tasks.lock().unwrap().push_back(Task::new(TaskType::Encode(Encode::new())))
-            _ => warn!("{} is not a valid input", message),
+            }
         }
 
         future::ok(())
@@ -120,7 +174,11 @@ async fn handle_web_connection(
     let mut lock = peer_map.lock().unwrap();
     //The worker should always exist for as long as the connection exists
     if let Some(to_remove) = lock.get(&addr).unwrap().0 {
-        worker_manager.lock().unwrap().remove_worker(to_remove);
+        //TODO: Only have it remove the worker if it hasn't reestablished the connection withing x amount of time
+        worker_manager
+            .lock()
+            .unwrap()
+            .start_worker_timeout(to_remove);
     }
 
     lock.remove(&addr);
@@ -130,6 +188,7 @@ pub async fn run_web(
     port: u16,
     tasks: Arc<Mutex<VecDeque<Task>>>,
     file_manager: Arc<Mutex<FileManager>>,
+    worker_mananger_transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
     worker_manager: Arc<Mutex<WorkerManager>>,
 ) -> Result<(), IoError> {
     let addr_ipv4 = env::args()
@@ -181,34 +240,34 @@ pub async fn run_web(
         if is_listening_ipv4 && is_listening_ipv6 {
             tokio::select! {
                 _ = signal::ctrl_c() => {
-                    warn!("Ctrl-C recieved, shutting down");
+                    warn!("Ctrl-C received, shutting down");
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
                 }
                 Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
                 }
             }
         } else if is_listening_ipv4 {
             tokio::select! {
                 _ = signal::ctrl_c() => {
-                    warn!("Ctrl-C recieved, shutting down");
+                    warn!("Ctrl-C received, shutting down");
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
                 }
             }
         } else {
             tokio::select! {
                 _ = signal::ctrl_c() => {
-                    warn!("Ctrl-C recieved, shutting down");
+                    warn!("Ctrl-C received, shutting down");
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
                 }
             }
         }
@@ -225,9 +284,9 @@ pub async fn run_web(
 pub async fn run_worker(
     transcode_queue: Arc<RwLock<WorkerTranscodeQueue>>,
     rx: futures_channel::mpsc::UnboundedReceiver<Message>,
-    config: WorkerConfig,
+    config: Arc<RwLock<WorkerConfig>>,
 ) -> Result<(), IoError> {
-    let url = url::Url::parse(&config.to_string()).unwrap();
+    let url = url::Url::parse(&config.read().unwrap().to_string()).unwrap();
 
     let ws_stream;
     match connect_async(url).await {
@@ -244,25 +303,28 @@ pub async fn run_worker(
             let message = message.unwrap();
             if message.is_close() {
                 info!("Server has disconnected voluntarily");
-                //stop_worker.store(true, Ordering::Relaxed);
+                //TODO: Trigger the worker to start trying to reestablish the connection
+                //      It should continue a running transcode, but ONLY complete the current transcode until the server connection has been established
+                info!("Worker is beginning to try and reestablish a connection to the server");
+                info!("Worker is continuing it's current transcode");
                 return;
             }
-            let data = message.into_data();
-            let message_result = bincode::deserialize::<WorkerMessage>(&data);
-            match message_result {
-                Ok(message) => {
-                    if message.encode.is_some() {
-                        transcode_queue
-                            .write()
-                            .unwrap()
-                            .add_encode(message.encode.unwrap())
-                    } else if message.text.is_some() {
-                        debug!("{}", message.text.unwrap());
-                    }
+            match WorkerMessage::from_message(message) {
+                WorkerMessage::Encode(encode, add_encode_mode) => {
+                    transcode_queue
+                        .write()
+                        .unwrap()
+                        .add_encode(encode, add_encode_mode);
                 }
-                Err(err) => {
-                    error!("{}", err);
+                WorkerMessage::WorkerID(worker_uid) => {
+                    config.write().unwrap().uid = Some(worker_uid);
+                    config.read().unwrap().update_config_on_disk();
+                    info!("Worker has been given UID: {}", worker_uid);
                 }
+                WorkerMessage::Announce(text) => {
+                    info!("Announcement: {}", text);
+                }
+                _ => warn!("Worker received a message it doesn't know how to handle"),
             }
         })
     };

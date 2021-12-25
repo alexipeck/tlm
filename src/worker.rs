@@ -1,93 +1,144 @@
-use directories::BaseDirs;
-use std::env;
-use std::io::stdout;
-use std::io::Error as IoError;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc, RwLock,
+use crate::model::WorkerModel;
+use crate::worker_manager::AddEncodeMode;
+use crate::worker_manager::Encode;
+use futures_channel::mpsc::UnboundedSender;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::str::FromStr;
+use std::{
+    collections::VecDeque,
+    net::SocketAddr,
+    sync::{Arc, RwLock},
+    time::Instant,
 };
-use std::thread;
-use std::{thread::sleep, time::Duration};
-use tlm::config::WorkerConfig;
-use tlm::worker_manager::WorkerTranscodeQueue;
-use tlm::ws::run_worker;
-use tokio_tungstenite::tungstenite::protocol::Message;
-use tracing::{error, Level};
-use tracing_subscriber::filter::LevelFilter;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::registry::Registry;
-use tracing_subscriber::Layer;
+use tokio_tungstenite::tungstenite::Message;
+use tracing::error;
 
-#[tokio::main]
-async fn main() -> Result<(), IoError> {
-    let stdout_level = match env::var("TLM_DISPLAYED_LEVEL") {
-        Ok(level_str) => match level_str.to_lowercase().as_str() {
-            "info" => Some(Level::INFO),
-            "debug" => Some(Level::DEBUG),
-            "warning" | "warn" => Some(Level::WARN),
-            "trace" => Some(Level::TRACE),
-            "error" | "err" => Some(Level::ERROR),
-            _ => None,
-        },
-        Err(_) => None,
-    };
+#[derive(Debug, Clone)]
+pub struct Worker {
+    pub uid: Option<i32>,
+    pub worker_ip_address: SocketAddr,
+    tx: Option<UnboundedSender<Message>>,
+    pub transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
+    pub close_time: Option<Instant>,
+    //TODO: Time remaining on current episode
+    //TODO: Current encode percentage
+}
 
-    let base_dirs = BaseDirs::new().unwrap_or_else(|| {
-        error!("Home directory could not be found");
-        panic!();
-    });
-    let log_path = base_dirs.config_dir().join("tlm/logs/");
-
-    let file = tracing_appender::rolling::daily(log_path, "tlm_worker.log");
-    let (stdout_writer, _guard) = tracing_appender::non_blocking(stdout());
-    let (file_writer, _guard) = tracing_appender::non_blocking(file);
-
-    let level_filter;
-    if let Some(level) = stdout_level {
-        level_filter = LevelFilter::from_level(level);
-    } else {
-        level_filter = LevelFilter::from_level(Level::INFO);
-    }
-    let stdout_layer = tracing_subscriber::fmt::layer()
-        .with_writer(stdout_writer)
-        .with_filter(level_filter);
-
-    let logfile_layer = tracing_subscriber::fmt::layer().with_writer(file_writer);
-
-    let subscriber = Registry::default().with(stdout_layer).with(logfile_layer);
-    tracing::subscriber::set_global_default(subscriber).unwrap();
-
-    let config = WorkerConfig::new(base_dirs.config_dir().join("tlm/tlm_worker.config"));
-
-    loop {
-        let transcode_queue: Arc<RwLock<WorkerTranscodeQueue>> =
-            Arc::new(RwLock::new(WorkerTranscodeQueue::default()));
-        let stop_worker = Arc::new(AtomicBool::new(false));
-        let transcode_queue_inner = transcode_queue.clone();
-        let stop_worker_inner = stop_worker.clone();
-        let (mut tx, rx) = futures_channel::mpsc::unbounded();
-
-        tx.start_send(Message::Text("initialise_worker".to_string()))
-            .unwrap();
-        while tx.is_closed() {} //Not a great long term solution
-                                //TODO: Don't create this thread until we actually have a websocket established
-                                //Alternatively, don't worry about it, it isn't really a problem as it is currently
-        
-        let handle = thread::spawn(move || loop {
-            transcode_queue.write().unwrap().run_transcode();
-            sleep(Duration::new(1, 0));
-
-            if stop_worker_inner.load(Ordering::Relaxed) {
-                break;
-            }
-        });
-
-        run_worker(transcode_queue_inner, rx, config.clone()).await?;
-
-        let _ = handle.join();
-        if stop_worker.load(Ordering::Relaxed) {
-            break;
+impl Worker {
+    pub fn new(
+        uid: Option<i32>,
+        worker_ip_address: SocketAddr,
+        tx: UnboundedSender<Message>,
+    ) -> Self {
+        Self {
+            uid,
+            worker_ip_address,
+            tx: Some(tx),
+            transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
+            close_time: None,
         }
     }
-    Ok(())
+    //TODO: Consolidate server-side worker transcode queue and worker-side transcode queue
+    pub fn clear_current_transcode(&mut self, generic_uid: i32) {
+        let mut transcode_queue_lock = self.transcode_queue.write().unwrap();
+        if !transcode_queue_lock.is_empty() {
+            let transcode = transcode_queue_lock.remove(0).unwrap();
+            if transcode.generic_uid != generic_uid {
+                panic!("Server-side and worker-side transcode queues don't mirror each other.");
+            }
+        }
+    }
+
+    pub fn from_worker_model(model: WorkerModel) -> Self {
+        Self {
+            uid: Some(model.id),
+            worker_ip_address: SocketAddr::from_str(&model.worker_ip_address).unwrap(),
+            tx: None,
+            transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
+            close_time: None,
+        }
+    }
+
+    pub fn update(&mut self, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) {
+        self.worker_ip_address = worker_ip_address;
+        self.tx = Some(tx);
+    }
+
+    pub fn spaces_in_queue(&mut self) -> i64 {
+        2 - self.transcode_queue.read().unwrap().len() as i64
+    }
+
+    pub fn send_message_to_worker(&mut self, worker_message: WorkerMessage) {
+        self.tx
+            .clone()
+            .unwrap()
+            .start_send(worker_message.to_message())
+            .unwrap_or_else(|err| error!("{}", err));
+        //TODO: Have the worker send a message to the server if it can't access the file
+    }
+
+    pub fn add_to_queue(&mut self, encode: Encode) {
+        //share credentials will have to be handled on the worker side
+        if !encode.source_path.exists() {
+            error!(
+                "source_path is not accessible from the server: {:?}",
+                encode.source_path
+            );
+            //TODO: mark this Encode Task as failed because "file not found", change it to a
+            //      state where it can be stored, then manually repaired before being restarted,
+            panic!();
+        }
+
+        //Adds the encode to the workers queue server-side, this should mirror the client-side queue
+        self.transcode_queue
+            .write()
+            .unwrap()
+            .push_back(encode.clone());
+
+        //Sends the encode to the worker
+        self.send_message_to_worker(WorkerMessage::Encode(encode, AddEncodeMode::Back));
+    }
+
+    pub fn check_if_active(&mut self) {
+        //If the connection is active, do nothing.
+        //TODO: If something is wrong with the connection, close the connection server-side, making this worker unavailable, start timeout for removing the work assigned to the worker.
+        //    : If there's not enough work for other workers, immediately shift the encodes to other workers (put it back in the encode queue)
+    }
+}
+
+///Messages to be serialised and sent between the worker and server
+#[derive(Serialize, Deserialize)]
+pub enum WorkerMessage {
+    //Worker
+    Encode(Encode, AddEncodeMode),
+    Initialise(Option<i32>),
+    WorkerID(i32),
+    Announce(String),
+    EncodeStarted(i32, i32),
+    EncodeFinished(i32, i32, PathBuf),
+
+    //WebUI
+    EncodeGeneric(i32, i32, AddEncodeMode),
+
+    //Generic
+    Text(String),
+}
+
+impl WorkerMessage {
+    ///Convert WorkerMessage to a tungstenite message for sending over websockets
+    pub fn to_message(&self) -> Message {
+        let serialised = bincode::serialize(self).unwrap_or_else(|err| {
+            error!("Failed to serialise WorkerMessage: {}", err);
+            panic!();
+        });
+        Message::binary(serialised)
+    }
+
+    pub fn from_message(message: Message) -> Self {
+        bincode::deserialize::<WorkerMessage>(&message.into_data()).unwrap_or_else(|err| {
+            error!("Failed to deserialise message: {}", err);
+            panic!();
+        })
+    }
 }
