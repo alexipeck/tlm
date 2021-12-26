@@ -1,7 +1,7 @@
 //!A struct for managing all types of media that are stored in ram as well as
 //!Functionality to import files. This is mostly used in the scheduler
 use crate::{
-    config::{Preferences, ServerConfig},
+    config::ServerConfig,
     database::*,
     designation::Designation,
     generic::{FileVersion, Generic},
@@ -255,7 +255,7 @@ impl FileManager {
     ///episodes and generics based on pattern matching. So far only accepts
     ///The filename pattern SxxExx where Sxx is the season number and Exx
     ///is the episode number
-    pub fn process_new_files(&mut self, preferences: &Preferences) {
+    pub fn process_new_files(&mut self) {
         let connection = establish_connection();
         let mut new_episodes = Vec::new();
         let mut new_generics = Vec::new();
@@ -345,7 +345,7 @@ impl FileManager {
             debug!("{}", pathbuf_to_string(&generic.file_versions[0].full_path));
             let show_title = get_show_title_from_pathbuf(&generic.file_versions[0].full_path);
 
-            let show_uid = self.ensure_show_exists(show_title.clone(), &connection, preferences);
+            let show_uid = self.ensure_show_exists(show_title.clone(), &connection);
             let season_number = season_temp;
             let episode_number = episodes[0];
 
@@ -473,29 +473,6 @@ impl FileManager {
         }
     }
 
-    pub fn print_episodes(&self, preferences: &Preferences) {
-        if !preferences.print_episode && !preferences.episode_output_whitelisted {
-            return;
-        }
-        for show in &self.shows {
-            for season in &show.seasons {
-                for episode in &season.episodes {
-                    episode.print_episode();
-                }
-            }
-        }
-    }
-
-    pub fn print_generics(&self, preferences: &Preferences) {
-        if !preferences.print_generic && !preferences.generic_output_whitelisted {
-            return;
-        }
-
-        for generic in &self.generic_files {
-            debug!("{}", generic);
-        }
-    }
-
     ///Insert a vector of episodes into an existing show
     pub fn insert_episodes(&mut self, episodes: Vec<Episode>) {
         //find the associated show
@@ -527,16 +504,11 @@ impl FileManager {
         &mut self,
         show_title: String,
         connection: &PgConnection,
-        preferences: &Preferences,
     ) -> i32 {
         let show_uid = self.show_exists(show_title.clone());
         match show_uid {
             Some(uid) => uid,
             None => {
-                if preferences.print_shows || preferences.show_output_whitelisted {
-                    debug!("Adding a new show: {}", show_title);
-                }
-
                 let show_model = create_show(connection, show_title.clone());
 
                 let show_uid = show_model.show_uid;
@@ -548,22 +520,6 @@ impl FileManager {
                 self.shows.push(new_show);
 
                 show_uid
-            }
-        }
-    }
-
-    pub fn print_shows(&self, preferences: &Preferences) {
-        if !preferences.print_shows {
-            return;
-        }
-        for show in &self.shows {
-            show.print_show(preferences);
-            for season in &show.seasons {
-                debug!(
-                    "S{:02} has {} episodes",
-                    season.number,
-                    season.episodes.len()
-                );
             }
         }
     }

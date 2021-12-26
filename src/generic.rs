@@ -16,7 +16,7 @@ use crate::{
 use crate::{pathbuf_file_name_to_string, pathbuf_to_string, pathbuf_with_suffix};
 use diesel::PgConnection;
 use rand::Rng;
-use tracing::{debug, error, warn};
+use tracing::{error, warn};
 
 #[derive(Clone, Debug)]
 pub struct FileVersion {

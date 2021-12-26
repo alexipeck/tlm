@@ -160,17 +160,11 @@ impl ServerConfig {
 #[derive(Clone, Debug)]
 pub struct Preferences {
     pub default_print: bool,
-    pub print_generic: bool,
-    pub print_shows: bool,
-    pub print_episode: bool,
-    pub print_general: bool,
     pub config_file_path: String,
+    pub file_system_read_only: bool,
     pub timing_enabled: bool,
     pub timing_threshold: u128,
     pub port: Option<u16>,
-    pub generic_output_whitelisted: bool,
-    pub show_output_whitelisted: bool,
-    pub episode_output_whitelisted: bool,
     pub disable_input: bool,
 }
 impl Default for Preferences {
@@ -182,18 +176,11 @@ impl Default for Preferences {
         let config_path = base_dirs.config_dir().join("tlm/tlm_server.config");
         let mut prepare = Preferences {
             default_print: true,
-            print_generic: false,
-            print_shows: false,
-            print_episode: false,
-            print_general: false,
             config_file_path: pathbuf_to_string(&config_path),
+            file_system_read_only: false,
             timing_enabled: false,
             timing_threshold: 0,
             port: None,
-
-            generic_output_whitelisted: false,
-            show_output_whitelisted: false,
-            episode_output_whitelisted: false,
             disable_input: false,
         };
 
@@ -215,28 +202,10 @@ impl Preferences {
             "Disables printing by default. Specific types of print can be enabled on top of this",
         );
 
-        parser.refer(&mut self.print_generic).add_option(
-            &["--print-generic"],
+        parser.refer(&mut self.file_system_read_only).add_option(
+            &["--file_system_read_only", "--fsro", "--fs_read_only"],
             StoreTrue,
-            "Enable printing generic",
-        );
-
-        parser.refer(&mut self.print_shows).add_option(
-            &["--print-shows"],
-            StoreTrue,
-            "Enable printing shows",
-        );
-
-        parser.refer(&mut self.print_episode).add_option(
-            &["--print-episodes"],
-            StoreTrue,
-            "Enable printing episodes",
-        );
-
-        parser.refer(&mut self.print_general).add_option(
-            &["--print-general"],
-            StoreTrue,
-            "Enable printing general debug information",
+            "Doesn't overwrite any media files",
         );
 
         parser.refer(&mut self.config_file_path).add_option(
@@ -255,18 +224,6 @@ impl Preferences {
             &["--timing-threshold", "--timing-cutoff"],
             Store,
             "Threshold for how slow a timed event has to be in order to print",
-        );
-
-        parser.refer(&mut self.generic_output_whitelisted).add_option(
-            &["--whitelist-generic-output"],
-            StoreTrue,
-            "Whitelist all output from generic, whitelisting a type will cause it to print regardless of other limiting flags",
-        );
-
-        parser.refer(&mut self.show_output_whitelisted).add_option(
-            &["--whitelist-show-output"],
-            StoreTrue,
-            "Whitelist all output from shows, whitelisting a type will cause it to print regardless of other limiting flags",
         );
 
         parser.refer(&mut self.disable_input).add_option(

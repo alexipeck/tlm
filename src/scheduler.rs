@@ -1,5 +1,5 @@
 use crate::{
-    config::{Preferences, ServerConfig},
+    config::ServerConfig,
     database::{establish_connection, update_file_version},
     file_manager::FileManager,
     generic::FileVersion,
@@ -37,9 +37,9 @@ impl ImportFiles {
 pub struct ProcessNewFiles {}
 
 impl ProcessNewFiles {
-    pub fn run(&mut self, file_manager: Arc<Mutex<FileManager>>, preferences: &Preferences) {
+    pub fn run(&mut self, file_manager: Arc<Mutex<FileManager>>) {
         info!("Started processing new files");
-        file_manager.lock().unwrap().process_new_files(preferences);
+        file_manager.lock().unwrap().process_new_files();
         info!("Finished processing new files");
     }
 }
@@ -217,14 +217,13 @@ impl Task {
     pub fn handle_task(
         &mut self,
         file_manager: Arc<Mutex<FileManager>>,
-        preferences: &Preferences,
     ) -> Option<TaskReturnAsync> {
         match &mut self.task_type {
             TaskType::ImportFiles(import_files) => {
                 import_files.run(file_manager);
             }
             TaskType::ProcessNewFiles(process_new_files) => {
-                process_new_files.run(file_manager, preferences);
+                process_new_files.run(file_manager);
             }
             TaskType::Hash(hash) => {
                 return Some(hash.run(file_manager));
@@ -276,7 +275,7 @@ impl Scheduler {
         }
     }
 
-    pub fn start_scheduler(&mut self, preferences: &Preferences) {
+    pub fn start_scheduler(&mut self) {
         let wait_time = time::Duration::from_secs(1);
 
         //Take a handle from any async function and a booleans
@@ -328,7 +327,7 @@ impl Scheduler {
                 task = tasks.pop_front().unwrap();
             }
 
-            let result = task.handle_task(self.file_manager.clone(), preferences);
+            let result = task.handle_task(self.file_manager.clone());
             if let Some(handle) = result {
                 handles.push(handle);
             }

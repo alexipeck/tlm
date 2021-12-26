@@ -92,12 +92,11 @@ async fn main() -> Result<(), IoError> {
         file_manager.clone(),
         stop_scheduler.clone(),
     );
-
-    let inner_pref = preferences.clone();
+    
     //Start the scheduler in it's own thread and return the scheduler at the end
     //so that we can print information before exiting
     let scheduler_handle = thread::spawn(move || {
-        scheduler.start_scheduler(&inner_pref);
+        scheduler.start_scheduler();
         scheduler
     });
 
