@@ -289,13 +289,11 @@ impl FileManager {
                 new_generics.push(NewGeneric::new(generic.designation as i32));
             }
 
-            debug!("Start inserting generics");
             //Insert the generic and then update the uid's for the full Generic structure
             let generic_models = create_generics(&connection, new_generics);
             for i in 0..generic_models.len() {
                 temp_generics_and_paths[i].0.generic_uid = Some(generic_models[i].generic_uid);
             }
-            debug!("Finished inserting generics");
 
             for (generic, full_path) in temp_generics_and_paths {
                 new_file_versions.push(NewFileVersion::new(
@@ -307,7 +305,6 @@ impl FileManager {
             }
         }
 
-        debug!("Start inserting file_versions");
         let file_versions = create_file_versions(&connection, new_file_versions);
         for (i, generic) in generics.iter_mut().enumerate() {
             generic
@@ -317,9 +314,7 @@ impl FileManager {
                 ));
             trace!("Processed {}", generic);
         }
-        debug!("Finished inserting file_versions");
 
-        debug!("Start building episodes");
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for generic in generics.iter_mut() {
             let episode_string: String;
@@ -342,7 +337,6 @@ impl FileManager {
             }
 
             generic.designation = Designation::Episode;
-            debug!("{}", pathbuf_to_string(&generic.file_versions[0].full_path));
             let show_title = get_show_title_from_pathbuf(&generic.file_versions[0].full_path);
 
             let show_uid = self.ensure_show_exists(show_title.clone(), &connection);
@@ -358,7 +352,6 @@ impl FileManager {
             );
             new_episodes.push(new_episode);
         }
-        debug!("Finished building episodes");
 
         let mut temp_generics_only_episodes: Vec<Generic> = Vec::new();
         let mut temp_generics_only_generics: Vec<Generic> = Vec::new();
@@ -372,11 +365,8 @@ impl FileManager {
 
         self.generic_files.append(&mut temp_generics_only_generics);
 
-        debug!("Start inserting episodes");
-        let episode_models = create_episodes(&connection, new_episodes);
-        debug!("Finished inserting episodes");
         let mut episodes: Vec<Episode> = Vec::new();
-        for episode_model in episode_models {
+        for episode_model in create_episodes(&connection, new_episodes) {
             for generic in &temp_generics_only_episodes {
                 if generic.get_generic_uid() == episode_model.generic_uid {
                     let episode = Episode::new(
@@ -392,9 +382,7 @@ impl FileManager {
             }
         }
 
-        debug!("Start filling shows");
         self.insert_episodes(episodes);
-        debug!("Finished filling shows");
     }
 
     pub fn generate_profiles(&mut self) {

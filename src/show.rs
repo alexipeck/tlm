@@ -3,7 +3,7 @@ use crate::{
     generic::{FileVersion, Generic},
     model::*,
 };
-use tracing::{debug, error};
+use tracing::error;
 
 ///Structure contains all episode specific data as well as the underlying
 ///generic file data
@@ -33,38 +33,6 @@ impl Episode {
             show_season,
             show_episode,
         }
-    }
-
-    ///Convert the array of episodes to a string for printing
-    fn get_episode_string(&self) -> String {
-        let episode = self.show_episode.clone();
-        if episode.is_empty() {
-            error!("No episodes in show");
-            panic!();
-        } else {
-            let mut episode_string = String::new();
-            let mut first: bool = true;
-            for episode in episode {
-                if first {
-                    episode_string.push_str(&format!("{}", episode));
-                    first = false;
-                } else {
-                    episode_string += &format!("_{}", episode);
-                }
-            }
-            episode_string
-        }
-    }
-
-    pub fn print_episode(&self) {
-        debug!("[generic_uid:'{:4}'][show_uid:'{:2}'][season:'{:2}'][episode:'{:2}'][full_path:'{}'][show_title:'{}']",
-                self.generic.get_generic_uid(),
-                self.show_uid,
-                self.show_season,
-                self.get_episode_string(),
-                self.generic.get_master_full_path(),
-                self.show_title,
-        );
     }
 }
 
@@ -129,7 +97,6 @@ impl Show {
 
         if !found_season {
             self.seasons.push(Season::new(season_number));
-            debug!("Added {} - Season {}", self.show_title, season_number);
         }
 
         for season in &mut self.seasons {

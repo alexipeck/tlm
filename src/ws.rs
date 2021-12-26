@@ -92,7 +92,6 @@ async fn handle_web_connection(
                     ))),
                 "display_workers" => print_all_worker_models(),
                 "run_completeness_check" => {
-                    debug!("Fuck");
                     fn bool_to_char(bool: bool) -> char {
                         if bool {
                             'T'
@@ -127,15 +126,15 @@ async fn handle_web_connection(
                     let file_manager_lock = file_manager.lock().unwrap();
 
                     debug!("Generics: {}", file_manager_lock.generic_files.len());
-                    let mut t = 0;
+                    let mut episodes_count = 0;
                     for show in file_manager_lock.shows.iter() {
                         for season in show.seasons.iter() {
                             for episode in season.episodes.iter() {
-                                t += episode.generic.file_versions.len();
+                                episodes_count += episode.generic.file_versions.len();
                             }
                         }
                     }
-                    debug!("Episodes: {}", t);
+                    debug!("Episodes: {}", episodes_count);
 
                     for generic in file_manager_lock.generic_files.iter() {
                         for file_version in generic.file_versions.iter() {
