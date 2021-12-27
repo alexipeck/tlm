@@ -8,8 +8,7 @@ use crate::{
     get_show_title_from_pathbuf,
     model::{NewEpisode, NewFileVersion, NewGeneric},
     pathbuf_extension_to_string, pathbuf_to_string,
-    show::{Episode, Show},
-    worker_manager::Encode,
+    show::{Episode, Show}, encode::Encode,
 };
 extern crate derivative;
 use derivative::Derivative;
@@ -22,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::{collections::HashSet, fmt, path::PathBuf};
-use tracing::{debug, error, info, trace, warn};
+use tracing::{error, info, trace, warn};
 
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -189,14 +188,14 @@ impl FileManager {
         for generic in &self.generic_files {
             if generic.get_generic_uid() == generic_uid {
                 if let Some(file_version) = generic.get_file_version_by_id(file_version_id) {
-                    return Some(file_version.generate_encode());
+                    return Some(Encode::new(&file_version))
                 }
             }
         }
         for show in &self.shows {
             if let Some(generic) = show.get_generic_from_uid(generic_uid) {
                 if let Some(file_version) = generic.get_file_version_by_id(file_version_id) {
-                    return Some(file_version.generate_encode());
+                    return Some(Encode::new(&file_version))
                 }
             }
         }

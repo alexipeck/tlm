@@ -6,8 +6,8 @@ use tlm::{
     file_manager::FileManager,
     scheduler::{Scheduler, Task},
     worker::Worker,
-    worker_manager::{Encode, WorkerManager},
-    ws::run_web,
+    worker_manager::WorkerManager,
+    ws::run_web, encode::Encode,
 };
 
 use core::time;

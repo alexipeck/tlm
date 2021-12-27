@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 pub mod config;
 pub mod database;
 pub mod designation;
+pub mod encode;
 pub mod file_manager;
 pub mod generic;
 pub mod model;

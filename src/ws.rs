@@ -12,7 +12,7 @@ use crate::{
     pathbuf_to_string,
     scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType, GenerateProfiles},
     worker::WorkerMessage,
-    worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue},
+    worker_manager::{AddEncodeMode, WorkerManager, WorkerTranscodeQueue}, encode::Encode,
 };
 
 use std::{

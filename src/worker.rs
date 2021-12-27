@@ -1,6 +1,6 @@
+use crate::encode::Encode;
 use crate::model::WorkerModel;
 use crate::worker_manager::AddEncodeMode;
-use crate::worker_manager::Encode;
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
