@@ -8,7 +8,7 @@ use crate::{
     get_show_title_from_pathbuf,
     model::{NewEpisode, NewFileVersion, NewGeneric},
     pathbuf_extension_to_string, pathbuf_to_string,
-    show::{Episode, Show}, encode::Encode,
+    show::{Episode, Show}, encode::{Encode, EncodeProfile},
 };
 extern crate derivative;
 use derivative::Derivative;
@@ -184,18 +184,19 @@ impl FileManager {
         &self,
         generic_uid: i32,
         file_version_id: i32,
+        encode_profile: &EncodeProfile,
     ) -> Option<Encode> {
         for generic in &self.generic_files {
             if generic.get_generic_uid() == generic_uid {
                 if let Some(file_version) = generic.get_file_version_by_id(file_version_id) {
-                    return Some(Encode::new(&file_version))
+                    return Some(Encode::new(&file_version, encode_profile))
                 }
             }
         }
         for show in &self.shows {
             if let Some(generic) = show.get_generic_from_uid(generic_uid) {
                 if let Some(file_version) = generic.get_file_version_by_id(file_version_id) {
-                    return Some(Encode::new(&file_version))
+                    return Some(Encode::new(&file_version, encode_profile))
                 }
             }
         }

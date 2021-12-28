@@ -170,11 +170,11 @@ async fn handle_web_connection(
                     peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
                     //}
                 }
-                WorkerMessage::EncodeGeneric(generic_uid, file_version_id, add_encode_mode) => {
+                WorkerMessage::EncodeGeneric(generic_uid, file_version_id, add_encode_mode, encode_profile) => {
                     match file_manager
                         .lock()
                         .unwrap()
-                        .get_encode_from_generic_uid(generic_uid, file_version_id)
+                        .get_encode_from_generic_uid(generic_uid, file_version_id, &encode_profile)
                     {
                         Some(encode) => {
                             match add_encode_mode {
