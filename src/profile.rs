@@ -130,7 +130,7 @@ impl Container {
         None
     }
 
-    pub fn get_container_from_extension(file_extension: String) -> Self {
+    pub fn from_extension(file_extension: String) -> Self {
         let file_extension = file_extension.to_lowercase(); //Hopefully this to_lowercase function is sufficient for the moment
         match file_extension.as_str() {
             "mp4" => Container::MP4,
@@ -245,7 +245,7 @@ impl Profile {
                 resolution_standard: Some(ResolutionStandard::get_resolution_standard_from_width(
                     width,
                 )),
-                container: Some(Container::get_container_from_extension(
+                container: Some(Container::from_extension(
                     value["media"]["track"][0]["FileExtension"]
                         .to_string()
                         .strip_prefix('"')?

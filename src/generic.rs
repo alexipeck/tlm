@@ -77,6 +77,7 @@ impl FileVersion {
             self.framerate = profile.framerate;
             self.length_time = profile.length_time;
             self.resolution_standard = profile.resolution_standard;
+            self.container = profile.container;
             update_file_version(self, connection);
         }
     }

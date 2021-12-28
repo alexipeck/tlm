@@ -6,6 +6,8 @@ use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
 use directories::BaseDirs;
 use fancy_regex::Regex;
 use serde::{Deserialize, Serialize};
+use tracing::debug;
+use tracing::warn;
 use std::env;
 use std::fmt;
 use std::fs;
@@ -24,6 +26,80 @@ pub struct ServerConfig {
     #[serde(skip)]
     pub ignored_paths_regex: Vec<Regex>,
     pub tracked_directories: TrackedDirectories,
+}
+
+impl ServerConfig {
+    pub fn default() -> Self {
+        let allowed_extensions = vec![
+            String::from("mp4"),
+            String::from("mkv"),
+            String::from("webm"),
+        ];
+        let ignored_paths = vec![String::from(".recycle_bin")];
+        let mut tracked_directories = TrackedDirectories::default();
+        //TODO: Remove hardcoding
+        tracked_directories.add_root_directory(PathBuf::from(r"C:\\Users\\Alexi Peck\\Desktop\\tlm\\test_files".to_string()));
+        Self {
+            port: 8888,
+            allowed_extensions,
+            ignored_paths,
+            ignored_paths_regex: Vec::new(),
+            tracked_directories,
+        }
+    }
+
+    ///Config constructor loads the config from the path defined at the cli
+    /// or if it doesn't exist creates a default config file
+    pub fn new(preferences: &Preferences) -> ServerConfig {
+        let mut config: ServerConfig;
+
+        if Path::new(&preferences.config_file_path).exists() {
+            let config_toml = match fs::read_to_string(&preferences.config_file_path) {
+                Ok(config_toml) => config_toml,
+                Err(err) => {
+                    error!("Failed to read config file: {}", err);
+                    panic!();
+                }
+            };
+            config = match toml::from_str(&config_toml) {
+                Ok(config) => {
+                    config
+                },
+                Err(err) => {
+                    error!("Failed to parse toml: {}", err);
+                    panic!();
+                }
+            };
+        } else {
+            config = ServerConfig::default();
+            let toml = toml::to_string(&config).unwrap();
+            if fs::write(&preferences.config_file_path, toml).is_err() {
+                error!(
+                    "Failed to write config file at: {}",
+                    preferences.config_file_path
+                );
+                panic!();
+            }
+        }
+
+        //TODO: Need to check that the server config from the config file is actually complete
+        if !config.tracked_directories.has_cache_directory() {
+            config.tracked_directories.assign_temp_as_cache_directory();
+            warn!("Used default cache directory instead of path specified in config file");
+        }
+
+        if preferences.port.is_some() {
+            config.port = preferences.port.unwrap();
+        }
+
+        for ignored_path in &config.ignored_paths {
+            config
+                .ignored_paths_regex
+                .push(Regex::new(&format!("(?i){}", regex::escape(ignored_path))).unwrap())
+        }
+
+        config
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -93,70 +169,6 @@ impl WorkerConfig {
             );
             panic!();
         }
-    }
-}
-
-impl ServerConfig {
-    ///Config constructor loads the config from the path defined at the cli
-    /// or if it doesn't exist creates a default config file
-    pub fn new(preferences: &Preferences) -> ServerConfig {
-        let mut config: ServerConfig;
-
-        if Path::new(&preferences.config_file_path).exists() {
-            let config_toml = match fs::read_to_string(&preferences.config_file_path) {
-                Ok(config_toml) => config_toml,
-                Err(err) => {
-                    error!("Failed to read config file: {}", err);
-                    panic!();
-                }
-            };
-            config = match toml::from_str(&config_toml) {
-                Ok(config_toml) => config_toml,
-                Err(err) => {
-                    error!("Failed to parse toml: {}", err);
-                    panic!();
-                }
-            };
-        } else {
-            //Default config
-            let allowed_extensions = vec![
-                String::from("mp4"),
-                String::from("mkv"),
-                String::from("webm"),
-            ];
-
-            let ignored_paths = vec![String::from(".recycle_bin")];
-            let mut tracked_directories = TrackedDirectories::new();
-            tracked_directories.root_directories = vec![String::from(
-                r"C:\\Users\\Alexi Peck\\Desktop\\tlm\\test_files",
-            )]; //these need to change
-            config = ServerConfig {
-                port: 8888,
-                allowed_extensions,
-                ignored_paths,
-                ignored_paths_regex: Vec::new(),
-                tracked_directories,
-            };
-            let toml = toml::to_string(&config).unwrap();
-            if fs::write(&preferences.config_file_path, toml).is_err() {
-                error!(
-                    "Failed to write config file at: {}",
-                    preferences.config_file_path
-                );
-                panic!();
-            }
-        }
-
-        if preferences.port.is_some() {
-            config.port = preferences.port.unwrap();
-        }
-        for ignored_path in &config.ignored_paths {
-            config
-                .ignored_paths_regex
-                .push(Regex::new(&format!("(?i){}", regex::escape(ignored_path))).unwrap())
-        }
-
-        config
     }
 }
 
