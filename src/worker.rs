@@ -64,7 +64,12 @@ impl Worker {
         }
     }
 
-    pub fn update(&mut self, worker_ip_address: SocketAddr, worker_temp_directory: &PathBuf, tx: UnboundedSender<Message>) {
+    pub fn update(
+        &mut self,
+        worker_ip_address: SocketAddr,
+        worker_temp_directory: &PathBuf,
+        tx: UnboundedSender<Message>,
+    ) {
         self.worker_ip_address = worker_ip_address;
         self.worker_temp_directory = Some(worker_temp_directory.clone());
         self.tx = Some(tx);

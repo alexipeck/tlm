@@ -4,11 +4,12 @@ use crate::{
     config::ServerConfig,
     database::*,
     designation::Designation,
+    encode::{Encode, EncodeProfile},
     generic::{FileVersion, Generic},
     get_show_title_from_pathbuf,
     model::{NewEpisode, NewFileVersion, NewGeneric},
-    pathbuf_extension_to_string, pathbuf_to_string,
-    show::{Episode, Show}, encode::{Encode, EncodeProfile}, pathbuf_file_stem,
+    pathbuf_extension_to_string, pathbuf_file_stem, pathbuf_to_string,
+    show::{Episode, Show},
 };
 extern crate derivative;
 use derivative::Derivative;
@@ -18,8 +19,8 @@ use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, env, path::Path};
 use std::hash::{Hash, Hasher};
+use std::{collections::HashMap, env, path::Path};
 use std::{collections::HashSet, fmt, path::PathBuf};
 use tracing::{error, info, trace, warn};
 ///Struct to hold all root directories containing media
@@ -64,7 +65,6 @@ impl TrackedDirectories {
         } else {
             self.cache_directory = Some(PathBuf::from(cache_directory));
         }
-        
     }
 
     pub fn get_root_directories(&self) -> &HashSet<PathBuf> {
@@ -231,14 +231,14 @@ impl FileManager {
         for generic in &self.generic_files {
             if generic.get_generic_uid() == generic_uid {
                 if let Some(file_version) = generic.get_file_version_by_id(file_version_id) {
-                    return Some(Encode::new(&file_version, encode_profile))
+                    return Some(Encode::new(&file_version, encode_profile));
                 }
             }
         }
         for show in &self.shows {
             if let Some(generic) = show.get_generic_from_uid(generic_uid) {
                 if let Some(file_version) = generic.get_file_version_by_id(file_version_id) {
-                    return Some(Encode::new(&file_version, encode_profile))
+                    return Some(Encode::new(&file_version, encode_profile));
                 }
             }
         }
@@ -529,11 +529,7 @@ impl FileManager {
 
     ///Make sure a show exists by checking for it in ram and inserting it into
     ///the database if it doesn't exist yet
-    fn ensure_show_exists(
-        &mut self,
-        show_title: String,
-        connection: &PgConnection,
-    ) -> i32 {
+    fn ensure_show_exists(&mut self, show_title: String, connection: &PgConnection) -> i32 {
         let show_uid = self.show_exists(show_title.clone());
         match show_uid {
             Some(uid) => uid,

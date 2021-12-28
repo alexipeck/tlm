@@ -6,14 +6,13 @@ use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
 use directories::BaseDirs;
 use fancy_regex::Regex;
 use serde::{Deserialize, Serialize};
-use tracing::debug;
-use tracing::warn;
 use std::env;
 use std::fmt;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use tracing::error;
+use tracing::warn;
 
 ///This struct contains any system specific data (paths, extensions, etc)
 /// likely will be replaced later with database tables but as we clear data
@@ -38,7 +37,9 @@ impl ServerConfig {
         let ignored_paths = vec![String::from(".recycle_bin")];
         let mut tracked_directories = TrackedDirectories::default();
         //TODO: Remove hardcoding
-        tracked_directories.add_root_directory(PathBuf::from(r"C:\\Users\\Alexi Peck\\Desktop\\tlm\\test_files".to_string()));
+        tracked_directories.add_root_directory(PathBuf::from(
+            r"C:\\Users\\Alexi Peck\\Desktop\\tlm\\test_files".to_string(),
+        ));
         Self {
             port: 8888,
             allowed_extensions,
@@ -62,9 +63,7 @@ impl ServerConfig {
                 }
             };
             config = match toml::from_str(&config_toml) {
-                Ok(config) => {
-                    config
-                },
+                Ok(config) => config,
                 Err(err) => {
                     error!("Failed to parse toml: {}", err);
                     panic!();

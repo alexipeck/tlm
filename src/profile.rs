@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, Error};
+use serde_json::{Error, Value};
 use std::path::Path;
 use std::process::Command;
 use std::str::from_utf8;
-use tracing::{error};
+use tracing::error;
 
 use crate::pathbuf_to_string;
 
@@ -211,11 +211,11 @@ impl Profile {
         let temp: Result<Value, Error> = serde_json::from_str(from_utf8(&buffer.stdout).unwrap());
         if let Ok(value) = temp {
             let width = value["media"]["track"][1]["Width"]
-            .to_string()
-            .strip_prefix('"')?
-            .strip_suffix('"')?
-            .parse::<i32>()
-            .unwrap();
+                .to_string()
+                .strip_prefix('"')?
+                .strip_suffix('"')?
+                .parse::<i32>()
+                .unwrap();
             return Some(Self {
                 width: Some(width),
                 height: Some(

@@ -1,18 +1,19 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
 use std::{collections::VecDeque, sync::RwLock};
-use tracing::{error, info, warn, debug};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     config::WorkerConfig,
     database::{create_file_version, print_all_worker_models},
+    encode::Encode,
     file_manager::FileManager,
     generic::FileVersion,
     model::NewFileVersion,
     pathbuf_to_string,
-    scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType, GenerateProfiles},
+    scheduler::{GenerateProfiles, Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
     worker::WorkerMessage,
-    worker_manager::{AddEncodeMode, WorkerManager, WorkerTranscodeQueue}, encode::Encode,
+    worker_manager::{AddEncodeMode, WorkerManager, WorkerTranscodeQueue},
 };
 
 use std::{

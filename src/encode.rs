@@ -1,9 +1,16 @@
 use core::fmt;
-use std::{path::{PathBuf, Path}, sync::{Arc, RwLock}, process::{Child, Command}};
 use serde::{Deserialize, Serialize};
-use tracing::{info, error};
+use std::{
+    path::{Path, PathBuf},
+    process::{Child, Command},
+    sync::{Arc, RwLock},
+};
+use tracing::{error, info};
 
-use crate::{pathbuf_file_name_to_string, generic::FileVersion, pathbuf_to_string, pathbuf_with_suffix, pathbuf_file_stem};
+use crate::{
+    generic::FileVersion, pathbuf_file_name_to_string, pathbuf_file_stem, pathbuf_to_string,
+    pathbuf_with_suffix,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Encode {
@@ -14,10 +21,7 @@ pub struct Encode {
 }
 
 impl Encode {
-    pub fn new(
-        file_version: &FileVersion,
-        encode_profile: &EncodeProfile,
-    ) -> Self {
+    pub fn new(file_version: &FileVersion, encode_profile: &EncodeProfile) -> Self {
         Self {
             generic_uid: file_version.generic_uid,
             source_path: file_version.full_path.clone(),
@@ -123,7 +127,7 @@ pub enum EncodeProfile {
     H265_TV_1080p,
 }
 
-impl EncodeProfile {    
+impl EncodeProfile {
     //TODO: Make realistic association between profile and container
     pub fn get_extension(&self) -> String {
         match self {
@@ -139,7 +143,6 @@ impl fmt::Display for EncodeProfile {
             EncodeProfile::H264_TV_1080p => write!(f, "H264_TV_1080p"),
             EncodeProfile::H265_TV_1080p => write!(f, "H265_TV_1080p"),
         }
-        
     }
 }
 
