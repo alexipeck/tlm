@@ -102,7 +102,8 @@ impl Hash {
 
             //Generics
             for (generic_uid, file_versions) in generic_file_versions.iter_mut() {
-                for file_version in file_versions.iter_mut() {
+                let length: usize = file_versions.len();
+                for (i, file_version) in file_versions.iter_mut().enumerate() {
                     if file_version.hash.is_none() {
                         file_version.hash();
                     }
@@ -110,9 +111,11 @@ impl Hash {
                         file_version.fast_hash();
                     }
                     debug!(
-                        "Hashed[{} of {}]]: {}",
+                        "Hashed[{:2} of {:2}][{} of {}]: {}",
                         current_file_version_count + 1,
                         file_version_count,
+                        i + 1,
+                        length,
                         pathbuf_to_string(&file_version.full_path)
                     );
                     update_file_version(file_version, &connection);
@@ -132,7 +135,7 @@ impl Hash {
             //Episodes
             for (generic_uid, file_versions) in episode_file_versions.iter_mut() {
                 let length: usize = file_versions.len();
-                for (j, file_version) in file_versions.iter_mut().enumerate() {
+                for (i, file_version) in file_versions.iter_mut().enumerate() {
                     if file_version.hash.is_none() {
                         file_version.hash();
                     }
@@ -140,11 +143,11 @@ impl Hash {
                         file_version.fast_hash();
                     }
                     debug!(
-                        "Hashed[[{} of {}][{:2} of {:2}]]: {}",
-                        j + 1,
-                        length,
+                        "Hashed[{:2} of {:2}][{} of {}]: {}",
                         current_file_version_count + 1,
                         file_version_count,
+                        i + 1,
+                        length,
                         pathbuf_to_string(&file_version.full_path)
                     );
                     update_file_version(file_version, &connection);
