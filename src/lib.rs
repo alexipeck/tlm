@@ -29,9 +29,23 @@ pub fn pathbuf_with_suffix(path: &Path, suffix: String) -> PathBuf {
     ))
 }
 
+pub fn pathbuf_file_stem(path: &Path) -> PathBuf {
+    match path.file_stem() {
+        Some(file_stem) => {
+            PathBuf::from(file_stem)
+        },
+        None => panic!("Couldn't get file stem"),
+    }
+}
+
 //Path output
 pub fn pathbuf_get_parent(path: &Path) -> &Path {
-    path.parent().unwrap()
+    match path.parent() {
+        Some(parent_path) => {
+            parent_path
+        },
+        None => panic!("Couldn't get parent"),
+    }
 }
 
 //String output
