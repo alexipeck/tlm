@@ -6,6 +6,7 @@ use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
 use directories::BaseDirs;
 use fancy_regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::fmt;
 use std::fs;
 use std::path::Path;
@@ -32,6 +33,8 @@ pub struct WorkerConfig {
     pub uid: Option<i32>,
     #[serde(skip)]
     config_path: PathBuf,
+    #[serde(skip)]
+    pub temp_path: PathBuf,
 }
 
 impl fmt::Display for WorkerConfig {
@@ -66,6 +69,7 @@ impl WorkerConfig {
                 server_port: 8888,
                 uid: None,
                 config_path: config_path.clone(),
+                temp_path: env::temp_dir(),
             };
             let toml = toml::to_string(&config).unwrap();
             if fs::write(config_path.clone(), toml).is_err() {

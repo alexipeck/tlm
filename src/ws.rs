@@ -156,16 +156,17 @@ async fn handle_web_connection(
             }
         } else if msg.is_binary() {
             match WorkerMessage::from_message(msg) {
-                WorkerMessage::Initialise(mut worker_uid) => {
+                WorkerMessage::Initialise(mut worker_uid, worker_temp_directory) => {
                     //if true {//TODO: authenticate/validate
                     if !worker_manager.lock().unwrap().reestablish_worker(
                         worker_uid,
                         addr,
+                        &worker_temp_directory,
                         tx.clone(),
                     ) {
                         //We need the new uid so we can set it correctly in the peer map
                         worker_uid =
-                            Some(worker_manager.lock().unwrap().add_worker(addr, tx.clone()));
+                            Some(worker_manager.lock().unwrap().add_worker(addr, &worker_temp_directory, tx.clone()));
                     }
                     peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
                     //}

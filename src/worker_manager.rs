@@ -5,6 +5,7 @@ use crate::model::NewWorker;
 use crate::worker::{Worker, WorkerMessage};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::{
     collections::VecDeque,
     net::SocketAddr,
@@ -81,10 +82,11 @@ impl WorkerManager {
     pub fn add_worker(
         &mut self,
         worker_ip_address: SocketAddr,
+        worker_temp_directory: &PathBuf,
         tx: UnboundedSender<Message>,
     ) -> i32 {
         let connection = establish_connection();
-        let mut new_worker = Worker::new(None, worker_ip_address, tx);
+        let mut new_worker = Worker::new(None, worker_ip_address, worker_temp_directory, tx);
         let new_id = create_worker(&connection, NewWorker::from_worker(new_worker.clone()));
         new_worker.uid = Some(new_id);
         new_worker.send_message_to_worker(WorkerMessage::WorkerID(new_worker.uid.unwrap()));
@@ -104,6 +106,7 @@ impl WorkerManager {
         &mut self,
         worker_uid: Option<i32>,
         worker_ip_address: SocketAddr,
+        worker_temp_directory: &PathBuf,
         tx: UnboundedSender<Message>,
     ) -> bool {
         //Worker can't be reestablished if it doesn't have/send a uid
@@ -113,7 +116,7 @@ impl WorkerManager {
         let mut index: Option<usize> = None;
         for (i, worker) in self.closed_workers.iter_mut().enumerate() {
             if worker.uid == worker_uid {
-                worker.update(worker_ip_address, tx);
+                worker.update(worker_ip_address, worker_temp_directory, tx);
                 worker.close_time = None;
                 index = Some(i);
                 break;
