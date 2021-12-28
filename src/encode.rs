@@ -127,8 +127,8 @@ impl EncodeProfile {
     //TODO: Make realistic association between profile and container
     pub fn get_extension(&self) -> String {
         match self {
-            H264_TV_1080p => ".mp4".to_string(),
-            H265_TV_1080p => ".mp4".to_string(),
+            EncodeProfile::H264_TV_1080p => ".mp4".to_string(),
+            EncodeProfile::H265_TV_1080p => ".mp4".to_string(),
         }
     }
 }
@@ -136,8 +136,8 @@ impl EncodeProfile {
 impl fmt::Display for EncodeProfile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            H264_TV_1080p => write!(f, "H264_TV_1080p"),
-            H265_TV_1080p => write!(f, "H265_TV_1080p"),
+            EncodeProfile::H264_TV_1080p => write!(f, "H264_TV_1080p"),
+            EncodeProfile::H265_TV_1080p => write!(f, "H265_TV_1080p"),
         }
         
     }
