@@ -8,7 +8,7 @@ use crate::{
     get_show_title_from_pathbuf,
     model::{NewEpisode, NewFileVersion, NewGeneric},
     pathbuf_extension_to_string, pathbuf_to_string,
-    show::{Episode, Show}, encode::{Encode, EncodeProfile},
+    show::{Episode, Show}, encode::{Encode, EncodeProfile}, pathbuf_file_stem,
 };
 extern crate derivative;
 use derivative::Derivative;
@@ -18,23 +18,65 @@ use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, env, path::Path};
 use std::hash::{Hash, Hasher};
 use std::{collections::HashSet, fmt, path::PathBuf};
 use tracing::{error, info, trace, warn};
-
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct TrackedDirectories {
-    pub root_directories: Vec<String>,
-    pub cache_directories: Vec<String>,
+    root_directories: HashSet<PathBuf>,
+    cache_directory: Option<PathBuf>,
 }
 
 impl TrackedDirectories {
-    pub fn new() -> TrackedDirectories {
-        TrackedDirectories {
-            root_directories: Vec::new(),
-            cache_directories: Vec::new(),
+    pub fn new_empty() -> Self {
+        Self {
+            root_directories: HashSet::new(),
+            cache_directory: None,
+        }
+    }
+
+    pub fn default() -> Self {
+        let mut tracked_directories = Self::new_empty();
+        tracked_directories.assign_temp_as_cache_directory();
+        tracked_directories
+    }
+
+    pub fn has_cache_directory(&self) -> bool {
+        self.cache_directory.is_some()
+    }
+
+    pub fn add_root_directory(&mut self, tracked_directory: PathBuf) {
+        self.root_directories.insert(tracked_directory);
+    }
+
+    //Destructive
+    pub fn assign_temp_as_cache_directory(&mut self) {
+        self.cache_directory = Some(env::temp_dir().join("tlm"));
+    }
+
+    //Destructive
+    pub fn assign_cache_directory(&mut self, cache_directory: &Path) {
+        //should be able to determine whether there has already been a /tlm/ folder created in the passed cache directory
+        if pathbuf_to_string(&pathbuf_file_stem(cache_directory)) != "tlm" {
+            self.cache_directory = Some(cache_directory.join("tlm"));
+        } else {
+            self.cache_directory = Some(PathBuf::from(cache_directory));
+        }
+        
+    }
+
+    pub fn get_root_directories(&self) -> &HashSet<PathBuf> {
+        &self.root_directories
+    }
+
+    pub fn get_cache_directory(&self) -> &PathBuf {
+        if self.cache_directory.is_some() {
+            return self.cache_directory.as_ref().unwrap();
+        } else {
+            error!("This should not be called before a cache directory has been set.");
+            panic!();
         }
     }
 }
@@ -450,10 +492,9 @@ impl FileManager {
     pub fn import_files(&mut self) {
         //import all files in tracked root directories
         for directory in &self.config.tracked_directories.root_directories.clone() {
-            let walkdir = WalkDir::new(directory);
             //If we do thi first we can max out IO without waiting
             //for accept_or_reject files. Will increase memory overhead obviously
-            for entry in walkdir {
+            for entry in WalkDir::new(directory) {
                 if entry.as_ref().unwrap().path().is_file() {
                     self.accept_or_reject_file(entry.unwrap().path(), true);
                 }
