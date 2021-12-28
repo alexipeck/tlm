@@ -90,13 +90,21 @@ async fn handle_web_connection(
                     .push_back(Task::new(TaskType::GenerateProfiles(
                         GenerateProfiles::default(),
                     ))),
+                "output_tracked_paths" => {
+                    let file_manager_lock = file_manager.lock().unwrap();
+                    for tracked_directory in file_manager_lock.config.tracked_directories.get_root_directories() {
+                        debug!("Tracked directory: {}", pathbuf_to_string(tracked_directory));
+                    }
+                    debug!("Cache directory: {}", pathbuf_to_string(file_manager_lock.config.tracked_directories.get_cache_directory()));
+                    //TODO: Add more things to the output, anything that might be pulled from the config file, default generated or manually added.
+                }
                 "display_workers" => print_all_worker_models(),
                 "run_completeness_check" => {
                     fn bool_to_char(bool: bool) -> char {
                         if bool {
-                            'T'
-                        } else {
                             'Y'
+                        } else {
+                            'N'
                         }
                     }
                     fn line_output(file_version: &FileVersion) {
@@ -121,8 +129,8 @@ async fn handle_web_connection(
                                 bool_to_char(container),
                             );
                         }
-                        
                     }
+                    debug!("Starting completeness check");
                     let file_manager_lock = file_manager.lock().unwrap();
 
                     debug!("Generics: {}", file_manager_lock.generic_files.len());
@@ -150,6 +158,7 @@ async fn handle_web_connection(
                             }
                         }
                     }
+                    debug!("Finishing completeness check");
                 },
 
                 _ => warn!("{} is not a valid input", message),
