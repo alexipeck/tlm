@@ -3,10 +3,11 @@ extern crate diesel;
 use directories::BaseDirs;
 use tlm::{
     config::{Preferences, ServerConfig},
+    encode::Encode,
     file_manager::FileManager,
     scheduler::{Scheduler, Task},
     worker::Worker,
-    worker_manager::{Encode, WorkerManager},
+    worker_manager::WorkerManager,
     ws::run_web,
 };
 
@@ -92,7 +93,7 @@ async fn main() -> Result<(), IoError> {
         file_manager.clone(),
         stop_scheduler.clone(),
     );
-    
+
     //Start the scheduler in it's own thread and return the scheduler at the end
     //so that we can print information before exiting
     let scheduler_handle = thread::spawn(move || {

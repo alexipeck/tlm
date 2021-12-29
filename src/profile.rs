@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, Error};
+use serde_json::{Error, Value};
 use std::path::Path;
 use std::process::Command;
 use std::str::from_utf8;
-use tracing::{error};
+use tracing::error;
 
 use crate::pathbuf_to_string;
 
@@ -130,7 +130,7 @@ impl Container {
         None
     }
 
-    pub fn get_container_from_extension(file_extension: String) -> Self {
+    pub fn from_extension(file_extension: String) -> Self {
         let file_extension = file_extension.to_lowercase(); //Hopefully this to_lowercase function is sufficient for the moment
         match file_extension.as_str() {
             "mp4" => Container::MP4,
@@ -211,11 +211,11 @@ impl Profile {
         let temp: Result<Value, Error> = serde_json::from_str(from_utf8(&buffer.stdout).unwrap());
         if let Ok(value) = temp {
             let width = value["media"]["track"][1]["Width"]
-            .to_string()
-            .strip_prefix('"')?
-            .strip_suffix('"')?
-            .parse::<i32>()
-            .unwrap();
+                .to_string()
+                .strip_prefix('"')?
+                .strip_suffix('"')?
+                .parse::<i32>()
+                .unwrap();
             return Some(Self {
                 width: Some(width),
                 height: Some(
@@ -245,7 +245,7 @@ impl Profile {
                 resolution_standard: Some(ResolutionStandard::get_resolution_standard_from_width(
                     width,
                 )),
-                container: Some(Container::get_container_from_extension(
+                container: Some(Container::from_extension(
                     value["media"]["track"][0]["FileExtension"]
                         .to_string()
                         .strip_prefix('"')?

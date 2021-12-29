@@ -1,18 +1,19 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
 use std::{collections::VecDeque, sync::RwLock};
-use tracing::{error, info, warn, debug};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     config::WorkerConfig,
     database::{create_file_version, print_all_worker_models},
+    encode::Encode,
     file_manager::FileManager,
     generic::FileVersion,
     model::NewFileVersion,
     pathbuf_to_string,
-    scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType, GenerateProfiles},
+    scheduler::{GenerateProfiles, Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
     worker::WorkerMessage,
-    worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue},
+    worker_manager::{AddEncodeMode, WorkerManager, WorkerTranscodeQueue},
 };
 
 use std::{
@@ -90,13 +91,21 @@ async fn handle_web_connection(
                     .push_back(Task::new(TaskType::GenerateProfiles(
                         GenerateProfiles::default(),
                     ))),
+                "output_tracked_paths" => {
+                    let file_manager_lock = file_manager.lock().unwrap();
+                    for tracked_directory in file_manager_lock.config.tracked_directories.get_root_directories() {
+                        debug!("Tracked directory: {}", pathbuf_to_string(tracked_directory));
+                    }
+                    debug!("Cache directory: {}", pathbuf_to_string(file_manager_lock.config.tracked_directories.get_cache_directory()));
+                    //TODO: Add more things to the output, anything that might be pulled from the config file, default generated or manually added.
+                }
                 "display_workers" => print_all_worker_models(),
                 "run_completeness_check" => {
                     fn bool_to_char(bool: bool) -> char {
                         if bool {
-                            'T'
-                        } else {
                             'Y'
+                        } else {
+                            'N'
                         }
                     }
                     fn line_output(file_version: &FileVersion) {
@@ -121,8 +130,8 @@ async fn handle_web_connection(
                                 bool_to_char(container),
                             );
                         }
-                        
                     }
+                    debug!("Starting completeness check");
                     let file_manager_lock = file_manager.lock().unwrap();
 
                     debug!("Generics: {}", file_manager_lock.generic_files.len());
@@ -150,31 +159,33 @@ async fn handle_web_connection(
                             }
                         }
                     }
+                    debug!("Finishing completeness check");
                 },
 
                 _ => warn!("{} is not a valid input", message),
             }
         } else if msg.is_binary() {
             match WorkerMessage::from_message(msg) {
-                WorkerMessage::Initialise(mut worker_uid) => {
+                WorkerMessage::Initialise(mut worker_uid, worker_temp_directory) => {
                     //if true {//TODO: authenticate/validate
                     if !worker_manager.lock().unwrap().reestablish_worker(
                         worker_uid,
                         addr,
+                        &worker_temp_directory,
                         tx.clone(),
                     ) {
                         //We need the new uid so we can set it correctly in the peer map
                         worker_uid =
-                            Some(worker_manager.lock().unwrap().add_worker(addr, tx.clone()));
+                            Some(worker_manager.lock().unwrap().add_worker(addr, &worker_temp_directory, tx.clone()));
                     }
                     peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
                     //}
                 }
-                WorkerMessage::EncodeGeneric(generic_uid, file_version_id, add_encode_mode) => {
+                WorkerMessage::EncodeGeneric(generic_uid, file_version_id, add_encode_mode, encode_profile) => {
                     match file_manager
                         .lock()
                         .unwrap()
-                        .get_encode_from_generic_uid(generic_uid, file_version_id)
+                        .get_encode_from_generic_uid(generic_uid, file_version_id, &encode_profile)
                     {
                         Some(encode) => {
                             match add_encode_mode {

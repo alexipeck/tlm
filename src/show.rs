@@ -83,7 +83,7 @@ impl Show {
             seasons: Vec::new(),
         }
     }
-    
+
     ///Add an episode to the show creating a season if none exists
     pub fn insert_episode(&mut self, episode: Episode) {
         let season_number = episode.show_season;

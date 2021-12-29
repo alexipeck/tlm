@@ -8,14 +8,12 @@ use std::hash::Hasher;
 
 use crate::database::update_file_version;
 use crate::profile::{Container, Profile, ResolutionStandard};
-use crate::worker_manager::Encode;
 use crate::{
     designation::{from_i32, Designation},
     model::*,
 };
-use crate::{pathbuf_file_name_to_string, pathbuf_to_string, pathbuf_with_suffix};
+use crate::{pathbuf_file_name_to_string, pathbuf_to_string};
 use diesel::PgConnection;
-use rand::Rng;
 use tracing::{error, warn};
 
 #[derive(Clone, Debug)]
@@ -79,6 +77,7 @@ impl FileVersion {
             self.framerate = profile.framerate;
             self.length_time = profile.length_time;
             self.resolution_standard = profile.resolution_standard;
+            self.container = profile.container;
             update_file_version(self, connection);
         }
     }
@@ -121,57 +120,8 @@ impl FileVersion {
         }
     }
 
-    pub fn generate_encode(&self) -> Encode {
-        Encode::new(
-            self.generic_uid,
-            self.full_path.clone(),
-            self.generate_target_path(),
-            self.generate_encode_string(),
-        )
-    }
-
-    ///Returns a vector of ffmpeg arguments for later execution
-    ///This has no options currently
-    pub fn generate_encode_string(&self) -> Vec<String> {
-        let mut encode_string = vec!["-i".to_string(), self.get_full_path()];
-
-        //Video
-        encode_string.push("-c:v".to_string());
-        encode_string.push("libx265".to_string());
-        encode_string.push("-crf".to_string());
-        encode_string.push("25".to_string());
-        encode_string.push("-preset".to_string());
-        encode_string.push("slower".to_string());
-        encode_string.push("-profile:v".to_string());
-        encode_string.push("main".to_string());
-
-        //Audio
-        encode_string.push("-c:a".to_string());
-        encode_string.push("aac".to_string());
-        encode_string.push("-q:a".to_string());
-        encode_string.push("224k".to_string());
-
-        encode_string.push("-y".to_string());
-        encode_string.push(pathbuf_to_string(&self.generate_target_path()));
-        encode_string
-    }
-
-    ///Appends a fixed string to differentiate rendered files from original before overwrite
-    /// I doubt this will stay as I think a temp directory would be more appropriate.
-    /// This function returns that as a string for the ffmpeg arguments
-    pub fn generate_target_path(&self) -> PathBuf {
-        self.get_full_path_with_suffix_as_pathbuf(format!(
-            "_temp_test_encode{}",
-            rand::thread_rng().gen::<i32>()
-        ))
-    }
-
     pub fn get_filename(&self) -> String {
         pathbuf_file_name_to_string(&self.full_path)
-    }
-
-    fn get_full_path_with_suffix_as_pathbuf(&self, suffix: String) -> PathBuf {
-        pathbuf_with_suffix(&self.full_path, suffix)
     }
 
     pub fn get_full_path(&self) -> String {
