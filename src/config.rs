@@ -2,7 +2,7 @@
 //!and command line arguments
 use crate::file_manager::TrackedDirectories;
 use crate::pathbuf_to_string;
-use argparse::{ArgumentParser, Store, StoreFalse, StoreOption, StoreTrue};
+use argparse::{ArgumentParser, Store, StoreOption, StoreTrue};
 use directories::BaseDirs;
 use fancy_regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -174,13 +174,11 @@ impl WorkerConfig {
 ///Helper struct to make passing data for command line arguments easier
 #[derive(Clone, Debug)]
 pub struct Preferences {
-    pub default_print: bool,
     pub config_file_path: String,
-    pub file_system_read_only: bool,
-    pub timing_enabled: bool,
-    pub timing_threshold: u128,
-    pub port: Option<u16>,
     pub disable_input: bool,
+    pub file_system_read_only: bool,
+    pub port: Option<u16>,
+    pub silent: bool,
 }
 impl Default for Preferences {
     fn default() -> Preferences {
@@ -190,13 +188,11 @@ impl Default for Preferences {
         });
         let config_path = base_dirs.config_dir().join("tlm/tlm_server.config");
         let mut prepare = Preferences {
-            default_print: true,
             config_file_path: pathbuf_to_string(&config_path),
-            file_system_read_only: false,
-            timing_enabled: false,
-            timing_threshold: 0,
-            port: None,
             disable_input: false,
+            file_system_read_only: false,
+            port: None,
+            silent: false,
         };
 
         prepare.parse_arguments();
@@ -211,46 +207,34 @@ impl Preferences {
         let mut parser = ArgumentParser::new();
         parser.set_description("tlm: Transcoding Library Manager");
 
-        parser.refer(&mut self.default_print).add_option(
-            &["--disable-print", "--no-print"],
-            StoreFalse,
-            "Disables printing by default. Specific types of print can be enabled on top of this",
-        );
-
-        parser.refer(&mut self.file_system_read_only).add_option(
-            &["--file_system_read_only", "--fsro", "--fs_read_only"],
-            StoreTrue,
-            "Doesn't overwrite any media files",
-        );
-
         parser.refer(&mut self.config_file_path).add_option(
-            &["--config", "-c"],
+            &["-c", "--config"],
             Store,
             "Set a custom config path",
-        );
-
-        parser.refer(&mut self.timing_enabled).add_option(
-            &["--enable-timing"],
-            StoreTrue,
-            "Enable program self-timing",
-        );
-
-        parser.refer(&mut self.timing_threshold).add_option(
-            &["--timing-threshold", "--timing-cutoff"],
-            Store,
-            "Threshold for how slow a timed event has to be in order to print",
         );
 
         parser.refer(&mut self.disable_input).add_option(
             &["--disable-input", "--no-input"],
             StoreTrue,
-            "Don't accept any inputs from the user (Testing only will be removed later)",
+            "Don't accept any inputs from the user",
         );
 
+        parser.refer(&mut self.file_system_read_only).add_option(
+            &["--fsro", "--fs_read_only", "--file_system_read_only"],
+            StoreTrue,
+            "Don't overwrite any media files in the file system",
+        );     
+
         parser.refer(&mut self.port).add_option(
-            &["--port", "-p"],
+            &["-p", "--port"],
             StoreOption,
             "Overwrite the port set in the config",
+        );
+
+        parser.refer(&mut self.silent).add_option(
+            &["-s", "--silent"],
+            StoreTrue,
+            "Disables output",
         );
 
         parser.parse_args_or_exit();
