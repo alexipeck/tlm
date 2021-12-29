@@ -40,6 +40,8 @@ impl ServerConfig {
         tracked_directories.add_root_directory(PathBuf::from(
             r"C:\\Users\\Alexi Peck\\Desktop\\tlm\\test_files".to_string(),
         ));
+        //TODO: Have a better method for getting a temp network share directory from the user
+        tracked_directories.assign_temp_directory(&PathBuf::from(r"\\\\192.168.2.30\\tlm_temp\\"));
         Self {
             port: 8888,
             allowed_extensions,
@@ -219,6 +221,7 @@ impl Preferences {
             "Don't accept any inputs from the user",
         );
 
+        //TODO: Any file system actions need a check, if not making an action negatively affects too much, discard this option
         parser.refer(&mut self.file_system_read_only).add_option(
             &["--fsro", "--fs_read_only", "--file_system_read_only"],
             StoreTrue,
@@ -231,6 +234,7 @@ impl Preferences {
             "Overwrite the port set in the config",
         );
 
+        //TODO: Add a check on every tracing output code block, or use some fancy thing that tracing includes
         parser.refer(&mut self.silent).add_option(
             &["-s", "--silent"],
             StoreTrue,

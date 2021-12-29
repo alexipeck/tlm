@@ -12,6 +12,7 @@ use std::{
     process::Child,
     sync::{Arc, Mutex, RwLock},
     time::Instant,
+    fs::{copy, remove_file},
 };
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, error, info, warn};
@@ -277,7 +278,6 @@ impl WorkerTranscodeQueue {
         }
 
         //Add a transcode current if there isn't one already there
-        //Assigns current_transcode an
         if self.make_transcode_current() {
             self.start_current_transcode_if_some();
             let _ = tx.start_send(
@@ -308,26 +308,46 @@ impl WorkerTranscodeQueue {
                 });
 
                 if ok {
+                    let mut target_path;
+                    let mut temp_target_path;
+                    //Guarantees the current_transcode_lock drops
+                    {
+                        let current_transcode_lock = self.current_transcode.read().unwrap();
+                        target_path = current_transcode_lock.as_ref().unwrap().encode_string.get_temp_target_path();
+                        temp_target_path = 
+                        let _ = tx.start_send(
+                            WorkerMessage::EncodeFinished(
+                                worker_uid.read().unwrap().unwrap(),
+                                current_transcode_lock
+                                    .as_ref()
+                                    .unwrap()
+                                    .generic_uid,
+                                current_transcode_lock.as_ref().unwrap().encode_string.get_temp_target_path(),
+                            )
+                            .to_message(),
+                        );
+                        let _ = tx.start_send(
+                            WorkerMessage::MoveStarted(
+                                worker_uid.read().unwrap().unwrap(),
+                                self.current_transcode
+                                    .read()
+                                    .unwrap()
+                                    .as_ref()
+                                    .unwrap()
+                                    .generic_uid,
+                                current_transcode_lock.as_ref().unwrap().encode_string.get_temp_target_path(),
+                                target_path,
+                            )
+                            .to_message(),
+                        );
+                    }
+                    //TODO: Move the file to the designated path, this should be a network share
+                    copy(temp_full_path, full_path)
                     self.clear_current_transcode();
-                    let _ = tx.start_send(
-                        WorkerMessage::EncodeFinished(
-                            worker_uid.read().unwrap().unwrap(),
-                            self.current_transcode
-                                .read()
-                                .unwrap()
-                                .as_ref()
-                                .unwrap()
-                                .generic_uid,
-                            self.current_transcode
-                                .read()
-                                .unwrap()
-                                .as_ref()
-                                .unwrap()
-                                .target_path
-                                .clone(),
-                        )
-                        .to_message(),
-                    );
+                } else {
+                    //TODO: Handle failure
+                    error!("Encode failed");
+                    panic!();
                 }
             }
         }

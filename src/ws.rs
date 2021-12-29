@@ -212,11 +212,35 @@ async fn handle_web_connection(
                         }
                     }
                 }
-                WorkerMessage::EncodeStarted(worker_uid, generic_uid) => info!(
-                    "Worker with UID: {} has started transcoding generic with UID: {}",
-                    worker_uid, generic_uid
-                ),
+                WorkerMessage::EncodeStarted(worker_uid, generic_uid) => {
+                    info!(
+                        "Worker with UID: {} has started transcoding generic with UID: {}",
+                        worker_uid,
+                        generic_uid,
+                    );
+                },
                 WorkerMessage::EncodeFinished(worker_uid, generic_uid, full_path) => {
+                    info!(
+                        "Worker with UID: {} has finished transcoding file with generic_uid: {}, worker file system location: {}",
+                        worker_uid,
+                        generic_uid,
+                        pathbuf_to_string(&full_path),
+                    );
+                },
+                WorkerMessage::MoveStarted(worker_uid, generic_uid, remote_source_path, destination_path) => {
+                    info!(
+                        "Worker with UID: {} has started moving file with generic_uid: {}, from: \"{}\" to \"{}\"",
+                        worker_uid,
+                        generic_uid,
+                        pathbuf_to_string(&remote_source_path),
+                        pathbuf_to_string(&destination_path),
+                    );
+                },
+                WorkerMessage::MoveFinished(worker_uid, generic_uid, encode) => {
+                    //TODO: Move new file from temp network share to actual network share
+                    //TODO: Make this whole process persistent
+                    //TODO: Insert file version below with the target_full_path
+                    asdf;
                     worker_manager
                         .lock()
                         .unwrap()
@@ -226,7 +250,7 @@ async fn handle_web_connection(
                         panic!();
                     }
                     //TODO: Make an enum of actions that could be performed on a Worker, like clear_current_transcode
-                }
+                },
                 _ => {
                     warn!("Server recieved a message it doesn't know how to handle");
                 }

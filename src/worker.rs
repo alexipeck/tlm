@@ -127,6 +127,8 @@ pub enum WorkerMessage {
     Announce(String),
     EncodeStarted(i32, i32),
     EncodeFinished(i32, i32, PathBuf),
+    MoveStarted(i32, i32, PathBuf, PathBuf),
+    MoveFinished(i32, i32, Encode),
 
     //WebUI
     EncodeGeneric(i32, i32, AddEncodeMode, EncodeProfile),

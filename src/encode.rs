@@ -17,6 +17,7 @@ pub struct Encode {
     pub generic_uid: i32,
     pub source_path: PathBuf,
     pub target_path: PathBuf,
+    pub temp_target_path: PathBuf,
     pub encode_string: EncodeString,
 }
 
@@ -26,6 +27,7 @@ impl Encode {
             generic_uid: file_version.generic_uid,
             source_path: file_version.full_path.clone(),
             target_path: generate_target_path(&file_version.full_path, encode_profile),
+            temp_target_path: ,
             encode_string: EncodeString::generate(file_version, encode_profile),
         }
         //asdf;
@@ -52,7 +54,7 @@ pub struct EncodeString {
     encode_string: Vec<String>,
     file_name: PathBuf,
     extension: PathBuf,
-    temp_full_path: Option<PathBuf>,
+    worker_temp_full_path: Option<PathBuf>,
 }
 
 ///Returns a vector of ffmpeg arguments for later execution
@@ -86,7 +88,19 @@ impl EncodeString {
             encode_string,
             file_name: pathbuf_file_stem(&file_version.full_path),
             extension,
-            temp_full_path: None,
+            worker_temp_full_path: None,
+        }
+    }
+
+    pub fn get_temp_target_path(&self) -> PathBuf {
+        match self.worker_temp_full_path {
+            Some(worker_temp_full_path) => {
+                return worker_temp_full_path;
+            },
+            None => {
+                error!("This should not be none, something has gone very wrong.");
+                panic!();
+            },
         }
     }
 
@@ -100,17 +114,17 @@ impl EncodeString {
     }
 
     pub fn is_activated(&self) -> bool {
-        self.temp_full_path.is_some()
+        self.worker_temp_full_path.is_some()
     }
 
     pub fn activate(&mut self, temp_path: PathBuf) {
-        if self.temp_full_path.is_some() {
+        if self.worker_temp_full_path.is_some() {
             error!("Activate was called on an EncodeString that has already been activated");
             panic!();
         }
-        let temp_full_path = temp_path.join(self.file_name.join(&self.extension));
-        self.temp_full_path = Some(generate_temp_target_path(&temp_full_path));
-        self.encode_string.push(pathbuf_to_string(&temp_full_path));
+        let worker_temp_full_path = temp_path.join(self.file_name.join(&self.extension));
+        self.worker_temp_full_path = Some(generate_temp_target_path(&worker_temp_full_path));
+        self.encode_string.push(pathbuf_to_string(&worker_temp_full_path));
     }
 }
 
