@@ -29,7 +29,7 @@ ignored_paths = [".recycle_bin"]
 
 [tracked_directories]
 root_directories = ["/path/to/directory1", "/path/to/directory2"]
-cache_directories = []
+cache_directory = ""
 ```
 
 ## Configuration
@@ -43,24 +43,55 @@ allowed_extensions = ["mp4", "mkv", "webm"]
 ignored_paths = [".recycle_bin"]
 
 [tracked_directories]
-root_directories = ["/home/ryan/tlmfiles", "/srv/data"]
-cache_directories = []
+root_directories = ["C:\\Users\\Alexi Peck\\Desktop\\tlm\\test_files\\"]
+cache_directory = "C:\\Users\\ALEXIP~1\\AppData\\Local\\Temp\\"
 ```
 The list of root directories are the roots of media collection, in this example
-I have two and all paths under them will be scanned for media files. This
-can take a significant amount of time if run on a whole disk with many files
-so I recommend setting many roots instead but it will work either way
+I have two and all paths under them will be scanned for media files.
+This should be run in specific directories or network shares, such as those dedicated to media libraries, rather than running from the root of a drive, etc.
 
-The port is the port used for websocket connections, currently it just
-accepts simple commands (import, process, hash) and can be tested using
-pretty much any web socket tool but I use [websocat](https://github.com/vi/websocat) for testing
+The port is the port used for websocket connections, currently it can receive simple commands such as (import, process, hash, generate_profiles, output_tracked_paths, display_workers, run_completeness_check) from pretty much any web socket tool but I use [websocat](https://github.com/vi/websocat) for testing. The server communicates with workers with that same port, but with encoded messages (can't be tested with websocat, etc).
 
-Allowed extensions define the file extensions that files must have to be
-imported. In future this will be determined by ffmpeg instead to get all
-files that it can handle
+Allowed extensions define the file extensions that any given file must have in order to be imported.
+In future this will be limited by ffmpeg instead, allowing all the codecs it can handle
 
 Ignored paths ignores and path you wish
 
+## Dev Environment
+### Update crates and cargo tools
+```
+cargo update
+```
+
+### Code auto-formatting
+```
+cargo fmt
+```
+
+### Run commands (from working directory)
+```
+cargo build --release
+```
+```
+diesel database reset
+```
+```
+.\target\release\tlm-server.exe
+```
+```
+.\target\release\tlm-worker.exe
+```
+```
+websocat ws://127.0.0.1:8888
+```
+
+### Database changes
+```
+diesel migration generate name_of_database_migration
+```
+```
+diesel migration run
+```
 
 ## Usage
 ```
@@ -70,29 +101,12 @@ Usage:
 tlm: Transcoding Library Manager
 
 Optional arguments:
-  -h,--help             Show this help message and exit
-  --disable-print,--no-print
-                        Disables printing by default. Specific types of print
-                        can be enabled on top of this
-  --print-generic       Enable printing generic
-  --print-shows         Enable printing shows
-  --print-episodes      Enable printing episodes
-  --print-general       Enable printing general debug information
-  --config,-c CONFIG    Set a custom config path
-  --enable-timing       Enable program self-timing
-  --timing-threshold,--timing-cutoff TIMING_THRESHOLD
-                        Threshold for how slow a timed event has to be in order
-                        to print
-  --whitelist-generic-output
-                        Whitelist all output from generic, whitelisting a type
-                        will cause it to print regardless of other limiting
-                        flags
-  --whitelist-show-output
-                        Whitelist all output from shows, whitelisting a type
-                        will cause it to print regardless of other limiting
-                        flags
-  --disable-input,--no-input
-                        Don't accept any inputs from the user (Testing only
-                        will be removed later)
-  --port,-p PORT        Overwrite the port set in the config
+  -h,--help                     Show this help message and exit
+  -c,--config CONFIG            Set a custom config path
+  --disable-input,--no-input    Don't accept any inputs from the user
+  --fsro,
+  --fs_read_only,
+  --file_system_read_only,      Don't overwrite any media files in the file system
+  --port,-p PORT                Overwrite the port set in the config
+  -s,--silent                   Disables output
 ```
