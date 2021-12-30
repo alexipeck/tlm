@@ -9,7 +9,7 @@ use tracing::{debug, error, info};
 
 use std::{
     collections::VecDeque,
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, RwLock},
     sync::{Arc, Mutex},
     thread,
     thread::JoinHandle,
@@ -257,13 +257,13 @@ pub struct Scheduler {
     pub file_manager: Arc<Mutex<FileManager>>,
     pub tasks: Arc<Mutex<VecDeque<Task>>>,
     pub encode_tasks: Arc<Mutex<VecDeque<Task>>>,
-    pub config: ServerConfig,
+    pub config: Arc<RwLock<ServerConfig>>,
     pub input_completed: Arc<AtomicBool>,
 }
 
 impl Scheduler {
     pub fn new(
-        config: ServerConfig,
+        config: Arc<RwLock<ServerConfig>>,
         tasks: Arc<Mutex<VecDeque<Task>>>,
         encode_tasks: Arc<Mutex<VecDeque<Task>>>,
         file_manager: Arc<Mutex<FileManager>>,

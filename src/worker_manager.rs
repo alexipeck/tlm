@@ -2,6 +2,7 @@ use crate::database::get_all_workers;
 use crate::database::{create_worker, establish_connection};
 use crate::encode::Encode;
 use crate::model::NewWorker;
+use crate::{pathbuf_copy, pathbuf_remove_file};
 use crate::worker::{Worker, WorkerMessage};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
@@ -12,7 +13,6 @@ use std::{
     process::Child,
     sync::{Arc, Mutex, RwLock},
     time::Instant,
-    fs::{copy, remove_file},
 };
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, error, info, warn};
@@ -186,7 +186,8 @@ impl WorkerManager {
                 continue;
             }
             match self.transcode_queue.lock().unwrap().pop_front() {
-                Some(encode) => {
+                Some(mut encode) => {
+                    encode.encode_string.activate(worker.get_worker_temp_directory());
                     worker.add_to_queue(encode);
                 }
                 None => {
@@ -306,43 +307,57 @@ impl WorkerTranscodeQueue {
                     error!("Failed to execute ffmpeg process. Err: {}", err);
                     panic!();
                 });
-
                 if ok {
-                    let mut target_path;
-                    let mut temp_target_path;
+                    let target_path;
+                    let temp_target_path;
+                    let generic_uid;
+                    let worker_temp_target_path;
                     //Guarantees the current_transcode_lock drops
                     {
                         let current_transcode_lock = self.current_transcode.read().unwrap();
-                        target_path = current_transcode_lock.as_ref().unwrap().encode_string.get_temp_target_path();
-                        temp_target_path = 
-                        let _ = tx.start_send(
-                            WorkerMessage::EncodeFinished(
-                                worker_uid.read().unwrap().unwrap(),
-                                current_transcode_lock
-                                    .as_ref()
-                                    .unwrap()
-                                    .generic_uid,
-                                current_transcode_lock.as_ref().unwrap().encode_string.get_temp_target_path(),
-                            )
-                            .to_message(),
-                        );
-                        let _ = tx.start_send(
-                            WorkerMessage::MoveStarted(
-                                worker_uid.read().unwrap().unwrap(),
-                                self.current_transcode
-                                    .read()
-                                    .unwrap()
-                                    .as_ref()
-                                    .unwrap()
-                                    .generic_uid,
-                                current_transcode_lock.as_ref().unwrap().encode_string.get_temp_target_path(),
-                                target_path,
-                            )
-                            .to_message(),
-                        );
+                        target_path = current_transcode_lock.as_ref().unwrap().target_path.clone();
+                        temp_target_path = current_transcode_lock.as_ref().unwrap().temp_target_path.clone();
+                        generic_uid = current_transcode_lock.as_ref().unwrap().generic_uid;
+                        worker_temp_target_path = current_transcode_lock.as_ref().unwrap().encode_string.get_worker_temp_target_path();
                     }
-                    //TODO: Move the file to the designated path, this should be a network share
-                    copy(temp_full_path, full_path)
+                    let _ = tx.start_send(
+                        WorkerMessage::EncodeFinished(
+                            worker_uid.read().unwrap().unwrap(),
+                            generic_uid,
+                            worker_temp_target_path.clone(),
+                        )
+                        .to_message(),
+                    );
+
+                    //Start moving file from local worker cache to the server's temp directory.
+                    let _ = tx.start_send(
+                        WorkerMessage::MoveStarted(
+                            worker_uid.read().unwrap().unwrap(),
+                            generic_uid,
+                            worker_temp_target_path.clone(),
+                            target_path,
+                        )
+                        .to_message(),
+                    );
+
+                    if let Err(err) = pathbuf_copy(&worker_temp_target_path, &temp_target_path) {
+                        error!("Failed to copy file from worker temp to server temp. IO output: {}", err);
+                        panic!();
+                    }
+
+                    if let Err(err) = pathbuf_remove_file(&worker_temp_target_path) {
+                        error!("Failed to remove file from worker temp. IO output: {}", err);
+                        panic!();
+                    }
+
+                    let _ = tx.start_send(
+                        WorkerMessage::MoveFinished(
+                                worker_uid.read().unwrap().unwrap(),
+                                generic_uid,
+                                self.current_transcode.read().unwrap().as_ref().unwrap().clone(),
+                            )
+                        .to_message(),
+                    );
                     self.clear_current_transcode();
                 } else {
                     //TODO: Handle failure

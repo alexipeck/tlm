@@ -12,7 +12,7 @@ use tlm::{
 };
 
 use core::time;
-use std::collections::VecDeque;
+use std::{collections::VecDeque, sync::RwLock};
 use std::env;
 use std::io::stdout;
 use std::io::Error as IoError;
@@ -68,7 +68,7 @@ async fn main() -> Result<(), IoError> {
 
     let preferences = Preferences::default();
 
-    let config: ServerConfig = ServerConfig::new(&preferences);
+    let server_config: Arc<RwLock<ServerConfig>> = Arc::new(RwLock::new(ServerConfig::new(&preferences)));
 
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 
@@ -83,11 +83,11 @@ async fn main() -> Result<(), IoError> {
         worker_mananger_transcode_queue.clone(),
         600,
     )));
-    let file_manager: Arc<Mutex<FileManager>> = Arc::new(Mutex::new(FileManager::new(&config)));
+    let file_manager: Arc<Mutex<FileManager>> = Arc::new(Mutex::new(FileManager::new(server_config.clone())));
 
     let stop_scheduler = Arc::new(AtomicBool::new(false));
     let mut scheduler: Scheduler = Scheduler::new(
-        config.clone(),
+        server_config.clone(),
         tasks.clone(),
         encode_tasks,
         file_manager.clone(),
@@ -113,13 +113,16 @@ async fn main() -> Result<(), IoError> {
         inner_worker_manager
     });
 
+    let port = server_config.read().unwrap().port;
+
     if !preferences.disable_input {
         run_web(
-            config.port,
+            port,
             tasks,
             file_manager,
             worker_mananger_transcode_queue,
             worker_manager,
+            server_config.clone()
         )
         .await?;
     }

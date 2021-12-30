@@ -5,11 +5,11 @@ use std::{
     process::{Child, Command},
     sync::{Arc, RwLock},
 };
-use tracing::{error, info};
+use tracing::{error, info, debug};
 
 use crate::{
-    generic::FileVersion, pathbuf_file_name_to_string, pathbuf_file_stem, pathbuf_to_string,
-    pathbuf_with_suffix,
+    generic::FileVersion, pathbuf_file_stem, pathbuf_to_string,
+    pathbuf_with_suffix, config::ServerConfig, pathbuf_file_name,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -22,21 +22,26 @@ pub struct Encode {
 }
 
 impl Encode {
-    pub fn new(file_version: &FileVersion, encode_profile: &EncodeProfile) -> Self {
+    pub fn new(file_version: &FileVersion, encode_profile: &EncodeProfile, server_config: &Arc<RwLock<ServerConfig>>) -> Self {
+        let target_path = generate_target_path(&file_version.full_path, encode_profile);
+        let temp_target_path = server_config.read().unwrap().tracked_directories.get_temp_directory().join(pathbuf_file_name(&target_path));
         Self {
             generic_uid: file_version.generic_uid,
             source_path: file_version.full_path.clone(),
-            target_path: generate_target_path(&file_version.full_path, encode_profile),
-            temp_target_path: ,
+            target_path,
+            temp_target_path,
             encode_string: EncodeString::generate(file_version, encode_profile),
         }
-        //asdf;
+    }
+
+    pub fn get_worker_temp_target_path(&self) -> PathBuf {
+        self.encode_string.get_worker_temp_target_path()
     }
 
     pub fn run(self, handle: Arc<RwLock<Option<Child>>>) {
         info!(
             "Encoding file \'{}\'",
-            pathbuf_file_name_to_string(&self.source_path)
+            pathbuf_to_string(&pathbuf_file_name(&self.source_path)),
         );
 
         let _ = handle.write().unwrap().insert(
@@ -92,10 +97,10 @@ impl EncodeString {
         }
     }
 
-    pub fn get_temp_target_path(&self) -> PathBuf {
-        match self.worker_temp_full_path {
+    pub fn get_worker_temp_target_path(&self) -> PathBuf {
+        match self.worker_temp_full_path.as_ref() {
             Some(worker_temp_full_path) => {
-                return worker_temp_full_path;
+                worker_temp_full_path.clone()
             },
             None => {
                 error!("This should not be none, something has gone very wrong.");
@@ -124,6 +129,7 @@ impl EncodeString {
         }
         let worker_temp_full_path = temp_path.join(self.file_name.join(&self.extension));
         self.worker_temp_full_path = Some(generate_temp_target_path(&worker_temp_full_path));
+        debug!("Activating: {}", pathbuf_to_string(&generate_temp_target_path(&worker_temp_full_path)));
         self.encode_string.push(pathbuf_to_string(&worker_temp_full_path));
     }
 }
@@ -165,5 +171,7 @@ impl fmt::Display for EncodeProfile {
 pub fn generate_target_path(full_path: &Path, encode_profile: &EncodeProfile) -> PathBuf {
     //TODO: This function should create the actual target path for a new FileVersion
     //TODO: Check that there isn't already a file with that file name
+    println!("Generating target path from: {}", pathbuf_to_string(full_path));
+    println!("Generating target path: {}", pathbuf_to_string(&pathbuf_with_suffix(full_path, format!("_{}", encode_profile.to_string()))));
     pathbuf_with_suffix(full_path, format!("_{}", encode_profile.to_string()))
 }

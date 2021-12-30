@@ -4,16 +4,16 @@ use std::{collections::VecDeque, sync::RwLock};
 use tracing::{debug, error, info, warn};
 
 use crate::{
-    config::WorkerConfig,
+    config::{WorkerConfig, ServerConfig},
     database::{create_file_version, print_all_worker_models},
-    encode::Encode,
+    encode::{Encode, EncodeProfile},
     file_manager::FileManager,
     generic::FileVersion,
     model::NewFileVersion,
     pathbuf_to_string,
     scheduler::{GenerateProfiles, Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
     worker::WorkerMessage,
-    worker_manager::{AddEncodeMode, WorkerManager, WorkerTranscodeQueue},
+    worker_manager::{AddEncodeMode, WorkerManager, WorkerTranscodeQueue}, pathbuf_copy, pathbuf_remove_file,
 };
 
 use std::{
@@ -35,6 +35,7 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 type Tx = UnboundedSender<Message>;
 type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<i32>, Tx)>>>;
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_web_connection(
     peer_map: PeerMap,
     raw_stream: TcpStream,
@@ -43,6 +44,7 @@ async fn handle_web_connection(
     file_manager: Arc<Mutex<FileManager>>,
     worker_mananger_transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
     worker_manager: Arc<Mutex<WorkerManager>>,
+    server_config: Arc<RwLock<ServerConfig>>,
 ) {
     info!("Incoming TCP connection from: {}", addr);
 
@@ -93,13 +95,21 @@ async fn handle_web_connection(
                     ))),
                 "output_tracked_paths" => {
                     let file_manager_lock = file_manager.lock().unwrap();
-                    for tracked_directory in file_manager_lock.config.tracked_directories.get_root_directories() {
+                    for tracked_directory in file_manager_lock.config.read().unwrap().tracked_directories.get_root_directories() {
                         debug!("Tracked directory: {}", pathbuf_to_string(tracked_directory));
                     }
-                    debug!("Cache directory: {}", pathbuf_to_string(file_manager_lock.config.tracked_directories.get_cache_directory()));
+                    debug!("Cache directory: {}", pathbuf_to_string(file_manager_lock.config.read().unwrap().tracked_directories.get_cache_directory()));
                     //TODO: Add more things to the output, anything that might be pulled from the config file, default generated or manually added.
                 }
                 "display_workers" => print_all_worker_models(),
+                "encode_all" => {
+                    for encode in file_manager.lock().unwrap().generate_encodes_for_all(&EncodeProfile::H265_TV_1080p) {
+                        worker_mananger_transcode_queue
+                            .lock()
+                            .unwrap()
+                            .push_back(encode);
+                    }
+                },
                 "run_completeness_check" => {
                     fn bool_to_char(bool: bool) -> char {
                         if bool {
@@ -185,7 +195,7 @@ async fn handle_web_connection(
                     match file_manager
                         .lock()
                         .unwrap()
-                        .get_encode_from_generic_uid(generic_uid, file_version_id, &encode_profile)
+                        .get_encode_from_generic_uid(generic_uid, file_version_id, &encode_profile, server_config.clone())
                     {
                         Some(encode) => {
                             match add_encode_mode {
@@ -237,15 +247,20 @@ async fn handle_web_connection(
                     );
                 },
                 WorkerMessage::MoveFinished(worker_uid, generic_uid, encode) => {
-                    //TODO: Move new file from temp network share to actual network share
+                    if let Err(err) = pathbuf_copy(&encode.temp_target_path, &encode.target_path) {
+                        error!("Failed to copy file from server temp to media library. IO output: {}", err);
+                        panic!();
+                    }
+                    if let Err(err) = pathbuf_remove_file(&encode.temp_target_path) {
+                        error!("Failed to remove file from server temp. IO output: {}", err);
+                        panic!();
+                    }
                     //TODO: Make this whole process persistent
-                    //TODO: Insert file version below with the target_full_path
-                    asdf;
                     worker_manager
                         .lock()
                         .unwrap()
                         .clear_current_transcode_from_worker(worker_uid, generic_uid);
-                    if !file_manager.lock().unwrap().insert_file_version(&FileVersion::from_file_version_model(create_file_version(NewFileVersion::new(generic_uid, pathbuf_to_string(&full_path), false)))) {
+                    if !file_manager.lock().unwrap().insert_file_version(&FileVersion::from_file_version_model(create_file_version(NewFileVersion::new(generic_uid, pathbuf_to_string(&encode.target_path), false)))) {
                         error!("This should've found a generic to insert it into, this shouldn't have happened.");
                         panic!();
                     }
@@ -285,6 +300,7 @@ pub async fn run_web(
     file_manager: Arc<Mutex<FileManager>>,
     worker_mananger_transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
     worker_manager: Arc<Mutex<WorkerManager>>,
+    server_config: Arc<RwLock<ServerConfig>>,
 ) -> Result<(), IoError> {
     let addr_ipv4 = env::args()
         .nth(1)
@@ -339,10 +355,10 @@ pub async fn run_web(
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone(), server_config.clone()));
                 }
                 Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone(), server_config.clone()));
                 }
             }
         } else if is_listening_ipv4 {
@@ -352,7 +368,7 @@ pub async fn run_web(
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone(), server_config.clone()));
                 }
             }
         } else {
@@ -362,7 +378,7 @@ pub async fn run_web(
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone(), server_config.clone()));
                 }
             }
         }

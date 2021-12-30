@@ -8,8 +8,8 @@ use crate::{
     generic::{FileVersion, Generic},
     get_show_title_from_pathbuf,
     model::{NewEpisode, NewFileVersion, NewGeneric},
-    pathbuf_extension_to_string, pathbuf_file_stem, pathbuf_to_string,
-    show::{Episode, Show},
+    pathbuf_file_stem, pathbuf_to_string,
+    show::{Episode, Show}, pathbuf_extension,
 };
 extern crate derivative;
 use derivative::Derivative;
@@ -19,7 +19,7 @@ use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::{hash::{Hash, Hasher}, sync::{Arc, RwLock}};
 use std::{collections::HashMap, env, path::Path};
 use std::{collections::HashSet, fmt, path::PathBuf};
 use tracing::{error, info, trace, warn};
@@ -76,6 +76,19 @@ impl TrackedDirectories {
             self.cache_directory = Some(cache_directory.join("tlm"));
         } else {
             self.cache_directory = Some(PathBuf::from(cache_directory));
+        }
+    }
+
+    pub fn get_temp_directory(&self) -> PathBuf {
+        //is probably guaranteed
+        match self.temp_directory.as_ref() {
+            Some(temp_directory) => {
+                temp_directory.clone()
+            },
+            None => {
+                error!("For any local transcoding, just a local directory is fine, but this needs to be accessible for any remote worker.");
+                panic!();
+            },
         }
     }
 
@@ -139,8 +152,7 @@ impl fmt::Display for Reason {
 ///Contains all media data that is stored in ram as well as
 ///a list of rejected files
 pub struct FileManager {
-    ///copy of the one in the scheduler
-    pub config: ServerConfig,
+    pub config: Arc<RwLock<ServerConfig>>,
     pub generic_files: Vec<Generic>,
     pub shows: Vec<Show>,
     pub existing_files_hashset: HashSet<PathBuf>,
@@ -149,9 +161,9 @@ pub struct FileManager {
 }
 
 impl FileManager {
-    pub fn new(config: &ServerConfig) -> Self {
+    pub fn new(config: Arc<RwLock<ServerConfig>>) -> Self {
         let mut file_manager = Self {
-            config: config.clone(),
+            config,
             shows: get_all_shows(),
             generic_files: Vec::new(),
             existing_files_hashset: HashSet::new(),
@@ -239,18 +251,19 @@ impl FileManager {
         generic_uid: i32,
         file_version_id: i32,
         encode_profile: &EncodeProfile,
+        server_config: Arc<RwLock<ServerConfig>>,
     ) -> Option<Encode> {
         for generic in &self.generic_files {
             if generic.get_generic_uid() == generic_uid {
                 if let Some(file_version) = generic.get_file_version_by_id(file_version_id) {
-                    return Some(Encode::new(&file_version, encode_profile));
+                    return Some(Encode::new(&file_version, encode_profile, &server_config));
                 }
             }
         }
         for show in &self.shows {
             if let Some(generic) = show.get_generic_from_uid(generic_uid) {
                 if let Some(file_version) = generic.get_file_version_by_id(file_version_id) {
-                    return Some(Encode::new(&file_version, encode_profile));
+                    return Some(Encode::new(&file_version, encode_profile, &server_config));
                 }
             }
         }
@@ -460,7 +473,7 @@ impl FileManager {
     fn accept_or_reject_file(&mut self, full_path: PathBuf, store_reasons: bool) {
         let mut reason = None;
         //rejects if the path contains any element of an ignored path
-        for ignored_path in &self.config.ignored_paths_regex {
+        for ignored_path in &self.config.read().unwrap().ignored_paths_regex {
             if ignored_path
                 .is_match(&pathbuf_to_string(&full_path))
                 .unwrap()
@@ -477,8 +490,10 @@ impl FileManager {
                 //rejects if the file doesn't have an allowed extension
                 if !self
                     .config
+                    .read()
+                    .unwrap()
                     .allowed_extensions
-                    .contains(&pathbuf_extension_to_string(&full_path).to_lowercase())
+                    .contains(&pathbuf_to_string(&pathbuf_extension(&full_path)).to_lowercase())
                 {
                     reason = Some(Reason::ExtensionDisallowed);
                 }
@@ -503,7 +518,8 @@ impl FileManager {
     ///guarantee no duplicates in O(1) time
     pub fn import_files(&mut self) {
         //import all files in tracked root directories
-        for directory in &self.config.tracked_directories.root_directories.clone() {
+        let root_directories = &self.config.read().unwrap().clone().tracked_directories.root_directories.clone();
+        for directory in root_directories {
             //If we do thi first we can max out IO without waiting
             //for accept_or_reject files. Will increase memory overhead obviously
             for entry in WalkDir::new(directory) {
@@ -512,6 +528,25 @@ impl FileManager {
                 }
             }
         }
+    }
+
+    pub fn generate_encodes_for_all(&self, encode_profile: &EncodeProfile) -> Vec<Encode> {
+        let mut encodes: Vec<Encode> = Vec::new();
+        for generic in &self.generic_files {
+            for file_version in &generic.file_versions {
+                encodes.push(Encode::new(file_version, encode_profile, &self.config));
+            }
+        }
+        for show in &self.shows {
+            for season in &show.seasons {
+                for episode in &season.episodes {
+                    for file_version in &episode.generic.file_versions {
+                        encodes.push(Encode::new(file_version, encode_profile, &self.config));
+                    }
+                }
+            }
+        }
+        encodes
     }
 
     ///Insert a vector of episodes into an existing show

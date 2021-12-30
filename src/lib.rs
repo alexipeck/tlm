@@ -1,6 +1,8 @@
 #![doc = include_str!("../README.md")]
 
-use std::path::{Path, PathBuf};
+use std::{path::{Path, PathBuf}, fs::{copy, remove_file}, io::Error};
+
+use tracing::{error, debug};
 pub mod config;
 pub mod database;
 pub mod designation;
@@ -21,18 +23,48 @@ extern crate diesel;
 //Every function that takes a Path can also take a PathBuf
 //PathBuf output
 pub fn pathbuf_with_suffix(path: &Path, suffix: String) -> PathBuf {
+    debug!("pathbuf_with_suffix: {}", pathbuf_to_string(path));
+    debug!("pathbuf_with_suffix: {}", pathbuf_to_string(&pathbuf_extension(path)));
+
     pathbuf_get_parent(path).join(format!(
         "{}{}.{}",
-        pathbuf_file_stem_to_string(path),
+        pathbuf_to_string(&pathbuf_file_stem(path)),
         &suffix,
-        pathbuf_extension_to_string(path),
+        pathbuf_to_string(&pathbuf_extension(path)),
     ))
 }
 
 pub fn pathbuf_file_stem(path: &Path) -> PathBuf {
     match path.file_stem() {
         Some(file_stem) => PathBuf::from(file_stem),
-        None => panic!("Couldn't get file stem"),
+        None => {
+            error!("Couldn't get file stem from path: {}", pathbuf_to_string(path));
+            panic!();
+        },
+    }
+}
+
+pub fn pathbuf_file_name(path: &Path) -> PathBuf {
+    match path.file_name() {
+        Some(file_name) => {
+            PathBuf::from(file_name)
+        },
+        None => {
+            error!("Couldn't get file name from path: {}", pathbuf_to_string(path));
+            panic!();
+        },
+    }
+}
+
+pub fn pathbuf_extension(path: &Path) -> PathBuf {
+    match path.extension() {
+        Some(extension) => {
+            PathBuf::from(extension)
+        },
+        None => {
+            error!("Couldn't get file extension from path: {}", pathbuf_to_string(path));
+            panic!();
+        },
     }
 }
 
@@ -40,34 +72,13 @@ pub fn pathbuf_file_stem(path: &Path) -> PathBuf {
 pub fn pathbuf_get_parent(path: &Path) -> &Path {
     match path.parent() {
         Some(parent_path) => parent_path,
-        None => panic!("Couldn't get parent"),
+        None => panic!("Couldn't get parent from path: {}", pathbuf_to_string(path)),
     }
 }
 
 //String output
 pub fn pathbuf_to_string(path: &Path) -> String {
     path.to_str().unwrap().to_string()
-}
-
-pub fn pathbuf_to_string_with_suffix(path: &Path, suffix: String) -> String {
-    pathbuf_to_string(&pathbuf_get_parent(path).join(format!(
-        "{}{}.{}",
-        pathbuf_file_stem_to_string(path),
-        &suffix,
-        pathbuf_extension_to_string(path),
-    )))
-}
-
-pub fn pathbuf_file_name_to_string(path: &Path) -> String {
-    path.file_name().unwrap().to_str().unwrap().to_string()
-}
-
-pub fn pathbuf_extension_to_string(path: &Path) -> String {
-    path.extension().unwrap().to_str().unwrap().to_string()
-}
-
-pub fn pathbuf_file_stem_to_string(path: &Path) -> String {
-    path.file_stem().unwrap().to_str().unwrap().to_string()
 }
 
 pub fn get_show_title_from_pathbuf(path: &Path) -> String {
@@ -79,4 +90,13 @@ pub fn get_show_title_from_pathbuf(path: &Path) -> String {
         .unwrap()
         .to_string_lossy()
         .to_string()
+}
+
+pub fn pathbuf_copy(source: &Path, destination: &Path) -> Result<u64, Error> {
+    copy(pathbuf_to_string(source), pathbuf_to_string(destination))
+}
+
+
+pub fn pathbuf_remove_file(path: &Path) -> Result<(), Error> {
+    remove_file(pathbuf_to_string(path))
 }

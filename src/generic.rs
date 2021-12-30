@@ -12,7 +12,7 @@ use crate::{
     designation::{from_i32, Designation},
     model::*,
 };
-use crate::{pathbuf_file_name_to_string, pathbuf_to_string};
+use crate::{pathbuf_to_string, pathbuf_file_name};
 use diesel::PgConnection;
 use tracing::{error, warn};
 
@@ -121,7 +121,7 @@ impl FileVersion {
     }
 
     pub fn get_filename(&self) -> String {
-        pathbuf_file_name_to_string(&self.full_path)
+        pathbuf_to_string(&pathbuf_file_name(&self.full_path))
     }
 
     pub fn get_full_path(&self) -> String {
