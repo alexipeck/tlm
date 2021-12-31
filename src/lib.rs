@@ -1,14 +1,19 @@
 #![doc = include_str!("../README.md")]
 
 use std::{
+    collections::HashMap,
     fs::{copy, remove_file},
     io::Error,
+    net::SocketAddr,
     path::{Path, PathBuf},
 };
 
+use futures_channel::mpsc::UnboundedSender;
+use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, error};
 pub mod config;
 pub mod database;
+pub mod debug;
 pub mod designation;
 pub mod encode;
 pub mod file_manager;
@@ -21,18 +26,16 @@ pub mod show;
 pub mod worker;
 pub mod worker_manager;
 pub mod ws;
+pub mod ws_functions;
+
+type Tx = UnboundedSender<Message>;
+type PeerMap = HashMap<SocketAddr, (Option<i32>, Tx)>;
 
 #[macro_use]
 extern crate diesel;
 //Every function that takes a Path can also take a PathBuf
 //PathBuf output
 pub fn pathbuf_with_suffix(path: &Path, suffix: String) -> PathBuf {
-    debug!("pathbuf_with_suffix: {}", pathbuf_to_string(path));
-    debug!(
-        "pathbuf_with_suffix: {}",
-        pathbuf_to_string(&pathbuf_extension(path))
-    );
-
     pathbuf_get_parent(path).join(format!(
         "{}{}.{}",
         pathbuf_to_string(&pathbuf_file_stem(path)),
@@ -111,6 +114,6 @@ pub fn pathbuf_copy(source: &Path, destination: &Path) -> Result<u64, Error> {
 }
 
 pub fn pathbuf_remove_file(path: &Path) -> Result<(), Error> {
-    debug!("Remove: Path :{}", pathbuf_to_string(path));
+    debug!("Remove: Path: {}", pathbuf_to_string(path));
     remove_file(pathbuf_to_string(path))
 }

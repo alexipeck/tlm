@@ -139,16 +139,9 @@ impl EncodeString {
             error!("Activate was called on an EncodeString that has already been activated");
             panic!();
         }
-        debug!("1: {}", pathbuf_to_string(&temp_path));
-        debug!("2: {}", pathbuf_to_string(&self.file_name));
-        debug!("3: {}", pathbuf_to_string(&self.extension));
         let mut temp_file_name = self.file_name.clone();
         let _ = temp_file_name.set_extension(&self.extension);
-        debug!("4: {}", pathbuf_to_string(&temp_file_name));
-        let t = temp_path.join(temp_file_name);
-        debug!("5: {}", pathbuf_to_string(&t));
-        let worker_temp_full_path = generate_temp_target_path(&t);
-        debug!("6: {}", pathbuf_to_string(&worker_temp_full_path));
+        let worker_temp_full_path = generate_temp_target_path(&temp_path.join(temp_file_name));
         self.encode_string
             .push(pathbuf_to_string(&worker_temp_full_path));
         self.worker_temp_full_path = Some(worker_temp_full_path);
