@@ -225,7 +225,7 @@ impl Preferences {
             &["--fsro", "--fs_read_only", "--file_system_read_only"],
             StoreTrue,
             "Don't overwrite any media files in the file system",
-        );     
+        );
 
         parser.refer(&mut self.port).add_option(
             &["-p", "--port"],

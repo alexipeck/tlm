@@ -1,8 +1,12 @@
 #![doc = include_str!("../README.md")]
 
-use std::{path::{Path, PathBuf}, fs::{copy, remove_file}, io::Error};
+use std::{
+    fs::{copy, remove_file},
+    io::Error,
+    path::{Path, PathBuf},
+};
 
-use tracing::{error, debug};
+use tracing::{debug, error};
 pub mod config;
 pub mod database;
 pub mod designation;
@@ -24,7 +28,10 @@ extern crate diesel;
 //PathBuf output
 pub fn pathbuf_with_suffix(path: &Path, suffix: String) -> PathBuf {
     debug!("pathbuf_with_suffix: {}", pathbuf_to_string(path));
-    debug!("pathbuf_with_suffix: {}", pathbuf_to_string(&pathbuf_extension(path)));
+    debug!(
+        "pathbuf_with_suffix: {}",
+        pathbuf_to_string(&pathbuf_extension(path))
+    );
 
     pathbuf_get_parent(path).join(format!(
         "{}{}.{}",
@@ -38,33 +45,38 @@ pub fn pathbuf_file_stem(path: &Path) -> PathBuf {
     match path.file_stem() {
         Some(file_stem) => PathBuf::from(file_stem),
         None => {
-            error!("Couldn't get file stem from path: {}", pathbuf_to_string(path));
+            error!(
+                "Couldn't get file stem from path: {}",
+                pathbuf_to_string(path)
+            );
             panic!();
-        },
+        }
     }
 }
 
 pub fn pathbuf_file_name(path: &Path) -> PathBuf {
     match path.file_name() {
-        Some(file_name) => {
-            PathBuf::from(file_name)
-        },
+        Some(file_name) => PathBuf::from(file_name),
         None => {
-            error!("Couldn't get file name from path: {}", pathbuf_to_string(path));
+            error!(
+                "Couldn't get file name from path: {}",
+                pathbuf_to_string(path)
+            );
             panic!();
-        },
+        }
     }
 }
 
 pub fn pathbuf_extension(path: &Path) -> PathBuf {
     match path.extension() {
-        Some(extension) => {
-            PathBuf::from(extension)
-        },
+        Some(extension) => PathBuf::from(extension),
         None => {
-            error!("Couldn't get file extension from path: {}", pathbuf_to_string(path));
+            error!(
+                "Couldn't get file extension from path: {}",
+                pathbuf_to_string(path)
+            );
             panic!();
-        },
+        }
     }
 }
 
@@ -97,7 +109,6 @@ pub fn pathbuf_copy(source: &Path, destination: &Path) -> Result<u64, Error> {
     debug!("Copy: Destination :{}", pathbuf_to_string(destination));
     copy(pathbuf_to_string(source), pathbuf_to_string(destination))
 }
-
 
 pub fn pathbuf_remove_file(path: &Path) -> Result<(), Error> {
     debug!("Remove: Path :{}", pathbuf_to_string(path));

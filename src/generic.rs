@@ -12,7 +12,7 @@ use crate::{
     designation::{from_i32, Designation},
     model::*,
 };
-use crate::{pathbuf_to_string, pathbuf_file_name};
+use crate::{pathbuf_file_name, pathbuf_to_string};
 use diesel::PgConnection;
 use tracing::{error, warn};
 

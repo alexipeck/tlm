@@ -4,16 +4,16 @@ use std::{collections::VecDeque, sync::RwLock};
 use tracing::{debug, error, info, warn};
 
 use crate::{
-    config::{WorkerConfig, ServerConfig},
+    config::{ServerConfig, WorkerConfig},
     database::{create_file_version, print_all_worker_models},
     encode::{Encode, EncodeProfile},
     file_manager::FileManager,
     generic::FileVersion,
     model::NewFileVersion,
-    pathbuf_to_string,
+    pathbuf_copy, pathbuf_remove_file, pathbuf_to_string,
     scheduler::{GenerateProfiles, Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
     worker::WorkerMessage,
-    worker_manager::{AddEncodeMode, WorkerManager, WorkerTranscodeQueue}, pathbuf_copy, pathbuf_remove_file,
+    worker_manager::{AddEncodeMode, WorkerManager, WorkerTranscodeQueue},
 };
 
 use std::{

@@ -5,11 +5,11 @@ use std::{
     process::{Child, Command},
     sync::{Arc, RwLock},
 };
-use tracing::{error, info, debug};
+use tracing::{debug, error, info};
 
 use crate::{
-    generic::FileVersion, pathbuf_file_stem, pathbuf_to_string,
-    pathbuf_with_suffix, config::ServerConfig, pathbuf_file_name,
+    config::ServerConfig, generic::FileVersion, pathbuf_file_name, pathbuf_file_stem,
+    pathbuf_to_string, pathbuf_with_suffix,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -22,9 +22,18 @@ pub struct Encode {
 }
 
 impl Encode {
-    pub fn new(file_version: &FileVersion, encode_profile: &EncodeProfile, server_config: &Arc<RwLock<ServerConfig>>) -> Self {
+    pub fn new(
+        file_version: &FileVersion,
+        encode_profile: &EncodeProfile,
+        server_config: &Arc<RwLock<ServerConfig>>,
+    ) -> Self {
         let target_path = generate_target_path(&file_version.full_path, encode_profile);
-        let temp_target_path = server_config.read().unwrap().tracked_directories.get_temp_directory().join(pathbuf_file_name(&target_path));
+        let temp_target_path = server_config
+            .read()
+            .unwrap()
+            .tracked_directories
+            .get_temp_directory()
+            .join(pathbuf_file_name(&target_path));
         Self {
             generic_uid: file_version.generic_uid,
             source_path: file_version.full_path.clone(),
@@ -44,7 +53,10 @@ impl Encode {
             pathbuf_to_string(&pathbuf_file_name(&self.source_path)),
         );
         debug!("Encode: Source: {}", pathbuf_to_string(&self.source_path));
-        debug!("Encode: Destination: {}", self.encode_string.encode_string[&self.encode_string.encode_string.len() - 1]);
+        debug!(
+            "Encode: Destination: {}",
+            self.encode_string.encode_string[&self.encode_string.encode_string.len() - 1]
+        );
 
         let _ = handle.write().unwrap().insert(
             Command::new("ffmpeg")
@@ -101,13 +113,11 @@ impl EncodeString {
 
     pub fn get_worker_temp_target_path(&self) -> PathBuf {
         match self.worker_temp_full_path.as_ref() {
-            Some(worker_temp_full_path) => {
-                worker_temp_full_path.clone()
-            },
+            Some(worker_temp_full_path) => worker_temp_full_path.clone(),
             None => {
                 error!("This should not be none, something has gone very wrong.");
                 panic!();
-            },
+            }
         }
     }
 
@@ -139,7 +149,8 @@ impl EncodeString {
         debug!("5: {}", pathbuf_to_string(&t));
         let worker_temp_full_path = generate_temp_target_path(&t);
         debug!("6: {}", pathbuf_to_string(&worker_temp_full_path));
-        self.encode_string.push(pathbuf_to_string(&worker_temp_full_path));
+        self.encode_string
+            .push(pathbuf_to_string(&worker_temp_full_path));
         self.worker_temp_full_path = Some(worker_temp_full_path);
     }
 }

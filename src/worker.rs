@@ -55,13 +55,11 @@ impl Worker {
 
     pub fn get_worker_temp_directory(&self) -> PathBuf {
         match &self.worker_temp_directory {
-            Some(worker_temp_directory) => {
-                worker_temp_directory.clone()
-            },
+            Some(worker_temp_directory) => worker_temp_directory.clone(),
             None => {
                 error!("Worker has no temp directory.");
                 panic!();
-            },
+            }
         }
     }
 

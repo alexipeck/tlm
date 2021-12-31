@@ -9,7 +9,10 @@ use tracing::{debug, error, info};
 
 use std::{
     collections::VecDeque,
-    sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, RwLock},
+    sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        RwLock,
+    },
     sync::{Arc, Mutex},
     thread,
     thread::JoinHandle,

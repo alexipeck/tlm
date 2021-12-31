@@ -12,13 +12,13 @@ use tlm::{
 };
 
 use core::time;
-use std::{collections::VecDeque, sync::RwLock};
 use std::env;
 use std::io::stdout;
 use std::io::Error as IoError;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::{collections::VecDeque, sync::RwLock};
 use tracing::{error, info, Level};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -68,7 +68,8 @@ async fn main() -> Result<(), IoError> {
 
     let preferences = Preferences::default();
 
-    let server_config: Arc<RwLock<ServerConfig>> = Arc::new(RwLock::new(ServerConfig::new(&preferences)));
+    let server_config: Arc<RwLock<ServerConfig>> =
+        Arc::new(RwLock::new(ServerConfig::new(&preferences)));
 
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 
@@ -83,7 +84,8 @@ async fn main() -> Result<(), IoError> {
         worker_mananger_transcode_queue.clone(),
         600,
     )));
-    let file_manager: Arc<Mutex<FileManager>> = Arc::new(Mutex::new(FileManager::new(server_config.clone())));
+    let file_manager: Arc<Mutex<FileManager>> =
+        Arc::new(Mutex::new(FileManager::new(server_config.clone())));
 
     let stop_scheduler = Arc::new(AtomicBool::new(false));
     let mut scheduler: Scheduler = Scheduler::new(
@@ -122,7 +124,7 @@ async fn main() -> Result<(), IoError> {
             file_manager,
             worker_mananger_transcode_queue,
             worker_manager,
-            server_config.clone()
+            server_config.clone(),
         )
         .await?;
     }

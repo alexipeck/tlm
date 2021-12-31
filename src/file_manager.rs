@@ -8,8 +8,8 @@ use crate::{
     generic::{FileVersion, Generic},
     get_show_title_from_pathbuf,
     model::{NewEpisode, NewFileVersion, NewGeneric},
-    pathbuf_file_stem, pathbuf_to_string,
-    show::{Episode, Show}, pathbuf_extension,
+    pathbuf_extension, pathbuf_file_stem, pathbuf_to_string,
+    show::{Episode, Show},
 };
 extern crate derivative;
 use derivative::Derivative;
@@ -19,9 +19,12 @@ use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{hash::{Hash, Hasher}, sync::{Arc, RwLock}};
 use std::{collections::HashMap, env, path::Path};
 use std::{collections::HashSet, fmt, path::PathBuf};
+use std::{
+    hash::{Hash, Hasher},
+    sync::{Arc, RwLock},
+};
 use tracing::{error, info, trace, warn};
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -82,13 +85,11 @@ impl TrackedDirectories {
     pub fn get_temp_directory(&self) -> PathBuf {
         //is probably guaranteed
         match self.temp_directory.as_ref() {
-            Some(temp_directory) => {
-                temp_directory.clone()
-            },
+            Some(temp_directory) => temp_directory.clone(),
             None => {
                 error!("For any local transcoding, just a local directory is fine, but this needs to be accessible for any remote worker.");
                 panic!();
-            },
+            }
         }
     }
 
@@ -518,7 +519,14 @@ impl FileManager {
     ///guarantee no duplicates in O(1) time
     pub fn import_files(&mut self) {
         //import all files in tracked root directories
-        let root_directories = &self.config.read().unwrap().clone().tracked_directories.root_directories.clone();
+        let root_directories = &self
+            .config
+            .read()
+            .unwrap()
+            .clone()
+            .tracked_directories
+            .root_directories
+            .clone();
         for directory in root_directories {
             //If we do thi first we can max out IO without waiting
             //for accept_or_reject files. Will increase memory overhead obviously

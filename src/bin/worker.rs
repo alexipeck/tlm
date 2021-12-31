@@ -1,5 +1,4 @@
 use directories::BaseDirs;
-use tlm::pathbuf_to_string;
 use std::thread;
 use std::{
     env,
@@ -14,10 +13,11 @@ use std::{
     time,
 };
 use tlm::config::WorkerConfig;
+use tlm::pathbuf_to_string;
 use tlm::worker::WorkerMessage;
 use tlm::worker_manager::WorkerTranscodeQueue;
 use tlm::ws::run_worker;
-use tracing::{error, Level, debug};
+use tracing::{debug, error, Level};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::registry::Registry;
@@ -76,7 +76,10 @@ async fn main() -> Result<(), IoError> {
         let stop_worker_inner = stop_worker.clone();
         let (mut tx, rx) = futures_channel::mpsc::unbounded();
         //Doesn't deal with error sending .unwrap() at the end
-        debug!("Worker temp path: {}", pathbuf_to_string(&config.read().unwrap().temp_path.clone()));
+        debug!(
+            "Worker temp path: {}",
+            pathbuf_to_string(&config.read().unwrap().temp_path.clone())
+        );
         tx.start_send(
             WorkerMessage::Initialise(
                 config.read().unwrap().uid,
