@@ -93,10 +93,13 @@ pub fn get_show_title_from_pathbuf(path: &Path) -> String {
 }
 
 pub fn pathbuf_copy(source: &Path, destination: &Path) -> Result<u64, Error> {
+    debug!("Copy: Source: {}", pathbuf_to_string(source));
+    debug!("Copy: Destination :{}", pathbuf_to_string(destination));
     copy(pathbuf_to_string(source), pathbuf_to_string(destination))
 }
 
 
 pub fn pathbuf_remove_file(path: &Path) -> Result<(), Error> {
+    debug!("Remove: Path :{}", pathbuf_to_string(path));
     remove_file(pathbuf_to_string(path))
 }

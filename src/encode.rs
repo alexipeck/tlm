@@ -43,6 +43,8 @@ impl Encode {
             "Encoding file \'{}\'",
             pathbuf_to_string(&pathbuf_file_name(&self.source_path)),
         );
+        debug!("Encode: Source: {}", pathbuf_to_string(&self.source_path));
+        debug!("Encode: Destination: {}", self.encode_string.encode_string[&self.encode_string.encode_string.len() - 1]);
 
         let _ = handle.write().unwrap().insert(
             Command::new("ffmpeg")
@@ -127,10 +129,18 @@ impl EncodeString {
             error!("Activate was called on an EncodeString that has already been activated");
             panic!();
         }
-        let worker_temp_full_path = temp_path.join(self.file_name.join(&self.extension));
-        self.worker_temp_full_path = Some(generate_temp_target_path(&worker_temp_full_path));
-        debug!("Activating: {}", pathbuf_to_string(&generate_temp_target_path(&worker_temp_full_path)));
+        debug!("1: {}", pathbuf_to_string(&temp_path));
+        debug!("2: {}", pathbuf_to_string(&self.file_name));
+        debug!("3: {}", pathbuf_to_string(&self.extension));
+        let mut temp_file_name = self.file_name.clone();
+        let _ = temp_file_name.set_extension(&self.extension);
+        debug!("4: {}", pathbuf_to_string(&temp_file_name));
+        let t = temp_path.join(temp_file_name);
+        debug!("5: {}", pathbuf_to_string(&t));
+        let worker_temp_full_path = generate_temp_target_path(&t);
+        debug!("6: {}", pathbuf_to_string(&worker_temp_full_path));
         self.encode_string.push(pathbuf_to_string(&worker_temp_full_path));
+        self.worker_temp_full_path = Some(worker_temp_full_path);
     }
 }
 
@@ -151,8 +161,8 @@ impl EncodeProfile {
     //TODO: Make realistic association between profile and container
     pub fn get_extension(&self) -> String {
         match self {
-            EncodeProfile::H264_TV_1080p => ".mp4".to_string(),
-            EncodeProfile::H265_TV_1080p => ".mp4".to_string(),
+            EncodeProfile::H264_TV_1080p => "mp4".to_string(),
+            EncodeProfile::H265_TV_1080p => "mp4".to_string(),
         }
     }
 }
@@ -171,7 +181,5 @@ impl fmt::Display for EncodeProfile {
 pub fn generate_target_path(full_path: &Path, encode_profile: &EncodeProfile) -> PathBuf {
     //TODO: This function should create the actual target path for a new FileVersion
     //TODO: Check that there isn't already a file with that file name
-    println!("Generating target path from: {}", pathbuf_to_string(full_path));
-    println!("Generating target path: {}", pathbuf_to_string(&pathbuf_with_suffix(full_path, format!("_{}", encode_profile.to_string()))));
     pathbuf_with_suffix(full_path, format!("_{}", encode_profile.to_string()))
 }

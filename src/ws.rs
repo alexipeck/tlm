@@ -177,6 +177,7 @@ async fn handle_web_connection(
         } else if msg.is_binary() {
             match WorkerMessage::from_message(msg) {
                 WorkerMessage::Initialise(mut worker_uid, worker_temp_directory) => {
+                    debug!("Init worker: {}", pathbuf_to_string(&worker_temp_directory));
                     //if true {//TODO: authenticate/validate
                     if !worker_manager.lock().unwrap().reestablish_worker(
                         worker_uid,

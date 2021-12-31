@@ -110,14 +110,7 @@ pub struct WorkerConfig {
     pub uid: Option<i32>,
     #[serde(skip)]
     config_path: PathBuf,
-    #[serde(skip)]
     pub temp_path: PathBuf,
-}
-
-impl fmt::Display for WorkerConfig {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ws://{}:{}", self.server_address, self.server_port)
-    }
 }
 
 impl WorkerConfig {
@@ -170,6 +163,12 @@ impl WorkerConfig {
             );
             panic!();
         }
+    }
+}
+
+impl fmt::Display for WorkerConfig {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ws://{}:{}", self.server_address, self.server_port)
     }
 }
 
