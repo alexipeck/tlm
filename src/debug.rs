@@ -55,7 +55,12 @@ pub fn run_completeness_check(file_manager: Arc<Mutex<FileManager>>) {
             missing_fields.push_str(", container");
         }
         if !missing_fields.is_empty() {
-            debug!("File Version: generic_uid: {}, id: {} is missing: {}", file_version.generic_uid, file_version.id, missing_fields.replacen(", ", "", 1));
+            debug!(
+                "File Version: generic_uid: {}, id: {} is missing: {}",
+                file_version.generic_uid,
+                file_version.id,
+                missing_fields.replacen(", ", "", 1)
+            );
         }
     }
     debug!("Starting completeness check");

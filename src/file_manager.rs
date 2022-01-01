@@ -525,8 +525,7 @@ impl FileManager {
             .unwrap()
             .clone()
             .tracked_directories
-            .root_directories
-            .clone();
+            .root_directories;
         for directory in root_directories {
             //If we do thi first we can max out IO without waiting
             //for accept_or_reject files. Will increase memory overhead obviously
