@@ -28,42 +28,34 @@ pub fn output_all_file_versions(file_manager: Arc<Mutex<FileManager>>) {
 }
 
 pub fn run_completeness_check(file_manager: Arc<Mutex<FileManager>>) {
-    fn bool_to_char(bool: bool) -> char {
-        if bool {
-            'Y'
-        } else {
-            'N'
-        }
-    }
     fn line_output(file_version: &FileVersion) {
-        let hash = file_version.hash.is_some();
-        let fast_hash = file_version.fast_hash.is_some();
-        let width = file_version.width.is_some();
-        let height = file_version.height.is_some();
-        let framerate = file_version.framerate.is_some();
-        let length_time = file_version.length_time.is_some();
-        let resolution_standard = file_version.resolution_standard.is_some();
-        let container = file_version.container.is_some();
-        if !hash
-            || !fast_hash
-            || !width
-            || !height
-            || !framerate
-            || !length_time
-            || !resolution_standard
-            || !container
-        {
-            debug!(
-                "hash: {}, fast_hash: {}, width: {}, height: {}, framerate: {}, length_time: {}, resolution_standard: {}, container: {}",
-                bool_to_char(hash),
-                bool_to_char(fast_hash),
-                bool_to_char(width),
-                bool_to_char(height),
-                bool_to_char(framerate),
-                bool_to_char(length_time),
-                bool_to_char(resolution_standard),
-                bool_to_char(container),
-            );
+        let mut missing_fields: String = String::new();
+        if file_version.hash.is_none() {
+            missing_fields.push_str(", hash");
+        }
+        if file_version.fast_hash.is_none() {
+            missing_fields.push_str(", fast_hash");
+        }
+        if file_version.width.is_none() {
+            missing_fields.push_str(", width");
+        }
+        if file_version.height.is_none() {
+            missing_fields.push_str(", height");
+        }
+        if file_version.framerate.is_none() {
+            missing_fields.push_str(", framerate");
+        }
+        if file_version.length_time.is_none() {
+            missing_fields.push_str(", length_time");
+        }
+        if file_version.resolution_standard.is_none() {
+            missing_fields.push_str(", resolution_standard");
+        }
+        if file_version.container.is_none() {
+            missing_fields.push_str(", container");
+        }
+        if !missing_fields.is_empty() {
+            debug!("File Version: generic_uid: {}, id: {} is missing: {}", file_version.generic_uid, file_version.id, missing_fields.replacen(", ", "", 1));
         }
     }
     debug!("Starting completeness check");
