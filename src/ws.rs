@@ -80,11 +80,13 @@ async fn handle_web_connection(
                 "import" => import_files(tasks.clone()),
                 "process" => process_files(tasks.clone()),
                 "generate_profiles" => generate_profiles(tasks.clone()),
-
                 "bulk" => {
-                    hash_files(tasks.clone());
+                    //TODO: Implement a way of making one task wait for another before it can run
+                    //    : this will require tasks to be logged in the DB and knowledge of the uid for the await
+                    //    : this is a scheduler/task thing
                     import_files(tasks.clone());
                     process_files(tasks.clone());
+                    hash_files(tasks.clone());
                     generate_profiles(tasks.clone());
                 }
 
