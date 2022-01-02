@@ -32,7 +32,7 @@ impl Encode {
             .read()
             .unwrap()
             .tracked_directories
-            .get_temp_directory()
+            .get_global_temp_directory()
             .join(pathbuf_file_name(&target_path));
         Self {
             generic_uid: file_version.generic_uid,

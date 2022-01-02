@@ -41,7 +41,8 @@ impl ServerConfig {
             r"C:\\Users\\Alexi Peck\\Desktop\\tlm\\test_files".to_string(),
         ));
         //TODO: Have a better method for getting a temp network share directory from the user
-        tracked_directories.assign_temp_directory(&PathBuf::from(r"\\\\192.168.2.30\\tlm_temp\\"));
+        tracked_directories
+            .assign_global_temp_directory(&PathBuf::from(r"\\192.168.2.30\tlm_temp\"));
         Self {
             port: 8888,
             allowed_extensions,

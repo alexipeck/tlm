@@ -32,7 +32,7 @@ pub struct TrackedDirectories {
     root_directories: HashSet<PathBuf>,
     cache_directory: Option<PathBuf>,
     //This needs to be accessible by the workers
-    temp_directory: Option<PathBuf>,
+    global_temp_directory: Option<PathBuf>,
 }
 
 impl TrackedDirectories {
@@ -40,7 +40,7 @@ impl TrackedDirectories {
         Self {
             root_directories: HashSet::new(),
             cache_directory: None,
-            temp_directory: None,
+            global_temp_directory: None,
         }
     }
 
@@ -54,8 +54,8 @@ impl TrackedDirectories {
         self.cache_directory.is_some()
     }
 
-    pub fn has_temp_directory(&self) -> bool {
-        self.temp_directory.is_some()
+    pub fn has_global_temp_directory(&self) -> bool {
+        self.global_temp_directory.is_some()
     }
 
     pub fn add_root_directory(&mut self, tracked_directory: PathBuf) {
@@ -82,10 +82,10 @@ impl TrackedDirectories {
         }
     }
 
-    pub fn get_temp_directory(&self) -> PathBuf {
+    pub fn get_global_temp_directory(&self) -> &PathBuf {
         //is probably guaranteed
-        match self.temp_directory.as_ref() {
-            Some(temp_directory) => temp_directory.clone(),
+        match self.global_temp_directory.as_ref() {
+            Some(temp_directory) => temp_directory,
             None => {
                 error!("For any local transcoding, just a local directory is fine, but this needs to be accessible for any remote worker.");
                 panic!();
