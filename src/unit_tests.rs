@@ -77,6 +77,9 @@ impl UnitTest {
 //Ensure workers have read/write access to the network/local share temp (check from all active worker's context and the server)
 //Ensure the worker only has read-only access to the main library
 
+//TODO: Check if the config file is valid and if not, can it be recovered from a default config, display the discrepancy
+//    : This is an example of potential PassWithWarnings
+
 //File access self test
 //I only care about explicit failures
 //This will output debug text, but will just return a pass/fail
