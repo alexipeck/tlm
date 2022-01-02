@@ -2,8 +2,8 @@
 
 use std::{
     collections::HashMap,
-    fs::{copy, remove_file},
-    io::Error,
+    fs::{copy, remove_file, File, self},
+    io::{Error, Write, self},
     net::SocketAddr,
     path::{Path, PathBuf},
 };
@@ -23,6 +23,7 @@ pub mod profile;
 pub mod scheduler;
 pub mod schema;
 pub mod show;
+pub mod unit_tests;
 pub mod worker;
 pub mod worker_manager;
 pub mod ws;
@@ -35,6 +36,9 @@ type PeerMap = HashMap<SocketAddr, (Option<i32>, Tx)>;
 extern crate diesel;
 //Every function that takes a Path can also take a PathBuf
 //PathBuf output
+
+//TODO: Allow an option to ensure (read/write) or check (read-only) that that path/directory/file exists on disk
+
 pub fn pathbuf_with_suffix(path: &Path, suffix: String) -> PathBuf {
     pathbuf_get_parent(path).join(format!(
         "{}{}.{}",
@@ -107,14 +111,17 @@ pub fn get_show_title_from_pathbuf(path: &Path) -> String {
         .to_string()
 }
 
+pub fn pathbuf_create_file(test_file_path: &Path) -> Result<(), Error> {
+    let mut file = File::create(pathbuf_to_string(test_file_path))?;
+    file.write_all(b"Dummy unit testing file.")?;
+    Ok(())
+}
+
 pub fn pathbuf_copy(source: &Path, destination: &Path) -> Result<u64, Error> {
-    debug!("Copy: Source: {}", pathbuf_to_string(source));
-    debug!("Copy: Destination :{}", pathbuf_to_string(destination));
     copy(pathbuf_to_string(source), pathbuf_to_string(destination))
 }
 
 pub fn pathbuf_remove_file(path: &Path) -> Result<(), Error> {
-    debug!("Remove: Path: {}", pathbuf_to_string(path));
     remove_file(pathbuf_to_string(path))
 }
 

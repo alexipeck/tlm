@@ -1,5 +1,6 @@
 //!Set of functions and structures to make is easier to handle the config file
 //!and command line arguments
+use crate::ensure_path_exists;
 use crate::file_manager::TrackedDirectories;
 use crate::pathbuf_to_string;
 use argparse::{ArgumentParser, Store, StoreOption, StoreTrue};
@@ -38,7 +39,7 @@ impl ServerConfig {
         let mut tracked_directories = TrackedDirectories::default();
         //TODO: Remove hardcoding
         tracked_directories.add_root_directory(PathBuf::from(
-            r"C:\\Users\\Alexi Peck\\Desktop\\tlm\\test_files".to_string(),
+            r"C:\Users\Alexi Peck\Desktop\tlm\test_files".to_string(),
         ));
         //TODO: Have a better method for getting a temp network share directory from the user
         tracked_directories

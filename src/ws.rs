@@ -12,6 +12,7 @@ use crate::{
     encode::Encode,
     file_manager::FileManager,
     scheduler::Task,
+    unit_tests::file_access_self_test,
     worker::WorkerMessage,
     worker_manager::{WorkerManager, WorkerTranscodeQueue},
     ws_functions::{
@@ -98,6 +99,14 @@ async fn handle_web_connection(
                     encode_all_files(file_manager.clone(), worker_manager_transcode_queue.clone())
                 }
                 "run_completeness_check" => run_completeness_check(file_manager.clone()),
+                "kill_all_workers" => {
+                    //TODO: Make this force close all workers, used for constant resetting of the dev/test environment
+                }
+
+                //Self test
+                "file_access_self_test" => {
+                    let _ = file_access_self_test(server_config.clone());
+                }
 
                 _ => warn!("{} is not a valid input", message),
             }

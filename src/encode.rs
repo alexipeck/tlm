@@ -174,8 +174,8 @@ impl EncodeProfile {
 impl fmt::Display for EncodeProfile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            EncodeProfile::H264_TV_1080p => write!(f, "H264_TV_1080p"),
-            EncodeProfile::H265_TV_1080p => write!(f, "H265_TV_1080p"),
+            Self::H264_TV_1080p => write!(f, "H264_TV_1080p"),
+            Self::H265_TV_1080p => write!(f, "H265_TV_1080p"),
         }
     }
 }
