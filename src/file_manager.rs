@@ -9,7 +9,7 @@ use crate::{
     get_show_title_from_pathbuf,
     model::{NewEpisode, NewFileVersion, NewGeneric},
     pathbuf_extension, pathbuf_file_stem, pathbuf_to_string,
-    show::{Episode, Show},
+    show::{Episode, Show}, ensure_path_exists,
 };
 extern crate derivative;
 use derivative::Derivative;
@@ -25,7 +25,7 @@ use std::{
     hash::{Hash, Hasher},
     sync::{Arc, RwLock},
 };
-use tracing::{error, info, trace, warn};
+use tracing::{error, info, trace, warn, debug};
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct TrackedDirectories {
@@ -46,7 +46,7 @@ impl TrackedDirectories {
 
     pub fn default() -> Self {
         let mut tracked_directories = Self::new_empty();
-        tracked_directories.assign_temp_as_cache_directory();
+        tracked_directories.assign_cache_directory(None);
         tracked_directories
     }
 
@@ -63,23 +63,25 @@ impl TrackedDirectories {
     }
 
     //Destructive
-    pub fn assign_temp_as_cache_directory(&mut self) {
-        self.cache_directory = Some(env::temp_dir().join("tlm"));
-    }
-
-    //Destructive
-    pub fn assign_temp_directory(&mut self, temp_directory: &Path) {
-        self.temp_directory = Some(PathBuf::from(temp_directory));
-    }
-
-    //Destructive
-    pub fn assign_cache_directory(&mut self, cache_directory: &Path) {
-        //should be able to determine whether there has already been a /tlm/ folder created in the passed cache directory
-        if pathbuf_to_string(&pathbuf_file_stem(cache_directory)) != "tlm" {
-            self.cache_directory = Some(cache_directory.join("tlm"));
+    pub fn assign_cache_directory(&mut self, directory: Option<&Path>) {
+        let cache_directory;
+        if let Some(directory) = directory {
+            //should be able to determine whether there has already been a /tlm/ folder created in the passed cache directory
+            if pathbuf_to_string(&pathbuf_file_stem(directory)) != "tlm" {
+                cache_directory = directory.join("tlm");
+            } else {
+                cache_directory = directory.to_path_buf();
+            }
         } else {
-            self.cache_directory = Some(PathBuf::from(cache_directory));
+            cache_directory = env::temp_dir().join("tlm");
         }
+        ensure_path_exists(&cache_directory);
+        self.cache_directory = Some(cache_directory);
+    }
+
+    //Destructive
+    pub fn assign_global_temp_directory(&mut self, global_temp_directory: &Path) {
+        self.global_temp_directory = Some(PathBuf::from(global_temp_directory));
     }
 
     pub fn get_global_temp_directory(&self) -> &PathBuf {

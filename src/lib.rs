@@ -117,3 +117,10 @@ pub fn pathbuf_remove_file(path: &Path) -> Result<(), Error> {
     debug!("Remove: Path: {}", pathbuf_to_string(path));
     remove_file(pathbuf_to_string(path))
 }
+
+pub fn ensure_path_exists(path: &Path) {
+    if let Err(err) = fs::create_dir_all(path) {
+        error!("Failed to create \"tlm\" directory in temp directory. Error: {}", err);
+        panic!();
+    }
+}

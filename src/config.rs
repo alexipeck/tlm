@@ -66,7 +66,12 @@ impl ServerConfig {
                 }
             };
             config = match toml::from_str(&config_toml) {
-                Ok(config) => config,
+                Ok(config) => {
+                    let config: ServerConfig = config;
+                    //TODO: All paths from the config file should be checked and cache directories need to have ensure_path_exists to account for child folders in temp
+                    ensure_path_exists(config.tracked_directories.get_cache_directory());
+                    config
+                },
                 Err(err) => {
                     error!("Failed to parse toml: {}", err);
                     panic!();
@@ -86,7 +91,7 @@ impl ServerConfig {
 
         //TODO: Need to check that the server config from the config file is actually complete
         if !config.tracked_directories.has_cache_directory() {
-            config.tracked_directories.assign_temp_as_cache_directory();
+            config.tracked_directories.assign_cache_directory(None);
             warn!("Used default cache directory instead of path specified in config file");
         }
 
