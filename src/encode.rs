@@ -49,7 +49,7 @@ impl Encode {
 
     pub fn run(self, handle: Arc<RwLock<Option<Child>>>) {
         info!(
-            "Encoding file \'{}\'",
+            "Encoding file \"{}\"",
             to_string(&get_file_name(&self.source_path)),
         );
         debug!("Encode: Source: {}", to_string(&self.source_path));

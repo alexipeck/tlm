@@ -189,7 +189,7 @@ impl WorkerManager {
                 Some(mut encode) => {
                     encode
                         .encode_string
-                        .activate(worker.get_worker_temp_directory());
+                        .activate(worker.cache_path, worker.get_worker_temp_directory());
                     worker.add_to_queue(encode);
                 }
                 None => {
@@ -279,6 +279,9 @@ impl WorkerTranscodeQueue {
                 return;
             }
         }
+
+        //TODO: Run from cache
+        //TODO: Run from network share
 
         //Add a transcode current if there isn't one already there
         if self.make_transcode_current() {
