@@ -8,8 +8,8 @@ use std::{
 use tracing::{debug, error, info};
 
 use crate::{
-    config::ServerConfig, generic::FileVersion, pathbuf_file_name, pathbuf_file_stem,
-    pathbuf_to_string, pathbuf_with_suffix,
+    config::ServerConfig, generic::FileVersion, get_file_name, get_file_stem,
+    to_string, pathbuf_with_suffix,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -33,7 +33,7 @@ impl Encode {
             .unwrap()
             .tracked_directories
             .get_global_temp_directory()
-            .join(pathbuf_file_name(&target_path));
+            .join(get_file_name(&target_path));
         Self {
             generic_uid: file_version.generic_uid,
             source_path: file_version.full_path.clone(),
@@ -50,9 +50,9 @@ impl Encode {
     pub fn run(self, handle: Arc<RwLock<Option<Child>>>) {
         info!(
             "Encoding file \'{}\'",
-            pathbuf_to_string(&pathbuf_file_name(&self.source_path)),
+            to_string(&get_file_name(&self.source_path)),
         );
-        debug!("Encode: Source: {}", pathbuf_to_string(&self.source_path));
+        debug!("Encode: Source: {}", to_string(&self.source_path));
         debug!(
             "Encode: Destination: {}",
             self.encode_string.encode_string[&self.encode_string.encode_string.len() - 1]
@@ -80,7 +80,7 @@ pub struct EncodeString {
 ///This has no options currently
 impl EncodeString {
     pub fn generate(file_version: &FileVersion, encode_profile: &EncodeProfile) -> Self {
-        let mut encode_string = vec!["-i".to_string(), pathbuf_to_string(&file_version.full_path)];
+        let mut encode_string = vec!["-i".to_string(), to_string(&file_version.full_path)];
 
         let extension: PathBuf = PathBuf::from(encode_profile.get_extension());
 
@@ -105,7 +105,7 @@ impl EncodeString {
         //encode_string.push(pathbuf_to_string(&generate_target_path(&file_version.full_path)));
         Self {
             encode_string,
-            file_name: pathbuf_file_stem(&file_version.full_path),
+            file_name: get_file_stem(&file_version.full_path),
             extension,
             worker_temp_full_path: None,
         }
@@ -143,7 +143,7 @@ impl EncodeString {
         let _ = temp_file_name.set_extension(&self.extension);
         let worker_temp_full_path = generate_temp_target_path(&temp_path.join(temp_file_name));
         self.encode_string
-            .push(pathbuf_to_string(&worker_temp_full_path));
+            .push(to_string(&worker_temp_full_path));
         self.worker_temp_full_path = Some(worker_temp_full_path);
     }
 }

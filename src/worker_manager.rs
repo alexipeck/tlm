@@ -3,7 +3,7 @@ use crate::database::{create_worker, establish_connection};
 use crate::encode::Encode;
 use crate::model::NewWorker;
 use crate::worker::{Worker, WorkerMessage};
-use crate::{pathbuf_copy, pathbuf_remove_file};
+use crate::{copy, remove_file};
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -350,7 +350,7 @@ impl WorkerTranscodeQueue {
                         .to_message(),
                     );
 
-                    if let Err(err) = pathbuf_copy(&worker_temp_target_path, &temp_target_path) {
+                    if let Err(err) = copy(&worker_temp_target_path, &temp_target_path) {
                         error!(
                             "Failed to copy file from worker temp to server temp. IO output: {}",
                             err
@@ -358,7 +358,7 @@ impl WorkerTranscodeQueue {
                         panic!();
                     }
 
-                    if let Err(err) = pathbuf_remove_file(&worker_temp_target_path) {
+                    if let Err(err) = remove_file(&worker_temp_target_path) {
                         error!("Failed to remove file from worker temp. IO output: {}", err);
                         panic!();
                     }

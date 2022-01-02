@@ -13,7 +13,7 @@ use crate::{
     file_manager::FileManager,
     generic::FileVersion,
     model::NewFileVersion,
-    pathbuf_copy, pathbuf_remove_file, pathbuf_to_string,
+    copy, remove_file, to_string,
     scheduler::{GenerateProfiles, Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
     worker::WorkerMessage,
     worker_manager::{AddEncodeMode, WorkerManager},
@@ -61,7 +61,7 @@ pub fn initialise(
     peer_map: Arc<Mutex<PeerMap>>,
 ) {
     if let WorkerMessage::Initialise(mut worker_uid, worker_temp_directory) = initialise_message {
-        debug!("Init worker: {}", pathbuf_to_string(&worker_temp_directory));
+        debug!("Init worker: {}", to_string(&worker_temp_directory));
         //if true {//TODO: authenticate/validate
         if !worker_manager.lock().unwrap().reestablish_worker(
             worker_uid,
@@ -150,7 +150,7 @@ pub fn encode_finished(encode_finished_message: WorkerMessage) {
             "Worker with UID: {} has finished transcoding file with generic_uid: {}, worker file system location: {}",
             worker_uid,
             generic_uid,
-            pathbuf_to_string(&full_path),
+            to_string(&full_path),
         );
     } else {
         panic!();
@@ -169,8 +169,8 @@ pub fn move_started(move_started_message: WorkerMessage) {
             "Worker with UID: {} has started moving file with generic_uid: {}, from: \"{}\" to \"{}\"",
             worker_uid,
             generic_uid,
-            pathbuf_to_string(&remote_source_path),
-            pathbuf_to_string(&destination_path),
+            to_string(&remote_source_path),
+            to_string(&destination_path),
         );
     } else {
         panic!();
@@ -183,14 +183,14 @@ pub fn move_finished(
     file_manager: Arc<Mutex<FileManager>>,
 ) {
     if let WorkerMessage::MoveFinished(worker_uid, generic_uid, encode) = move_finished_message {
-        if let Err(err) = pathbuf_copy(&encode.temp_target_path, &encode.target_path) {
+        if let Err(err) = copy(&encode.temp_target_path, &encode.target_path) {
             error!(
                 "Failed to copy file from server temp to media library. IO output: {}",
                 err
             );
             panic!();
         }
-        if let Err(err) = pathbuf_remove_file(&encode.temp_target_path) {
+        if let Err(err) = remove_file(&encode.temp_target_path) {
             error!("Failed to remove file from server temp. IO output: {}", err);
             panic!();
         }
@@ -203,7 +203,7 @@ pub fn move_finished(
             .lock()
             .unwrap()
             .insert_file_version(&FileVersion::from_file_version_model(create_file_version(
-                NewFileVersion::new(generic_uid, pathbuf_to_string(&encode.target_path), false),
+                NewFileVersion::new(generic_uid, to_string(&encode.target_path), false),
             )))
         {
             error!(

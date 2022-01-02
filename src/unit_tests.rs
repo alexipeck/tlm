@@ -1,9 +1,9 @@
 use std::sync::{Arc, RwLock};
 
-use tracing::{debug, error, warn, info};
+use tracing::{error, warn, info};
 
 use crate::{
-    config::ServerConfig, pathbuf_copy, pathbuf_create_file, pathbuf_remove_file, pathbuf_to_string,
+    config::ServerConfig, copy, create_file, remove_file, to_string,
 };
 
 //Default "Pass" status
@@ -108,82 +108,82 @@ pub fn file_access_self_test(server_config: Arc<RwLock<ServerConfig>>) -> bool {
     {
         let mut server_test = UnitTest::new("Server access".to_string());
         let server_cache_test_file_path = server_cache_directory.join(test_file_name);
-        info!("\"server_cache_test_file_path\": {}", pathbuf_to_string(&server_cache_test_file_path));
+        info!("\"server_cache_test_file_path\": {}", to_string(&server_cache_test_file_path));
         let global_temp_test_file_path = global_temp_directory.join(test_file_name);
-        info!("\"global_temp_test_file_path\": {}", pathbuf_to_string(&global_temp_test_file_path));
+        info!("\"global_temp_test_file_path\": {}", to_string(&global_temp_test_file_path));
 
         //Create test file in server cache
         let mut create_test_file_error: bool = false;
-        if let Err(err) = pathbuf_create_file(&server_cache_test_file_path) {
+        if let Err(err) = create_file(&server_cache_test_file_path) {
             error!(
                 "Create test file in server cache:: \"server_cache_directory\": {} caused error: {}",
-                pathbuf_to_string(&server_cache_directory),
+                to_string(&server_cache_directory),
                 err
             );
             create_test_file_error = true;
             server_test.definitive_error_occurred();
         } else {
-            info!("Create test file in server cache:: Successfully created file: {}", pathbuf_to_string(&server_cache_test_file_path));
+            info!("Create test file in server cache:: Successfully created file: {}", to_string(&server_cache_test_file_path));
         }
 
         //Copy test file from server cache to global temp
         let mut copy_test_file_destination_error = false;
-        if let Err(err) = pathbuf_copy(&server_cache_test_file_path, &global_temp_test_file_path) {
+        if let Err(err) = copy(&server_cache_test_file_path, &global_temp_test_file_path) {
             if create_test_file_error {
-                warn!("Copy test file from server cache to global temp:: \"server_cache_directory\": {} caused this consecutive failure, but \"global_temp_directory\": {} could also cause this error in a future run: {}", pathbuf_to_string(&server_cache_directory), pathbuf_to_string(&global_temp_directory), err);
+                warn!("Copy test file from server cache to global temp:: \"server_cache_directory\": {} caused this consecutive failure, but \"global_temp_directory\": {} could also cause this error in a future run: {}", to_string(&server_cache_directory), to_string(&global_temp_directory), err);
             } else {
                 error!(
                     "Copy test file from server cache to global temp:: \"global_temp_directory\": {} caused error: {}",
-                    pathbuf_to_string(&global_temp_directory),
+                    to_string(&global_temp_directory),
                     err
                 );
                 copy_test_file_destination_error = true;
                 server_test.definitive_error_occurred();
             }
         } else {
-            info!("Copy test file from server cache to global temp:: Successfully copied file from {} to {}", pathbuf_to_string(&server_cache_test_file_path), pathbuf_to_string(&global_temp_test_file_path));
+            info!("Copy test file from server cache to global temp:: Successfully copied file from {} to {}", to_string(&server_cache_test_file_path), to_string(&global_temp_test_file_path));
         }
 
         //Remove test file from server cache
-        if let Err(err) = pathbuf_remove_file(&server_cache_test_file_path) {
+        if let Err(err) = remove_file(&server_cache_test_file_path) {
             if create_test_file_error {
                 warn!(
                     "Remove test file from server cache:: \"server_cache_directory\": {} caused this consecutive failure: {}",
-                    pathbuf_to_string(&server_cache_directory),
+                    to_string(&server_cache_directory),
                     err
                 );
             } else {
                 error!(
                     "Remove test file from server cache:: \"server_cache_directory\": {} caused error: {}",
-                    pathbuf_to_string(&server_cache_directory),
+                    to_string(&server_cache_directory),
                     err
                 );
                 server_test.definitive_error_occurred();
             }
         } else {
-            info!("Remove test file from server cache:: Successfully removed file: {}", pathbuf_to_string(&server_cache_test_file_path));
+            info!("Remove test file from server cache:: Successfully removed file: {}", to_string(&server_cache_test_file_path));
         }
 
         //Remove file from global temp
-        if let Err(err) = pathbuf_remove_file(&global_temp_test_file_path) {
+        if let Err(err) = remove_file(&global_temp_test_file_path) {
             if copy_test_file_destination_error {
                 warn!(
                     "Remove file from global temp::\"global_temp_directory\": {} caused this consecutive failure: {}",
-                    pathbuf_to_string(&global_temp_directory),
+                    to_string(&global_temp_directory),
                     err
                 );
             } else if create_test_file_error {
-                warn!("Remove file from global temp::\"server_cache_directory\": {} caused this consecutive failure, but \"global_temp_directory\": {} could also cause this error in a future run: {}", pathbuf_to_string(&server_cache_directory), pathbuf_to_string(&global_temp_directory), err);
+                warn!("Remove file from global temp::\"server_cache_directory\": {} caused this consecutive failure, but \"global_temp_directory\": {} could also cause this error in a future run: {}", to_string(&server_cache_directory), to_string(&global_temp_directory), err);
             } else {
                 error!(
                     "Remove file from global temp::\"global_temp_directory\": {} caused error: {}",
-                    pathbuf_to_string(&global_temp_directory),
+                    to_string(&global_temp_directory),
                     err
                 );
                 server_test.definitive_error_occurred();
             }
         } else {
-            info!("Remove file from global temp:: Successfully removed file: {}", pathbuf_to_string(&server_cache_test_file_path));
+            info!("Remove file from global temp:: Successfully removed file: {}", to_string(&server_cache_test_file_path));
         }
 
         server_test.output_result();
