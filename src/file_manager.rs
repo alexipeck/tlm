@@ -8,7 +8,7 @@ use crate::{
     generic::{FileVersion, Generic},
     get_show_title_from_pathbuf,
     model::{NewEpisode, NewFileVersion, NewGeneric},
-    get_extension, get_file_stem, to_string,
+    get_extension, get_file_stem, pathbuf_to_string,
     show::{Episode, Show}, ensure_path_exists,
 };
 extern crate derivative;
@@ -67,7 +67,7 @@ impl TrackedDirectories {
         let cache_directory;
         if let Some(directory) = directory {
             //should be able to determine whether there has already been a /tlm/ folder created in the passed cache directory
-            if to_string(&get_file_stem(directory)) != "tlm" {
+            if pathbuf_to_string(&get_file_stem(directory)) != "tlm" {
                 cache_directory = directory.join("tlm");
             } else {
                 cache_directory = directory.to_path_buf();
@@ -344,7 +344,7 @@ impl FileManager {
                 .par_iter()
                 .map(|current| {
                     let mut generic = Generic::default();
-                    let master_file_path = to_string(current);
+                    let master_file_path = pathbuf_to_string(current);
                     //TODO: Why yes this is slower, no I don't care about 100ms right now
                     match REGEX.find(&master_file_path) {
                         None => {}
@@ -478,7 +478,7 @@ impl FileManager {
         //rejects if the path contains any element of an ignored path
         for ignored_path in &self.config.read().unwrap().ignored_paths_regex {
             if ignored_path
-                .is_match(&to_string(&full_path))
+                .is_match(&pathbuf_to_string(&full_path))
                 .unwrap()
             {
                 reason = Some(Reason::PathContainsIgnoredPath);
@@ -496,7 +496,7 @@ impl FileManager {
                     .read()
                     .unwrap()
                     .allowed_extensions
-                    .contains(&to_string(&get_extension(&full_path)).to_lowercase())
+                    .contains(&pathbuf_to_string(&get_extension(&full_path)).to_lowercase())
                 {
                     reason = Some(Reason::ExtensionDisallowed);
                 }
@@ -505,7 +505,7 @@ impl FileManager {
 
         if let Some(reason) = reason {
             if store_reasons {
-                trace!("Rejected {} for {}", to_string(&full_path), reason);
+                trace!("Rejected {} for {}", pathbuf_to_string(&full_path), reason);
                 self.rejected_files.insert(PathBufReason {
                     pathbuf: full_path,
                     reason,
@@ -609,7 +609,7 @@ impl FileManager {
         for file in &self.rejected_files {
             info!(
                 "Path: '{}' disallowed because {}",
-                to_string(&file.pathbuf),
+                pathbuf_to_string(&file.pathbuf),
                 file.reason
             );
         }

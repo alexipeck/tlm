@@ -2,7 +2,7 @@
 
 use std::{
     collections::HashMap,
-    fs::{copy as fs_copy, remove_file as fs_remove_file, File, self},
+    fs::{self, copy as fs_copy, remove_file as fs_remove_file, File},
     io::{Error, Write},
     net::SocketAddr,
     path::{Path, PathBuf},
@@ -10,7 +10,7 @@ use std::{
 
 use futures_channel::mpsc::UnboundedSender;
 use tokio_tungstenite::tungstenite::Message;
-use tracing::{error};
+use tracing::error;
 pub mod config;
 pub mod database;
 pub mod debug;
@@ -41,9 +41,9 @@ extern crate diesel;
 pub fn pathbuf_with_suffix(path: &Path, suffix: String) -> PathBuf {
     get_parent_directory(path).join(format!(
         "{}{}.{}",
-        to_string(&get_file_stem(path)),
+        pathbuf_to_string(&get_file_stem(path)),
         &suffix,
-        to_string(&get_extension(path)),
+        pathbuf_to_string(&get_extension(path)),
     ))
 }
 
@@ -53,7 +53,7 @@ pub fn get_file_stem(path: &Path) -> PathBuf {
         None => {
             error!(
                 "Couldn't get file stem from path: {}",
-                to_string(path)
+                pathbuf_to_string(path)
             );
             panic!();
         }
@@ -66,7 +66,7 @@ pub fn get_file_name(path: &Path) -> PathBuf {
         None => {
             error!(
                 "Couldn't get file name from path: {}",
-                to_string(path)
+                pathbuf_to_string(path)
             );
             panic!();
         }
@@ -79,7 +79,7 @@ pub fn get_extension(path: &Path) -> PathBuf {
         None => {
             error!(
                 "Couldn't get file extension from path: {}",
-                to_string(path)
+                pathbuf_to_string(path)
             );
             panic!();
         }
@@ -89,45 +89,61 @@ pub fn get_extension(path: &Path) -> PathBuf {
 pub fn get_parent_directory(path: &Path) -> &Path {
     match path.parent() {
         Some(parent_path) => parent_path,
-        None => panic!("Couldn't get parent from path: {}", to_string(path)),
+        None => panic!("Couldn't get parent from path: {}", pathbuf_to_string(path)),
     }
 }
 
 ///Pathbuf/Path to String
-pub fn to_string(path: &Path) -> String {
-    path.to_str().unwrap().to_string()
+pub fn pathbuf_to_string(path: &Path) -> String {
+    match path.to_str() {
+        Some(string) => string.to_string(),
+        None => {
+            error!("");
+            panic!();
+        }
+    }
 }
 
 //This function assumes a specific folder structure //tv_shows_network_share/tv_show_x/Season X/file
 //tv_show_x is where the TV Show name information is pulled from
 pub fn get_show_title_from_pathbuf(path: &Path) -> String {
-    path.parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .to_string()
-}
-
-pub fn create_file(test_file_path: &Path) -> Result<(), Error> {
-    let mut file = File::create(to_string(test_file_path))?;
-    file.write_all(b"Dummy unit testing file.")?;
-    Ok(())
+    match path.parent() {
+        Some(first_parent) => match first_parent.parent() {
+            Some(second_parent) => match second_parent.file_name() {
+                Some(directory_name) => {
+                    return directory_name.to_string_lossy().to_string();
+                }
+                None => {
+                    error!("Failed to get the directory name of the second parent of path. get_show_title_from_pathbuf()'s function header shows the required format.");
+                    panic!();
+                }
+            },
+            None => {
+                error!("Failed to get second parent of path. get_show_title_from_pathbuf()'s function header shows the required format.");
+                panic!();
+            }
+        },
+        None => {
+            error!("Failed to get first parent of path. get_show_title_from_pathbuf()'s function header shows the required format.");
+            panic!();
+        }
+    }
 }
 
 pub fn copy(source: &Path, destination: &Path) -> Result<u64, Error> {
-    fs_copy(to_string(source), to_string(destination))
+    fs_copy(pathbuf_to_string(source), pathbuf_to_string(destination))
 }
 
 pub fn remove_file(path: &Path) -> Result<(), Error> {
-    fs_remove_file(to_string(path))
+    fs_remove_file(pathbuf_to_string(path))
 }
 
 pub fn ensure_path_exists(path: &Path) {
     if let Err(err) = fs::create_dir_all(path) {
-        error!("Failed to create \"tlm\" directory in temp directory. Error: {}", err);
+        error!(
+            "Failed to create \"tlm\" directory in temp directory. Error: {}",
+            err
+        );
         panic!();
     }
 }

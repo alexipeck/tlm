@@ -50,10 +50,4 @@ joinable!(episode -> generic (generic_uid));
 joinable!(episode -> show (show_uid));
 joinable!(file_version -> generic (generic_uid));
 
-allow_tables_to_appear_in_same_query!(
-    episode,
-    file_version,
-    generic,
-    show,
-    worker,
-);
+allow_tables_to_appear_in_same_query!(episode, file_version, generic, show, worker,);

@@ -9,7 +9,7 @@ use crate::{
     encode::{Encode, EncodeProfile},
     file_manager::FileManager,
     generic::FileVersion,
-    to_string,
+    pathbuf_to_string,
 };
 
 pub fn output_all_file_versions(file_manager: Arc<Mutex<FileManager>>) {
@@ -103,14 +103,11 @@ pub fn output_tracked_paths(file_manager: Arc<Mutex<FileManager>>) {
         .tracked_directories
         .get_root_directories()
     {
-        debug!(
-            "Tracked directory: {}",
-            to_string(tracked_directory)
-        );
+        debug!("Tracked directory: {}", pathbuf_to_string(tracked_directory));
     }
     debug!(
         "Cache directory: {}",
-        to_string(
+        pathbuf_to_string(
             file_manager_lock
                 .config
                 .read()

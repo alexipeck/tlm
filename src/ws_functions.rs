@@ -8,13 +8,15 @@ use tracing::{debug, error, info};
 
 use crate::{
     config::ServerConfig,
+    copy,
     database::create_file_version,
     encode::Encode,
     file_manager::FileManager,
     generic::FileVersion,
     model::NewFileVersion,
-    copy, remove_file, to_string,
+    remove_file,
     scheduler::{GenerateProfiles, Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
+    pathbuf_to_string,
     worker::WorkerMessage,
     worker_manager::{AddEncodeMode, WorkerManager},
     PeerMap, Tx,
@@ -61,7 +63,7 @@ pub fn initialise(
     peer_map: Arc<Mutex<PeerMap>>,
 ) {
     if let WorkerMessage::Initialise(mut worker_uid, worker_temp_directory) = initialise_message {
-        debug!("Init worker: {}", to_string(&worker_temp_directory));
+        debug!("Init worker: {}", pathbuf_to_string(&worker_temp_directory));
         //if true {//TODO: authenticate/validate
         if !worker_manager.lock().unwrap().reestablish_worker(
             worker_uid,
@@ -150,7 +152,7 @@ pub fn encode_finished(encode_finished_message: WorkerMessage) {
             "Worker with UID: {} has finished transcoding file with generic_uid: {}, worker file system location: {}",
             worker_uid,
             generic_uid,
-            to_string(&full_path),
+            pathbuf_to_string(&full_path),
         );
     } else {
         panic!();
@@ -169,8 +171,8 @@ pub fn move_started(move_started_message: WorkerMessage) {
             "Worker with UID: {} has started moving file with generic_uid: {}, from: \"{}\" to \"{}\"",
             worker_uid,
             generic_uid,
-            to_string(&remote_source_path),
-            to_string(&destination_path),
+            pathbuf_to_string(&remote_source_path),
+            pathbuf_to_string(&destination_path),
         );
     } else {
         panic!();
@@ -203,7 +205,7 @@ pub fn move_finished(
             .lock()
             .unwrap()
             .insert_file_version(&FileVersion::from_file_version_model(create_file_version(
-                NewFileVersion::new(generic_uid, to_string(&encode.target_path), false),
+                NewFileVersion::new(generic_uid, pathbuf_to_string(&encode.target_path), false),
             )))
         {
             error!(

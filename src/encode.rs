@@ -9,7 +9,7 @@ use tracing::{debug, error, info};
 
 use crate::{
     config::ServerConfig, generic::FileVersion, get_file_name, get_file_stem,
-    to_string, pathbuf_with_suffix,
+    pathbuf_to_string, pathbuf_with_suffix,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -50,9 +50,9 @@ impl Encode {
     pub fn run(self, handle: Arc<RwLock<Option<Child>>>) {
         info!(
             "Encoding file \"{}\"",
-            to_string(&get_file_name(&self.source_path)),
+            pathbuf_to_string(&get_file_name(&self.source_path)),
         );
-        debug!("Encode: Source: {}", to_string(&self.source_path));
+        debug!("Encode: Source: {}", pathbuf_to_string(&self.source_path));
         debug!(
             "Encode: Destination: {}",
             self.encode_string.encode_string[&self.encode_string.encode_string.len() - 1]
@@ -80,7 +80,7 @@ pub struct EncodeString {
 ///This has no options currently
 impl EncodeString {
     pub fn generate(file_version: &FileVersion, encode_profile: &EncodeProfile) -> Self {
-        let mut encode_string = vec!["-i".to_string(), to_string(&file_version.full_path)];
+        let mut encode_string = vec!["-i".to_string(), pathbuf_to_string(&file_version.full_path)];
 
         let extension: PathBuf = PathBuf::from(encode_profile.get_extension());
 
@@ -143,7 +143,7 @@ impl EncodeString {
         let _ = temp_file_name.set_extension(&self.extension);
         let worker_temp_full_path = generate_temp_target_path(&temp_path.join(temp_file_name));
         self.encode_string
-            .push(to_string(&worker_temp_full_path));
+            .push(pathbuf_to_string(&worker_temp_full_path));
         self.worker_temp_full_path = Some(worker_temp_full_path);
     }
 }

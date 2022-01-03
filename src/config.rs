@@ -2,7 +2,7 @@
 //!and command line arguments
 use crate::ensure_path_exists;
 use crate::file_manager::TrackedDirectories;
-use crate::to_string;
+use crate::pathbuf_to_string;
 use argparse::{ArgumentParser, Store, StoreOption, StoreTrue};
 use directories::BaseDirs;
 use fancy_regex::Regex;
@@ -196,7 +196,7 @@ impl Default for Preferences {
         });
         let config_path = base_dirs.config_dir().join("tlm/tlm_server.config");
         let mut prepare = Preferences {
-            config_file_path: to_string(&config_path),
+            config_file_path: pathbuf_to_string(&config_path),
             disable_input: false,
             file_system_read_only: false,
             port: None,

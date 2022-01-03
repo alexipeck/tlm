@@ -12,7 +12,7 @@ use crate::{
     designation::{from_i32, Designation},
     model::*,
 };
-use crate::{get_file_name, to_string};
+use crate::{get_file_name, pathbuf_to_string};
 use diesel::PgConnection;
 use tracing::{error, warn};
 
@@ -121,11 +121,11 @@ impl FileVersion {
     }
 
     pub fn get_filename(&self) -> String {
-        to_string(&get_file_name(&self.full_path))
+        pathbuf_to_string(&get_file_name(&self.full_path))
     }
 
     pub fn get_full_path(&self) -> String {
-        to_string(&self.full_path)
+        pathbuf_to_string(&self.full_path)
     }
 }
 
@@ -195,7 +195,7 @@ impl Generic {
     }
 
     pub fn get_master_full_path(&self) -> String {
-        to_string(&self.file_versions[0].full_path)
+        pathbuf_to_string(&self.file_versions[0].full_path)
     }
 
     ///Create a new generic from the database equivalent. This is neccesary because
@@ -222,7 +222,7 @@ impl Generic {
 pub fn sea_hash(full_path: PathBuf) -> String {
     let mut buffer = Box::new(vec![0; 4096]);
     let mut hasher = seahash::SeaHasher::new();
-    let mut file = File::open(to_string(&full_path)).unwrap_or_else(|err| {
+    let mut file = File::open(pathbuf_to_string(&full_path)).unwrap_or_else(|err| {
         error!("Error opening file for hashing. Err: {}", err);
         panic!();
     });
@@ -243,7 +243,7 @@ pub fn sea_hash(full_path: PathBuf) -> String {
 pub fn sea_fast_hash(full_path: PathBuf) -> String {
     let mut buffer = Box::new(vec![0; 4096]);
     let mut hasher = seahash::SeaHasher::new();
-    let mut file = File::open(to_string(&full_path)).unwrap_or_else(|err| {
+    let mut file = File::open(pathbuf_to_string(&full_path)).unwrap_or_else(|err| {
         error!("Error opening file for hashing. Err: {}", err);
         panic!();
     });

@@ -13,7 +13,7 @@ use std::{
     time,
 };
 use tlm::config::WorkerConfig;
-use tlm::to_string;
+use tlm::pathbuf_to_string;
 use tlm::worker::WorkerMessage;
 use tlm::worker_manager::WorkerTranscodeQueue;
 use tlm::ws::run_worker;
@@ -78,7 +78,7 @@ async fn main() -> Result<(), IoError> {
         //Doesn't deal with error sending .unwrap() at the end
         debug!(
             "Worker temp path: {}",
-            to_string(&config.read().unwrap().temp_path.clone())
+            pathbuf_to_string(&config.read().unwrap().temp_path.clone())
         );
         tx.start_send(
             WorkerMessage::Initialise(

@@ -3,7 +3,7 @@ use crate::{
     database::{establish_connection, update_file_version},
     file_manager::FileManager,
     generic::FileVersion,
-    to_string,
+    pathbuf_to_string,
 };
 use tracing::{debug, error, info};
 
@@ -119,7 +119,7 @@ impl Hash {
                         file_version_count,
                         i + 1,
                         length,
-                        to_string(&file_version.full_path)
+                        pathbuf_to_string(&file_version.full_path)
                     );
                     update_file_version(file_version, &connection);
                     current_file_version_count += 1;
@@ -151,7 +151,7 @@ impl Hash {
                         file_version_count,
                         i + 1,
                         length,
-                        to_string(&file_version.full_path)
+                        pathbuf_to_string(&file_version.full_path)
                     );
                     update_file_version(file_version, &connection);
                     current_file_version_count += 1;
