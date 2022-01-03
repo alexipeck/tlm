@@ -189,7 +189,7 @@ impl WorkerManager {
                 Some(mut encode) => {
                     encode
                         .encode_string
-                        .activate(worker.cache_path, worker.get_worker_temp_directory());
+                        .activate(worker.get_worker_temp_directory());
                     worker.add_to_queue(encode);
                 }
                 None => {
