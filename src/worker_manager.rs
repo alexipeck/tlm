@@ -361,11 +361,6 @@ impl WorkerTranscodeQueue {
                         panic!();
                     }
 
-                    if let Err(err) = remove_file(&worker_temp_target_path) {
-                        error!("Failed to remove file from worker temp. IO output: {}", err);
-                        panic!();
-                    }
-
                     let _ = tx.start_send(
                         WorkerMessage::MoveFinished(
                             worker_uid.read().unwrap().unwrap(),
@@ -379,6 +374,13 @@ impl WorkerTranscodeQueue {
                         )
                         .to_message(),
                     );
+
+                    //Cleanup file in temp
+                    if let Err(err) = remove_file(&worker_temp_target_path) {
+                        error!("Failed to remove file from worker temp. IO output: {}", err);
+                        panic!();
+                    }
+
                     self.clear_current_transcode();
                 } else {
                     //TODO: Handle failure

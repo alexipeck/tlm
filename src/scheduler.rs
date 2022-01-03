@@ -102,7 +102,7 @@ impl Hash {
             let mut did_finish = true;
             let connection = establish_connection();
             let mut current_file_version_count = 0;
-
+            //TODO: Switch the output below to use only one function for output
             //Generics
             for (generic_uid, file_versions) in generic_file_versions.iter_mut() {
                 let length: usize = file_versions.len();

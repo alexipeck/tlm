@@ -98,7 +98,7 @@ pub fn pathbuf_to_string(path: &Path) -> String {
     match path.to_str() {
         Some(string) => string.to_string(),
         None => {
-            error!("");
+            error!("Failed to convert a path/pathbuf to a string");
             panic!();
         }
     }
