@@ -9,7 +9,10 @@ use tracing::{debug, error, info};
 
 use std::{
     collections::VecDeque,
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        RwLock,
+    },
     sync::{Arc, Mutex},
     thread,
     thread::JoinHandle,
@@ -99,10 +102,11 @@ impl Hash {
             let mut did_finish = true;
             let connection = establish_connection();
             let mut current_file_version_count = 0;
-
+            //TODO: Switch the output below to use only one function for output
             //Generics
             for (generic_uid, file_versions) in generic_file_versions.iter_mut() {
-                for file_version in file_versions.iter_mut() {
+                let length: usize = file_versions.len();
+                for (i, file_version) in file_versions.iter_mut().enumerate() {
                     if file_version.hash.is_none() {
                         file_version.hash();
                     }
@@ -110,9 +114,11 @@ impl Hash {
                         file_version.fast_hash();
                     }
                     debug!(
-                        "Hashed[{} of {}]]: {}",
+                        "Hashed[{:2} of {:2}][{} of {}]: {}",
                         current_file_version_count + 1,
                         file_version_count,
+                        i + 1,
+                        length,
                         pathbuf_to_string(&file_version.full_path)
                     );
                     update_file_version(file_version, &connection);
@@ -132,7 +138,7 @@ impl Hash {
             //Episodes
             for (generic_uid, file_versions) in episode_file_versions.iter_mut() {
                 let length: usize = file_versions.len();
-                for (j, file_version) in file_versions.iter_mut().enumerate() {
+                for (i, file_version) in file_versions.iter_mut().enumerate() {
                     if file_version.hash.is_none() {
                         file_version.hash();
                     }
@@ -140,11 +146,11 @@ impl Hash {
                         file_version.fast_hash();
                     }
                     debug!(
-                        "Hashed[[{} of {}][{:2} of {:2}]]: {}",
-                        j + 1,
-                        length,
+                        "Hashed[{:2} of {:2}][{} of {}]: {}",
                         current_file_version_count + 1,
                         file_version_count,
+                        i + 1,
+                        length,
                         pathbuf_to_string(&file_version.full_path)
                     );
                     update_file_version(file_version, &connection);
@@ -254,13 +260,13 @@ pub struct Scheduler {
     pub file_manager: Arc<Mutex<FileManager>>,
     pub tasks: Arc<Mutex<VecDeque<Task>>>,
     pub encode_tasks: Arc<Mutex<VecDeque<Task>>>,
-    pub config: ServerConfig,
+    pub config: Arc<RwLock<ServerConfig>>,
     pub input_completed: Arc<AtomicBool>,
 }
 
 impl Scheduler {
     pub fn new(
-        config: ServerConfig,
+        config: Arc<RwLock<ServerConfig>>,
         tasks: Arc<Mutex<VecDeque<Task>>>,
         encode_tasks: Arc<Mutex<VecDeque<Task>>>,
         file_manager: Arc<Mutex<FileManager>>,

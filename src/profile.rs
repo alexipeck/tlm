@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, Error};
+use serde_json::{Error, Value};
+use std::fmt;
 use std::path::Path;
 use std::process::Command;
 use std::str::from_utf8;
-use tracing::{error};
+use tracing::error;
 
 use crate::pathbuf_to_string;
 
@@ -50,17 +51,18 @@ impl ResolutionStandard {
             _ => ResolutionStandard::UNKNOWN,
         }
     }
+}
 
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
+impl fmt::Display for ResolutionStandard {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ResolutionStandard::ED => "ED".to_string(),
-            ResolutionStandard::SD => "SD".to_string(),
-            ResolutionStandard::HD => "HD".to_string(),
-            ResolutionStandard::FHD => "FHD".to_string(),
-            ResolutionStandard::WQHD => "WQHD".to_string(),
-            ResolutionStandard::UHD => "UHD".to_string(),
-            ResolutionStandard::UNKNOWN => panic!(),
+            Self::ED => write!(f, "ED"),
+            Self::SD => write!(f, "SD"),
+            Self::HD => write!(f, "HD"),
+            Self::FHD => write!(f, "FHD"),
+            Self::WQHD => write!(f, "WQHD"),
+            Self::UHD => write!(f, "UHD"),
+            Self::UNKNOWN => write!(f, "UNKNOWN"),
         }
     }
 }
@@ -130,7 +132,7 @@ impl Container {
         None
     }
 
-    pub fn get_container_from_extension(file_extension: String) -> Self {
+    pub fn from_extension(file_extension: String) -> Self {
         let file_extension = file_extension.to_lowercase(); //Hopefully this to_lowercase function is sufficient for the moment
         match file_extension.as_str() {
             "mp4" => Container::MP4,
@@ -139,14 +141,18 @@ impl Container {
             _ => Container::UNKNOWN,
         }
     }
+}
 
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
+impl fmt::Display for Container {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Container::MP4 => "mp4".to_string(),
-            Container::MKV => "mkv".to_string(),
-            Container::WEBM => "webm".to_string(),
-            Container::UNKNOWN => panic!(),
+            Self::MP4 => write!(f, "mp4"),
+            Self::MKV => write!(f, "mkv"),
+            Self::WEBM => write!(f, "webm"),
+            Self::UNKNOWN => {
+                error!("Container has unknown type.");
+                panic!();
+            }
         }
     }
 }
@@ -211,11 +217,11 @@ impl Profile {
         let temp: Result<Value, Error> = serde_json::from_str(from_utf8(&buffer.stdout).unwrap());
         if let Ok(value) = temp {
             let width = value["media"]["track"][1]["Width"]
-            .to_string()
-            .strip_prefix('"')?
-            .strip_suffix('"')?
-            .parse::<i32>()
-            .unwrap();
+                .to_string()
+                .strip_prefix('"')?
+                .strip_suffix('"')?
+                .parse::<i32>()
+                .unwrap();
             return Some(Self {
                 width: Some(width),
                 height: Some(
@@ -245,7 +251,7 @@ impl Profile {
                 resolution_standard: Some(ResolutionStandard::get_resolution_standard_from_width(
                     width,
                 )),
-                container: Some(Container::get_container_from_extension(
+                container: Some(Container::from_extension(
                     value["media"]["track"][0]["FileExtension"]
                         .to_string()
                         .strip_prefix('"')?
@@ -259,29 +265,3 @@ impl Profile {
         }
     }
 }
-
-/* #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
-pub struct ConversionProfile {
-    //Video
-    basic_profile: BasicProfile,
-    video_codec: Option<VideoCodec>,
-    video_bitrate: Option<u32>,
-
-    //Audio
-    audio_codec: Option<AudioCodec>,
-    audio_bitrate: Option<u32>,
-    audio_samplerate: Option<u32>,
-}
-
-impl ConversionProfile {
-    pub fn new(basic_profile: BasicProfile, full_path: PathBuf) -> Self {
-        Self {
-            basic_profile,
-            video_codec: None,//TODO
-            video_bitrate: None,//TODO
-            audio_codec: None,//TODO
-            audio_bitrate: None,//TODO
-            audio_samplerate: None,//TODO
-        }
-    }
-} */

@@ -1,18 +1,24 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
 use std::{collections::VecDeque, sync::RwLock};
-use tracing::{error, info, warn, debug};
+use tracing::{error, info, warn};
 
 use crate::{
-    config::WorkerConfig,
-    database::{create_file_version, print_all_worker_models},
+    config::{ServerConfig, WorkerConfig},
+    database::print_all_worker_models,
+    debug::{
+        encode_all_files, output_all_file_versions, output_tracked_paths, run_completeness_check,
+    },
+    encode::Encode,
     file_manager::FileManager,
-    generic::FileVersion,
-    model::NewFileVersion,
-    pathbuf_to_string,
-    scheduler::{Hash, ImportFiles, ProcessNewFiles, Task, TaskType, GenerateProfiles},
+    scheduler::Task,
     worker::WorkerMessage,
-    worker_manager::{AddEncodeMode, Encode, WorkerManager, WorkerTranscodeQueue},
+    worker_manager::{WorkerManager, WorkerTranscodeQueue},
+    ws_functions::{
+        encode_finished, encode_generic, encode_started, generate_profiles, hash_files,
+        import_files, initialise, move_finished, move_started, process_files,
+    },
+    PeerMap,
 };
 
 use std::{
@@ -24,24 +30,23 @@ use std::{
 };
 use tokio_tungstenite::connect_async;
 
-use futures_channel::mpsc::{unbounded, UnboundedSender};
+use futures_channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
-type Tx = UnboundedSender<Message>;
-type PeerMap = Arc<Mutex<HashMap<SocketAddr, (Option<i32>, Tx)>>>;
-
+#[allow(clippy::too_many_arguments)]
 async fn handle_web_connection(
-    peer_map: PeerMap,
+    peer_map: Arc<Mutex<PeerMap>>,
     raw_stream: TcpStream,
     addr: SocketAddr,
     tasks: Arc<Mutex<VecDeque<Task>>>,
     file_manager: Arc<Mutex<FileManager>>,
-    worker_mananger_transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
+    worker_manager_transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
     worker_manager: Arc<Mutex<WorkerManager>>,
+    server_config: Arc<RwLock<ServerConfig>>,
 ) {
     info!("Incoming TCP connection from: {}", addr);
 
@@ -70,154 +75,69 @@ async fn handle_web_connection(
                 .or_else(|| msg.to_text().unwrap().strip_suffix('\n'))
                 .unwrap_or_else(|| msg.to_text().unwrap());
             match message {
-                "hash" => tasks
-                    .lock()
-                    .unwrap()
-                    .push_back(Task::new(TaskType::Hash(Hash::default()))),
-                "import" => tasks
-                    .lock()
-                    .unwrap()
-                    .push_back(Task::new(TaskType::ImportFiles(ImportFiles::default()))),
-                "process" => tasks
-                    .lock()
-                    .unwrap()
-                    .push_back(Task::new(TaskType::ProcessNewFiles(
-                        ProcessNewFiles::default(),
-                    ))),
-                "generate_profiles" => tasks
-                    .lock()
-                    .unwrap()
-                    .push_back(Task::new(TaskType::GenerateProfiles(
-                        GenerateProfiles::default(),
-                    ))),
+                //Tasks
+                "hash" => hash_files(tasks.clone()),
+                "import" => import_files(tasks.clone()),
+                "process" => process_files(tasks.clone()),
+                "generate_profiles" => generate_profiles(tasks.clone()),
+                "bulk" => {
+                    //TODO: Implement a way of making one task wait for another before it can run
+                    //    : this will require tasks to be logged in the DB and knowledge of the uid for the await
+                    //    : this is a scheduler/task thing
+                    import_files(tasks.clone());
+                    process_files(tasks.clone());
+                    hash_files(tasks.clone());
+                    generate_profiles(tasks.clone());
+                }
+
+                //Debug tasks
+                "output_tracked_paths" => output_tracked_paths(file_manager.clone()),
+                "output_file_versions" => output_all_file_versions(file_manager.clone()),
                 "display_workers" => print_all_worker_models(),
-                "run_completeness_check" => {
-                    fn bool_to_char(bool: bool) -> char {
-                        if bool {
-                            'T'
-                        } else {
-                            'Y'
-                        }
-                    }
-                    fn line_output(file_version: &FileVersion) {
-                        let hash = file_version.hash.is_some();
-                        let fast_hash = file_version.fast_hash.is_some();
-                        let width = file_version.width.is_some();
-                        let height = file_version.height.is_some();
-                        let framerate = file_version.framerate.is_some();
-                        let length_time = file_version.length_time.is_some();
-                        let resolution_standard = file_version.resolution_standard.is_some();
-                        let container = file_version.container.is_some();
-                        if !hash || !fast_hash || !width || !height || !framerate || !length_time || !resolution_standard || !container {
-                            debug!(
-                                "hash: {}, fast_hash: {}, width: {}, height: {}, framerate: {}, length_time: {}, resolution_standard: {}, container: {}",
-                                bool_to_char(hash),
-                                bool_to_char(fast_hash),
-                                bool_to_char(width),
-                                bool_to_char(height),
-                                bool_to_char(framerate),
-                                bool_to_char(length_time),
-                                bool_to_char(resolution_standard),
-                                bool_to_char(container),
-                            );
-                        }
-                        
-                    }
-                    let file_manager_lock = file_manager.lock().unwrap();
-
-                    debug!("Generics: {}", file_manager_lock.generic_files.len());
-                    let mut episodes_count = 0;
-                    for show in file_manager_lock.shows.iter() {
-                        for season in show.seasons.iter() {
-                            for episode in season.episodes.iter() {
-                                episodes_count += episode.generic.file_versions.len();
-                            }
-                        }
-                    }
-                    debug!("Episodes: {}", episodes_count);
-
-                    for generic in file_manager_lock.generic_files.iter() {
-                        for file_version in generic.file_versions.iter() {
-                            line_output(file_version);
-                        }
-                    }
-                    for show in file_manager_lock.shows.iter() {
-                        for season in show.seasons.iter() {
-                            for episode in season.episodes.iter() {
-                                for file_version in episode.generic.file_versions.iter() {
-                                    line_output(file_version);
-                                }
-                            }
-                        }
-                    }
-                },
+                "encode_all" => {
+                    encode_all_files(file_manager.clone(), worker_manager_transcode_queue.clone())
+                }
+                "run_completeness_check" => run_completeness_check(file_manager.clone()),
+                "kill_all_workers" => {
+                    //TODO: Make this force close all workers, used for constant resetting of the dev/test environment
+                }
 
                 _ => warn!("{} is not a valid input", message),
             }
         } else if msg.is_binary() {
-            match WorkerMessage::from_message(msg) {
-                WorkerMessage::Initialise(mut worker_uid) => {
-                    //if true {//TODO: authenticate/validate
-                    if !worker_manager.lock().unwrap().reestablish_worker(
-                        worker_uid,
+            let worker_message = WorkerMessage::from_message(msg);
+            match worker_message {
+                WorkerMessage::Initialise(_, _) => {
+                    initialise(
+                        worker_message,
+                        worker_manager.clone(),
                         addr,
                         tx.clone(),
-                    ) {
-                        //We need the new uid so we can set it correctly in the peer map
-                        worker_uid =
-                            Some(worker_manager.lock().unwrap().add_worker(addr, tx.clone()));
-                    }
-                    peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
-                    //}
+                        peer_map.clone(),
+                    );
                 }
-                WorkerMessage::EncodeGeneric(generic_uid, file_version_id, add_encode_mode) => {
-                    match file_manager
-                        .lock()
-                        .unwrap()
-                        .get_encode_from_generic_uid(generic_uid, file_version_id)
-                    {
-                        Some(encode) => {
-                            match add_encode_mode {
-                                AddEncodeMode::Back => {
-                                    worker_mananger_transcode_queue
-                                        .lock()
-                                        .unwrap()
-                                        .push_back(encode);
-                                }
-                                AddEncodeMode::Next => {
-                                    worker_mananger_transcode_queue
-                                        .lock()
-                                        .unwrap()
-                                        .push_front(encode);
-                                }
-                                AddEncodeMode::Now => {
-                                    //TODO: Implement immediate encode
-                                }
-                            }
-                            info!("Setting up generic for transcode");
-                        }
-                        None => {
-                            info!("No generics available to transcode");
-                        }
-                    }
+                WorkerMessage::EncodeGeneric(_, _, _, _) => {
+                    encode_generic(
+                        worker_message,
+                        file_manager.clone(),
+                        worker_manager_transcode_queue.clone(),
+                        server_config.clone(),
+                    );
                 }
-                WorkerMessage::EncodeStarted(worker_uid, generic_uid) => info!(
-                    "Worker with UID: {} has started transcoding generic with UID: {}",
-                    worker_uid, generic_uid
-                ),
-                WorkerMessage::EncodeFinished(worker_uid, generic_uid, full_path) => {
-                    worker_manager
-                        .lock()
-                        .unwrap()
-                        .clear_current_transcode_from_worker(worker_uid, generic_uid);
-                    if !file_manager.lock().unwrap().insert_file_version(&FileVersion::from_file_version_model(create_file_version(NewFileVersion::new(generic_uid, pathbuf_to_string(&full_path), false)))) {
-                        error!("This should've found a generic to insert it into, this shouldn't have happened.");
-                        panic!();
-                    }
-                    //TODO: Make an enum of actions that could be performed on a Worker, like clear_current_transcode
+                WorkerMessage::EncodeStarted(_, _) => {
+                    encode_started(worker_message);
+                }
+                WorkerMessage::EncodeFinished(_, _, _) => {
+                    encode_finished(worker_message);
+                }
+                WorkerMessage::MoveStarted(_, _, _, _) => {
+                    move_started(worker_message);
+                }
+                WorkerMessage::MoveFinished(_, _, _) => {
+                    move_finished(worker_message, worker_manager.clone(), file_manager.clone());
                 }
                 _ => {
-                    warn!("Server recieved a message it doesn't know how to handle");
+                    warn!("Server received a message it doesn't know how to handle");
                 }
             }
         }
@@ -250,6 +170,7 @@ pub async fn run_web(
     file_manager: Arc<Mutex<FileManager>>,
     worker_mananger_transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
     worker_manager: Arc<Mutex<WorkerManager>>,
+    server_config: Arc<RwLock<ServerConfig>>,
 ) -> Result<(), IoError> {
     let addr_ipv4 = env::args()
         .nth(1)
@@ -259,7 +180,7 @@ pub async fn run_web(
         .nth(1)
         .unwrap_or_else(|| format!("[::1]:{}", port));
 
-    let state = PeerMap::new(Mutex::new(HashMap::new()));
+    let state = Arc::new(Mutex::new(HashMap::new()));
 
     // Create the event loop and TCP listener
     let try_socket_ipv4 = TcpListener::bind(&addr_ipv4).await;
@@ -304,10 +225,10 @@ pub async fn run_web(
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone(), server_config.clone()));
                 }
                 Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone(), server_config.clone()));
                 }
             }
         } else if is_listening_ipv4 {
@@ -317,7 +238,7 @@ pub async fn run_web(
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv4.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone(), server_config.clone()));
                 }
             }
         } else {
@@ -327,7 +248,7 @@ pub async fn run_web(
                     break;
                 }
                 Ok((stream, addr)) = listener_ipv6.as_ref().unwrap().accept() => {
-                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone()));
+                    tokio::spawn(handle_web_connection(state.clone(), stream, addr, tasks.clone(), file_manager.clone(), worker_mananger_transcode_queue.clone(), worker_manager.clone(), server_config.clone()));
                 }
             }
         }
@@ -370,7 +291,10 @@ pub async fn run_worker(
                 return;
             }
             match WorkerMessage::from_message(message) {
-                WorkerMessage::Encode(encode, add_encode_mode) => {
+                WorkerMessage::Encode(mut encode, add_encode_mode) => {
+                    encode
+                        .encode_string
+                        .activate(config.read().unwrap().temp_path.clone());
                     transcode_queue
                         .write()
                         .unwrap()

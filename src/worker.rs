@@ -1,6 +1,6 @@
+use crate::encode::{Encode, EncodeProfile};
 use crate::model::WorkerModel;
 use crate::worker_manager::AddEncodeMode;
-use crate::worker_manager::Encode;
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -18,6 +18,7 @@ use tracing::error;
 pub struct Worker {
     pub uid: Option<i32>,
     pub worker_ip_address: SocketAddr,
+    pub worker_temp_directory: Option<PathBuf>,
     tx: Option<UnboundedSender<Message>>,
     pub transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
     pub close_time: Option<Instant>,
@@ -29,16 +30,30 @@ impl Worker {
     pub fn new(
         uid: Option<i32>,
         worker_ip_address: SocketAddr,
+        worker_temp_directory: &PathBuf,
         tx: UnboundedSender<Message>,
     ) -> Self {
         Self {
             uid,
             worker_ip_address,
+            worker_temp_directory: Some(worker_temp_directory.clone()),
             tx: Some(tx),
             transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
             close_time: None,
         }
     }
+
+    pub fn from(model: WorkerModel) -> Self {
+        Self {
+            uid: Some(model.id),
+            worker_ip_address: SocketAddr::from_str(&model.worker_ip_address).unwrap(),
+            worker_temp_directory: None,
+            tx: None,
+            transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
+            close_time: None,
+        }
+    }
+
     //TODO: Consolidate server-side worker transcode queue and worker-side transcode queue
     pub fn clear_current_transcode(&mut self, generic_uid: i32) {
         let mut transcode_queue_lock = self.transcode_queue.write().unwrap();
@@ -50,18 +65,24 @@ impl Worker {
         }
     }
 
-    pub fn from_worker_model(model: WorkerModel) -> Self {
-        Self {
-            uid: Some(model.id),
-            worker_ip_address: SocketAddr::from_str(&model.worker_ip_address).unwrap(),
-            tx: None,
-            transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
-            close_time: None,
+    pub fn get_worker_temp_directory(&self) -> PathBuf {
+        match &self.worker_temp_directory {
+            Some(worker_temp_directory) => worker_temp_directory.clone(),
+            None => {
+                error!("Worker has no temp directory.");
+                panic!();
+            }
         }
     }
 
-    pub fn update(&mut self, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) {
+    pub fn update(
+        &mut self,
+        worker_ip_address: SocketAddr,
+        worker_temp_directory: &PathBuf,
+        tx: UnboundedSender<Message>,
+    ) {
         self.worker_ip_address = worker_ip_address;
+        self.worker_temp_directory = Some(worker_temp_directory.clone());
         self.tx = Some(tx);
     }
 
@@ -112,14 +133,16 @@ impl Worker {
 pub enum WorkerMessage {
     //Worker
     Encode(Encode, AddEncodeMode),
-    Initialise(Option<i32>),
+    Initialise(Option<i32>, PathBuf),
     WorkerID(i32),
     Announce(String),
     EncodeStarted(i32, i32),
     EncodeFinished(i32, i32, PathBuf),
+    MoveStarted(i32, i32, PathBuf, PathBuf),
+    MoveFinished(i32, i32, Encode),
 
     //WebUI
-    EncodeGeneric(i32, i32, AddEncodeMode),
+    EncodeGeneric(i32, i32, AddEncodeMode, EncodeProfile),
 
     //Generic
     Text(String),

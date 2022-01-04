@@ -13,10 +13,11 @@ use std::{
     time,
 };
 use tlm::config::WorkerConfig;
+use tlm::pathbuf_to_string;
 use tlm::worker::WorkerMessage;
 use tlm::worker_manager::WorkerTranscodeQueue;
 use tlm::ws::run_worker;
-use tracing::{error, Level};
+use tracing::{debug, error, Level};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::registry::Registry;
@@ -45,7 +46,7 @@ async fn main() -> Result<(), IoError> {
     let file = tracing_appender::rolling::daily(log_path, "tlm_worker.log");
     let (stdout_writer, _guard) = tracing_appender::non_blocking(stdout());
     let (file_writer, _guard) = tracing_appender::non_blocking(file);
-    
+
     let level_filter;
     if let Some(level) = stdout_level {
         level_filter = LevelFilter::from_level(level);
@@ -74,8 +75,19 @@ async fn main() -> Result<(), IoError> {
         let transcode_queue_inner = transcode_queue.clone();
         let stop_worker_inner = stop_worker.clone();
         let (mut tx, rx) = futures_channel::mpsc::unbounded();
-        tx.start_send(WorkerMessage::Initialise(config.read().unwrap().uid).to_message())
-            .unwrap();
+        //Doesn't deal with error sending .unwrap() at the end
+        debug!(
+            "Worker temp path: {}",
+            pathbuf_to_string(&config.read().unwrap().temp_path.clone())
+        );
+        tx.start_send(
+            WorkerMessage::Initialise(
+                config.read().unwrap().uid,
+                config.read().unwrap().temp_path.clone(),
+            )
+            .to_message(),
+        )
+        .unwrap();
 
         //TODO: Don't create this thread until we actually have a websocket established
         //Alternatively, don't worry about it, it isn't really a problem as it is currently

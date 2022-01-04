@@ -3,21 +3,22 @@ extern crate diesel;
 use directories::BaseDirs;
 use tlm::{
     config::{Preferences, ServerConfig},
+    encode::Encode,
     file_manager::FileManager,
     scheduler::{Scheduler, Task},
     worker::Worker,
-    worker_manager::{Encode, WorkerManager},
+    worker_manager::WorkerManager,
     ws::run_web,
 };
 
 use core::time;
-use std::collections::VecDeque;
 use std::env;
 use std::io::stdout;
 use std::io::Error as IoError;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::{collections::VecDeque, sync::RwLock};
 use tracing::{error, info, Level};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -67,7 +68,8 @@ async fn main() -> Result<(), IoError> {
 
     let preferences = Preferences::default();
 
-    let config: ServerConfig = ServerConfig::new(&preferences);
+    let server_config: Arc<RwLock<ServerConfig>> =
+        Arc::new(RwLock::new(ServerConfig::new(&preferences)));
 
     let tasks: Arc<Mutex<VecDeque<Task>>> = Arc::new(Mutex::new(VecDeque::new()));
 
@@ -82,17 +84,18 @@ async fn main() -> Result<(), IoError> {
         worker_mananger_transcode_queue.clone(),
         600,
     )));
-    let file_manager: Arc<Mutex<FileManager>> = Arc::new(Mutex::new(FileManager::new(&config)));
+    let file_manager: Arc<Mutex<FileManager>> =
+        Arc::new(Mutex::new(FileManager::new(server_config.clone())));
 
     let stop_scheduler = Arc::new(AtomicBool::new(false));
     let mut scheduler: Scheduler = Scheduler::new(
-        config.clone(),
+        server_config.clone(),
         tasks.clone(),
         encode_tasks,
         file_manager.clone(),
         stop_scheduler.clone(),
     );
-    
+
     //Start the scheduler in it's own thread and return the scheduler at the end
     //so that we can print information before exiting
     let scheduler_handle = thread::spawn(move || {
@@ -112,13 +115,16 @@ async fn main() -> Result<(), IoError> {
         inner_worker_manager
     });
 
+    let port = server_config.read().unwrap().port;
+
     if !preferences.disable_input {
         run_web(
-            config.port,
+            port,
             tasks,
             file_manager,
             worker_mananger_transcode_queue,
             worker_manager,
+            server_config.clone(),
         )
         .await?;
     }

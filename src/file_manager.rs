@@ -4,12 +4,13 @@ use crate::{
     config::ServerConfig,
     database::*,
     designation::Designation,
+    encode::{Encode, EncodeProfile},
+    ensure_path_exists,
     generic::{FileVersion, Generic},
-    get_show_title_from_pathbuf,
+    get_extension, get_file_stem, get_show_title_from_pathbuf,
     model::{NewEpisode, NewFileVersion, NewGeneric},
-    pathbuf_extension_to_string, pathbuf_to_string,
+    pathbuf_to_string,
     show::{Episode, Show},
-    worker_manager::Encode,
 };
 extern crate derivative;
 use derivative::Derivative;
@@ -19,23 +20,92 @@ use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
+use std::{collections::HashMap, env, path::Path};
 use std::{collections::HashSet, fmt, path::PathBuf};
-use tracing::{debug, error, info, trace, warn};
-
+use std::{
+    hash::{Hash, Hasher},
+    sync::{Arc, RwLock},
+};
+use tracing::{error, info, trace, warn};
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct TrackedDirectories {
-    pub root_directories: Vec<String>,
-    pub cache_directories: Vec<String>,
+    root_directories: HashSet<PathBuf>,
+    cache_directory: Option<PathBuf>,
+    //This needs to be accessible by the workers
+    global_temp_directory: Option<PathBuf>,
 }
 
 impl TrackedDirectories {
-    pub fn new() -> TrackedDirectories {
-        TrackedDirectories {
-            root_directories: Vec::new(),
-            cache_directories: Vec::new(),
+    pub fn new_empty() -> Self {
+        Self {
+            root_directories: HashSet::new(),
+            cache_directory: None,
+            global_temp_directory: None,
+        }
+    }
+
+    pub fn default() -> Self {
+        let mut tracked_directories = Self::new_empty();
+        tracked_directories.assign_cache_directory(None);
+        tracked_directories
+    }
+
+    pub fn has_cache_directory(&self) -> bool {
+        self.cache_directory.is_some()
+    }
+
+    pub fn has_global_temp_directory(&self) -> bool {
+        self.global_temp_directory.is_some()
+    }
+
+    pub fn add_root_directory(&mut self, tracked_directory: PathBuf) {
+        self.root_directories.insert(tracked_directory);
+    }
+
+    //Destructive
+    pub fn assign_cache_directory(&mut self, directory: Option<&Path>) {
+        let cache_directory;
+        if let Some(directory) = directory {
+            //should be able to determine whether there has already been a /tlm/ folder created in the passed cache directory
+            if get_file_stem(directory) != "tlm" {
+                cache_directory = directory.join("tlm");
+            } else {
+                cache_directory = directory.to_path_buf();
+            }
+        } else {
+            cache_directory = env::temp_dir().join("tlm");
+        }
+        ensure_path_exists(&cache_directory);
+        self.cache_directory = Some(cache_directory);
+    }
+
+    //Destructive
+    pub fn assign_global_temp_directory(&mut self, global_temp_directory: &Path) {
+        self.global_temp_directory = Some(PathBuf::from(global_temp_directory));
+    }
+
+    pub fn get_global_temp_directory(&self) -> &PathBuf {
+        //is probably guaranteed
+        match self.global_temp_directory.as_ref() {
+            Some(temp_directory) => temp_directory,
+            None => {
+                error!("For any local transcoding, just a local directory is fine, but this needs to be accessible for any remote worker.");
+                panic!();
+            }
+        }
+    }
+
+    pub fn get_root_directories(&self) -> &HashSet<PathBuf> {
+        &self.root_directories
+    }
+
+    pub fn get_cache_directory(&self) -> &PathBuf {
+        if self.cache_directory.is_some() {
+            return self.cache_directory.as_ref().unwrap();
+        } else {
+            error!("This should not be called before a cache directory has been set.");
+            panic!();
         }
     }
 }
@@ -86,8 +156,7 @@ impl fmt::Display for Reason {
 ///Contains all media data that is stored in ram as well as
 ///a list of rejected files
 pub struct FileManager {
-    ///copy of the one in the scheduler
-    pub config: ServerConfig,
+    pub config: Arc<RwLock<ServerConfig>>,
     pub generic_files: Vec<Generic>,
     pub shows: Vec<Show>,
     pub existing_files_hashset: HashSet<PathBuf>,
@@ -96,9 +165,9 @@ pub struct FileManager {
 }
 
 impl FileManager {
-    pub fn new(config: &ServerConfig) -> Self {
+    pub fn new(config: Arc<RwLock<ServerConfig>>) -> Self {
         let mut file_manager = Self {
-            config: config.clone(),
+            config,
             shows: get_all_shows(),
             generic_files: Vec::new(),
             existing_files_hashset: HashSet::new(),
@@ -185,18 +254,20 @@ impl FileManager {
         &self,
         generic_uid: i32,
         file_version_id: i32,
+        encode_profile: &EncodeProfile,
+        server_config: Arc<RwLock<ServerConfig>>,
     ) -> Option<Encode> {
         for generic in &self.generic_files {
             if generic.get_generic_uid() == generic_uid {
                 if let Some(file_version) = generic.get_file_version_by_id(file_version_id) {
-                    return Some(file_version.generate_encode());
+                    return Some(Encode::new(&file_version, encode_profile, &server_config));
                 }
             }
         }
         for show in &self.shows {
             if let Some(generic) = show.get_generic_from_uid(generic_uid) {
                 if let Some(file_version) = generic.get_file_version_by_id(file_version_id) {
-                    return Some(file_version.generate_encode());
+                    return Some(Encode::new(&file_version, encode_profile, &server_config));
                 }
             }
         }
@@ -318,7 +389,7 @@ impl FileManager {
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for generic in generics.iter_mut() {
             let episode_string: String;
-            match REGEX.find(&generic.file_versions[0].get_filename()) {
+            match REGEX.find(&generic.file_versions[0].get_file_name()) {
                 None => continue,
                 Some(val) => {
                     //Removes first character
@@ -406,7 +477,7 @@ impl FileManager {
     fn accept_or_reject_file(&mut self, full_path: PathBuf, store_reasons: bool) {
         let mut reason = None;
         //rejects if the path contains any element of an ignored path
-        for ignored_path in &self.config.ignored_paths_regex {
+        for ignored_path in &self.config.read().unwrap().ignored_paths_regex {
             if ignored_path
                 .is_match(&pathbuf_to_string(&full_path))
                 .unwrap()
@@ -423,8 +494,10 @@ impl FileManager {
                 //rejects if the file doesn't have an allowed extension
                 if !self
                     .config
+                    .read()
+                    .unwrap()
                     .allowed_extensions
-                    .contains(&pathbuf_extension_to_string(&full_path).to_lowercase())
+                    .contains(&get_extension(&full_path).to_lowercase())
                 {
                     reason = Some(Reason::ExtensionDisallowed);
                 }
@@ -449,16 +522,41 @@ impl FileManager {
     ///guarantee no duplicates in O(1) time
     pub fn import_files(&mut self) {
         //import all files in tracked root directories
-        for directory in &self.config.tracked_directories.root_directories.clone() {
-            let walkdir = WalkDir::new(directory);
+        let root_directories = &self
+            .config
+            .read()
+            .unwrap()
+            .clone()
+            .tracked_directories
+            .root_directories;
+        for directory in root_directories {
             //If we do thi first we can max out IO without waiting
             //for accept_or_reject files. Will increase memory overhead obviously
-            for entry in walkdir {
+            for entry in WalkDir::new(directory) {
                 if entry.as_ref().unwrap().path().is_file() {
                     self.accept_or_reject_file(entry.unwrap().path(), true);
                 }
             }
         }
+    }
+
+    pub fn generate_encodes_for_all(&self, encode_profile: &EncodeProfile) -> Vec<Encode> {
+        let mut encodes: Vec<Encode> = Vec::new();
+        for generic in &self.generic_files {
+            for file_version in &generic.file_versions {
+                encodes.push(Encode::new(file_version, encode_profile, &self.config));
+            }
+        }
+        for show in &self.shows {
+            for season in &show.seasons {
+                for episode in &season.episodes {
+                    for file_version in &episode.generic.file_versions {
+                        encodes.push(Encode::new(file_version, encode_profile, &self.config));
+                    }
+                }
+            }
+        }
+        encodes
     }
 
     ///Insert a vector of episodes into an existing show
@@ -488,11 +586,7 @@ impl FileManager {
 
     ///Make sure a show exists by checking for it in ram and inserting it into
     ///the database if it doesn't exist yet
-    fn ensure_show_exists(
-        &mut self,
-        show_title: String,
-        connection: &PgConnection,
-    ) -> i32 {
+    fn ensure_show_exists(&mut self, show_title: String, connection: &PgConnection) -> i32 {
         let show_uid = self.show_exists(show_title.clone());
         match show_uid {
             Some(uid) => uid,
