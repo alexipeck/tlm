@@ -164,7 +164,7 @@ pub fn get_all_workers() -> VecDeque<Worker> {
 
     let mut workers: VecDeque<Worker> = VecDeque::new();
     for worker_model in worker_models {
-        workers.push_back(Worker::from_worker_model(worker_model));
+        workers.push_back(Worker::from(worker_model));
     }
     workers
 }

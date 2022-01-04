@@ -31,9 +31,9 @@ pub struct ServerConfig {
 impl ServerConfig {
     pub fn default() -> Self {
         let allowed_extensions = vec![
-            String::from("mp4"),
-            String::from("mkv"),
-            String::from("webm"),
+            "mp4".to_string(),
+            "mkv".to_string(),
+            "webm".to_string(),
         ];
         let ignored_paths = vec![String::from(".recycle_bin")];
         let mut tracked_directories = TrackedDirectories::default();
@@ -81,7 +81,9 @@ impl ServerConfig {
         } else {
             config = ServerConfig::default();
             let toml = toml::to_string(&config).unwrap();
+
             if fs::write(&preferences.config_file_path, toml).is_err() {
+                //TODO: Tell the user what is wrong with the config file
                 error!(
                     "Failed to write config file at: {}",
                     preferences.config_file_path

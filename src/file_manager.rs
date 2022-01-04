@@ -67,7 +67,7 @@ impl TrackedDirectories {
         let cache_directory;
         if let Some(directory) = directory {
             //should be able to determine whether there has already been a /tlm/ folder created in the passed cache directory
-            if pathbuf_to_string(&get_file_stem(directory)) != "tlm" {
+            if get_file_stem(directory) != "tlm" {
                 cache_directory = directory.join("tlm");
             } else {
                 cache_directory = directory.to_path_buf();
@@ -388,7 +388,7 @@ impl FileManager {
         //Build all the NewEpisodes so we can do a batch insert that is faster than doing one at a time in a loop
         for generic in generics.iter_mut() {
             let episode_string: String;
-            match REGEX.find(&generic.file_versions[0].get_filename()) {
+            match REGEX.find(&generic.file_versions[0].get_file_name()) {
                 None => continue,
                 Some(val) => {
                     //Removes first character
@@ -496,7 +496,7 @@ impl FileManager {
                     .read()
                     .unwrap()
                     .allowed_extensions
-                    .contains(&pathbuf_to_string(&get_extension(&full_path)).to_lowercase())
+                    .contains(&get_extension(&full_path).to_lowercase())
                 {
                     reason = Some(Reason::ExtensionDisallowed);
                 }

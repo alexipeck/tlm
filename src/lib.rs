@@ -5,7 +5,7 @@ use std::{
     fs::{self, copy as fs_copy, remove_file as fs_remove_file, File},
     io::{Error, Write},
     net::SocketAddr,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, ffi::OsStr,
 };
 
 use futures_channel::mpsc::UnboundedSender;
@@ -23,6 +23,7 @@ pub mod profile;
 pub mod scheduler;
 pub mod schema;
 pub mod show;
+pub mod testing;
 pub mod worker;
 pub mod worker_manager;
 pub mod ws;
@@ -38,18 +39,28 @@ extern crate diesel;
 
 //TODO: Allow an option to ensure (read/write) or check (read-only) that that path/directory/file exists on disk
 
+pub fn os_string_to_string(os_string: &OsStr) -> String {
+    match os_string.to_str() {
+        Some(string) => string.to_string(),
+        None => {
+            error!("Failed to convert OsStr to &str");
+            panic!();
+        }
+    }
+}
+
 pub fn pathbuf_with_suffix(path: &Path, suffix: String) -> PathBuf {
     get_parent_directory(path).join(format!(
         "{}{}.{}",
-        pathbuf_to_string(&get_file_stem(path)),
+        get_file_stem(path),
         &suffix,
-        pathbuf_to_string(&get_extension(path)),
+        get_extension(path),
     ))
 }
 
-pub fn get_file_stem(path: &Path) -> PathBuf {
+pub fn get_file_stem(path: &Path) -> String {
     match path.file_stem() {
-        Some(file_stem) => PathBuf::from(file_stem),
+        Some(file_stem) => os_string_to_string(file_stem),
         None => {
             error!(
                 "Couldn't get file stem from path: {}",
@@ -60,9 +71,9 @@ pub fn get_file_stem(path: &Path) -> PathBuf {
     }
 }
 
-pub fn get_file_name(path: &Path) -> PathBuf {
+pub fn get_file_name(path: &Path) -> String {
     match path.file_name() {
-        Some(file_name) => PathBuf::from(file_name),
+        Some(file_name) => os_string_to_string(file_name),
         None => {
             error!(
                 "Couldn't get file name from path: {}",
@@ -73,9 +84,9 @@ pub fn get_file_name(path: &Path) -> PathBuf {
     }
 }
 
-pub fn get_extension(path: &Path) -> PathBuf {
+pub fn get_extension(path: &Path) -> String {
     match path.extension() {
-        Some(extension) => PathBuf::from(extension),
+        Some(extension) => os_string_to_string(extension),
         None => {
             error!(
                 "Couldn't get file extension from path: {}",
@@ -93,7 +104,7 @@ pub fn get_parent_directory(path: &Path) -> &Path {
     }
 }
 
-///Pathbuf/Path to String
+//Pathbuf/Path to String
 pub fn pathbuf_to_string(path: &Path) -> String {
     match path.to_str() {
         Some(string) => string.to_string(),
@@ -128,6 +139,12 @@ pub fn get_show_title_from_pathbuf(path: &Path) -> String {
             panic!();
         }
     }
+}
+
+pub fn create_file(test_file_path: &Path) -> Result<(), Error> {
+    let mut file = File::create(pathbuf_to_string(test_file_path))?;
+    file.write_all(b"Dummy unit testing file.")?;
+    Ok(())
 }
 
 pub fn copy(source: &Path, destination: &Path) -> Result<u64, Error> {

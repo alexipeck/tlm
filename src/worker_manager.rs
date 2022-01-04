@@ -186,15 +186,8 @@ impl WorkerManager {
                 continue;
             }
             match self.transcode_queue.lock().unwrap().pop_front() {
-                Some(mut encode) => {
-                    encode
-                        .encode_string
-                        .activate(worker.get_worker_temp_directory());
-                    worker.add_to_queue(encode);
-                }
-                None => {
-                    break;
-                }
+                Some(encode) => worker.add_to_queue(encode),
+                None => break,
             }
         }
     }
@@ -253,6 +246,13 @@ impl WorkerTranscodeQueue {
         if self.current_transcode.read().unwrap().is_some() {
             if self.current_transcode_handle.read().unwrap().is_some() {
                 self.kill_current_transcode_process();
+            }
+            if let Err(err) = copy(&self.current_transcode.read().unwrap().as_ref().unwrap().source_path, &PathBuf::from(self.current_transcode.read().unwrap().as_ref().unwrap().encode_string.get_source_path())) {
+                error!(
+                    "Failed to copy file from media library to worker temp. IO output: {}",
+                    err
+                );
+                panic!();
             }
             self.current_transcode
                 .write()
@@ -327,11 +327,11 @@ impl WorkerTranscodeQueue {
                             .temp_target_path
                             .clone();
                         generic_uid = current_transcode_lock.as_ref().unwrap().generic_uid;
-                        worker_temp_target_path = current_transcode_lock
+                        worker_temp_target_path = PathBuf::from(current_transcode_lock
                             .as_ref()
                             .unwrap()
                             .encode_string
-                            .get_worker_temp_target_path();
+                            .get_target_path());
                     }
                     let _ = tx.start_send(
                         WorkerMessage::EncodeFinished(
@@ -353,7 +353,7 @@ impl WorkerTranscodeQueue {
                         .to_message(),
                     );
 
-                    if let Err(err) = copy(&worker_temp_target_path, &temp_target_path) {
+                    if let Err(err) = copy(&worker_temp_target_path.clone(), &temp_target_path) {
                         error!(
                             "Failed to copy file from worker temp to server temp. IO output: {}",
                             err

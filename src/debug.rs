@@ -21,7 +21,7 @@ pub fn output_all_file_versions(file_manager: Arc<Mutex<FileManager>>) {
                 "generic_uid: {:3}, file_version_id: {:3}, filename: {}",
                 file_version.generic_uid,
                 file_version.id,
-                file_version.get_filename()
+                file_version.get_file_name()
             );
         }
     }

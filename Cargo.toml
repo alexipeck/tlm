@@ -14,6 +14,9 @@ path = "src/bin/server.rs"
 name = "tlm-worker"
 path = "src/bin/worker.rs"
 
+[lib]
+doctest = false
+
 [dependencies]
 jwalk = "0.6.0"
 regex = { version = "1.5.4", default-features = false }

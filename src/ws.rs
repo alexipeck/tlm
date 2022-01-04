@@ -65,7 +65,7 @@ async fn handle_web_connection(
     let (tx, rx) = unbounded();
     peer_map.lock().unwrap().insert(addr, (None, tx.clone()));
     let (outgoing, incoming) = ws_stream.split();
-
+    
     let broadcast_incoming = incoming.try_for_each(|msg| {
         if msg.is_text() {
             let message = msg
@@ -137,7 +137,7 @@ async fn handle_web_connection(
                     move_finished(worker_message, worker_manager.clone(), file_manager.clone());
                 }
                 _ => {
-                    warn!("Server recieved a message it doesn't know how to handle");
+                    warn!("Server received a message it doesn't know how to handle");
                 }
             }
         }
@@ -291,7 +291,8 @@ pub async fn run_worker(
                 return;
             }
             match WorkerMessage::from_message(message) {
-                WorkerMessage::Encode(encode, add_encode_mode) => {
+                WorkerMessage::Encode(mut encode, add_encode_mode) => {
+                    encode.encode_string.activate(config.read().unwrap().temp_path.clone());
                     transcode_queue
                         .write()
                         .unwrap()

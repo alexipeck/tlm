@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Error, Value};
+use std::fmt;
 use std::path::Path;
 use std::process::Command;
 use std::str::from_utf8;
@@ -50,20 +51,22 @@ impl ResolutionStandard {
             _ => ResolutionStandard::UNKNOWN,
         }
     }
+}
 
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
+impl fmt::Display for ResolutionStandard {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ResolutionStandard::ED => "ED".to_string(),
-            ResolutionStandard::SD => "SD".to_string(),
-            ResolutionStandard::HD => "HD".to_string(),
-            ResolutionStandard::FHD => "FHD".to_string(),
-            ResolutionStandard::WQHD => "WQHD".to_string(),
-            ResolutionStandard::UHD => "UHD".to_string(),
-            ResolutionStandard::UNKNOWN => panic!(),
+            Self::ED => write!(f, "ED"),
+            Self::SD => write!(f, "SD"),
+            Self::HD => write!(f, "HD"),
+            Self::FHD => write!(f, "FHD"),
+            Self::WQHD => write!(f, "WQHD"),
+            Self::UHD => write!(f, "UHD"),
+            Self::UNKNOWN => write!(f, "UNKNOWN"),
         }
     }
 }
+
 
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub enum AspectRatio {
@@ -139,14 +142,18 @@ impl Container {
             _ => Container::UNKNOWN,
         }
     }
+}
 
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
+impl fmt::Display for Container {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Container::MP4 => "mp4".to_string(),
-            Container::MKV => "mkv".to_string(),
-            Container::WEBM => "webm".to_string(),
-            Container::UNKNOWN => panic!(),
+            Self::MP4 => write!(f, "mp4"),
+            Self::MKV => write!(f, "mkv"),
+            Self::WEBM => write!(f, "webm"),
+            Self::UNKNOWN => {
+                error!("Container has unknown type.");
+                panic!();
+            },
         }
     }
 }

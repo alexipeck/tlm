@@ -120,8 +120,8 @@ impl FileVersion {
         }
     }
 
-    pub fn get_filename(&self) -> String {
-        pathbuf_to_string(&get_file_name(&self.full_path))
+    pub fn get_file_name(&self) -> String {
+        get_file_name(&self.full_path)
     }
 
     pub fn get_full_path(&self) -> String {

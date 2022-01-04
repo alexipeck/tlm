@@ -8,15 +8,13 @@ use tracing::{debug, error, info};
 
 use crate::{
     config::ServerConfig,
-    copy,
     database::create_file_version,
     encode::Encode,
     file_manager::FileManager,
     generic::FileVersion,
     model::NewFileVersion,
-    remove_file,
+    copy, remove_file, pathbuf_to_string,
     scheduler::{GenerateProfiles, Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
-    pathbuf_to_string,
     worker::WorkerMessage,
     worker_manager::{AddEncodeMode, WorkerManager},
     PeerMap, Tx,

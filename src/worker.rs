@@ -42,6 +42,18 @@ impl Worker {
             close_time: None,
         }
     }
+
+    pub fn from(model: WorkerModel) -> Self {
+        Self {
+            uid: Some(model.id),
+            worker_ip_address: SocketAddr::from_str(&model.worker_ip_address).unwrap(),
+            worker_temp_directory: None,
+            tx: None,
+            transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
+            close_time: None,
+        }
+    }
+
     //TODO: Consolidate server-side worker transcode queue and worker-side transcode queue
     pub fn clear_current_transcode(&mut self, generic_uid: i32) {
         let mut transcode_queue_lock = self.transcode_queue.write().unwrap();
@@ -60,17 +72,6 @@ impl Worker {
                 error!("Worker has no temp directory.");
                 panic!();
             }
-        }
-    }
-
-    pub fn from_worker_model(model: WorkerModel) -> Self {
-        Self {
-            uid: Some(model.id),
-            worker_ip_address: SocketAddr::from_str(&model.worker_ip_address).unwrap(),
-            worker_temp_directory: None,
-            tx: None,
-            transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
-            close_time: None,
         }
     }
 
