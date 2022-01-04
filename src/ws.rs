@@ -65,7 +65,7 @@ async fn handle_web_connection(
     let (tx, rx) = unbounded();
     peer_map.lock().unwrap().insert(addr, (None, tx.clone()));
     let (outgoing, incoming) = ws_stream.split();
-    
+
     let broadcast_incoming = incoming.try_for_each(|msg| {
         if msg.is_text() {
             let message = msg
@@ -292,7 +292,9 @@ pub async fn run_worker(
             }
             match WorkerMessage::from_message(message) {
                 WorkerMessage::Encode(mut encode, add_encode_mode) => {
-                    encode.encode_string.activate(config.read().unwrap().temp_path.clone());
+                    encode
+                        .encode_string
+                        .activate(config.read().unwrap().temp_path.clone());
                     transcode_queue
                         .write()
                         .unwrap()

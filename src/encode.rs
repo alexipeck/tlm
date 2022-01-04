@@ -8,8 +8,8 @@ use std::{
 use tracing::{debug, error, info};
 
 use crate::{
-    config::ServerConfig, generic::FileVersion, get_file_name, get_file_stem,
-    pathbuf_to_string, pathbuf_with_suffix,
+    config::ServerConfig, generic::FileVersion, get_file_name, get_file_stem, pathbuf_to_string,
+    pathbuf_with_suffix,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -27,13 +27,19 @@ impl Encode {
         encode_profile: &EncodeProfile,
         server_config: &Arc<RwLock<ServerConfig>>,
     ) -> Self {
-        let target_path = pathbuf_with_suffix(&file_version.full_path, format!("_{}", encode_profile.to_string()));
+        let target_path = pathbuf_with_suffix(
+            &file_version.full_path,
+            format!("_{}", encode_profile.to_string()),
+        );
         let temp_target_path = server_config
             .read()
             .unwrap()
             .tracked_directories
             .get_global_temp_directory()
-            .join(get_file_name(&pathbuf_with_suffix(&target_path, "_temp".to_string())));
+            .join(get_file_name(&pathbuf_with_suffix(
+                &target_path,
+                "_temp".to_string(),
+            )));
         Self {
             generic_uid: file_version.generic_uid,
             source_path: file_version.full_path.clone(),
@@ -44,10 +50,7 @@ impl Encode {
     }
 
     pub fn run(self, handle: Arc<RwLock<Option<Child>>>) {
-        info!(
-            "Encoding file \"{}\"",
-            get_file_name(&self.source_path),
-        );
+        info!("Encoding file \"{}\"", get_file_name(&self.source_path),);
         debug!("Encode: Source: {}", pathbuf_to_string(&self.source_path));
         debug!(
             "Encode: Destination: {}",
@@ -78,42 +81,49 @@ pub struct EncodeString {
 //Returns a vector of ffmpeg arguments for later execution
 //This has no options currently
 impl EncodeString {
-    pub fn generate_deactivated(file_version: &FileVersion, encode_profile: &EncodeProfile) -> Self {
-        let mut counter: usize = 0;        
+    pub fn generate_deactivated(
+        file_version: &FileVersion,
+        encode_profile: &EncodeProfile,
+    ) -> Self {
+        let mut counter: usize = 0;
 
-        let mut encode_string: Vec<String> = vec!["-i".to_string()];//0
+        let mut encode_string: Vec<String> = vec!["-i".to_string()]; //0
 
         //Get the index of the source path
         let source_index = encode_string.len();
-        encode_string.push(String::new());             //1: to_string(&file_version.full_path)
+        encode_string.push(String::new()); //1: to_string(&file_version.full_path)
 
         //TODO: Add settings based on the profile used
         //Video
-        encode_string.push("-c:v".to_string());         //2
-        encode_string.push("libx265".to_string());      //3
-        encode_string.push("-crf".to_string());         //4
-        encode_string.push("25".to_string());           //5
-        encode_string.push("-preset".to_string());      //6
-        encode_string.push("slower".to_string());       //7
-        encode_string.push("-profile:v".to_string());   //8
-        encode_string.push("main".to_string());         //9
+        encode_string.push("-c:v".to_string()); //2
+        encode_string.push("libx265".to_string()); //3
+        encode_string.push("-crf".to_string()); //4
+        encode_string.push("25".to_string()); //5
+        encode_string.push("-preset".to_string()); //6
+        encode_string.push("slower".to_string()); //7
+        encode_string.push("-profile:v".to_string()); //8
+        encode_string.push("main".to_string()); //9
 
         //Audio
-        encode_string.push("-c:a".to_string());         //10
-        encode_string.push("aac".to_string());          //11
-        encode_string.push("-q:a".to_string());         //12
-        encode_string.push("224k".to_string());         //13
+        encode_string.push("-c:a".to_string()); //10
+        encode_string.push("aac".to_string()); //11
+        encode_string.push("-q:a".to_string()); //12
+        encode_string.push("224k".to_string()); //13
 
-        encode_string.push("-y".to_string());           //14
+        encode_string.push("-y".to_string()); //14
 
         //Get the index of the destination path
         let destination_index = encode_string.len();
-        encode_string.push(String::new());              //15
+        encode_string.push(String::new()); //15
 
         Self {
             activated: false,
             encode_string,
-            file_name: format!("{}.{}", get_file_stem(&file_version.full_path), encode_profile.get_extension()),
+            file_name: format!(
+                "{}.{}",
+                get_file_stem(&file_version.full_path),
+                encode_profile.get_extension()
+            ),
             worker_source_index: source_index,
             worker_target_index: destination_index,
         }
@@ -188,6 +198,6 @@ impl fmt::Display for EncodeProfile {
 //TODO: it needs to take into account if multiple encodes have been started for one particular file
 pub fn generate_target_path(full_path: &Path, encode_profile: &EncodeProfile) -> PathBuf {
     //TODO: This function should create the actual target path for a new FileVersion
-    
+
     pathbuf_with_suffix(full_path, format!("_{}", encode_profile.to_string()))
 }

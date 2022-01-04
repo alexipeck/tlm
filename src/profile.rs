@@ -67,7 +67,6 @@ impl fmt::Display for ResolutionStandard {
     }
 }
 
-
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub enum AspectRatio {
     SixteenByNine,
@@ -153,7 +152,7 @@ impl fmt::Display for Container {
             Self::UNKNOWN => {
                 error!("Container has unknown type.");
                 panic!();
-            },
+            }
         }
     }
 }

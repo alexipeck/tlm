@@ -30,11 +30,7 @@ pub struct ServerConfig {
 
 impl ServerConfig {
     pub fn default() -> Self {
-        let allowed_extensions = vec![
-            "mp4".to_string(),
-            "mkv".to_string(),
-            "webm".to_string(),
-        ];
+        let allowed_extensions = vec!["mp4".to_string(), "mkv".to_string(), "webm".to_string()];
         let ignored_paths = vec![String::from(".recycle_bin")];
         let mut tracked_directories = TrackedDirectories::default();
         //TODO: Remove hardcoding
@@ -72,7 +68,7 @@ impl ServerConfig {
                     //TODO: All paths from the config file should be checked and cache directories need to have ensure_path_exists to account for child folders in temp
                     ensure_path_exists(config.tracked_directories.get_cache_directory());
                     config
-                },
+                }
                 Err(err) => {
                     error!("Failed to parse toml: {}", err);
                     panic!();

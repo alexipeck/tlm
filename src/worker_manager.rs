@@ -247,7 +247,24 @@ impl WorkerTranscodeQueue {
             if self.current_transcode_handle.read().unwrap().is_some() {
                 self.kill_current_transcode_process();
             }
-            if let Err(err) = copy(&self.current_transcode.read().unwrap().as_ref().unwrap().source_path, &PathBuf::from(self.current_transcode.read().unwrap().as_ref().unwrap().encode_string.get_source_path())) {
+            if let Err(err) = copy(
+                &self
+                    .current_transcode
+                    .read()
+                    .unwrap()
+                    .as_ref()
+                    .unwrap()
+                    .source_path,
+                &PathBuf::from(
+                    self.current_transcode
+                        .read()
+                        .unwrap()
+                        .as_ref()
+                        .unwrap()
+                        .encode_string
+                        .get_source_path(),
+                ),
+            ) {
                 error!(
                     "Failed to copy file from media library to worker temp. IO output: {}",
                     err
@@ -327,11 +344,13 @@ impl WorkerTranscodeQueue {
                             .temp_target_path
                             .clone();
                         generic_uid = current_transcode_lock.as_ref().unwrap().generic_uid;
-                        worker_temp_target_path = PathBuf::from(current_transcode_lock
-                            .as_ref()
-                            .unwrap()
-                            .encode_string
-                            .get_target_path());
+                        worker_temp_target_path = PathBuf::from(
+                            current_transcode_lock
+                                .as_ref()
+                                .unwrap()
+                                .encode_string
+                                .get_target_path(),
+                        );
                     }
                     let _ = tx.start_send(
                         WorkerMessage::EncodeFinished(
@@ -390,7 +409,7 @@ impl WorkerTranscodeQueue {
             }
         }
     }
-    
+
     ///Makes a transcode current if there isn't one already there
     ///Returns true if there is a transcode ready to go after this function has run
     fn make_transcode_current(&mut self) -> bool {

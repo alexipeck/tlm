@@ -2,10 +2,11 @@
 
 use std::{
     collections::HashMap,
+    ffi::OsStr,
     fs::{self, copy as fs_copy, remove_file as fs_remove_file, File},
     io::{Error, Write},
     net::SocketAddr,
-    path::{Path, PathBuf}, ffi::OsStr,
+    path::{Path, PathBuf},
 };
 
 use futures_channel::mpsc::UnboundedSender;

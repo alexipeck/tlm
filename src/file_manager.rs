@@ -5,11 +5,12 @@ use crate::{
     database::*,
     designation::Designation,
     encode::{Encode, EncodeProfile},
+    ensure_path_exists,
     generic::{FileVersion, Generic},
-    get_show_title_from_pathbuf,
+    get_extension, get_file_stem, get_show_title_from_pathbuf,
     model::{NewEpisode, NewFileVersion, NewGeneric},
-    get_extension, get_file_stem, pathbuf_to_string,
-    show::{Episode, Show}, ensure_path_exists,
+    pathbuf_to_string,
+    show::{Episode, Show},
 };
 extern crate derivative;
 use derivative::Derivative;

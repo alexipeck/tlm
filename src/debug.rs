@@ -103,7 +103,10 @@ pub fn output_tracked_paths(file_manager: Arc<Mutex<FileManager>>) {
         .tracked_directories
         .get_root_directories()
     {
-        debug!("Tracked directory: {}", pathbuf_to_string(tracked_directory));
+        debug!(
+            "Tracked directory: {}",
+            pathbuf_to_string(tracked_directory)
+        );
     }
     debug!(
         "Cache directory: {}",
