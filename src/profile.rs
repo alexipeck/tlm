@@ -266,29 +266,3 @@ impl Profile {
         }
     }
 }
-
-/* #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
-pub struct ConversionProfile {
-    //Video
-    basic_profile: BasicProfile,
-    video_codec: Option<VideoCodec>,
-    video_bitrate: Option<u32>,
-
-    //Audio
-    audio_codec: Option<AudioCodec>,
-    audio_bitrate: Option<u32>,
-    audio_samplerate: Option<u32>,
-}
-
-impl ConversionProfile {
-    pub fn new(basic_profile: BasicProfile, full_path: PathBuf) -> Self {
-        Self {
-            basic_profile,
-            video_codec: None,//TODO
-            video_bitrate: None,//TODO
-            audio_codec: None,//TODO
-            audio_bitrate: None,//TODO
-            audio_samplerate: None,//TODO
-        }
-    }
-} */

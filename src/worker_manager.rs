@@ -390,7 +390,7 @@ impl WorkerTranscodeQueue {
             }
         }
     }
-
+    
     ///Makes a transcode current if there isn't one already there
     ///Returns true if there is a transcode ready to go after this function has run
     fn make_transcode_current(&mut self) -> bool {

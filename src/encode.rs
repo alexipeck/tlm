@@ -75,8 +75,8 @@ pub struct EncodeString {
     worker_target_index: usize,
 }
 
-///Returns a vector of ffmpeg arguments for later execution
-///This has no options currently
+//Returns a vector of ffmpeg arguments for later execution
+//This has no options currently
 impl EncodeString {
     pub fn generate_deactivated(file_version: &FileVersion, encode_profile: &EncodeProfile) -> Self {
         let mut counter: usize = 0;        
