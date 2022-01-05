@@ -1,5 +1,33 @@
 #[cfg(test)]
 mod tests {
+    use crate::config::ServerConfig;
+
+    //Tests the generation and activation of an Encode, will somehow test a remote worker encoding it,
+    //but it shouldn't be that hard, it will just involve creating a dummy instance of the entire program :)
+    #[test]
+    fn test_encode() {
+        let file_version_model: crate::model::FileVersionModel = crate::model::FileVersionModel {
+            id: 0,
+            generic_uid: 0,
+            full_path: r"/mnt/tvshows/Alcatraz/Season 1/Alcatraz - S01E02 - Ernest Cobb HDTV-720p.mkv".to_string(),
+            master_file: true,
+            file_hash: None,
+            fast_file_hash: None,
+            width: None,
+            height: None,
+            framerate: None,
+            length_time: None,
+            resolution_standard: None,
+            container: None,
+
+        };
+        let file_version: crate::generic::FileVersion = crate::generic::FileVersion::from_file_version_model(file_version_model);
+        let encode_profile: crate::encode::EncodeProfile = crate::encode::EncodeProfile::H265_TV_1080p;
+        let server_config: std::sync::Arc<std::sync::RwLock<crate::config::ServerConfig>> = std::sync::Arc::new(std::sync::RwLock::new(ServerConfig::default()));
+        let mut encode: crate::encode::Encode = crate::encode::Encode::new(&file_version, &encode_profile, &server_config);
+        encode.encode_string.activate(std::env::temp_dir());
+    }
+    
     #[test]
     fn test_get_show_title_from_pathbuf() {
         assert_eq!(

@@ -85,8 +85,6 @@ impl EncodeString {
         file_version: &FileVersion,
         encode_profile: &EncodeProfile,
     ) -> Self {
-        let mut counter: usize = 0;
-
         let mut encode_string: Vec<String> = vec!["-i".to_string()]; //0
 
         //Get the index of the source path
