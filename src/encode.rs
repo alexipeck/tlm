@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
     process::{Child, Command},
-    sync::{Arc, RwLock},
+    sync::{Arc, RwLock}, fs::remove_file,
 };
 use tracing::{debug, error, info};
 
@@ -46,6 +46,13 @@ impl Encode {
             target_path,
             temp_target_path,
             encode_string: EncodeString::generate_deactivated(file_version, encode_profile),
+        }
+    }
+
+    pub fn delete_file_cache(&self) {
+        if let Err(err) = remove_file(&self.encode_string.get_source_path()) {
+            error!("Failed to remove file from temp. IO output: {}", err);
+            panic!();
         }
     }
 
