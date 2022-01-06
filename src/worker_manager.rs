@@ -246,12 +246,12 @@ impl WorkerTranscodeQueue {
             if self.current_transcode_handle.read().unwrap().is_some() {
                 self.kill_current_transcode_process();
             }
-            self
-                .current_transcode
+            self.current_transcode
                 .read()
                 .unwrap()
                 .as_ref()
-                .unwrap().cache_file();
+                .unwrap()
+                .cache_file();
             self.current_transcode
                 .write()
                 .unwrap()
@@ -316,8 +316,9 @@ impl WorkerTranscodeQueue {
                     {
                         encode = self.current_transcode.read().unwrap().clone().unwrap();
                     }
-                    let worker_temp_target_path = PathBuf::from(encode.encode_string.get_target_path());
-                
+                    let worker_temp_target_path =
+                        PathBuf::from(encode.encode_string.get_target_path());
+
                     let _ = tx.start_send(
                         WorkerMessage::EncodeFinished(
                             worker_uid.read().unwrap().unwrap(),
@@ -338,7 +339,12 @@ impl WorkerTranscodeQueue {
                         .to_message(),
                     );
 
-                    self.current_transcode.read().unwrap().as_ref().unwrap().transfer_encode_to_server_temp();
+                    self.current_transcode
+                        .read()
+                        .unwrap()
+                        .as_ref()
+                        .unwrap()
+                        .transfer_encode_to_server_temp();
 
                     let _ = tx.start_send(
                         WorkerMessage::MoveFinished(

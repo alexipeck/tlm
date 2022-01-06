@@ -1,15 +1,16 @@
 use core::fmt;
 use serde::{Deserialize, Serialize};
 use std::{
+    fs::remove_file,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::{Arc, RwLock}, fs::remove_file,
+    sync::{Arc, RwLock},
 };
 use tracing::{debug, error, info};
 
 use crate::{
-    config::ServerConfig, generic::FileVersion, get_file_name, get_file_stem, pathbuf_to_string,
-    pathbuf_with_suffix, copy,
+    config::ServerConfig, copy, generic::FileVersion, get_file_name, get_file_stem,
+    pathbuf_to_string, pathbuf_with_suffix,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -50,7 +51,10 @@ impl Encode {
     }
 
     pub fn cache_file(&self) {
-        if let Err(err) = copy(&self.source_path, &PathBuf::from(self.encode_string.get_source_path())) {
+        if let Err(err) = copy(
+            &self.source_path,
+            &PathBuf::from(self.encode_string.get_source_path()),
+        ) {
             error!("Failed to copy file to temp. IO output: {}", err);
             panic!();
         }
@@ -69,7 +73,10 @@ impl Encode {
     }
 
     pub fn transfer_encode_to_server_temp(&self) {
-        if let Err(err) = copy(&PathBuf::from(self.encode_string.get_target_path()), &self.temp_target_path) {
+        if let Err(err) = copy(
+            &PathBuf::from(self.encode_string.get_target_path()),
+            &self.temp_target_path,
+        ) {
             error!(
                 "Failed to copy file from temp to global temp. IO output: {}",
                 err
@@ -103,7 +110,6 @@ impl Encode {
                     .unwrap(),
             );
         }
-        
     }
 }
 

@@ -24,14 +24,20 @@ mod tests {
             length_time: None,
             resolution_standard: None,
             container: None,
-
         };
-        let file_version: crate::generic::FileVersion = crate::generic::FileVersion::from_file_version_model(file_version_model);
-        let encode_profile: crate::encode::EncodeProfile = crate::encode::EncodeProfile::H265_TV_1080p;
-        let server_config: std::sync::Arc<std::sync::RwLock<crate::config::ServerConfig>> = std::sync::Arc::new(std::sync::RwLock::new(crate::config::ServerConfig::default()));
-        let mut encode: crate::encode::Encode = crate::encode::Encode::new(&file_version, &encode_profile, &server_config);
+        let file_version: crate::generic::FileVersion =
+            crate::generic::FileVersion::from_file_version_model(file_version_model);
+        let encode_profile: crate::encode::EncodeProfile =
+            crate::encode::EncodeProfile::H265_TV_1080p;
+        let server_config: std::sync::Arc<std::sync::RwLock<crate::config::ServerConfig>> =
+            std::sync::Arc::new(std::sync::RwLock::new(
+                crate::config::ServerConfig::default(),
+            ));
+        let mut encode: crate::encode::Encode =
+            crate::encode::Encode::new(&file_version, &encode_profile, &server_config);
         encode.encode_string.activate(std::env::temp_dir());
-        let transcode_handle: std::sync::Arc<std::sync::RwLock<Option<std::process::Child>>> = std::sync::Arc::new(std::sync::RwLock::new(None));
+        let transcode_handle: std::sync::Arc<std::sync::RwLock<Option<std::process::Child>>> =
+            std::sync::Arc::new(std::sync::RwLock::new(None));
         encode.cache_file();
         encode.run(transcode_handle.clone(), true);
         if transcode_handle.read().unwrap().is_some() {
