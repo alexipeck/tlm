@@ -3,7 +3,6 @@ use crate::database::{create_worker, establish_connection};
 use crate::encode::Encode;
 use crate::model::NewWorker;
 use crate::worker::{Worker, WorkerMessage};
-use crate::copy;
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -247,36 +246,18 @@ impl WorkerTranscodeQueue {
             if self.current_transcode_handle.read().unwrap().is_some() {
                 self.kill_current_transcode_process();
             }
-            if let Err(err) = copy(
-                &self
-                    .current_transcode
-                    .read()
-                    .unwrap()
-                    .as_ref()
-                    .unwrap()
-                    .source_path,
-                &PathBuf::from(
-                    self.current_transcode
-                        .read()
-                        .unwrap()
-                        .as_ref()
-                        .unwrap()
-                        .encode_string
-                        .get_source_path(),
-                ),
-            ) {
-                error!(
-                    "Failed to copy file from media library to worker temp. IO output: {}",
-                    err
-                );
-                panic!();
-            }
+            self
+                .current_transcode
+                .read()
+                .unwrap()
+                .as_ref()
+                .unwrap().cache_file();
             self.current_transcode
                 .write()
                 .unwrap()
                 .clone()
                 .unwrap()
-                .run(self.current_transcode_handle.clone());
+                .run(self.current_transcode_handle.clone(), false);
         } else {
             debug!("There is no transcode available to start.");
         }
@@ -351,19 +332,13 @@ impl WorkerTranscodeQueue {
                         WorkerMessage::MoveStarted(
                             worker_uid.read().unwrap().unwrap(),
                             encode.generic_uid,
-                            worker_temp_target_path.clone(),
+                            worker_temp_target_path,
                             encode.target_path.clone(),
                         )
                         .to_message(),
                     );
 
-                    if let Err(err) = copy(&worker_temp_target_path, &encode.temp_target_path) {
-                        error!(
-                            "Failed to copy file from worker temp to server temp. IO output: {}",
-                            err
-                        );
-                        panic!();
-                    }
+                    self.current_transcode.read().unwrap().as_ref().unwrap().transfer_encode_to_server_temp();
 
                     let _ = tx.start_send(
                         WorkerMessage::MoveFinished(
@@ -378,8 +353,6 @@ impl WorkerTranscodeQueue {
                         )
                         .to_message(),
                     );
-
-
 
                     //Cleanup file in temp
                     encode.delete_file_cache();

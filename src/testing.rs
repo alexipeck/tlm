@@ -14,7 +14,7 @@ mod tests {
         let file_version_model: crate::model::FileVersionModel = crate::model::FileVersionModel {
             id: 0,
             generic_uid: 0,
-            full_path: r"/mnt/tvshows/Alcatraz/Season 1/Alcatraz - S01E02 - Ernest Cobb HDTV-720p.mkv".to_string(),
+            full_path: r".\unit_test_files\test_video.mp4".to_string(),
             master_file: true,
             file_hash: None,
             fast_file_hash: None,
@@ -32,7 +32,22 @@ mod tests {
         let mut encode: crate::encode::Encode = crate::encode::Encode::new(&file_version, &encode_profile, &server_config);
         encode.encode_string.activate(std::env::temp_dir());
         let transcode_handle: std::sync::Arc<std::sync::RwLock<Option<std::process::Child>>> = std::sync::Arc::new(std::sync::RwLock::new(None));
-        //encode.run(transcode_handle);
+        encode.cache_file();
+        encode.run(transcode_handle.clone(), true);
+        if transcode_handle.read().unwrap().is_some() {
+            let output = transcode_handle
+                .write()
+                .unwrap()
+                .take()
+                .unwrap()
+                .wait_with_output();
+            let _ok: bool = output.is_ok();
+            let _ = output.unwrap_or_else(|err| {
+                tracing::error!("Failed to execute ffmpeg process. Err: {}", err);
+                panic!();
+            });
+        }
+        encode.delete_file_cache();
     }
     
     #[test]

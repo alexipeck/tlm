@@ -2,14 +2,14 @@ use core::fmt;
 use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
-    process::{Child, Command},
+    process::{Child, Command, Stdio},
     sync::{Arc, RwLock}, fs::remove_file,
 };
 use tracing::{debug, error, info};
 
 use crate::{
     config::ServerConfig, generic::FileVersion, get_file_name, get_file_stem, pathbuf_to_string,
-    pathbuf_with_suffix,
+    pathbuf_with_suffix, copy,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -49,27 +49,61 @@ impl Encode {
         }
     }
 
+    pub fn cache_file(&self) {
+        if let Err(err) = copy(&self.source_path, &PathBuf::from(self.encode_string.get_source_path())) {
+            error!("Failed to copy file to temp. IO output: {}", err);
+            panic!();
+        }
+    }
+
     pub fn delete_file_cache(&self) {
         if let Err(err) = remove_file(&self.encode_string.get_source_path()) {
             error!("Failed to remove file from temp. IO output: {}", err);
             panic!();
         }
+
+        if let Err(err) = remove_file(&self.encode_string.get_target_path()) {
+            error!("Failed to remove file from temp. IO output: {}", err);
+            panic!();
+        }
     }
 
-    pub fn run(self, handle: Arc<RwLock<Option<Child>>>) {
-        info!("Encoding file \"{}\"", get_file_name(&self.source_path),);
+    pub fn transfer_encode_to_server_temp(&self) {
+        if let Err(err) = copy(&PathBuf::from(self.encode_string.get_target_path()), &self.temp_target_path) {
+            error!(
+                "Failed to copy file from temp to global temp. IO output: {}",
+                err
+            );
+            panic!();
+        }
+    }
+
+    pub fn run(&self, handle: Arc<RwLock<Option<Child>>>, silent: bool) {
+        info!("Encoding file \"{}\"", get_file_name(&self.source_path));
         debug!("Encode: Source: {}", pathbuf_to_string(&self.source_path));
         debug!(
             "Encode: Destination: {}",
             self.encode_string.encode_string[&self.encode_string.encode_string.len() - 1]
         );
-
-        let _ = handle.write().unwrap().insert(
-            Command::new("ffmpeg")
-                .args(&self.encode_string.get_encode_string())
-                .spawn()
-                .unwrap(),
-        );
+        if silent {
+            //The two elements include null redirect all output to /dev/null or equivalent
+            let _ = handle.write().unwrap().insert(
+                Command::new("ffmpeg")
+                    .args(&self.encode_string.get_encode_string())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .spawn()
+                    .unwrap(),
+            );
+        } else {
+            let _ = handle.write().unwrap().insert(
+                Command::new("ffmpeg")
+                    .args(&self.encode_string.get_encode_string())
+                    .spawn()
+                    .unwrap(),
+            );
+        }
+        
     }
 }
 
@@ -92,8 +126,6 @@ impl EncodeString {
         file_version: &FileVersion,
         encode_profile: &EncodeProfile,
     ) -> Self {
-        let mut counter: usize = 0;
-
         let mut encode_string: Vec<String> = vec!["-i".to_string()]; //0
 
         //Get the index of the source path
