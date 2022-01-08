@@ -8,6 +8,7 @@ use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
 };
+use serde::{Deserialize, Serialize};
 
 use futures_channel::mpsc::UnboundedSender;
 use tokio_tungstenite::tungstenite::Message;
@@ -163,5 +164,43 @@ pub fn ensure_path_exists(path: &Path) {
             err
         );
         panic!();
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct WebUIFileVersion {
+    pub generic_uid: u32,
+    pub file_version_id: u32,
+    pub file_name: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum RequestType {
+    AllFileVersions,
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum WebUIMessage {
+    //EncodeGeneric(i32, i32, AddEncodeMode, EncodeProfile),
+    FileVersion(i32, i32, String),
+    FileVersions(Vec<WebUIFileVersion>),
+    Request(RequestType),
+}
+
+impl WebUIMessage {
+    ///Convert WorkerMessage to a tungstenite message for sending over websockets
+    pub fn to_message(&self) -> Message {
+        let serialised = bincode::serialize(self).unwrap_or_else(|err| {
+            error!("Failed to serialise WorkerMessage: {}", err);
+            panic!();
+        });
+        Message::binary(serialised)
+    }
+
+    pub fn from_message(message: Message) -> Self {
+        bincode::deserialize::<Self>(&message.into_data()).unwrap_or_else(|err| {
+            error!("Failed to deserialise message: {}", err);
+            panic!();
+        })
     }
 }

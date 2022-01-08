@@ -219,6 +219,8 @@ impl Task {
         }
     }
 
+    //TODO: When the server stops or wants to check whether a long time running thread is actually still doing work, it should be able to access that handle, and perform some form of check that determines whether it expects it to still be running, like .is_running(), is_ok(), etc on the handle with a level of severity, determines what it is and whether it is actually working, this will somehow involve it communicating with it.
+
     ///execute the tasks run function
     pub fn handle_task(
         &mut self,
