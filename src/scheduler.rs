@@ -1,6 +1,6 @@
 use crate::{
     config::ServerConfig,
-    database::{establish_connection, update_file_version},
+    database::establish_connection,
     file_manager::FileManager,
     generic::FileVersion,
     pathbuf_to_string,
@@ -121,7 +121,7 @@ impl Hash {
                         length,
                         pathbuf_to_string(&file_version.full_path)
                     );
-                    update_file_version(file_version, &connection);
+                    file_version.update_file_version(&connection);
                     current_file_version_count += 1;
                 }
                 //Update the generic in ram, if it has been deleted then don't worry about it
@@ -153,7 +153,7 @@ impl Hash {
                         length,
                         pathbuf_to_string(&file_version.full_path)
                     );
-                    update_file_version(file_version, &connection);
+                    file_version.update_file_version(&connection);
                     current_file_version_count += 1;
                 }
                 let mut found_generic = false;

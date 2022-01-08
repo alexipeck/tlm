@@ -67,13 +67,11 @@ pub fn initialise(
         if !worker_manager.lock().unwrap().reestablish_worker(
             worker_uid,
             addr,
-            &worker_temp_directory,
             tx.clone(),
         ) {
             //We need the new uid so we can set it correctly in the peer map
             worker_uid = Some(worker_manager.lock().unwrap().add_worker(
                 addr,
-                &worker_temp_directory,
                 tx,
             ));
         }

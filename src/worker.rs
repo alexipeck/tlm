@@ -18,7 +18,6 @@ use tracing::error;
 pub struct Worker {
     pub uid: Option<i32>,
     pub worker_ip_address: SocketAddr,
-    pub worker_temp_directory: Option<PathBuf>,
     tx: Option<UnboundedSender<Message>>,
     pub transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
     pub close_time: Option<Instant>,
@@ -30,13 +29,11 @@ impl Worker {
     pub fn new(
         uid: Option<i32>,
         worker_ip_address: SocketAddr,
-        worker_temp_directory: &PathBuf,
         tx: UnboundedSender<Message>,
     ) -> Self {
         Self {
             uid,
             worker_ip_address,
-            worker_temp_directory: Some(worker_temp_directory.clone()),
             tx: Some(tx),
             transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
             close_time: None,
@@ -47,7 +44,6 @@ impl Worker {
         Self {
             uid: Some(model.id),
             worker_ip_address: SocketAddr::from_str(&model.worker_ip_address).unwrap(),
-            worker_temp_directory: None,
             tx: None,
             transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
             close_time: None,
@@ -65,24 +61,12 @@ impl Worker {
         }
     }
 
-    pub fn get_worker_temp_directory(&self) -> PathBuf {
-        match &self.worker_temp_directory {
-            Some(worker_temp_directory) => worker_temp_directory.clone(),
-            None => {
-                error!("Worker has no temp directory.");
-                panic!();
-            }
-        }
-    }
-
     pub fn update(
         &mut self,
         worker_ip_address: SocketAddr,
-        worker_temp_directory: &PathBuf,
         tx: UnboundedSender<Message>,
     ) {
         self.worker_ip_address = worker_ip_address;
-        self.worker_temp_directory = Some(worker_temp_directory.clone());
         self.tx = Some(tx);
     }
 
@@ -143,6 +127,7 @@ pub enum WorkerMessage {
 
     //WebUI
     EncodeGeneric(i32, i32, AddEncodeMode, EncodeProfile),
+    FileVersion(i32, i32, String),
 
     //Generic
     Text(String),
