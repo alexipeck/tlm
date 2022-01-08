@@ -1,3 +1,4 @@
+use crate::MessageSource;
 use crate::encode::{Encode, EncodeProfile};
 use crate::model::WorkerModel;
 use crate::worker_manager::AddEncodeMode;
@@ -78,7 +79,7 @@ impl Worker {
         self.tx
             .clone()
             .unwrap()
-            .start_send(worker_message.to_message())
+            .start_send(MessageSource::Worker(worker_message).to_message())
             .unwrap_or_else(|err| error!("{}", err));
         //TODO: Have the worker send a message to the server if it can't access the file
     }
@@ -131,22 +132,4 @@ pub enum WorkerMessage {
 
     //Generic
     Text(String),
-}
-
-impl WorkerMessage {
-    ///Convert WorkerMessage to a tungstenite message for sending over websockets
-    pub fn to_message(&self) -> Message {
-        let serialised = bincode::serialize(self).unwrap_or_else(|err| {
-            error!("Failed to serialise WorkerMessage: {}", err);
-            panic!();
-        });
-        Message::binary(serialised)
-    }
-
-    pub fn from_message(message: Message) -> Self {
-        bincode::deserialize::<WorkerMessage>(&message.into_data()).unwrap_or_else(|err| {
-            error!("Failed to deserialise message: {}", err);
-            panic!();
-        })
-    }
 }

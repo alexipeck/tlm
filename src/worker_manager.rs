@@ -1,3 +1,4 @@
+use crate::MessageSource;
 use crate::database::get_all_workers;
 use crate::database::{create_worker, establish_connection};
 use crate::encode::Encode;
@@ -282,8 +283,9 @@ impl WorkerTranscodeQueue {
         //Add a transcode current if there isn't one already there
         if self.make_transcode_current() {
             self.start_current_transcode_if_some();
+
             let _ = tx.start_send(
-                WorkerMessage::EncodeStarted(
+                    MessageSource::Worker(WorkerMessage::EncodeStarted(
                     worker_uid.read().unwrap().unwrap(),
                     self.current_transcode
                         .read()
@@ -291,8 +293,7 @@ impl WorkerTranscodeQueue {
                         .as_ref()
                         .unwrap()
                         .generic_uid,
-                )
-                .to_message(),
+                )).to_message()
             );
             if self.current_transcode_handle.read().unwrap().is_some() {
                 let output = self
@@ -318,22 +319,22 @@ impl WorkerTranscodeQueue {
                         PathBuf::from(encode.encode_string.get_target_path());
 
                     let _ = tx.start_send(
-                        WorkerMessage::EncodeFinished(
+                        MessageSource::Worker(WorkerMessage::EncodeFinished(
                             worker_uid.read().unwrap().unwrap(),
                             encode.generic_uid,
                             worker_temp_target_path.clone(),
-                        )
+                        ))
                         .to_message(),
                     );
 
                     //Start moving file from local worker cache to the server's temp directory.
                     let _ = tx.start_send(
-                        WorkerMessage::MoveStarted(
+                        MessageSource::Worker(WorkerMessage::MoveStarted(
                             worker_uid.read().unwrap().unwrap(),
                             encode.generic_uid,
                             worker_temp_target_path,
                             encode.target_path.clone(),
-                        )
+                        ))
                         .to_message(),
                     );
 
@@ -345,7 +346,7 @@ impl WorkerTranscodeQueue {
                         .transfer_encode_to_server_temp();
 
                     let _ = tx.start_send(
-                        WorkerMessage::MoveFinished(
+                        MessageSource::Worker(WorkerMessage::MoveFinished(
                             worker_uid.read().unwrap().unwrap(),
                             encode.generic_uid,
                             self.current_transcode
@@ -354,7 +355,7 @@ impl WorkerTranscodeQueue {
                                 .as_ref()
                                 .unwrap()
                                 .clone(),
-                        )
+                        ))
                         .to_message(),
                     );
 

@@ -12,7 +12,8 @@ use serde::{Deserialize, Serialize};
 
 use futures_channel::mpsc::UnboundedSender;
 use tokio_tungstenite::tungstenite::Message;
-use tracing::error;
+use tracing::{error, warn};
+use worker::WorkerMessage;
 pub mod config;
 pub mod database;
 pub mod debug;
@@ -175,6 +176,37 @@ pub struct WebUIFileVersion {
 }
 
 #[derive(Serialize, Deserialize)]
+pub enum MessageSource {
+    Worker(WorkerMessage),
+    WebUI(WebUIMessage),
+}
+
+impl MessageSource {
+    pub fn from_message(message: Message) -> Self {
+        bincode::deserialize::<Self>(&message.into_data()).unwrap_or_else(|err| {
+            error!("Failed to deserialise message: {}", err);
+            panic!();
+        })
+    }
+
+    pub fn to_message(&self) -> Message {
+        let serialised = bincode::serialize::<Self>(&self).unwrap_or_else(|err| {
+            error!("Failed to deserialise message: {}", err);
+            panic!();
+        });
+        Message::binary(serialised)
+    }
+
+    pub fn from_worker_message(worker_message: WorkerMessage) -> Self {
+        Self::Worker(worker_message)
+    }
+
+    pub fn from_webui_message(webui_message: WebUIMessage) -> Self {
+        Self::WebUI(webui_message)
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub enum RequestType {
     AllFileVersions,
 }
@@ -196,7 +228,7 @@ impl WebUIMessage {
         });
         Message::binary(serialised)
     }
-
+    
     pub fn from_message(message: Message) -> Self {
         bincode::deserialize::<Self>(&message.into_data()).unwrap_or_else(|err| {
             error!("Failed to deserialise message: {}", err);

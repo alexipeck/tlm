@@ -18,7 +18,7 @@ use crate::{
         encode_finished, encode_generic, encode_started, generate_profiles, hash_files,
         import_files, initialise, move_finished, move_started, process_files,
     },
-    PeerMap,
+    PeerMap, MessageSource, WebUIMessage, RequestType,
 };
 
 use std::{
@@ -105,40 +105,58 @@ async fn handle_web_connection(
                 _ => warn!("{} is not a valid input", message),
             }
         } else if msg.is_binary() {
-            let worker_message = WorkerMessage::from_message(msg);
-            match worker_message {
-                WorkerMessage::Initialise(_, _) => {
-                    initialise(
-                        worker_message,
-                        worker_manager.clone(),
-                        addr,
-                        tx.clone(),
-                        peer_map.clone(),
-                    );
-                }
-                WorkerMessage::EncodeGeneric(_, _, _, _) => {
-                    encode_generic(
-                        worker_message,
-                        file_manager.clone(),
-                        worker_manager_transcode_queue.clone(),
-                        server_config.clone(),
-                    );
-                }
-                WorkerMessage::EncodeStarted(_, _) => {
-                    encode_started(worker_message);
-                }
-                WorkerMessage::EncodeFinished(_, _, _) => {
-                    encode_finished(worker_message);
-                }
-                WorkerMessage::MoveStarted(_, _, _, _) => {
-                    move_started(worker_message);
-                }
-                WorkerMessage::MoveFinished(_, _, _) => {
-                    move_finished(worker_message, worker_manager.clone(), file_manager.clone());
-                }
-                _ => {
-                    warn!("Server received a message it doesn't know how to handle");
-                }
+            let message = MessageSource::from_message(msg);
+            match message {
+                MessageSource::Worker(worker_message) => {
+                    match worker_message {
+                        WorkerMessage::Initialise(_, _) => {
+                            initialise(
+                                worker_message,
+                                worker_manager.clone(),
+                                addr,
+                                tx.clone(),
+                                peer_map.clone(),
+                            );
+                        },
+                        WorkerMessage::EncodeGeneric(_, _, _, _) => {
+                            encode_generic(
+                                worker_message,
+                                file_manager.clone(),
+                                worker_manager_transcode_queue.clone(),
+                                server_config.clone(),
+                            );
+                        },
+                        WorkerMessage::EncodeStarted(_, _) => {
+                            encode_started(worker_message);
+                        },
+                        WorkerMessage::EncodeFinished(_, _, _) => {
+                            encode_finished(worker_message);
+                        },
+                        WorkerMessage::MoveStarted(_, _, _, _) => {
+                            move_started(worker_message);
+                        },
+                        WorkerMessage::MoveFinished(_, _, _) => {
+                            move_finished(worker_message, worker_manager.clone(), file_manager.clone());
+                        },
+                        _ => {
+                            warn!("Server received a message it doesn't know how to handle");
+                        },
+                    }
+                },
+                MessageSource::WebUI(webui_message) => {
+                    match webui_message {
+                        WebUIMessage::Request(request_type) => {
+                            match request_type {
+                                RequestType::AllFileVersions => {
+                                    //TODO: Send back a vector of all file versions to the WebUI
+                                },
+                            };
+                        },
+                        _ => {
+                            warn!("Server received a message it doesn't know how to handle");
+                        },
+                    }
+                },
             }
         }
 
@@ -290,26 +308,34 @@ pub async fn run_worker(
                 info!("Worker is continuing it's current transcode");
                 return;
             }
-            match WorkerMessage::from_message(message) {
-                WorkerMessage::Encode(mut encode, add_encode_mode) => {
-                    encode
-                        .encode_string
-                        .activate(config.read().unwrap().temp_path.clone());
-                    transcode_queue
-                        .write()
-                        .unwrap()
-                        .add_encode(encode, add_encode_mode);
+
+            match MessageSource::from_message(message) {
+                MessageSource::Worker(worker_message) => {
+                    match worker_message {
+                        WorkerMessage::Encode(mut encode, add_encode_mode) => {
+                            encode
+                                .encode_string
+                                .activate(config.read().unwrap().temp_path.clone());
+                            transcode_queue
+                                .write()
+                                .unwrap()
+                                .add_encode(encode, add_encode_mode);
+                        }
+                        WorkerMessage::WorkerID(worker_uid) => {
+                            config.write().unwrap().uid = Some(worker_uid);
+                            config.read().unwrap().update_config_on_disk();
+                            info!("Worker has been given UID: {}", worker_uid);
+                        }
+                        WorkerMessage::Announce(text) => {
+                            info!("Announcement: {}", text);
+                        }
+                        _ => warn!("Worker received a message it doesn't know how to handle"),
+                    }
+                },
+                _ => {
+                    warn!("Message received was not meant for workers");
                 }
-                WorkerMessage::WorkerID(worker_uid) => {
-                    config.write().unwrap().uid = Some(worker_uid);
-                    config.read().unwrap().update_config_on_disk();
-                    info!("Worker has been given UID: {}", worker_uid);
-                }
-                WorkerMessage::Announce(text) => {
-                    info!("Announcement: {}", text);
-                }
-                _ => warn!("Worker received a message it doesn't know how to handle"),
-            }
+            }            
         })
     };
     pin_mut!(stdin_to_ws, ws_to_stdout);
