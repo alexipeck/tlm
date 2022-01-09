@@ -163,6 +163,9 @@ impl fmt::Display for Reason {
 pub struct FileManager {
     pub config: Arc<RwLock<ServerConfig>>,
     pub generic_files: Vec<Generic>,
+    //Experimental
+    pub episode_files: HashMap<i32, Generic>,
+
     pub shows: Vec<Show>,
     pub existing_files_hashset: HashSet<PathBuf>,
     pub new_files_queue: Vec<PathBuf>,
@@ -175,11 +178,12 @@ impl FileManager {
             config,
             shows: get_all_shows(),
             generic_files: Vec::new(),
+            episode_files: HashMap::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
             rejected_files: HashSet::new(),
         };
-
+        
         //add generic_files and generics from their respective episodes to the existing_files_hashset
         file_manager.generic_files = get_all_generics();
         let mut collected_file_versions: HashMap<i32, Vec<FileVersion>> = HashMap::new();
@@ -201,8 +205,8 @@ impl FileManager {
         for (generic_id, file_versions) in collected_file_versions.iter_mut() {
             if !file_versions[0].master_file {
                 let mut master_index_found = false;
-                for (i, t) in file_versions.iter().enumerate() {
-                    if t.master_file {
+                for (i, file_version) in file_versions.iter().enumerate() {
+                    if file_version.master_file {
                         file_versions.swap(i, 0);
                         master_index_found = true;
                         break;
