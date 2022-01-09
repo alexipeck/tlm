@@ -1,8 +1,19 @@
 #[cfg(test)]
 mod tests {
-    use std::{sync::{RwLock, Arc}, process::Child};
+    use std::{
+        process::Child,
+        sync::{Arc, RwLock},
+    };
 
-    use crate::{model::FileVersionModel, generic::FileVersion, encode::{EncodeProfile, Encode}, config::ServerConfig, get_show_title_from_pathbuf, pathbuf_to_string, pathbuf_with_suffix, get_extension, get_parent_directory, get_file_name, get_file_stem};
+    use crate::{
+        config::ServerConfig,
+        encode::{Encode, EncodeProfile},
+        generic::FileVersion,
+        get_extension, get_file_name, get_file_stem, get_parent_directory,
+        get_show_title_from_pathbuf,
+        model::FileVersionModel,
+        pathbuf_to_string, pathbuf_with_suffix,
+    };
 
     //Create test videos, with x amount of test frames (the amount is known),
     //every profile I make has to be able to encode this file, it should eventually have test audio too.
@@ -31,7 +42,8 @@ mod tests {
         };
         let file_version: FileVersion = FileVersion::from_file_version_model(file_version_model);
         let encode_profile: EncodeProfile = EncodeProfile::H265_TV_1080p;
-        let server_config: Arc<RwLock<ServerConfig>> = Arc::new(RwLock::new(ServerConfig::default()));
+        let server_config: Arc<RwLock<ServerConfig>> =
+            Arc::new(RwLock::new(ServerConfig::default()));
         let mut encode: Encode = Encode::new(&file_version, &encode_profile, &server_config);
         encode.encode_string.activate(std::env::temp_dir());
         let transcode_handle: Arc<RwLock<Option<Child>>> = Arc::new(RwLock::new(None));

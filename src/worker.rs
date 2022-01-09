@@ -1,7 +1,7 @@
-use crate::MessageSource;
 use crate::encode::{Encode, EncodeProfile};
 use crate::model::WorkerModel;
 use crate::worker_manager::AddEncodeMode;
+use crate::MessageSource;
 use futures_channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -62,11 +62,7 @@ impl Worker {
         }
     }
 
-    pub fn update(
-        &mut self,
-        worker_ip_address: SocketAddr,
-        tx: UnboundedSender<Message>,
-    ) {
+    pub fn update(&mut self, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) {
         self.worker_ip_address = worker_ip_address;
         self.tx = Some(tx);
     }
@@ -79,7 +75,7 @@ impl Worker {
         self.tx
             .clone()
             .unwrap()
-            .start_send(MessageSource::Worker(worker_message).to_message())
+            .start_send(worker_message.to_message())
             .unwrap_or_else(|err| error!("{}", err));
         //TODO: Have the worker send a message to the server if it can't access the file
     }
@@ -114,7 +110,7 @@ impl Worker {
 }
 
 ///Messages to be serialised and sent between the worker and server
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum WorkerMessage {
     //Worker
     Encode(Encode, AddEncodeMode),
@@ -132,4 +128,10 @@ pub enum WorkerMessage {
 
     //Generic
     Text(String),
+}
+
+impl WorkerMessage {
+    pub fn to_message(self) -> Message {
+        MessageSource::Worker(self).to_message()
+    }
 }

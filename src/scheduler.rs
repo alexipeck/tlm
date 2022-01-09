@@ -1,9 +1,6 @@
 use crate::{
-    config::ServerConfig,
-    database::establish_connection,
-    file_manager::FileManager,
-    generic::FileVersion,
-    pathbuf_to_string,
+    config::ServerConfig, database::establish_connection, file_manager::FileManager,
+    generic::FileVersion, pathbuf_to_string,
 };
 use tracing::{debug, error, info};
 

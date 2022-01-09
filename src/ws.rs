@@ -1,7 +1,8 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
-use std::{collections::VecDeque, sync::RwLock};
-use tracing::{error, info, warn};
+use std::{collections::VecDeque, sync::RwLock, ops::Index};
+use serde_json::Error;
+use tracing::{error, info, warn, debug};
 
 use crate::{
     config::{ServerConfig, WorkerConfig},
@@ -18,7 +19,7 @@ use crate::{
         encode_finished, encode_generic, encode_started, generate_profiles, hash_files,
         import_files, initialise, move_finished, move_started, process_files,
     },
-    PeerMap, MessageSource, WebUIMessage, RequestType,
+    MessageSource, PeerMap, RequestType, WebUIMessage,
 };
 
 use std::{
@@ -74,73 +75,91 @@ async fn handle_web_connection(
                 .strip_suffix("\r\n")
                 .or_else(|| msg.to_text().unwrap().strip_suffix('\n'))
                 .unwrap_or_else(|| msg.to_text().unwrap());
-            match message {
-                //Tasks
-                "hash" => hash_files(tasks.clone()),
-                "import" => import_files(tasks.clone()),
-                "process" => process_files(tasks.clone()),
-                "generate_profiles" => generate_profiles(tasks.clone()),
-                "bulk" => {
-                    //TODO: Implement a way of making one task wait for another before it can run
-                    //    : this will require tasks to be logged in the DB and knowledge of the uid for the await
-                    //    : this is a scheduler/task thing
-                    import_files(tasks.clone());
-                    process_files(tasks.clone());
-                    hash_files(tasks.clone());
-                    generate_profiles(tasks.clone());
+            if message.starts_with('{') {
+                let raw_message_source: Result<MessageSource, Error> = serde_json::from_str(message);
+                match raw_message_source {
+                    Ok(message_source) => {
+                        match message_source {
+                            MessageSource::WebUI(webui_message) => {
+                                debug!("{:?}", webui_message);
+                            },
+                            _ => {
+                                warn!("MessageSource was not a WebUI messsage, ignoring.");
+                            },
+                        }
+                    },
+                    Err(err) => {
+                        error!("Failed converting json string to MessageSource, error output: {}", err);
+                        panic!();
+                    }
                 }
-
-                //Debug tasks
-                "output_tracked_paths" => output_tracked_paths(file_manager.clone()),
-                "output_file_versions" => output_all_file_versions(file_manager.clone()),
-                "display_workers" => print_all_worker_models(),
-                "encode_all" => {
-                    encode_all_files(file_manager.clone(), worker_manager_transcode_queue.clone())
+            } else {
+                match message {
+                    //Tasks
+                    "hash" => hash_files(tasks.clone()),
+                    "import" => import_files(tasks.clone()),
+                    "process" => process_files(tasks.clone()),
+                    "generate_profiles" => generate_profiles(tasks.clone()),
+                    "bulk" => {
+                        //TODO: Implement a way of making one task wait for another before it can run
+                        //    : this will require tasks to be logged in the DB and knowledge of the uid for the await
+                        //    : this is a scheduler/task thing
+                        import_files(tasks.clone());
+                        process_files(tasks.clone());
+                        hash_files(tasks.clone());
+                        generate_profiles(tasks.clone());
+                    }
+    
+                    //Debug tasks
+                    "output_tracked_paths" => output_tracked_paths(file_manager.clone()),
+                    "output_file_versions" => output_all_file_versions(file_manager.clone()),
+                    "display_workers" => print_all_worker_models(),
+                    "encode_all" => {
+                        encode_all_files(file_manager.clone(), worker_manager_transcode_queue.clone())
+                    }
+                    "run_completeness_check" => run_completeness_check(file_manager.clone()),
+                    "kill_all_workers" => {
+                        //TODO: Make this force close all workers, used for constant resetting of the dev/test environment
+                    }
+    
+                    _ => warn!("{} is not a valid input", message),
                 }
-                "run_completeness_check" => run_completeness_check(file_manager.clone()),
-                "kill_all_workers" => {
-                    //TODO: Make this force close all workers, used for constant resetting of the dev/test environment
-                }
-
-                _ => warn!("{} is not a valid input", message),
             }
         } else if msg.is_binary() {
             let message = MessageSource::from_message(msg);
             match message {
-                MessageSource::Worker(worker_message) => {
-                    match worker_message {
-                        WorkerMessage::Initialise(_, _) => {
-                            initialise(
-                                worker_message,
-                                worker_manager.clone(),
-                                addr,
-                                tx.clone(),
-                                peer_map.clone(),
-                            );
-                        },
-                        WorkerMessage::EncodeGeneric(_, _, _, _) => {
-                            encode_generic(
-                                worker_message,
-                                file_manager.clone(),
-                                worker_manager_transcode_queue.clone(),
-                                server_config.clone(),
-                            );
-                        },
-                        WorkerMessage::EncodeStarted(_, _) => {
-                            encode_started(worker_message);
-                        },
-                        WorkerMessage::EncodeFinished(_, _, _) => {
-                            encode_finished(worker_message);
-                        },
-                        WorkerMessage::MoveStarted(_, _, _, _) => {
-                            move_started(worker_message);
-                        },
-                        WorkerMessage::MoveFinished(_, _, _) => {
-                            move_finished(worker_message, worker_manager.clone(), file_manager.clone());
-                        },
-                        _ => {
-                            warn!("Server received a message it doesn't know how to handle");
-                        },
+                MessageSource::Worker(worker_message) => match worker_message {
+                    WorkerMessage::Initialise(_, _) => {
+                        initialise(
+                            worker_message,
+                            worker_manager.clone(),
+                            addr,
+                            tx.clone(),
+                            peer_map.clone(),
+                        );
+                    }
+                    WorkerMessage::EncodeGeneric(_, _, _, _) => {
+                        encode_generic(
+                            worker_message,
+                            file_manager.clone(),
+                            worker_manager_transcode_queue.clone(),
+                            server_config.clone(),
+                        );
+                    }
+                    WorkerMessage::EncodeStarted(_, _) => {
+                        encode_started(worker_message);
+                    }
+                    WorkerMessage::EncodeFinished(_, _, _) => {
+                        encode_finished(worker_message);
+                    }
+                    WorkerMessage::MoveStarted(_, _, _, _) => {
+                        move_started(worker_message);
+                    }
+                    WorkerMessage::MoveFinished(_, _, _) => {
+                        move_finished(worker_message, worker_manager.clone(), file_manager.clone());
+                    }
+                    _ => {
+                        warn!("Server received a message it doesn't know how to handle");
                     }
                 },
                 MessageSource::WebUI(webui_message) => {
@@ -149,14 +168,14 @@ async fn handle_web_connection(
                             match request_type {
                                 RequestType::AllFileVersions => {
                                     //TODO: Send back a vector of all file versions to the WebUI
-                                },
+                                }
                             };
-                        },
+                        }
                         _ => {
                             warn!("Server received a message it doesn't know how to handle");
-                        },
+                        }
                     }
-                },
+                }
             }
         }
 
@@ -310,32 +329,30 @@ pub async fn run_worker(
             }
 
             match MessageSource::from_message(message) {
-                MessageSource::Worker(worker_message) => {
-                    match worker_message {
-                        WorkerMessage::Encode(mut encode, add_encode_mode) => {
-                            encode
-                                .encode_string
-                                .activate(config.read().unwrap().temp_path.clone());
-                            transcode_queue
-                                .write()
-                                .unwrap()
-                                .add_encode(encode, add_encode_mode);
-                        }
-                        WorkerMessage::WorkerID(worker_uid) => {
-                            config.write().unwrap().uid = Some(worker_uid);
-                            config.read().unwrap().update_config_on_disk();
-                            info!("Worker has been given UID: {}", worker_uid);
-                        }
-                        WorkerMessage::Announce(text) => {
-                            info!("Announcement: {}", text);
-                        }
-                        _ => warn!("Worker received a message it doesn't know how to handle"),
+                MessageSource::Worker(worker_message) => match worker_message {
+                    WorkerMessage::Encode(mut encode, add_encode_mode) => {
+                        encode
+                            .encode_string
+                            .activate(config.read().unwrap().temp_path.clone());
+                        transcode_queue
+                            .write()
+                            .unwrap()
+                            .add_encode(encode, add_encode_mode);
                     }
+                    WorkerMessage::WorkerID(worker_uid) => {
+                        config.write().unwrap().uid = Some(worker_uid);
+                        config.read().unwrap().update_config_on_disk();
+                        info!("Worker has been given UID: {}", worker_uid);
+                    }
+                    WorkerMessage::Announce(text) => {
+                        info!("Announcement: {}", text);
+                    }
+                    _ => warn!("Worker received a message it doesn't know how to handle"),
                 },
                 _ => {
                     warn!("Message received was not meant for workers");
                 }
-            }            
+            }
         })
     };
     pin_mut!(stdin_to_ws, ws_to_stdout);

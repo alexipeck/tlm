@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     ffi::OsStr,
@@ -8,7 +9,6 @@ use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
 };
-use serde::{Deserialize, Serialize};
 
 use futures_channel::mpsc::UnboundedSender;
 use tokio_tungstenite::tungstenite::Message;
@@ -168,14 +168,14 @@ pub fn ensure_path_exists(path: &Path) {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct WebUIFileVersion {
     pub generic_uid: u32,
     pub file_version_id: u32,
     pub file_name: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum MessageSource {
     Worker(WorkerMessage),
     WebUI(WebUIMessage),
@@ -206,17 +206,20 @@ impl MessageSource {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum RequestType {
     AllFileVersions,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum WebUIMessage {
+    //WebUI -> Server
+    Request(RequestType),
     //EncodeGeneric(i32, i32, AddEncodeMode, EncodeProfile),
+    
+    //Server -> WebUI
     FileVersion(i32, i32, String),
     FileVersions(Vec<WebUIFileVersion>),
-    Request(RequestType),
 }
 
 impl WebUIMessage {
@@ -228,7 +231,7 @@ impl WebUIMessage {
         });
         Message::binary(serialised)
     }
-    
+
     pub fn from_message(message: Message) -> Self {
         bincode::deserialize::<Self>(&message.into_data()).unwrap_or_else(|err| {
             error!("Failed to deserialise message: {}", err);

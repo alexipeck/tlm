@@ -213,7 +213,7 @@ impl EncodeString {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 #[allow(non_camel_case_types)]
 pub enum EncodeProfile {
     H264_TV_1080p,

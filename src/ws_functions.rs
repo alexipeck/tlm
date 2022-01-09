@@ -64,16 +64,13 @@ pub fn initialise(
     if let WorkerMessage::Initialise(mut worker_uid, worker_temp_directory) = initialise_message {
         debug!("Init worker: {}", pathbuf_to_string(&worker_temp_directory));
         //if true {//TODO: authenticate/validate
-        if !worker_manager.lock().unwrap().reestablish_worker(
-            worker_uid,
-            addr,
-            tx.clone(),
-        ) {
+        if !worker_manager
+            .lock()
+            .unwrap()
+            .reestablish_worker(worker_uid, addr, tx.clone())
+        {
             //We need the new uid so we can set it correctly in the peer map
-            worker_uid = Some(worker_manager.lock().unwrap().add_worker(
-                addr,
-                tx,
-            ));
+            worker_uid = Some(worker_manager.lock().unwrap().add_worker(addr, tx));
         }
         peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
         //}

@@ -103,7 +103,6 @@ impl FileVersion {
         }
     }
 
-
     ///Returns true if hashes match, false if not
     pub fn verify_hash_against(&mut self, path: &Path) -> bool {
         //Note: This could loop infinitely if self.hash isn't set
@@ -130,7 +129,8 @@ impl FileVersion {
 
     pub fn verify_own_fast_hash(&mut self) -> bool {
         if self.fast_hash.is_some() {
-            return self.fast_hash.as_ref().unwrap().as_str() == sea_fast_hash(&self.full_path).as_str();
+            return self.fast_hash.as_ref().unwrap().as_str()
+                == sea_fast_hash(&self.full_path).as_str();
         } else {
             warn!("This file has nothing to verify it's hash against. Hashing file instead, this will become the hash and will return true.");
             self.fast_hash();

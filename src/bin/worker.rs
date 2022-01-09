@@ -13,10 +13,10 @@ use std::{
     time,
 };
 use tlm::config::WorkerConfig;
-use tlm::{pathbuf_to_string, MessageSource};
 use tlm::worker::WorkerMessage;
 use tlm::worker_manager::WorkerTranscodeQueue;
 use tlm::ws::run_worker;
+use tlm::{pathbuf_to_string, MessageSource};
 use tracing::{debug, error, Level};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -81,10 +81,10 @@ async fn main() -> Result<(), IoError> {
             pathbuf_to_string(&config.read().unwrap().temp_path.clone())
         );
         tx.start_send(
-            MessageSource::Worker(WorkerMessage::Initialise(
+            WorkerMessage::Initialise(
                 config.read().unwrap().uid,
                 config.read().unwrap().temp_path.clone(),
-            ))
+            )
             .to_message(),
         )
         .unwrap();
