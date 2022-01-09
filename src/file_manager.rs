@@ -1,32 +1,38 @@
 //!A struct for managing all types of media that are stored in ram as well as
 //!Functionality to import files. This is mostly used in the scheduler
-use crate::{
-    config::ServerConfig,
-    database::*,
-    designation::Designation,
-    encode::{Encode, EncodeProfile},
-    ensure_path_exists,
-    generic::{FileVersion, Generic},
-    get_extension, get_file_stem, get_show_title_from_pathbuf,
-    model::{NewEpisode, NewFileVersion, NewGeneric},
-    pathbuf_to_string,
-    show::{Episode, Show},
-};
 extern crate derivative;
-use derivative::Derivative;
-use diesel::pg::PgConnection;
-use jwalk::WalkDir;
-use lazy_static::lazy_static;
-use rayon::prelude::*;
-use regex::Regex;
-use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, env, path::Path};
-use std::{collections::HashSet, fmt, path::PathBuf};
-use std::{
-    hash::{Hash, Hasher},
-    sync::{Arc, RwLock},
+use {
+    crate::{
+        config::ServerConfig,
+        database::*,
+        designation::Designation,
+        encode::{Encode, EncodeProfile},
+        ensure_path_exists,
+        generic::{FileVersion, Generic},
+        get_extension, get_file_stem, get_show_title_from_pathbuf,
+        model::{NewEpisode, NewFileVersion, NewGeneric},
+        pathbuf_to_string,
+        show::{Episode, Show},
+    },
+    derivative::Derivative,
+    diesel::pg::PgConnection,
+    jwalk::WalkDir,
+    lazy_static::lazy_static,
+    rayon::prelude::*,
+    regex::Regex,
+    serde::{Deserialize, Serialize},
+    std::{
+        collections::HashMap,
+        collections::HashSet,
+        env, fmt,
+        hash::{Hash, Hasher},
+        path::Path,
+        path::PathBuf,
+        sync::{Arc, RwLock},
+    },
+    tracing::{error, info, trace, warn},
 };
-use tracing::{error, info, trace, warn};
+
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct TrackedDirectories {

@@ -1,19 +1,18 @@
-use crate::generic::FileVersion;
-use crate::model::WorkerModel;
-use crate::schema::generic::designation;
-use crate::worker::Worker;
-use crate::{
-    designation::Designation, generic::Generic, model::*, schema::episode as episode_table,
-    schema::episode::dsl::episode as episode_db, schema::file_version as file_version_table,
-    schema::file_version::dsl::file_version as file_version_data, schema::generic as generic_table,
-    schema::generic::dsl::generic as generic_data, schema::show as show_table,
-    schema::show::dsl::show as show_db, schema::worker as worker_table,
-    schema::worker::dsl::worker as worker_data, show::Episode, show::Show,
+use {
+    crate::{
+        designation::Designation, generic::FileVersion, generic::Generic, model::WorkerModel,
+        model::*, schema::episode as episode_table, schema::episode::dsl::episode as episode_db,
+        schema::file_version as file_version_table,
+        schema::file_version::dsl::file_version as file_version_data,
+        schema::generic as generic_table, schema::generic::designation,
+        schema::generic::dsl::generic as generic_data, schema::show as show_table,
+        schema::show::dsl::show as show_db, schema::worker as worker_table,
+        schema::worker::dsl::worker as worker_data, show::Episode, show::Show, worker::Worker,
+    },
+    diesel::{pg::PgConnection, prelude::*},
+    std::{collections::VecDeque, env},
+    tracing::{debug, error},
 };
-use diesel::{pg::PgConnection, prelude::*};
-use std::collections::VecDeque;
-use std::env;
-use tracing::{debug, error};
 
 ///Sets up a connection to the database via DATABASE_URL environment variable
 pub fn establish_connection() -> PgConnection {

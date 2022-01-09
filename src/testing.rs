@@ -1,18 +1,19 @@
 #[cfg(test)]
 mod tests {
-    use std::{
-        process::Child,
-        sync::{Arc, RwLock},
-    };
-
-    use crate::{
-        config::ServerConfig,
-        encode::{Encode, EncodeProfile},
-        generic::FileVersion,
-        get_extension, get_file_name, get_file_stem, get_parent_directory,
-        get_show_title_from_pathbuf,
-        model::FileVersionModel,
-        pathbuf_to_string, pathbuf_with_suffix,
+    use {
+        crate::{
+            config::ServerConfig,
+            encode::{Encode, EncodeProfile},
+            generic::FileVersion,
+            get_extension, get_file_name, get_file_stem, get_parent_directory,
+            get_show_title_from_pathbuf,
+            model::FileVersionModel,
+            pathbuf_to_string, pathbuf_with_suffix,
+        },
+        std::{
+            process::Child,
+            sync::{Arc, RwLock},
+        },
     };
 
     //Create test videos, with x amount of test frames (the amount is known),

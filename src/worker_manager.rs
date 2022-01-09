@@ -1,21 +1,24 @@
-use crate::database::get_all_workers;
-use crate::database::{create_worker, establish_connection};
-use crate::encode::Encode;
-use crate::model::NewWorker;
-use crate::worker::{Worker, WorkerMessage};
-use crate::MessageSource;
-use futures_channel::mpsc::UnboundedSender;
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::{
-    collections::VecDeque,
-    net::SocketAddr,
-    process::Child,
-    sync::{Arc, Mutex, RwLock},
-    time::Instant,
+use {
+    crate::{
+        database::get_all_workers,
+        database::{create_worker, establish_connection},
+        encode::Encode,
+        model::NewWorker,
+        worker::{Worker, WorkerMessage},
+    },
+    futures_channel::mpsc::UnboundedSender,
+    serde::{Deserialize, Serialize},
+    std::{
+        collections::VecDeque,
+        net::SocketAddr,
+        path::PathBuf,
+        process::Child,
+        sync::{Arc, Mutex, RwLock},
+        time::Instant,
+    },
+    tokio_tungstenite::tungstenite::Message,
+    tracing::{debug, error, info, warn},
 };
-use tokio_tungstenite::tungstenite::Message;
-use tracing::{debug, error, info, warn};
 
 pub enum WorkerAction {
     ClearCurrentTranscode(i32),

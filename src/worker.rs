@@ -1,19 +1,23 @@
-use crate::encode::{Encode, EncodeProfile};
-use crate::model::WorkerModel;
-use crate::worker_manager::AddEncodeMode;
-use crate::MessageSource;
-use futures_channel::mpsc::UnboundedSender;
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::str::FromStr;
-use std::{
-    collections::VecDeque,
-    net::SocketAddr,
-    sync::{Arc, RwLock},
-    time::Instant,
+use {
+    crate::{
+        encode::{Encode, EncodeProfile},
+        model::WorkerModel,
+        worker_manager::AddEncodeMode,
+        MessageSource,
+    },
+    futures_channel::mpsc::UnboundedSender,
+    serde::{Deserialize, Serialize},
+    std::{
+        collections::VecDeque,
+        net::SocketAddr,
+        path::PathBuf,
+        str::FromStr,
+        sync::{Arc, RwLock},
+        time::Instant,
+    },
+    tokio_tungstenite::tungstenite::Message,
+    tracing::error,
 };
-use tokio_tungstenite::tungstenite::Message;
-use tracing::error;
 
 #[derive(Debug, Clone)]
 pub struct Worker {
@@ -114,7 +118,7 @@ impl Worker {
 pub enum WorkerMessage {
     //Worker
     Encode(Encode, AddEncodeMode),
-    Initialise(Option<i32>, PathBuf),
+    Initialise(Option<i32>),
     WorkerID(i32),
     Announce(String),
     EncodeStarted(i32, i32),

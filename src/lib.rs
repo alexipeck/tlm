@@ -1,19 +1,20 @@
 #![doc = include_str!("../README.md")]
-
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    ffi::OsStr,
-    fs::{self, copy as fs_copy, remove_file as fs_remove_file, File},
-    io::{Error, Write},
-    net::SocketAddr,
-    path::{Path, PathBuf},
+use {
+    futures_channel::mpsc::UnboundedSender,
+    serde::{Deserialize, Serialize},
+    std::{
+        collections::HashMap,
+        ffi::OsStr,
+        fs::{self, copy as fs_copy, remove_file as fs_remove_file, File},
+        io::{Error, Write},
+        net::SocketAddr,
+        path::{Path, PathBuf},
+    },
+    tokio_tungstenite::tungstenite::Message,
+    tracing::{error, warn},
+    worker::WorkerMessage,
 };
 
-use futures_channel::mpsc::UnboundedSender;
-use tokio_tungstenite::tungstenite::Message;
-use tracing::{error, warn};
-use worker::WorkerMessage;
 pub mod config;
 pub mod database;
 pub mod debug;
@@ -216,7 +217,7 @@ pub enum WebUIMessage {
     //WebUI -> Server
     Request(RequestType),
     //EncodeGeneric(i32, i32, AddEncodeMode, EncodeProfile),
-    
+
     //Server -> WebUI
     FileVersion(i32, i32, String),
     FileVersions(Vec<WebUIFileVersion>),

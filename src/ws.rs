@@ -1,42 +1,42 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
-use std::{collections::VecDeque, sync::RwLock, ops::Index};
-use serde_json::Error;
-use tracing::{error, info, warn, debug};
-
-use crate::{
-    config::{ServerConfig, WorkerConfig},
-    database::print_all_worker_models,
-    debug::{
-        encode_all_files, output_all_file_versions, output_tracked_paths, run_completeness_check,
+use {
+    crate::{
+        config::{ServerConfig, WorkerConfig},
+        database::print_all_worker_models,
+        debug::{
+            encode_all_files, output_all_file_versions, output_tracked_paths,
+            run_completeness_check,
+        },
+        encode::Encode,
+        file_manager::FileManager,
+        scheduler::Task,
+        worker::WorkerMessage,
+        worker_manager::{WorkerManager, WorkerTranscodeQueue},
+        ws_functions::{
+            encode_finished, encode_generic, encode_started, generate_profiles, hash_files,
+            import_files, initialise, move_finished, move_started, process_files,
+        },
+        MessageSource, PeerMap, RequestType, WebUIMessage,
     },
-    encode::Encode,
-    file_manager::FileManager,
-    scheduler::Task,
-    worker::WorkerMessage,
-    worker_manager::{WorkerManager, WorkerTranscodeQueue},
-    ws_functions::{
-        encode_finished, encode_generic, encode_started, generate_profiles, hash_files,
-        import_files, initialise, move_finished, move_started, process_files,
+    futures_channel::mpsc::unbounded,
+    futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt},
+    serde_json::Error,
+    std::{
+        collections::HashMap,
+        collections::VecDeque,
+        env,
+        io::Error as IoError,
+        net::SocketAddr,
+        sync::RwLock,
+        sync::{Arc, Mutex},
     },
-    MessageSource, PeerMap, RequestType, WebUIMessage,
+    tokio::net::{TcpListener, TcpStream},
+    tokio::signal,
+    tokio_tungstenite::connect_async,
+    tokio_tungstenite::tungstenite::protocol::Message,
+    tracing::{debug, error, info, warn},
 };
-
-use std::{
-    collections::HashMap,
-    env,
-    io::Error as IoError,
-    net::SocketAddr,
-    sync::{Arc, Mutex},
-};
-use tokio_tungstenite::connect_async;
-
-use futures_channel::mpsc::unbounded;
-use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
-
-use tokio::net::{TcpListener, TcpStream};
-use tokio::signal;
-use tokio_tungstenite::tungstenite::protocol::Message;
 
 #[allow(clippy::too_many_arguments)]
 async fn handle_web_connection(
@@ -76,20 +76,22 @@ async fn handle_web_connection(
                 .or_else(|| msg.to_text().unwrap().strip_suffix('\n'))
                 .unwrap_or_else(|| msg.to_text().unwrap());
             if message.starts_with('{') {
-                let raw_message_source: Result<MessageSource, Error> = serde_json::from_str(message);
+                let raw_message_source: Result<MessageSource, Error> =
+                    serde_json::from_str(message);
                 match raw_message_source {
-                    Ok(message_source) => {
-                        match message_source {
-                            MessageSource::WebUI(webui_message) => {
-                                debug!("{:?}", webui_message);
-                            },
-                            _ => {
-                                warn!("MessageSource was not a WebUI messsage, ignoring.");
-                            },
+                    Ok(message_source) => match message_source {
+                        MessageSource::WebUI(webui_message) => {
+                            debug!("{:?}", webui_message);
+                        }
+                        _ => {
+                            warn!("MessageSource was not a WebUI messsage, ignoring.");
                         }
                     },
                     Err(err) => {
-                        error!("Failed converting json string to MessageSource, error output: {}", err);
+                        error!(
+                            "Failed converting json string to MessageSource, error output: {}",
+                            err
+                        );
                         panic!();
                     }
                 }
@@ -109,19 +111,20 @@ async fn handle_web_connection(
                         hash_files(tasks.clone());
                         generate_profiles(tasks.clone());
                     }
-    
+
                     //Debug tasks
                     "output_tracked_paths" => output_tracked_paths(file_manager.clone()),
                     "output_file_versions" => output_all_file_versions(file_manager.clone()),
                     "display_workers" => print_all_worker_models(),
-                    "encode_all" => {
-                        encode_all_files(file_manager.clone(), worker_manager_transcode_queue.clone())
-                    }
+                    "encode_all" => encode_all_files(
+                        file_manager.clone(),
+                        worker_manager_transcode_queue.clone(),
+                    ),
                     "run_completeness_check" => run_completeness_check(file_manager.clone()),
                     "kill_all_workers" => {
                         //TODO: Make this force close all workers, used for constant resetting of the dev/test environment
                     }
-    
+
                     _ => warn!("{} is not a valid input", message),
                 }
             }
@@ -129,7 +132,7 @@ async fn handle_web_connection(
             let message = MessageSource::from_message(msg);
             match message {
                 MessageSource::Worker(worker_message) => match worker_message {
-                    WorkerMessage::Initialise(_, _) => {
+                    WorkerMessage::Initialise(_) => {
                         initialise(
                             worker_message,
                             worker_manager.clone(),

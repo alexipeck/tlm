@@ -1,21 +1,18 @@
 //!Datatype and associated function for handling Generic video files as well as the generic
 //!information used by all other video file types
-use std::io::prelude::*;
-use std::path::Path;
-use std::{fs::File, path::PathBuf};
-
-use std::fmt;
-use std::hash::Hasher;
-
-use crate::database::update_file_version;
-use crate::profile::{Container, Profile, ResolutionStandard};
-use crate::{
-    designation::{from_i32, Designation},
-    model::*,
+use {
+    crate::{
+        database::update_file_version,
+        designation::{from_i32, Designation},
+        get_file_name,
+        model::*,
+        pathbuf_to_string,
+        profile::{Container, Profile, ResolutionStandard},
+    },
+    diesel::PgConnection,
+    std::{fmt, fs::File, hash::Hasher, io::prelude::*, path::Path, path::PathBuf},
+    tracing::{error, warn},
 };
-use crate::{get_file_name, pathbuf_to_string};
-use diesel::PgConnection;
-use tracing::{error, warn};
 
 #[derive(Clone, Debug)]
 pub struct FileVersion {

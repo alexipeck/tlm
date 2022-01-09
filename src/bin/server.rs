@@ -1,29 +1,31 @@
 extern crate diesel;
-
-use directories::BaseDirs;
-use tlm::{
-    config::{Preferences, ServerConfig},
-    encode::Encode,
-    file_manager::FileManager,
-    scheduler::{Scheduler, Task},
-    worker::Worker,
-    worker_manager::WorkerManager,
-    ws::run_web,
+use {
+    core::time,
+    directories::BaseDirs,
+    std::{
+        env,
+        io::stdout,
+        io::Error as IoError,
+        sync::atomic::{AtomicBool, Ordering},
+        sync::{Arc, Mutex},
+        thread,
+        {collections::VecDeque, sync::RwLock},
+    },
+    tlm::{
+        config::{Preferences, ServerConfig},
+        encode::Encode,
+        file_manager::FileManager,
+        scheduler::{Scheduler, Task},
+        worker::Worker,
+        worker_manager::WorkerManager,
+        ws::run_web,
+    },
+    tracing::{error, info, Level},
+    tracing_subscriber::filter::LevelFilter,
+    tracing_subscriber::layer::SubscriberExt,
+    tracing_subscriber::registry::Registry,
+    tracing_subscriber::Layer,
 };
-
-use core::time;
-use std::env;
-use std::io::stdout;
-use std::io::Error as IoError;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::{collections::VecDeque, sync::RwLock};
-use tracing::{error, info, Level};
-use tracing_subscriber::filter::LevelFilter;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::registry::Registry;
-use tracing_subscriber::Layer;
 
 #[tokio::main]
 async fn main() -> Result<(), IoError> {

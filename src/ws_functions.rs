@@ -1,24 +1,24 @@
-use std::{
-    collections::VecDeque,
-    net::SocketAddr,
-    sync::{Arc, Mutex, RwLock},
-};
-
-use tracing::{debug, error, info};
-
-use crate::{
-    config::ServerConfig,
-    copy,
-    database::create_file_version,
-    encode::Encode,
-    file_manager::FileManager,
-    generic::FileVersion,
-    model::NewFileVersion,
-    pathbuf_to_string, remove_file,
-    scheduler::{GenerateProfiles, Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
-    worker::WorkerMessage,
-    worker_manager::{AddEncodeMode, WorkerManager},
-    PeerMap, Tx,
+use {
+    crate::{
+        config::ServerConfig,
+        copy,
+        database::create_file_version,
+        encode::Encode,
+        file_manager::FileManager,
+        generic::FileVersion,
+        model::NewFileVersion,
+        pathbuf_to_string, remove_file,
+        scheduler::{GenerateProfiles, Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
+        worker::WorkerMessage,
+        worker_manager::{AddEncodeMode, WorkerManager},
+        PeerMap, Tx,
+    },
+    std::{
+        collections::VecDeque,
+        net::SocketAddr,
+        sync::{Arc, Mutex, RwLock},
+    },
+    tracing::{debug, error, info},
 };
 
 pub fn import_files(tasks: Arc<Mutex<VecDeque<Task>>>) {
@@ -61,8 +61,7 @@ pub fn initialise(
     tx: Tx,
     peer_map: Arc<Mutex<PeerMap>>,
 ) {
-    if let WorkerMessage::Initialise(mut worker_uid, worker_temp_directory) = initialise_message {
-        debug!("Init worker: {}", pathbuf_to_string(&worker_temp_directory));
+    if let WorkerMessage::Initialise(mut worker_uid) = initialise_message {
         //if true {//TODO: authenticate/validate
         if !worker_manager
             .lock()

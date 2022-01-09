@@ -1,12 +1,10 @@
-use serde::{Deserialize, Serialize};
-use serde_json::{Error, Value};
-use std::fmt;
-use std::path::Path;
-use std::process::Command;
-use std::str::from_utf8;
-use tracing::error;
-
-use crate::pathbuf_to_string;
+use {
+    crate::pathbuf_to_string,
+    serde::{Deserialize, Serialize},
+    serde_json::{Error, Value},
+    std::{fmt, path::Path, process::Command, str::from_utf8},
+    tracing::error,
+};
 
 ///Currently unused enum to allow filtering media by resolution standard
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]

@@ -1,27 +1,26 @@
-use directories::BaseDirs;
-use std::thread;
-use std::{
-    env,
-    io::{stdout, Error as IoError},
-};
-use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, RwLock,
+use {
+    directories::BaseDirs,
+    std::{
+        env,
+        io::{stdout, Error as IoError},
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc, RwLock,
+        },
+        thread,
+        thread::JoinHandle,
+        time,
     },
-    thread::JoinHandle,
-    time,
+    tlm::{
+        config::WorkerConfig, pathbuf_to_string, worker::WorkerMessage,
+        worker_manager::WorkerTranscodeQueue, ws::run_worker,
+    },
+    tracing::{debug, error, Level},
+    tracing_subscriber::filter::LevelFilter,
+    tracing_subscriber::layer::SubscriberExt,
+    tracing_subscriber::registry::Registry,
+    tracing_subscriber::Layer,
 };
-use tlm::config::WorkerConfig;
-use tlm::worker::WorkerMessage;
-use tlm::worker_manager::WorkerTranscodeQueue;
-use tlm::ws::run_worker;
-use tlm::{pathbuf_to_string, MessageSource};
-use tracing::{debug, error, Level};
-use tracing_subscriber::filter::LevelFilter;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::registry::Registry;
-use tracing_subscriber::Layer;
 
 #[tokio::main]
 async fn main() -> Result<(), IoError> {
@@ -80,14 +79,8 @@ async fn main() -> Result<(), IoError> {
             "Worker temp path: {}",
             pathbuf_to_string(&config.read().unwrap().temp_path.clone())
         );
-        tx.start_send(
-            WorkerMessage::Initialise(
-                config.read().unwrap().uid,
-                config.read().unwrap().temp_path.clone(),
-            )
-            .to_message(),
-        )
-        .unwrap();
+        tx.start_send(WorkerMessage::Initialise(config.read().unwrap().uid).to_message())
+            .unwrap();
 
         //TODO: Don't create this thread until we actually have a websocket established
         //Alternatively, don't worry about it, it isn't really a problem as it is currently
