@@ -18,7 +18,7 @@ use {
         net::SocketAddr,
         sync::{Arc, Mutex, RwLock},
     },
-    tracing::{debug, error, info},
+    tracing::{error, info},
 };
 
 pub fn import_files(tasks: Arc<Mutex<VecDeque<Task>>>) {

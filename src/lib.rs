@@ -1,6 +1,5 @@
 #![doc = include_str!("../README.md")]
 use {
-    futures_channel::mpsc::UnboundedSender,
     serde::{Deserialize, Serialize},
     std::{
         collections::HashMap,
@@ -10,8 +9,9 @@ use {
         net::SocketAddr,
         path::{Path, PathBuf},
     },
+    futures_channel::mpsc::UnboundedSender,
+    tracing::{error},
     tokio_tungstenite::tungstenite::Message,
-    tracing::{error, warn},
     worker::WorkerMessage,
 };
 
@@ -191,7 +191,7 @@ impl MessageSource {
     }
 
     pub fn to_message(&self) -> Message {
-        let serialised = bincode::serialize::<Self>(&self).unwrap_or_else(|err| {
+        let serialised = bincode::serialize::<Self>(self).unwrap_or_else(|err| {
             error!("Failed to deserialise message: {}", err);
             panic!();
         });

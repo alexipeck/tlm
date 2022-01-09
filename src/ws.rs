@@ -170,7 +170,19 @@ async fn handle_web_connection(
                         WebUIMessage::Request(request_type) => {
                             match request_type {
                                 RequestType::AllFileVersions => {
-                                    //TODO: Send back a vector of all file versions to the WebUI
+                                    let mut file_versions;
+                                    {
+                                        let file_manager_lock = file_manager.lock().unwrap();
+                                        file_versions = file_manager_lock.generic_files.clone();
+                                        for show in file_manager_lock.shows.iter() {
+                                            for season in show.seasons.iter() {
+                                                for episode in season.episodes.iter() {
+                                                    file_versions.push(episode.generic.clone());
+                                                }
+                                            }
+                                        }
+                                    }
+                                    //TODO: Send back these file versions to the WebUI
                                 }
                             };
                         }

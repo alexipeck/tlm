@@ -1,6 +1,5 @@
 //!A struct for managing all types of media that are stored in ram as well as
 //!Functionality to import files. This is mostly used in the scheduler
-extern crate derivative;
 use {
     crate::{
         config::ServerConfig,
