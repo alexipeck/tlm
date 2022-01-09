@@ -1,32 +1,37 @@
 //!A struct for managing all types of media that are stored in ram as well as
 //!Functionality to import files. This is mostly used in the scheduler
-use crate::{
-    config::ServerConfig,
-    database::*,
-    designation::Designation,
-    encode::{Encode, EncodeProfile},
-    ensure_path_exists,
-    generic::{FileVersion, Generic},
-    get_extension, get_file_stem, get_show_title_from_pathbuf,
-    model::{NewEpisode, NewFileVersion, NewGeneric},
-    pathbuf_to_string,
-    show::{Episode, Show},
+use {
+    crate::{
+        config::ServerConfig,
+        database::*,
+        designation::Designation,
+        encode::{Encode, EncodeProfile},
+        ensure_path_exists,
+        generic::{FileVersion, Generic},
+        get_extension, get_file_stem, get_show_title_from_pathbuf,
+        model::{NewEpisode, NewFileVersion, NewGeneric},
+        pathbuf_to_string,
+        show::{Episode, Show},
+    },
+    derivative::Derivative,
+    diesel::pg::PgConnection,
+    jwalk::WalkDir,
+    lazy_static::lazy_static,
+    rayon::prelude::*,
+    regex::Regex,
+    serde::{Deserialize, Serialize},
+    std::{
+        collections::HashMap,
+        collections::HashSet,
+        env, fmt,
+        hash::{Hash, Hasher},
+        path::Path,
+        path::PathBuf,
+        sync::{Arc, RwLock},
+    },
+    tracing::{error, info, trace, warn},
 };
-extern crate derivative;
-use derivative::Derivative;
-use diesel::pg::PgConnection;
-use jwalk::WalkDir;
-use lazy_static::lazy_static;
-use rayon::prelude::*;
-use regex::Regex;
-use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, env, path::Path};
-use std::{collections::HashSet, fmt, path::PathBuf};
-use std::{
-    hash::{Hash, Hasher},
-    sync::{Arc, RwLock},
-};
-use tracing::{error, info, trace, warn};
+
 ///Struct to hold all root directories containing media
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct TrackedDirectories {
@@ -158,6 +163,9 @@ impl fmt::Display for Reason {
 pub struct FileManager {
     pub config: Arc<RwLock<ServerConfig>>,
     pub generic_files: Vec<Generic>,
+    //Experimental
+    pub episode_files: HashMap<i32, Generic>,
+
     pub shows: Vec<Show>,
     pub existing_files_hashset: HashSet<PathBuf>,
     pub new_files_queue: Vec<PathBuf>,
@@ -170,11 +178,12 @@ impl FileManager {
             config,
             shows: get_all_shows(),
             generic_files: Vec::new(),
+            episode_files: HashMap::new(),
             existing_files_hashset: HashSet::new(),
             new_files_queue: Vec::new(),
             rejected_files: HashSet::new(),
         };
-
+        
         //add generic_files and generics from their respective episodes to the existing_files_hashset
         file_manager.generic_files = get_all_generics();
         let mut collected_file_versions: HashMap<i32, Vec<FileVersion>> = HashMap::new();
@@ -196,8 +205,8 @@ impl FileManager {
         for (generic_id, file_versions) in collected_file_versions.iter_mut() {
             if !file_versions[0].master_file {
                 let mut master_index_found = false;
-                for (i, t) in file_versions.iter().enumerate() {
-                    if t.master_file {
+                for (i, file_version) in file_versions.iter().enumerate() {
+                    if file_version.master_file {
                         file_versions.swap(i, 0);
                         master_index_found = true;
                         break;

@@ -1,15 +1,15 @@
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
-
-use tracing::debug;
-
-use crate::{
-    encode::{Encode, EncodeProfile},
-    file_manager::FileManager,
-    generic::FileVersion,
-    pathbuf_to_string,
+use {
+    crate::{
+        encode::{Encode, EncodeProfile},
+        file_manager::FileManager,
+        generic::FileVersion,
+        pathbuf_to_string,
+    },
+    std::{
+        collections::VecDeque,
+        sync::{Arc, Mutex},
+    },
+    tracing::debug,
 };
 
 pub fn output_all_file_versions(file_manager: Arc<Mutex<FileManager>>) {

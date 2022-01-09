@@ -1,24 +1,28 @@
-use crate::encode::{Encode, EncodeProfile};
-use crate::model::WorkerModel;
-use crate::worker_manager::AddEncodeMode;
-use futures_channel::mpsc::UnboundedSender;
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::str::FromStr;
-use std::{
-    collections::VecDeque,
-    net::SocketAddr,
-    sync::{Arc, RwLock},
-    time::Instant,
+use {
+    crate::{
+        encode::{Encode, EncodeProfile},
+        model::WorkerModel,
+        worker_manager::AddEncodeMode,
+        MessageSource,
+    },
+    futures_channel::mpsc::UnboundedSender,
+    serde::{Deserialize, Serialize},
+    std::{
+        collections::VecDeque,
+        net::SocketAddr,
+        path::PathBuf,
+        str::FromStr,
+        sync::{Arc, RwLock},
+        time::Instant,
+    },
+    tokio_tungstenite::tungstenite::Message,
+    tracing::error,
 };
-use tokio_tungstenite::tungstenite::Message;
-use tracing::error;
 
 #[derive(Debug, Clone)]
 pub struct Worker {
     pub uid: Option<i32>,
     pub worker_ip_address: SocketAddr,
-    pub worker_temp_directory: Option<PathBuf>,
     tx: Option<UnboundedSender<Message>>,
     pub transcode_queue: Arc<RwLock<VecDeque<Encode>>>,
     pub close_time: Option<Instant>,
@@ -30,13 +34,11 @@ impl Worker {
     pub fn new(
         uid: Option<i32>,
         worker_ip_address: SocketAddr,
-        worker_temp_directory: &PathBuf,
         tx: UnboundedSender<Message>,
     ) -> Self {
         Self {
             uid,
             worker_ip_address,
-            worker_temp_directory: Some(worker_temp_directory.clone()),
             tx: Some(tx),
             transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
             close_time: None,
@@ -47,7 +49,6 @@ impl Worker {
         Self {
             uid: Some(model.id),
             worker_ip_address: SocketAddr::from_str(&model.worker_ip_address).unwrap(),
-            worker_temp_directory: None,
             tx: None,
             transcode_queue: Arc::new(RwLock::new(VecDeque::new())),
             close_time: None,
@@ -65,24 +66,8 @@ impl Worker {
         }
     }
 
-    pub fn get_worker_temp_directory(&self) -> PathBuf {
-        match &self.worker_temp_directory {
-            Some(worker_temp_directory) => worker_temp_directory.clone(),
-            None => {
-                error!("Worker has no temp directory.");
-                panic!();
-            }
-        }
-    }
-
-    pub fn update(
-        &mut self,
-        worker_ip_address: SocketAddr,
-        worker_temp_directory: &PathBuf,
-        tx: UnboundedSender<Message>,
-    ) {
+    pub fn update(&mut self, worker_ip_address: SocketAddr, tx: UnboundedSender<Message>) {
         self.worker_ip_address = worker_ip_address;
-        self.worker_temp_directory = Some(worker_temp_directory.clone());
         self.tx = Some(tx);
     }
 
@@ -129,11 +114,11 @@ impl Worker {
 }
 
 ///Messages to be serialised and sent between the worker and server
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum WorkerMessage {
     //Worker
     Encode(Encode, AddEncodeMode),
-    Initialise(Option<i32>, PathBuf),
+    Initialise(Option<i32>),
     WorkerID(i32),
     Announce(String),
     EncodeStarted(i32, i32),
@@ -143,25 +128,14 @@ pub enum WorkerMessage {
 
     //WebUI
     EncodeGeneric(i32, i32, AddEncodeMode, EncodeProfile),
+    FileVersion(i32, i32, String),
 
     //Generic
     Text(String),
 }
 
 impl WorkerMessage {
-    ///Convert WorkerMessage to a tungstenite message for sending over websockets
-    pub fn to_message(&self) -> Message {
-        let serialised = bincode::serialize(self).unwrap_or_else(|err| {
-            error!("Failed to serialise WorkerMessage: {}", err);
-            panic!();
-        });
-        Message::binary(serialised)
-    }
-
-    pub fn from_message(message: Message) -> Self {
-        bincode::deserialize::<WorkerMessage>(&message.into_data()).unwrap_or_else(|err| {
-            error!("Failed to deserialise message: {}", err);
-            panic!();
-        })
+    pub fn to_message(self) -> Message {
+        MessageSource::Worker(self).to_message()
     }
 }

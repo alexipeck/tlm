@@ -1,19 +1,14 @@
 //!Set of functions and structures to make is easier to handle the config file
 //!and command line arguments
-use crate::ensure_path_exists;
-use crate::file_manager::TrackedDirectories;
-use crate::pathbuf_to_string;
-use argparse::{ArgumentParser, Store, StoreOption, StoreTrue};
-use directories::BaseDirs;
-use fancy_regex::Regex;
-use serde::{Deserialize, Serialize};
-use std::env;
-use std::fmt;
-use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
-use tracing::error;
-use tracing::warn;
+use {
+    crate::{ensure_path_exists, file_manager::TrackedDirectories, pathbuf_to_string},
+    argparse::{ArgumentParser, Store, StoreOption, StoreTrue},
+    directories::BaseDirs,
+    fancy_regex::Regex,
+    serde::{Deserialize, Serialize},
+    std::{env, fmt, fs, path::Path, path::PathBuf},
+    tracing::{error, warn},
+};
 
 ///This struct contains any system specific data (paths, extensions, etc)
 /// likely will be replaced later with database tables but as we clear data

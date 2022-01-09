@@ -1,7 +1,10 @@
-use super::generic::Generic;
-use super::schema::{episode, file_version, generic, show, worker};
-use crate::generic::FileVersion;
-use crate::worker::Worker;
+use {
+    super::{
+        generic::Generic,
+        schema::{episode, file_version, generic, show, worker},
+    },
+    crate::{generic::FileVersion, worker::Worker},
+};
 
 //Workers
 #[derive(Insertable)]

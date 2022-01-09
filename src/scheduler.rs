@@ -1,22 +1,20 @@
-use crate::{
-    config::ServerConfig,
-    database::{establish_connection, update_file_version},
-    file_manager::FileManager,
-    generic::FileVersion,
-    pathbuf_to_string,
-};
-use tracing::{debug, error, info};
-
-use std::{
-    collections::VecDeque,
-    sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
-        RwLock,
+use {
+    crate::{
+        config::ServerConfig, database::establish_connection, file_manager::FileManager,
+        generic::FileVersion, pathbuf_to_string,
     },
-    sync::{Arc, Mutex},
-    thread,
-    thread::JoinHandle,
-    time,
+    std::{
+        collections::VecDeque,
+        sync::{
+            atomic::{AtomicBool, AtomicUsize, Ordering},
+            RwLock,
+        },
+        sync::{Arc, Mutex},
+        thread,
+        thread::JoinHandle,
+        time,
+    },
+    tracing::{debug, error, info},
 };
 
 static TASK_UID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -121,7 +119,7 @@ impl Hash {
                         length,
                         pathbuf_to_string(&file_version.full_path)
                     );
-                    update_file_version(file_version, &connection);
+                    file_version.update_file_version(&connection);
                     current_file_version_count += 1;
                 }
                 //Update the generic in ram, if it has been deleted then don't worry about it
@@ -153,7 +151,7 @@ impl Hash {
                         length,
                         pathbuf_to_string(&file_version.full_path)
                     );
-                    update_file_version(file_version, &connection);
+                    file_version.update_file_version(&connection);
                     current_file_version_count += 1;
                 }
                 let mut found_generic = false;
@@ -218,6 +216,8 @@ impl Task {
             task_type,
         }
     }
+
+    //TODO: When the server stops or wants to check whether a long time running thread is actually still doing work, it should be able to access that handle, and perform some form of check that determines whether it expects it to still be running, like .is_running(), is_ok(), etc on the handle with a level of severity, determines what it is and whether it is actually working, this will somehow involve it communicating with it.
 
     ///execute the tasks run function
     pub fn handle_task(

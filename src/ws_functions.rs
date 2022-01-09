@@ -1,24 +1,24 @@
-use std::{
-    collections::VecDeque,
-    net::SocketAddr,
-    sync::{Arc, Mutex, RwLock},
-};
-
-use tracing::{debug, error, info};
-
-use crate::{
-    config::ServerConfig,
-    copy,
-    database::create_file_version,
-    encode::Encode,
-    file_manager::FileManager,
-    generic::FileVersion,
-    model::NewFileVersion,
-    pathbuf_to_string, remove_file,
-    scheduler::{GenerateProfiles, Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
-    worker::WorkerMessage,
-    worker_manager::{AddEncodeMode, WorkerManager},
-    PeerMap, Tx,
+use {
+    crate::{
+        config::ServerConfig,
+        copy,
+        database::create_file_version,
+        encode::Encode,
+        file_manager::FileManager,
+        generic::FileVersion,
+        model::NewFileVersion,
+        pathbuf_to_string, remove_file,
+        scheduler::{GenerateProfiles, Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
+        worker::WorkerMessage,
+        worker_manager::{AddEncodeMode, WorkerManager},
+        PeerMap, Tx,
+    },
+    std::{
+        collections::VecDeque,
+        net::SocketAddr,
+        sync::{Arc, Mutex, RwLock},
+    },
+    tracing::{error, info},
 };
 
 pub fn import_files(tasks: Arc<Mutex<VecDeque<Task>>>) {
@@ -61,21 +61,15 @@ pub fn initialise(
     tx: Tx,
     peer_map: Arc<Mutex<PeerMap>>,
 ) {
-    if let WorkerMessage::Initialise(mut worker_uid, worker_temp_directory) = initialise_message {
-        debug!("Init worker: {}", pathbuf_to_string(&worker_temp_directory));
+    if let WorkerMessage::Initialise(mut worker_uid) = initialise_message {
         //if true {//TODO: authenticate/validate
-        if !worker_manager.lock().unwrap().reestablish_worker(
-            worker_uid,
-            addr,
-            &worker_temp_directory,
-            tx.clone(),
-        ) {
+        if !worker_manager
+            .lock()
+            .unwrap()
+            .reestablish_worker(worker_uid, addr, tx.clone())
+        {
             //We need the new uid so we can set it correctly in the peer map
-            worker_uid = Some(worker_manager.lock().unwrap().add_worker(
-                addr,
-                &worker_temp_directory,
-                tx,
-            ));
+            worker_uid = Some(worker_manager.lock().unwrap().add_worker(addr, tx));
         }
         peer_map.lock().unwrap().get_mut(&addr).unwrap().0 = worker_uid;
         //}

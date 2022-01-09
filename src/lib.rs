@@ -1,17 +1,20 @@
 #![doc = include_str!("../README.md")]
-
-use std::{
-    collections::HashMap,
-    ffi::OsStr,
-    fs::{self, copy as fs_copy, remove_file as fs_remove_file, File},
-    io::{Error, Write},
-    net::SocketAddr,
-    path::{Path, PathBuf},
+use {
+    serde::{Deserialize, Serialize},
+    std::{
+        collections::HashMap,
+        ffi::OsStr,
+        fs::{self, copy as fs_copy, remove_file as fs_remove_file, File},
+        io::{Error, Write},
+        net::SocketAddr,
+        path::{Path, PathBuf},
+    },
+    futures_channel::mpsc::UnboundedSender,
+    tracing::{error},
+    tokio_tungstenite::tungstenite::Message,
+    worker::WorkerMessage,
 };
 
-use futures_channel::mpsc::UnboundedSender;
-use tokio_tungstenite::tungstenite::Message;
-use tracing::error;
 pub mod config;
 pub mod database;
 pub mod debug;
@@ -163,5 +166,77 @@ pub fn ensure_path_exists(path: &Path) {
             err
         );
         panic!();
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WebUIFileVersion {
+    pub generic_uid: u32,
+    pub file_version_id: u32,
+    pub file_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum MessageSource {
+    Worker(WorkerMessage),
+    WebUI(WebUIMessage),
+}
+
+impl MessageSource {
+    pub fn from_message(message: Message) -> Self {
+        bincode::deserialize::<Self>(&message.into_data()).unwrap_or_else(|err| {
+            error!("Failed to deserialise message: {}", err);
+            panic!();
+        })
+    }
+
+    pub fn to_message(&self) -> Message {
+        let serialised = bincode::serialize::<Self>(self).unwrap_or_else(|err| {
+            error!("Failed to deserialise message: {}", err);
+            panic!();
+        });
+        Message::binary(serialised)
+    }
+
+    pub fn from_worker_message(worker_message: WorkerMessage) -> Self {
+        Self::Worker(worker_message)
+    }
+
+    pub fn from_webui_message(webui_message: WebUIMessage) -> Self {
+        Self::WebUI(webui_message)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum RequestType {
+    AllFileVersions,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum WebUIMessage {
+    //WebUI -> Server
+    Request(RequestType),
+    //EncodeGeneric(i32, i32, AddEncodeMode, EncodeProfile),
+
+    //Server -> WebUI
+    FileVersion(i32, i32, String),
+    FileVersions(Vec<WebUIFileVersion>),
+}
+
+impl WebUIMessage {
+    ///Convert WorkerMessage to a tungstenite message for sending over websockets
+    pub fn to_message(&self) -> Message {
+        let serialised = bincode::serialize(self).unwrap_or_else(|err| {
+            error!("Failed to serialise WorkerMessage: {}", err);
+            panic!();
+        });
+        Message::binary(serialised)
+    }
+
+    pub fn from_message(message: Message) -> Self {
+        bincode::deserialize::<Self>(&message.into_data()).unwrap_or_else(|err| {
+            error!("Failed to deserialise message: {}", err);
+            panic!();
+        })
     }
 }

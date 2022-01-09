@@ -1,21 +1,24 @@
-use crate::database::get_all_workers;
-use crate::database::{create_worker, establish_connection};
-use crate::encode::Encode;
-use crate::model::NewWorker;
-use crate::worker::{Worker, WorkerMessage};
-use crate::{copy, remove_file};
-use futures_channel::mpsc::UnboundedSender;
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::{
-    collections::VecDeque,
-    net::SocketAddr,
-    process::Child,
-    sync::{Arc, Mutex, RwLock},
-    time::Instant,
+use {
+    crate::{
+        database::get_all_workers,
+        database::{create_worker, establish_connection},
+        encode::Encode,
+        model::NewWorker,
+        worker::{Worker, WorkerMessage},
+    },
+    futures_channel::mpsc::UnboundedSender,
+    serde::{Deserialize, Serialize},
+    std::{
+        collections::VecDeque,
+        net::SocketAddr,
+        path::PathBuf,
+        process::Child,
+        sync::{Arc, Mutex, RwLock},
+        time::Instant,
+    },
+    tokio_tungstenite::tungstenite::Message,
+    tracing::{debug, error, info, warn},
 };
-use tokio_tungstenite::tungstenite::Message;
-use tracing::{debug, error, info, warn};
 
 pub enum WorkerAction {
     ClearCurrentTranscode(i32),
@@ -83,11 +86,10 @@ impl WorkerManager {
     pub fn add_worker(
         &mut self,
         worker_ip_address: SocketAddr,
-        worker_temp_directory: &PathBuf,
         tx: UnboundedSender<Message>,
     ) -> i32 {
         let connection = establish_connection();
-        let mut new_worker = Worker::new(None, worker_ip_address, worker_temp_directory, tx);
+        let mut new_worker = Worker::new(None, worker_ip_address, tx);
         let new_id = create_worker(&connection, NewWorker::from_worker(new_worker.clone()));
         new_worker.uid = Some(new_id);
         new_worker.send_message_to_worker(WorkerMessage::WorkerID(new_worker.uid.unwrap()));
@@ -107,7 +109,6 @@ impl WorkerManager {
         &mut self,
         worker_uid: Option<i32>,
         worker_ip_address: SocketAddr,
-        worker_temp_directory: &PathBuf,
         tx: UnboundedSender<Message>,
     ) -> bool {
         //Worker can't be reestablished if it doesn't have/send a uid
@@ -117,7 +118,7 @@ impl WorkerManager {
         let mut index: Option<usize> = None;
         for (i, worker) in self.closed_workers.iter_mut().enumerate() {
             if worker.uid == worker_uid {
-                worker.update(worker_ip_address, worker_temp_directory, tx);
+                worker.update(worker_ip_address, tx);
                 worker.close_time = None;
                 index = Some(i);
                 break;
@@ -247,36 +248,18 @@ impl WorkerTranscodeQueue {
             if self.current_transcode_handle.read().unwrap().is_some() {
                 self.kill_current_transcode_process();
             }
-            if let Err(err) = copy(
-                &self
-                    .current_transcode
-                    .read()
-                    .unwrap()
-                    .as_ref()
-                    .unwrap()
-                    .source_path,
-                &PathBuf::from(
-                    self.current_transcode
-                        .read()
-                        .unwrap()
-                        .as_ref()
-                        .unwrap()
-                        .encode_string
-                        .get_source_path(),
-                ),
-            ) {
-                error!(
-                    "Failed to copy file from media library to worker temp. IO output: {}",
-                    err
-                );
-                panic!();
-            }
+            self.current_transcode
+                .read()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .cache_file();
             self.current_transcode
                 .write()
                 .unwrap()
                 .clone()
                 .unwrap()
-                .run(self.current_transcode_handle.clone());
+                .run(self.current_transcode_handle.clone(), false);
         } else {
             debug!("There is no transcode available to start.");
         }
@@ -303,6 +286,7 @@ impl WorkerTranscodeQueue {
         //Add a transcode current if there isn't one already there
         if self.make_transcode_current() {
             self.start_current_transcode_if_some();
+
             let _ = tx.start_send(
                 WorkerMessage::EncodeStarted(
                     worker_uid.read().unwrap().unwrap(),
@@ -330,32 +314,18 @@ impl WorkerTranscodeQueue {
                     panic!();
                 });
                 if ok {
-                    let target_path;
-                    let temp_target_path;
-                    let generic_uid;
-                    let worker_temp_target_path;
-                    //Guarantees the current_transcode_lock drops
+                    let encode: Encode;
+                    //Guarantees the lock drops
                     {
-                        let current_transcode_lock = self.current_transcode.read().unwrap();
-                        target_path = current_transcode_lock.as_ref().unwrap().target_path.clone();
-                        temp_target_path = current_transcode_lock
-                            .as_ref()
-                            .unwrap()
-                            .temp_target_path
-                            .clone();
-                        generic_uid = current_transcode_lock.as_ref().unwrap().generic_uid;
-                        worker_temp_target_path = PathBuf::from(
-                            current_transcode_lock
-                                .as_ref()
-                                .unwrap()
-                                .encode_string
-                                .get_target_path(),
-                        );
+                        encode = self.current_transcode.read().unwrap().clone().unwrap();
                     }
+                    let worker_temp_target_path =
+                        PathBuf::from(encode.encode_string.get_target_path());
+
                     let _ = tx.start_send(
                         WorkerMessage::EncodeFinished(
                             worker_uid.read().unwrap().unwrap(),
-                            generic_uid,
+                            encode.generic_uid,
                             worker_temp_target_path.clone(),
                         )
                         .to_message(),
@@ -365,25 +335,24 @@ impl WorkerTranscodeQueue {
                     let _ = tx.start_send(
                         WorkerMessage::MoveStarted(
                             worker_uid.read().unwrap().unwrap(),
-                            generic_uid,
-                            worker_temp_target_path.clone(),
-                            target_path,
+                            encode.generic_uid,
+                            worker_temp_target_path,
+                            encode.target_path.clone(),
                         )
                         .to_message(),
                     );
 
-                    if let Err(err) = copy(&worker_temp_target_path.clone(), &temp_target_path) {
-                        error!(
-                            "Failed to copy file from worker temp to server temp. IO output: {}",
-                            err
-                        );
-                        panic!();
-                    }
+                    self.current_transcode
+                        .read()
+                        .unwrap()
+                        .as_ref()
+                        .unwrap()
+                        .transfer_encode_to_server_temp();
 
                     let _ = tx.start_send(
                         WorkerMessage::MoveFinished(
                             worker_uid.read().unwrap().unwrap(),
-                            generic_uid,
+                            encode.generic_uid,
                             self.current_transcode
                                 .read()
                                 .unwrap()
@@ -395,10 +364,7 @@ impl WorkerTranscodeQueue {
                     );
 
                     //Cleanup file in temp
-                    if let Err(err) = remove_file(&worker_temp_target_path) {
-                        error!("Failed to remove file from worker temp. IO output: {}", err);
-                        panic!();
-                    }
+                    encode.delete_file_cache();
 
                     self.clear_current_transcode();
                 } else {
