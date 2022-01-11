@@ -1,4 +1,6 @@
 #![doc = include_str!("../README.md")]
+
+use tracing::warn;
 use {
     serde::{Deserialize, Serialize},
     std::{
@@ -169,7 +171,7 @@ pub fn ensure_path_exists(path: &Path) {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WebUIFileVersion {
     pub generic_uid: u32,
     pub file_version_id: u32,
@@ -184,6 +186,32 @@ pub enum MessageSource {
 
 impl MessageSource {
     pub fn from_message(message: Message) -> Self {
+        if message.is_text() {
+            match message.into_text() {
+                Ok(json) => {
+                    let raw_message_source: Result<Self, serde_json::Error> = serde_json::from_str(&json);
+                    match raw_message_source {
+                        Ok(message_source) => {
+                            let message_source: MessageSource = message_source;
+                            return message_source;
+                        },
+                        Err(err) => {
+                            error!("Failed converting json string to MessageSource, error output: {}", err);
+                            panic!();
+                        }
+                    }
+                },
+                Err(err) => {
+                    error!("Failed to convert message to text, dunno what went wrong at the time of writing this.");
+                    panic!();
+                },
+            }
+        } else {
+            warn!("Is not a MessageSource, ignoring.");
+        }
+        
+        
+
         bincode::deserialize::<Self>(&message.into_data()).unwrap_or_else(|err| {
             error!("Failed to deserialise message: {}", err);
             panic!();
@@ -191,11 +219,15 @@ impl MessageSource {
     }
 
     pub fn to_message(&self) -> Message {
-        let serialised = bincode::serialize::<Self>(self).unwrap_or_else(|err| {
-            error!("Failed to deserialise message: {}", err);
-            panic!();
-        });
-        Message::binary(serialised)
+        match serde_json::to_string(&self) {
+            Ok(json) => {
+                Message::text(json)
+            },
+            Err(err) => {
+                println!("Failed converting MessageSource to json string, error output: {}", err);
+                panic!();
+            },
+        }
     }
 
     pub fn from_worker_message(worker_message: WorkerMessage) -> Self {
@@ -207,12 +239,12 @@ impl MessageSource {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RequestType {
     AllFileVersions,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum WebUIMessage {
     //WebUI -> Server
     Request(RequestType),

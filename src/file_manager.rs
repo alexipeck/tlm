@@ -455,7 +455,7 @@ impl FileManager {
                         "".to_string(),
                         episode_model.season_number,
                         vec![episode_model.episode_number],
-                    ); //temporary first episode_number
+                    );
                     episodes.push(episode);
                     break;
                 }
