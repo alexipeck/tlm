@@ -202,7 +202,7 @@ impl MessageSource {
                     }
                 },
                 Err(err) => {
-                    error!("Failed to convert message to text, dunno what went wrong at the time of writing this.");
+                    error!("Failed to convert message to text, dunno what went wrong at the time of writing this. Error: {}", err);
                     panic!();
                 },
             }

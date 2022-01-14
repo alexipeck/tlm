@@ -125,11 +125,12 @@ pub fn output_tracked_paths(file_manager: Arc<Mutex<FileManager>>) {
 pub fn encode_all_files(
     file_manager: Arc<Mutex<FileManager>>,
     worker_mananger_transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
+    encode_profile: &EncodeProfile,
 ) {
     for encode in file_manager
         .lock()
         .unwrap()
-        .generate_encodes_for_all(&EncodeProfile::H265_TV_1080p)
+        .generate_encodes_for_all(encode_profile)
     {
         worker_mananger_transcode_queue
             .lock()
