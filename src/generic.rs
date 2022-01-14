@@ -1,5 +1,7 @@
 //!Datatype and associated function for handling Generic video files as well as the generic
 //!information used by all other video file types
+
+use crate::database::create_file_version;
 use {
     crate::{
         database::update_file_version,
@@ -31,7 +33,8 @@ pub struct FileVersion {
 }
 
 impl FileVersion {
-    pub fn from_file_version_model(file_version_model: FileVersionModel) -> Self {
+    pub fn new(generic_uid: i32, full_path: &PathBuf, master_file: bool) -> Self {
+        let file_version_model = create_file_version(NewFileVersion::new(generic_uid, pathbuf_to_string(full_path), master_file));
         Self {
             id: file_version_model.id,
             generic_uid: file_version_model.generic_uid,
