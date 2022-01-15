@@ -389,9 +389,7 @@ impl FileManager {
         for (i, generic) in generics.iter_mut().enumerate() {
             generic
                 .file_versions
-                .push(FileVersion::from_file_version_model(
-                    file_versions[i].clone(),
-                ));
+                .push(FileVersion::from_model_ref(&file_versions[i]));
             trace!("Processed {}", generic);
         }
 
