@@ -350,9 +350,7 @@ pub async fn run_worker(
                 info!("Worker is continuing it's current transcode");
                 return;
             }
-
-
-
+            
             match MessageSource::from_message(message) {
                 Some(MessageSource::Worker(worker_message)) => match worker_message {
                     WorkerMessage::Encode(mut encode, add_encode_mode) => {

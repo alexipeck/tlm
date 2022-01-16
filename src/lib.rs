@@ -302,20 +302,4 @@ impl WebUIMessage {
             }
         }
     }
-
-    //Convert WorkerMessage to a tungstenite message for sending over websockets
-    /* pub fn to_message(&self) -> Message {
-        let serialised = bincode::serialize(self).unwrap_or_else(|err| {
-            error!("Failed to serialise WorkerMessage: {}", err);
-            panic!();
-        });
-        Message::binary(serialised)
-    } */
-
-    /* pub fn from_message(message: Message) -> Self {
-        bincode::deserialize::<Self>(&message.into_data()).unwrap_or_else(|err| {
-            error!("Failed to deserialise message: {}", err);
-            panic!();
-        })
-    } */
 }
