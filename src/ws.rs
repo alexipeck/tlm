@@ -75,7 +75,7 @@ async fn handle_web_connection(
                 .strip_suffix("\r\n")
                 .or_else(|| msg.to_text().unwrap().strip_suffix('\n'))
                 .unwrap_or_else(|| msg.to_text().unwrap());
-            //Shitty way of separating json and text, starting a message with '{' will mame it shit itself
+            //Shitty way of separating json and text, starting a message with '{' will make it shit itself
             if message.starts_with('{') {
                 let raw_message_source: Result<MessageSource, Error> = serde_json::from_str(message);
                 match raw_message_source {
@@ -351,8 +351,10 @@ pub async fn run_worker(
                 return;
             }
 
+
+
             match MessageSource::from_message(message) {
-                MessageSource::Worker(worker_message) => match worker_message {
+                Some(MessageSource::Worker(worker_message)) => match worker_message {
                     WorkerMessage::Encode(mut encode, add_encode_mode) => {
                         encode
                             .encode_string

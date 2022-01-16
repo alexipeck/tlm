@@ -1,3 +1,5 @@
+use tracing::warn;
+
 use {
     crate::{
         encode::{Encode, EncodeProfile},
@@ -137,5 +139,17 @@ pub enum WorkerMessage {
 impl WorkerMessage {
     pub fn to_message(self) -> Message {
         MessageSource::Worker(self).to_message()
+    }
+
+    pub fn from_message(message: Message) -> Option<Self> {
+        match MessageSource::from_message(message) {
+            Some(MessageSource::Worker(worker_message)) => {
+                Some(worker_message)
+            },
+            _ => {
+                warn!("Message received was not meant for workers, that should already be known by this point.");
+                panic!();
+            }
+        }
     }
 }
