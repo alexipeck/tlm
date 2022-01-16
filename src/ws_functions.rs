@@ -197,9 +197,7 @@ pub fn move_finished(
         if !file_manager
             .lock()
             .unwrap()
-            .insert_file_version(&FileVersion::from_file_version_model(create_file_version(
-                NewFileVersion::new(generic_uid, pathbuf_to_string(&encode.target_path), false),
-            )))
+            .insert_file_version(&FileVersion::new(generic_uid, &encode.target_path, false))
         {
             error!(
                 "This should've found a generic to insert it into, this shouldn't have happened."

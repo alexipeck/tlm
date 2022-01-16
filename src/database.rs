@@ -126,8 +126,8 @@ pub fn get_all_file_versions() -> Vec<FileVersion> {
         });
 
     let mut file_versions: Vec<FileVersion> = Vec::new();
-    for file_version in file_version_models {
-        file_versions.push(FileVersion::from_file_version_model(file_version));
+    for file_version_model in file_version_models {
+        file_versions.push(FileVersion::from_model(file_version_model));
     }
     file_versions
 }

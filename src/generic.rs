@@ -1,5 +1,7 @@
 //!Datatype and associated function for handling Generic video files as well as the generic
 //!information used by all other video file types
+
+use crate::database::create_file_version;
 use {
     crate::{
         database::update_file_version,
@@ -31,22 +33,45 @@ pub struct FileVersion {
 }
 
 impl FileVersion {
-    pub fn from_file_version_model(file_version_model: FileVersionModel) -> Self {
+    pub fn new(generic_uid: i32, full_path: &Path, master_file: bool) -> Self {
+        Self::from_model(create_file_version(NewFileVersion::new(generic_uid, pathbuf_to_string(full_path), master_file)))
+    }
+
+    pub fn from_model(model: FileVersionModel) -> Self {
         Self {
-            id: file_version_model.id,
-            generic_uid: file_version_model.generic_uid,
-            full_path: PathBuf::from(file_version_model.full_path),
-            master_file: file_version_model.master_file,
-            hash: file_version_model.file_hash,
-            fast_hash: file_version_model.fast_file_hash,
-            width: file_version_model.width,
-            height: file_version_model.height,
-            framerate: file_version_model.framerate,
-            length_time: file_version_model.length_time,
+            id: model.id,
+            generic_uid: model.generic_uid,
+            full_path: PathBuf::from(model.full_path),
+            master_file: model.master_file,
+            hash: model.file_hash,
+            fast_hash: model.fast_file_hash,
+            width: model.width,
+            height: model.height,
+            framerate: model.framerate,
+            length_time: model.length_time,
             resolution_standard: ResolutionStandard::from_wrapped(
-                file_version_model.resolution_standard,
+                model.resolution_standard,
             ),
-            container: Container::from_wrapped(file_version_model.container),
+            container: Container::from_wrapped(model.container),
+        }
+    }
+
+    pub fn from_model_ref(model_ref: &FileVersionModel) -> Self {
+        Self {
+            id: model_ref.id,
+            generic_uid: model_ref.generic_uid,
+            full_path: PathBuf::from(model_ref.full_path.clone()),
+            master_file: model_ref.master_file,
+            hash: model_ref.file_hash.clone(),
+            fast_hash: model_ref.fast_file_hash.clone(),
+            width: model_ref.width,
+            height: model_ref.height,
+            framerate: model_ref.framerate,
+            length_time: model_ref.length_time,
+            resolution_standard: ResolutionStandard::from_wrapped(
+                model_ref.resolution_standard,
+            ),
+            container: Container::from_wrapped(model_ref.container),
         }
     }
 

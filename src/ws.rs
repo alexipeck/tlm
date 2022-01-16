@@ -8,7 +8,7 @@ use {
             encode_all_files, output_all_file_versions, output_tracked_paths,
             run_completeness_check,
         },
-        encode::Encode,
+        encode::{Encode, EncodeProfile},
         file_manager::FileManager,
         scheduler::Task,
         worker::WorkerMessage,
@@ -183,6 +183,12 @@ async fn handle_web_connection(
                     "encode_all" => encode_all_files(
                         file_manager.clone(),
                         worker_manager_transcode_queue.clone(),
+                        &EncodeProfile::H265,
+                    ),
+                    "encode_all_4k" => encode_all_files(
+                        file_manager.clone(),
+                        worker_manager_transcode_queue.clone(),
+                        &EncodeProfile::H265_TV_4K,
                     ),
                     "run_completeness_check" => run_completeness_check(file_manager.clone()),
                     "kill_all_workers" => {
