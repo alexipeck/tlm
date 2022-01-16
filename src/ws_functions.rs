@@ -1,3 +1,5 @@
+use tracing::debug;
+
 use crate::{WebUIMessage, WebUIFileVersion};
 
 use {
@@ -76,6 +78,7 @@ pub fn request_all_file_versions(
             }
         }
     }
+    debug!("Sending {} file versions", file_versions.len());
     let _ = tx.start_send(WebUIMessage::FileVersions(file_versions).to_message());
 }
 

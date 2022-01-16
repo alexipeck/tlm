@@ -1,5 +1,7 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
+
+use crate::ws_functions::request_all_file_versions;
 use {
     crate::{
         config::{ServerConfig, WorkerConfig},
@@ -86,19 +88,7 @@ async fn handle_web_connection(
                                      let request_type: RequestType = request_type;
                                     match request_type {
                                         RequestType::AllFileVersions => {
-                                            let mut file_versions;
-                                            {
-                                                let file_manager_lock = file_manager.lock().unwrap();
-                                                file_versions = file_manager_lock.generic_files.clone();
-                                                for show in file_manager_lock.shows.iter() {
-                                                    for season in show.seasons.iter() {
-                                                        for episode in season.episodes.iter() {
-                                                            file_versions.push(episode.generic.clone());
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            //TODO: Send back these file versions to the WebUI
+                                            request_all_file_versions(tx.clone(), file_manager.clone());
                                         }
                                     };
                                 }
@@ -350,7 +340,7 @@ pub async fn run_worker(
                 info!("Worker is continuing it's current transcode");
                 return;
             }
-            
+
             match MessageSource::from_message(message) {
                 Some(MessageSource::Worker(worker_message)) => match worker_message {
                     WorkerMessage::Encode(mut encode, add_encode_mode) => {
