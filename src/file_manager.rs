@@ -389,9 +389,7 @@ impl FileManager {
         for (i, generic) in generics.iter_mut().enumerate() {
             generic
                 .file_versions
-                .push(FileVersion::from_file_version_model(
-                    file_versions[i].clone(),
-                ));
+                .push(FileVersion::from_model_ref(&file_versions[i]));
             trace!("Processed {}", generic);
         }
 
@@ -455,7 +453,7 @@ impl FileManager {
                         "".to_string(),
                         episode_model.season_number,
                         vec![episode_model.episode_number],
-                    ); //temporary first episode_number
+                    );
                     episodes.push(episode);
                     break;
                 }

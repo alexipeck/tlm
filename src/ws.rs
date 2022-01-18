@@ -1,5 +1,7 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
+
+use crate::ws_functions::request_all_file_versions;
 use {
     crate::{
         config::{ServerConfig, WorkerConfig},
@@ -8,7 +10,7 @@ use {
             encode_all_files, output_all_file_versions, output_tracked_paths,
             run_completeness_check,
         },
-        encode::Encode,
+        encode::{Encode, EncodeProfile},
         file_manager::FileManager,
         scheduler::Task,
         worker::WorkerMessage,
@@ -75,14 +77,66 @@ async fn handle_web_connection(
                 .strip_suffix("\r\n")
                 .or_else(|| msg.to_text().unwrap().strip_suffix('\n'))
                 .unwrap_or_else(|| msg.to_text().unwrap());
+            //Shitty way of separating json and text, starting a message with '{' will make it shit itself
             if message.starts_with('{') {
-                let raw_message_source: Result<MessageSource, Error> =
-                    serde_json::from_str(message);
+                let raw_message_source: Result<MessageSource, Error> = serde_json::from_str(message);
                 match raw_message_source {
                     Ok(message_source) => match message_source {
                         MessageSource::WebUI(webui_message) => {
+                            match webui_message.clone() {
+                                WebUIMessage::Request(request_type) => {
+                                     let request_type: RequestType = request_type;
+                                    match request_type {
+                                        RequestType::AllFileVersions => {
+                                            request_all_file_versions(tx.clone(), file_manager.clone());
+                                        }
+                                    };
+                                }
+                                _ => {
+                                    warn!("Server received a message it doesn't know how to handle");
+                                }
+                            }
+                            
                             debug!("{:?}", webui_message);
-                        }
+
+                            
+                        },
+                        MessageSource::Worker(worker_message) => {
+                            match worker_message {
+                                WorkerMessage::Initialise(_) => {
+                                    initialise(
+                                        worker_message,
+                                        worker_manager.clone(),
+                                        addr,
+                                        tx.clone(),
+                                        peer_map.clone(),
+                                    );
+                                }
+                                WorkerMessage::EncodeGeneric(_, _, _, _) => {
+                                    encode_generic(
+                                        worker_message,
+                                        file_manager.clone(),
+                                        worker_manager_transcode_queue.clone(),
+                                        server_config.clone(),
+                                    );
+                                }
+                                WorkerMessage::EncodeStarted(_, _) => {
+                                    encode_started(worker_message);
+                                }
+                                WorkerMessage::EncodeFinished(_, _, _) => {
+                                    encode_finished(worker_message);
+                                }
+                                WorkerMessage::MoveStarted(_, _, _, _) => {
+                                    move_started(worker_message);
+                                }
+                                WorkerMessage::MoveFinished(_, _, _) => {
+                                    move_finished(worker_message, worker_manager.clone(), file_manager.clone());
+                                }
+                                _ => {
+                                    warn!("Server received a message it doesn't know how to handle");
+                                }
+                            }
+                        },
                         _ => {
                             warn!("MessageSource was not a WebUI messsage, ignoring.");
                         }
@@ -111,6 +165,9 @@ async fn handle_web_connection(
                         hash_files(tasks.clone());
                         generate_profiles(tasks.clone());
                     }
+                    "test" => {
+                        crate::ws_functions::test(tx.clone());
+                    }
 
                     //Debug tasks
                     "output_tracked_paths" => output_tracked_paths(file_manager.clone()),
@@ -119,79 +176,23 @@ async fn handle_web_connection(
                     "encode_all" => encode_all_files(
                         file_manager.clone(),
                         worker_manager_transcode_queue.clone(),
+                        &EncodeProfile::H265,
+                    ),
+                    "encode_all_4k" => encode_all_files(
+                        file_manager.clone(),
+                        worker_manager_transcode_queue.clone(),
+                        &EncodeProfile::H265_TV_4K,
                     ),
                     "run_completeness_check" => run_completeness_check(file_manager.clone()),
                     "kill_all_workers" => {
                         //TODO: Make this force close all workers, used for constant resetting of the dev/test environment
-                    }
+                    },
 
                     _ => warn!("{} is not a valid input", message),
                 }
             }
         } else if msg.is_binary() {
-            let message = MessageSource::from_message(msg);
-            match message {
-                MessageSource::Worker(worker_message) => match worker_message {
-                    WorkerMessage::Initialise(_) => {
-                        initialise(
-                            worker_message,
-                            worker_manager.clone(),
-                            addr,
-                            tx.clone(),
-                            peer_map.clone(),
-                        );
-                    }
-                    WorkerMessage::EncodeGeneric(_, _, _, _) => {
-                        encode_generic(
-                            worker_message,
-                            file_manager.clone(),
-                            worker_manager_transcode_queue.clone(),
-                            server_config.clone(),
-                        );
-                    }
-                    WorkerMessage::EncodeStarted(_, _) => {
-                        encode_started(worker_message);
-                    }
-                    WorkerMessage::EncodeFinished(_, _, _) => {
-                        encode_finished(worker_message);
-                    }
-                    WorkerMessage::MoveStarted(_, _, _, _) => {
-                        move_started(worker_message);
-                    }
-                    WorkerMessage::MoveFinished(_, _, _) => {
-                        move_finished(worker_message, worker_manager.clone(), file_manager.clone());
-                    }
-                    _ => {
-                        warn!("Server received a message it doesn't know how to handle");
-                    }
-                },
-                MessageSource::WebUI(webui_message) => {
-                    match webui_message {
-                        WebUIMessage::Request(request_type) => {
-                            match request_type {
-                                RequestType::AllFileVersions => {
-                                    let mut file_versions;
-                                    {
-                                        let file_manager_lock = file_manager.lock().unwrap();
-                                        file_versions = file_manager_lock.generic_files.clone();
-                                        for show in file_manager_lock.shows.iter() {
-                                            for season in show.seasons.iter() {
-                                                for episode in season.episodes.iter() {
-                                                    file_versions.push(episode.generic.clone());
-                                                }
-                                            }
-                                        }
-                                    }
-                                    //TODO: Send back these file versions to the WebUI
-                                }
-                            };
-                        }
-                        _ => {
-                            warn!("Server received a message it doesn't know how to handle");
-                        }
-                    }
-                }
-            }
+            //Currently nothing using binary messages
         }
 
         future::ok(())
@@ -344,7 +345,7 @@ pub async fn run_worker(
             }
 
             match MessageSource::from_message(message) {
-                MessageSource::Worker(worker_message) => match worker_message {
+                Some(MessageSource::Worker(worker_message)) => match worker_message {
                     WorkerMessage::Encode(mut encode, add_encode_mode) => {
                         encode
                             .encode_string

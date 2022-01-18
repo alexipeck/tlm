@@ -41,7 +41,7 @@ mod tests {
             resolution_standard: None,
             container: None,
         };
-        let file_version: FileVersion = FileVersion::from_file_version_model(file_version_model);
+        let file_version: FileVersion = FileVersion::from_model(file_version_model);
         let encode_profile: EncodeProfile = EncodeProfile::H265_TV_1080p;
         let server_config: Arc<RwLock<ServerConfig>> =
             Arc::new(RwLock::new(ServerConfig::default()));

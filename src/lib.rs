@@ -1,4 +1,7 @@
 #![doc = include_str!("../README.md")]
+
+use generic::FileVersion;
+use tracing::warn;
 use {
     serde::{Deserialize, Serialize},
     std::{
@@ -10,7 +13,7 @@ use {
         path::{Path, PathBuf},
     },
     futures_channel::mpsc::UnboundedSender,
-    tracing::{error},
+    tracing::error,
     tokio_tungstenite::tungstenite::Message,
     worker::WorkerMessage,
 };
@@ -169,11 +172,21 @@ pub fn ensure_path_exists(path: &Path) {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WebUIFileVersion {
-    pub generic_uid: u32,
-    pub file_version_id: u32,
+    pub generic_uid: i32,
+    pub id: i32,
     pub file_name: String,
+}
+
+impl WebUIFileVersion {
+    pub fn from_file_version(file_version: &FileVersion) -> Self {
+        Self {
+            generic_uid: file_version.generic_uid,
+            id: file_version.id,
+            file_name: file_version.get_file_name(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -183,19 +196,95 @@ pub enum MessageSource {
 }
 
 impl MessageSource {
-    pub fn from_message(message: Message) -> Self {
-        bincode::deserialize::<Self>(&message.into_data()).unwrap_or_else(|err| {
-            error!("Failed to deserialise message: {}", err);
-            panic!();
-        })
+    pub fn expect_worker_message(message: Message) -> Option<WorkerMessage> {
+        if message.is_text() {
+            match message.into_text() {
+                Ok(json) => {
+                    let raw_message_source: Result<Self, serde_json::Error> = serde_json::from_str(&json);
+                    match raw_message_source {
+                        Ok(message_source) => {
+                            match message_source {
+                                MessageSource::Worker(worker_message) => {
+                                    return Some(worker_message);
+                                },
+                                _ => return None,
+                            }
+                        },
+                        Err(err) => {
+                            error!("Failed converting json string to MessageSource, error output: {}", err);
+                        },
+                    }
+                },
+                Err(err) => {
+                    error!("Failed to convert websocket message to String, Error: {}", err);
+                },
+            }
+        }
+        None
+    }
+
+    pub fn expect_webui_message(message: Message) -> Option<WebUIMessage> {
+        if message.is_text() {
+            match message.into_text() {
+                Ok(json) => {
+                    let raw_message_source: Result<Self, serde_json::Error> = serde_json::from_str(&json);
+                    match raw_message_source {
+                        Ok(message_source) => {
+                            match message_source {
+                                MessageSource::WebUI(webui_message) => {
+                                    return Some(webui_message);
+                                },
+                                _ => return None,
+                            }
+                        },
+                        Err(err) => {
+                            error!("Failed converting json string to MessageSource, error output: {}", err);
+                        },
+                    }
+                },
+                Err(err) => {
+                    error!("Failed to convert websocket message to String, Error: {}", err);
+                },
+            }
+        }
+        None
+    }
+
+    pub fn from_message(message: Message) -> Option<Self> {
+        if message.is_text() {
+            match message.into_text() {
+                Ok(json) => {
+                    let raw_message_source: Result<Self, serde_json::Error> = serde_json::from_str(&json);
+                    match raw_message_source {
+                        Ok(message_source) => {
+                            let message_source: MessageSource = message_source;
+                            return Some(message_source);
+                        },
+                        Err(err) => {
+                            error!("Failed converting json string to MessageSource, error output: {}", err);
+                            panic!();
+                        }
+                    }
+                },
+                Err(err) => {
+                    error!("Failed to convert message to text, dunno what went wrong at the time of writing this. Error: {}", err);
+                    panic!();
+                },
+            }
+        }
+        None
     }
 
     pub fn to_message(&self) -> Message {
-        let serialised = bincode::serialize::<Self>(self).unwrap_or_else(|err| {
-            error!("Failed to deserialise message: {}", err);
-            panic!();
-        });
-        Message::binary(serialised)
+        match serde_json::to_string(&self) {
+            Ok(json) => {
+                Message::text(json)
+            },
+            Err(err) => {
+                println!("Failed converting MessageSource to json string, error output: {}", err);
+                panic!();
+            },
+        }
     }
 
     pub fn from_worker_message(worker_message: WorkerMessage) -> Self {
@@ -207,12 +296,12 @@ impl MessageSource {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RequestType {
     AllFileVersions,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum WebUIMessage {
     //WebUI -> Server
     Request(RequestType),
@@ -221,22 +310,23 @@ pub enum WebUIMessage {
     //Server -> WebUI
     FileVersion(i32, i32, String),
     FileVersions(Vec<WebUIFileVersion>),
+    //Generics(Vec<WebUIGeneric>),
 }
 
 impl WebUIMessage {
-    ///Convert WorkerMessage to a tungstenite message for sending over websockets
-    pub fn to_message(&self) -> Message {
-        let serialised = bincode::serialize(self).unwrap_or_else(|err| {
-            error!("Failed to serialise WorkerMessage: {}", err);
-            panic!();
-        });
-        Message::binary(serialised)
+    pub fn to_message(self) -> Message {
+        MessageSource::WebUI(self).to_message()
     }
 
-    pub fn from_message(message: Message) -> Self {
-        bincode::deserialize::<Self>(&message.into_data()).unwrap_or_else(|err| {
-            error!("Failed to deserialise message: {}", err);
-            panic!();
-        })
+    pub fn from_message(message: Message) -> Option<Self> {
+        match MessageSource::from_message(message) {
+            Some(MessageSource::WebUI(webui_message)) => {
+                Some(webui_message)
+            },
+            _ => {
+                warn!("Message received was not meant for the WebUI, that should already be known by this point.");
+                None
+            }
+        }
     }
 }

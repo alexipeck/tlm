@@ -1,12 +1,15 @@
+use tokio_tungstenite::tungstenite::Message;
+use tracing::debug;
+
+use crate::{WebUIMessage, WebUIFileVersion};
+
 use {
     crate::{
         config::ServerConfig,
         copy,
-        database::create_file_version,
         encode::Encode,
         file_manager::FileManager,
         generic::FileVersion,
-        model::NewFileVersion,
         pathbuf_to_string, remove_file,
         scheduler::{GenerateProfiles, Hash, ImportFiles, ProcessNewFiles, Task, TaskType},
         worker::WorkerMessage,
@@ -51,6 +54,37 @@ pub fn generate_profiles(tasks: Arc<Mutex<VecDeque<Task>>>) {
         .push_back(Task::new(TaskType::GenerateProfiles(
             GenerateProfiles::default(),
         )));
+}
+
+pub fn test(mut tx: Tx) {
+    let _ = tx.start_send(Message::text("Fuck you".to_string()));
+}
+
+//WebUIMessage functions
+pub fn request_all_file_versions(
+    mut tx: Tx,
+    file_manager: Arc<Mutex<FileManager>>,
+) {
+    let mut file_versions: Vec<WebUIFileVersion> = Vec::new();
+    {
+        let file_manager_lock = file_manager.lock().unwrap();
+        for generic in  file_manager_lock.generic_files.iter() {
+            for file_version in generic.file_versions.iter() {
+                file_versions.push(WebUIFileVersion::from_file_version(file_version));
+            }
+        }
+        for show in file_manager_lock.shows.iter() {
+            for season in show.seasons.iter() {
+                for episode in season.episodes.iter() {
+                    for file_version in episode.generic.file_versions.iter() {
+                        file_versions.push(WebUIFileVersion::from_file_version(file_version));
+                    }
+                }
+            }
+        }
+    }
+    debug!("Sending {} file versions", file_versions.len());
+    let _ = tx.start_send(WebUIMessage::FileVersions(file_versions).to_message());
 }
 
 //WorkerMessage functions
@@ -197,9 +231,7 @@ pub fn move_finished(
         if !file_manager
             .lock()
             .unwrap()
-            .insert_file_version(&FileVersion::from_file_version_model(create_file_version(
-                NewFileVersion::new(generic_uid, pathbuf_to_string(&encode.target_path), false),
-            )))
+            .insert_file_version(&FileVersion::new(generic_uid, &encode.target_path, false))
         {
             error!(
                 "This should've found a generic to insert it into, this shouldn't have happened."

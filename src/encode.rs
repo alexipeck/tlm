@@ -2,6 +2,7 @@ use {
     crate::{
         config::ServerConfig, copy, generic::FileVersion, get_file_name, get_file_stem,
         pathbuf_to_string, pathbuf_with_suffix,
+        profile::ResolutionStandard,
     },
     core::fmt,
     serde::{Deserialize, Serialize},
@@ -218,16 +219,97 @@ impl EncodeString {
 #[allow(non_camel_case_types)]
 pub enum EncodeProfile {
     H264_TV_1080p,
+
+    H265,
     H265_TV_1080p,
+    H265_TV_4K,
+    H265_TV_720p,
 }
 
 impl EncodeProfile {
     //TODO: Make realistic association between profile and container
     pub fn get_extension(&self) -> String {
         match self {
-            EncodeProfile::H264_TV_1080p => "mp4".to_string(),
-            EncodeProfile::H265_TV_1080p => "mp4".to_string(),
+            Self::H264_TV_1080p => "mp4".to_string(),
+            
+            Self::H265 => "mp4".to_string(),
+            Self::H265_TV_1080p => "mp4".to_string(),
+            Self::H265_TV_4K => "mp4".to_string(),
+            Self::H265_TV_720p => "mp4".to_string(),
         }
+    }
+
+    //There is definitely faster ways of doing this, but eh.
+    pub fn generate_encode_string(&self) -> Vec<String> {
+        let mut encode_string: Vec<String> = Vec::new();
+        
+        #[allow(clippy::vec_init_then_push)]
+        fn h265_base() -> Vec<String> {
+            let mut encode_string: Vec<String> = Vec::new();
+            //Video
+            encode_string.push("-c:v".to_string());
+            encode_string.push("libx265".to_string());
+            encode_string.push("-crf".to_string());
+            encode_string.push("25".to_string());
+            encode_string.push("-preset".to_string());
+            encode_string.push("slower".to_string());
+            encode_string.push("-profile:v".to_string());
+            encode_string.push("main".to_string());
+
+            //Audio
+            encode_string.push("-c:a".to_string());
+            encode_string.push("aac".to_string());
+            encode_string.push("-q:a".to_string());
+            encode_string.push("224k".to_string());
+
+            encode_string
+        }
+
+        fn scale(resolution_standard: ResolutionStandard) -> String {
+            let mut scale: String = "scale=".to_string();
+            match resolution_standard {
+                ResolutionStandard::FHD => {
+                    scale.push_str("1920");
+                },
+                ResolutionStandard::HD => {
+                    scale.push_str("1280");
+                },
+                ResolutionStandard::UHD => {
+                    scale.push_str("3840");
+                },
+                _ => {
+                    error!("Until profiles have been implemented, you unfortunately have to get fucked.");
+                    panic!();
+                }
+            }
+            scale.push_str("x-1");
+            scale
+        }
+        match self {
+            /* Self::H264_TV_1080p => {
+
+            }, */
+            Self::H265 => {
+                encode_string.append(&mut h265_base());
+            },
+            Self::H265_TV_1080p => {
+                encode_string.append(&mut h265_base());
+                encode_string.push(scale(ResolutionStandard::FHD));
+            },
+            Self::H265_TV_4K => {
+                encode_string.append(&mut h265_base());
+                encode_string.push(scale(ResolutionStandard::UHD));
+            },
+            Self::H265_TV_720p => {
+                encode_string.append(&mut h265_base());
+                encode_string.push(scale(ResolutionStandard::HD));
+            },
+            _ => {
+                error!("Until all profiles are implemented, you unfortunately have to go get fucked.");
+                panic!();
+            }
+        }
+        encode_string
     }
 }
 
@@ -235,7 +317,10 @@ impl fmt::Display for EncodeProfile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::H264_TV_1080p => write!(f, "H264_TV_1080p"),
+            Self::H265 =>          write!(f, "H265"),
             Self::H265_TV_1080p => write!(f, "H265_TV_1080p"),
+            Self::H265_TV_4K =>    write!(f, "H265_TV_4K"),
+            Self::H265_TV_720p =>  write!(f, "H265_TV_720p"),
         }
     }
 }
