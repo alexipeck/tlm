@@ -216,7 +216,34 @@ impl MessageSource {
                     }
                 },
                 Err(err) => {
+                    error!("Failed to convert websocket message to String, Error: {}", err);
+                },
+            }
+        }
+        None
+    }
 
+    pub fn expect_webui_message(message: Message) -> Option<WebUIMessage> {
+        if message.is_text() {
+            match message.into_text() {
+                Ok(json) => {
+                    let raw_message_source: Result<Self, serde_json::Error> = serde_json::from_str(&json);
+                    match raw_message_source {
+                        Ok(message_source) => {
+                            match message_source {
+                                MessageSource::WebUI(webui_message) => {
+                                    return Some(webui_message);
+                                },
+                                _ => return None,
+                            }
+                        },
+                        Err(err) => {
+                            error!("Failed converting json string to MessageSource, error output: {}", err);
+                        },
+                    }
+                },
+                Err(err) => {
+                    error!("Failed to convert websocket message to String, Error: {}", err);
                 },
             }
         }

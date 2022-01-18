@@ -165,6 +165,9 @@ async fn handle_web_connection(
                         hash_files(tasks.clone());
                         generate_profiles(tasks.clone());
                     }
+                    "test" => {
+                        crate::ws_functions::test(tx.clone());
+                    }
 
                     //Debug tasks
                     "output_tracked_paths" => output_tracked_paths(file_manager.clone()),
@@ -183,7 +186,7 @@ async fn handle_web_connection(
                     "run_completeness_check" => run_completeness_check(file_manager.clone()),
                     "kill_all_workers" => {
                         //TODO: Make this force close all workers, used for constant resetting of the dev/test environment
-                    }
+                    },
 
                     _ => warn!("{} is not a valid input", message),
                 }

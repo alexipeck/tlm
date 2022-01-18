@@ -1,3 +1,4 @@
+use tokio_tungstenite::tungstenite::Message;
 use tracing::debug;
 
 use crate::{WebUIMessage, WebUIFileVersion};
@@ -53,6 +54,10 @@ pub fn generate_profiles(tasks: Arc<Mutex<VecDeque<Task>>>) {
         .push_back(Task::new(TaskType::GenerateProfiles(
             GenerateProfiles::default(),
         )));
+}
+
+pub fn test(mut tx: Tx) {
+    let _ = tx.start_send(Message::text("Fuck you".to_string()));
 }
 
 //WebUIMessage functions
