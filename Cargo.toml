@@ -21,14 +21,14 @@ doctest = false
 jwalk = "0.6.0"
 regex = { version = "1.5.4", default-features = false }
 argparse = "0.2.2"
-serde = { version = "1.0.132", features = ["derive"] }
+serde = { version = "1.0.133", features = ["derive"] }
 toml = "0.5.8"
 diesel = { version = "1.4.8", default-features = false, features = ["postgres"] }
 seahash = "4.1.0"
 lazy_static = "1.4.0"
 serde_json = { version = "1.0.74" }
 tracing-appender = "0.2.0"
-tracing-subscriber = { version = "0.3.4" }
+tracing-subscriber = { version = "0.3.5" }
 tracing = "0.1.29"
 rayon = "1.5.1"
 fancy-regex = "0.7.1"
