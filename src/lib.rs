@@ -306,6 +306,7 @@ pub enum WebUIMessage {
     //WebUI -> Server
     Request(RequestType),
     //EncodeGeneric(i32, i32, AddEncodeMode, EncodeProfile),
+    Encode(i32, i32),
 
     //Server -> WebUI
     FileVersion(i32, i32, String),

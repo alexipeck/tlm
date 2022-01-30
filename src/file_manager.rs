@@ -566,6 +566,30 @@ impl FileManager {
         encodes
     }
 
+    pub fn generate_encode_for_file(&self, encode_profile: &EncodeProfile, generic_uid: i32, id: i32) -> Option<Encode> {
+        for generic in &self.generic_files {
+            if generic.get_generic_uid() == generic_uid {
+                for file_version in &generic.file_versions {
+                    if file_version.id == id {
+                        return Some(Encode::new(file_version, encode_profile, &self.config));
+                    }
+                }
+            }
+        }
+        for show in &self.shows {
+            for season in &show.seasons {
+                for episode in &season.episodes {
+                    if episode.generic.get_generic_uid() == generic_uid {
+                        for file_version in &episode.generic.file_versions {
+                            return Some(Encode::new(file_version, encode_profile, &self.config));
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
     ///Insert a vector of episodes into an existing show
     pub fn insert_episodes(&mut self, episodes: Vec<Episode>) {
         //find the associated show

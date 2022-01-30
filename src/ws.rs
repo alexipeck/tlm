@@ -1,7 +1,7 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
 
-use crate::ws_functions::request_all_file_versions;
+use crate::ws_functions::{request_all_file_versions, encode_file};
 use {
     crate::{
         config::{ServerConfig, WorkerConfig},
@@ -85,13 +85,17 @@ async fn handle_web_connection(
                         MessageSource::WebUI(webui_message) => {
                             match webui_message.clone() {
                                 WebUIMessage::Request(request_type) => {
-                                     let request_type: RequestType = request_type;
+                                    let request_type: RequestType = request_type;
                                     match request_type {
                                         RequestType::AllFileVersions => {
                                             request_all_file_versions(tx.clone(), file_manager.clone());
                                         }
                                     };
                                 }
+                                WebUIMessage::Encode(generic_uid, id) => {
+                                    encode_file(file_manager.clone(), worker_manager_transcode_queue.clone(), &EncodeProfile::H264_TV_1080p, generic_uid, id);
+                                    info!("Encoding file: {}, {}", generic_uid, id);
+                                },
                                 _ => {
                                     warn!("Server received a message it doesn't know how to handle");
                                 }
@@ -133,13 +137,10 @@ async fn handle_web_connection(
                                     move_finished(worker_message, worker_manager.clone(), file_manager.clone());
                                 }
                                 _ => {
-                                    warn!("Server received a message it doesn't know how to handle");
+                                    warn!("Server received a message it doesn't know how to handle, ignoring");
                                 }
                             }
                         },
-                        _ => {
-                            warn!("MessageSource was not a WebUI messsage, ignoring.");
-                        }
                     },
                     Err(err) => {
                         error!(

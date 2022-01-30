@@ -1,5 +1,5 @@
 use tokio_tungstenite::tungstenite::Message;
-use tracing::debug;
+use tracing::{debug, warn};
 
 use crate::{WebUIMessage, WebUIFileVersion};
 
@@ -7,7 +7,7 @@ use {
     crate::{
         config::ServerConfig,
         copy,
-        encode::Encode,
+        encode::{Encode, EncodeProfile},
         file_manager::FileManager,
         generic::FileVersion,
         pathbuf_to_string, remove_file,
@@ -241,5 +241,22 @@ pub fn move_finished(
         //TODO: Make an enum of actions that could be performed on a Worker, like clear_current_transcode
     } else {
         panic!();
+    }
+}
+
+pub fn encode_file(
+    file_manager: Arc<Mutex<FileManager>>,
+    worker_mananger_transcode_queue: Arc<Mutex<VecDeque<Encode>>>,
+    encode_profile: &EncodeProfile,
+    generic_uid: i32,
+    id: i32,
+) {
+    if let Some(encode) = file_manager.lock().unwrap().generate_encode_for_file(encode_profile, generic_uid, id) {
+        worker_mananger_transcode_queue
+            .lock()
+            .unwrap()
+            .push_back(encode);
+    } else {
+        warn!("No file available with generic_uid: {} and id: {}", generic_uid, id);
     }
 }
