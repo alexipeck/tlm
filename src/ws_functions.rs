@@ -58,6 +58,7 @@ pub fn generate_profiles(tasks: Arc<Mutex<VecDeque<Task>>>) {
 
 pub fn test(mut tx: Tx) {
     let _ = tx.start_send(Message::text("Fuck you".to_string()));
+    info!("Telling WebUI \"Fuck You\"");
 }
 
 //WebUIMessage functions
@@ -256,6 +257,7 @@ pub fn encode_file(
             .lock()
             .unwrap()
             .push_back(encode);
+        info!("Encoding file: {}, {}", generic_uid, id);
     } else {
         warn!("No file available with generic_uid: {} and id: {}", generic_uid, id);
     }

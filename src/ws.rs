@@ -94,7 +94,6 @@ async fn handle_web_connection(
                                 }
                                 WebUIMessage::Encode(generic_uid, id) => {
                                     encode_file(file_manager.clone(), worker_manager_transcode_queue.clone(), &EncodeProfile::H264_TV_1080p, generic_uid, id);
-                                    info!("Encoding file: {}, {}", generic_uid, id);
                                 },
                                 _ => {
                                     warn!("Server received a message it doesn't know how to handle");
