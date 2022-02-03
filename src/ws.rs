@@ -1,7 +1,7 @@
 //!Module for handing web socket connections that will be used with
 //!both the cli and web ui controller to communicate in both directions as necessary
 
-use crate::ws_functions::{request_all_file_versions, encode_file};
+use crate::ws_functions::{request_all_file_versions, encode_file, request_all_shows};
 use {
     crate::{
         config::{ServerConfig, WorkerConfig},
@@ -90,6 +90,9 @@ async fn handle_web_connection(
                                         RequestType::AllFileVersions => {
                                             request_all_file_versions(tx.clone(), file_manager.clone());
                                         }
+                                        RequestType::AllShows => {
+                                            request_all_shows(tx.clone(), file_manager.clone());
+                                        },
                                     };
                                 }
                                 WebUIMessage::Encode(generic_uid, id) => {

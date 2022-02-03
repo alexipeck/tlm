@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 
 use generic::FileVersion;
+use show::Show;
 use tracing::warn;
 use {
     serde::{Deserialize, Serialize},
@@ -189,6 +190,29 @@ impl WebUIFileVersion {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct WebUIShow {
+    pub show_uid: i32,
+    pub show_title: String,
+    pub episode_count: usize,
+}
+
+impl WebUIShow {
+    pub fn from_show(show: &Show) -> Self {
+        Self {
+            show_uid: show.show_uid,
+            show_title: show.show_title.clone(),
+            episode_count: {
+                let mut episode_count: usize = 0;
+                for season in show.seasons.iter() {
+                    episode_count += season.episodes.len();
+                }
+                episode_count
+            }
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MessageSource {
     Worker(WorkerMessage),
@@ -299,6 +323,7 @@ impl MessageSource {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RequestType {
     AllFileVersions,
+    AllShows,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -309,6 +334,7 @@ pub enum WebUIMessage {
     Encode(i32, i32),
 
     //Server -> WebUI
+    Shows(Vec<WebUIShow>),
     FileVersion(i32, i32, String),
     FileVersions(Vec<WebUIFileVersion>),
     //Generics(Vec<WebUIGeneric>),
