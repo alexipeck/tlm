@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, warn};
 
@@ -66,6 +68,7 @@ pub fn request_all_file_versions(
     mut tx: Tx,
     file_manager: Arc<Mutex<FileManager>>,
 ) {
+    let start_time = Instant::now();
     let mut file_versions: Vec<WebUIFileVersion> = Vec::new();
     {
         let file_manager_lock = file_manager.lock().unwrap();
@@ -86,21 +89,31 @@ pub fn request_all_file_versions(
     }
     debug!("Sending {} file versions", file_versions.len());
     let _ = tx.start_send(WebUIMessage::FileVersions(file_versions).to_message());
+    println!(
+        "FileVersions: It took {}ms to handle data request.",
+        start_time.elapsed().as_millis()
+    );
 }
 
 pub fn request_all_shows(
     mut tx: Tx,
     file_manager: Arc<Mutex<FileManager>>,
 ) {
-    let mut shows: Vec<WebUIShow> = Vec::new();
+    let start_time = Instant::now();
+    let mut shows: Vec<WebUIShow>;
     {
         let file_manager_lock = file_manager.lock().unwrap();
+        shows = Vec::with_capacity(file_manager_lock.shows.len());
         for show in file_manager_lock.shows.iter() {
             shows.push(WebUIShow::from_show(show));
         }
     }
     debug!("Sending {} shows", shows.len());
     let _ = tx.start_send(WebUIMessage::Shows(shows).to_message());
+    println!(
+        "Shows: It took {}ms to handle data request.",
+        start_time.elapsed().as_millis()
+    );
 }
 
 //WorkerMessage functions
