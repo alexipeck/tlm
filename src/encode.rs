@@ -286,9 +286,6 @@ impl EncodeProfile {
             scale
         }
         match self {
-            /* Self::H264_TV_1080p => {
-
-            }, */
             Self::H265 => {
                 encode_string.append(&mut h265_base());
             },

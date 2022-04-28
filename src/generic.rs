@@ -112,12 +112,12 @@ impl FileVersion {
     ///Hash the file with seahash for data integrity purposes so we
     /// know if a file has been replaced and may need to be reprocessed
     pub fn hash(&mut self) {
-        self.hash = Some(sea_hash(&self.full_path));
+        self.hash = Some(hash(&self.full_path));
     }
 
     pub fn verify_own_hash(&mut self) -> bool {
         if self.fast_hash.is_some() {
-            return self.fast_hash.as_ref().unwrap().as_str() == sea_hash(&self.full_path).as_str();
+            return self.fast_hash.as_ref().unwrap().as_str() == hash(&self.full_path).as_str();
         } else {
             warn!("This file has nothing to verify it's hash against. Hashing file instead, this will become the hash and will return true.");
             self.hash();
@@ -129,7 +129,7 @@ impl FileVersion {
     pub fn verify_hash_against(&mut self, path: &Path) -> bool {
         //Note: This could loop infinitely if self.hash isn't set
         if self.hash.is_some() {
-            return self.hash.as_ref().unwrap().as_str() == sea_hash(path).as_str();
+            return self.hash.as_ref().unwrap().as_str() == hash(path).as_str();
         } else {
             warn!("Fast hash verification was run on a file without a hash. Hashing file instead, then comparing.");
             self.hash();
@@ -146,13 +146,13 @@ impl FileVersion {
     ///files that tlm knows about to restore by calculating the fast hash and
     ///then calculating full hashes of matching hashes to save time
     pub fn fast_hash(&mut self) {
-        self.fast_hash = Some(sea_fast_hash(&self.full_path));
+        self.fast_hash = Some(fast_hash(&self.full_path));
     }
 
     pub fn verify_own_fast_hash(&mut self) -> bool {
         if self.fast_hash.is_some() {
             return self.fast_hash.as_ref().unwrap().as_str()
-                == sea_fast_hash(&self.full_path).as_str();
+                == fast_hash(&self.full_path).as_str();
         } else {
             warn!("This file has nothing to verify it's hash against. Hashing file instead, this will become the hash and will return true.");
             self.fast_hash();
@@ -163,7 +163,7 @@ impl FileVersion {
     ///Returns true if hashes match, false if not
     pub fn verify_fast_hash_against(&mut self, path: &Path) -> bool {
         if self.fast_hash.is_some() {
-            return self.fast_hash.as_ref().unwrap().as_str() == sea_fast_hash(path).as_str();
+            return self.fast_hash.as_ref().unwrap().as_str() == fast_hash(path).as_str();
         } else {
             warn!("Fast hash verification was run on a file without a hash. Hashing file instead, then comparing.");
             self.fast_hash();
@@ -270,7 +270,7 @@ impl Generic {
 }
 ///Hash the file with seahash for data integrity purposes so we
 /// know if a file has been replaced and may need to be reprocessed
-pub fn sea_hash(full_path: &Path) -> String {
+pub fn hash(full_path: &Path) -> String {
     let mut buffer = Box::new(vec![0; 4096]);
     let mut hasher = seahash::SeaHasher::new();
     let mut file = File::open(pathbuf_to_string(full_path)).unwrap_or_else(|err| {
@@ -291,7 +291,7 @@ pub fn sea_hash(full_path: &Path) -> String {
 ///renamed to something that doesn't make sense we can quickly search for
 ///files that tlm knows about to restore by calculating the fast hash and
 ///then calculating full hashes of matching hashes to save time
-pub fn sea_fast_hash(full_path: &Path) -> String {
+pub fn fast_hash(full_path: &Path) -> String {
     let mut buffer = Box::new(vec![0; 4096]);
     let mut hasher = seahash::SeaHasher::default();
     let mut file = File::open(pathbuf_to_string(full_path)).unwrap_or_else(|err| {
